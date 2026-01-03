@@ -625,12 +625,18 @@
     </div>
 
     <div class="session-management" id="session-section">
-        <h3>Gestion de la Session</h3>
-        <button id="save-session-btn" class="link-button" style="background-color: #28a745;">Sauvegarder</button>
-        <button id="clear-session-btn" class="link-button" style="background-color: var(--sc-red);">Effacer</button>
-        <a href="https://cncasc-app.fr/" target="_blank" class="link-button" style="background-color: #3498db;">CNCASC</a>
-        <p id="session-status"></p>
-    </div>
+    <h3>Gestion de la Session</h3>
+    <button id="save-session-btn" class="link-button" style="background-color: #28a745;">Sauvegarder</button>
+    <button id="clear-session-btn" class="link-button" style="background-color: var(--sc-red);">Effacer</button>
+
+    <button id="export-session-btn" class="link-button" style="background-color: #8e44ad;">Exporter (.json)</button>
+    <button id="import-session-btn" class="link-button" style="background-color: #2c3e50;">Importer (.json)</button>
+    <input type="file" id="import-session-input" accept="application/json" style="display:none;">
+
+    <a href="https://cncasc-app.fr/" target="_blank" class="link-button" style="background-color: #3498db;">CNCASC</a>
+    <p id="session-status"></p>
+</div>
+
 
     <div id="fds-section" class="pdf-section dropzone">
         <h2>Feuille de Service</h2>
@@ -1724,9 +1730,14 @@
         }
 
         function initializeSessionManagement() {
-            const dbName = 'briefingSessionDB', storeName = 'sessionStore', sessionStatus = document.getElementById('session-status');
-            const saveBtnTop = document.getElementById('save-session-btn');
-            const saveBtnBottom = document.getElementById('save-session-btn-bottom');
+    const dbName = 'briefingSessionDB', storeName = 'sessionStore', sessionStatus = document.getElementById('session-status');
+    const saveBtnTop = document.getElementById('save-session-btn');
+    const saveBtnBottom = document.getElementById('save-session-btn-bottom');
+
+    const exportBtn = document.getElementById('export-session-btn');
+    const importBtn = document.getElementById('import-session-btn');
+    const importInput = document.getElementById('import-session-input');
+
             
             function openDB() { 
                 return new Promise((resolve, reject) => { 
@@ -1736,7 +1747,141 @@
                     r.onupgradeneeded = e => e.target.result.createObjectStore(storeName, { keyPath: 'id' }); 
                 }); 
             }
-            
+                function arrayBufferToBase64(buffer) {
+        let binary = '';
+        const bytes = new Uint8Array(buffer);
+        const chunkSize = 0x8000;
+        for (let i = 0; i < bytes.length; i += chunkSize) {
+            binary += String.fromCharCode.apply(null, bytes.subarray(i, i + chunkSize));
+        }
+        return btoa(binary);
+    }
+
+    function base64ToArrayBuffer(base64) {
+        const binary = atob(base64);
+        const len = binary.length;
+        const bytes = new Uint8Array(len);
+        for (let i = 0; i < len; i++) bytes[i] = binary.charCodeAt(i);
+        return bytes.buffer;
+    }
+
+    async function fileToPortableSavable(file) {
+        if (!file) return null;
+        const buffer = await file.arrayBuffer();
+        return { name: file.name, type: file.type, base64: arrayBufferToBase64(buffer) };
+    }
+
+    function portableSavableToFile(s) {
+        if (!s || !s.base64) return null;
+        const buffer = base64ToArrayBuffer(s.base64);
+        return new File([buffer], s.name, { type: s.type });
+    }
+
+    async function buildPortableSessionObject_() {
+        const checkedNotamIds = [], highlightedNotams = {};
+        document.querySelectorAll('#notam-display .notam-item').forEach(item => {
+            const id = item.dataset.notamId; if (!id) return;
+            if (item.querySelector('.notam-checkbox').checked) checkedNotamIds.push(id);
+            const content = item.querySelector('.notam-text-content').innerHTML;
+            if (content.includes('<mark')) highlightedNotams[id] = content;
+        });
+
+        const gaarMapState = gaarDrawnCircuits.map(circuit => ({
+            color: circuit.color,
+            isManual: circuit.isManual,
+            points: circuit.markers.map((marker, index) => ({
+                lat: marker.getLatLng().lat,
+                lng: marker.getLatLng().lng,
+                name: circuit.cityNames[index]
+            }))
+        }));
+
+        const weatherData = {};
+        document.querySelectorAll('.airport-section-container[data-loaded="true"]').forEach(container => {
+            const icao = container.dataset.icao;
+            if (icao) {
+                weatherData[icao] = {
+                    metarHTML: container.querySelector('.metar-container').innerHTML,
+                    tafHTML: container.querySelector('.taf-container').innerHTML
+                };
+            }
+        });
+
+        return {
+            version: "portableSessionV1",
+            exportedAt: new Date().toISOString(),
+            fds: await fileToPortableSavable(fdsFileObject),
+            gaar: await fileToPortableSavable(gaarFileObject),
+            gaarMapState: gaarMapState,
+            supAips: await Promise.all(supAipFileObjects.map(f => fileToPortableSavable(f))),
+            notamText: document.getElementById('notam-input').value,
+            notamState: { checkedIds: checkedNotamIds, highlights: highlightedNotams },
+            weatherData: weatherData
+        };
+    }
+
+    async function applyPortableSessionObject_(portable) {
+        if (!portable || portable.version !== "portableSessionV1") {
+            alert("Fichier de session invalide ou version non supportée.");
+            return;
+        }
+
+        if (portable.fds) {
+            const file = portableSavableToFile(portable.fds);
+            fdsFileObject = file;
+            document.getElementById('pdf-info-fds').textContent = `Document chargé : ${file.name}`;
+            createInteractivePdfHandler(document.getElementById('pdf-interactive-container-fds'), file, null, 1.65);
+        }
+
+        const hasGaarPdf = !!portable.gaar;
+        const hasGaarMapState = portable.gaarMapState && portable.gaarMapState.length > 0;
+
+        if (hasGaarPdf || hasGaarMapState) {
+            document.getElementById('gaar-map-section').style.display = 'block';
+            initGaarMap();
+            if (hasGaarPdf) document.getElementById('pdf-load-gaar-btn').style.display = 'none';
+            document.getElementById('pdf-reset-gaar-btn').style.display = hasGaarPdf ? 'inline-block' : 'none';
+            document.getElementById('gaar-map-nav-link').style.display = 'block';
+        }
+
+        if (hasGaarPdf) {
+            const file = portableSavableToFile(portable.gaar);
+            gaarFileObject = file;
+            document.getElementById('pdf-info-gaar').textContent = `Document chargé : ${file.name}`;
+            createInteractivePdfHandler(document.getElementById('pdf-interactive-container-gaar'), file, initializeGaarMapFromFile, 1.3);
+        }
+
+        if (hasGaarMapState) {
+            recreateGaarCircuitsFromState(portable.gaarMapState);
+        }
+
+        if (portable.supAips && portable.supAips.length > 0) {
+            const files = portable.supAips.map(s => portableSavableToFile(s)).filter(Boolean);
+            if (files.length > 0) window.addSupAipFiles(files);
+        }
+
+        if (portable.notamText) {
+            document.getElementById('notam-input').value = portable.notamText;
+            window.parseAndDisplayNotams(portable.notamState || null);
+        }
+
+        if (portable.weatherData) {
+            Object.entries(portable.weatherData).forEach(([icao, weather]) => {
+                let container = document.getElementById(`notam-container-${icao}`);
+                if (!container) {
+                    container = createAirportSectionElement(icao, icao);
+                    (document.getElementById('manual-metar-display') || document.getElementById('notam-display')).appendChild(container);
+                }
+                container.querySelector('.metar-container').innerHTML = weather.metarHTML;
+                container.querySelector('.taf-container').innerHTML = weather.tafHTML;
+                container.dataset.loaded = 'true';
+            });
+            checkWeatherValidity();
+        }
+
+        sessionStatus.textContent = `Session importée (export du ${new Date(portable.exportedAt).toLocaleString('fr-FR')})`;
+    }
+
             async function performSave() {
                 if (isSavingSession) return;
                 isSavingSession = true;
@@ -1819,6 +1964,58 @@
 
             saveBtnTop.addEventListener('click', performSave);
             saveBtnBottom.addEventListener('click', performSave);
+    if (exportBtn) {
+        exportBtn.addEventListener('click', async () => {
+            try {
+                sessionStatus.textContent = "Export en cours...";
+                const portable = await buildPortableSessionObject_();
+                const blob = new Blob([JSON.stringify(portable)], { type: "application/json" });
+
+                const now = new Date();
+                const stamp = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}_${String(now.getHours()).padStart(2,'0')}${String(now.getMinutes()).padStart(2,'0')}`;
+                const filename = `BriefingSession_${stamp}.json`;
+
+                const a = document.createElement('a');
+                a.href = URL.createObjectURL(blob);
+                a.download = filename;
+                document.body.appendChild(a);
+                a.click();
+                a.remove();
+                URL.revokeObjectURL(a.href);
+
+                sessionStatus.textContent = `Session exportée : ${filename}`;
+            } catch (e) {
+                console.error(e);
+                sessionStatus.textContent = `Erreur export: ${e.message || e}`;
+                alert("Erreur lors de l’export.");
+            }
+        });
+    }
+
+    if (importBtn && importInput) {
+        importBtn.addEventListener('click', () => importInput.click());
+
+        importInput.addEventListener('change', async (e) => {
+            const file = e.target.files && e.target.files[0];
+            if (!file) return;
+
+            try {
+                sessionStatus.textContent = "Import en cours...";
+                const text = await file.text();
+                const portable = JSON.parse(text);
+                await applyPortableSessionObject_(portable);
+
+                // Option : sauvegarder sur l’iPad tout de suite après import
+                // await performSave();
+            } catch (err) {
+                console.error(err);
+                sessionStatus.textContent = `Erreur import: ${err.message || err}`;
+                alert("Impossible d’importer cette session.");
+            } finally {
+                importInput.value = '';
+            }
+        });
+    }
 
             document.getElementById('clear-session-btn').addEventListener('click', async () => {
                 if (confirm("Vraiment effacer la session sauvegardée ?")) {
