@@ -1738,7 +1738,31 @@
     const importBtn = document.getElementById('import-session-btn');
     const importInput = document.getElementById('import-session-input');
 
-            
+       async function applyPortableSessionObject_(portable) {
+    if (!portable || typeof portable !== 'object') {
+        throw new Error("Session invalide");
+    }
+
+    // ===== NOTAM =====
+    const notamInput = document.getElementById('notam-input');
+
+    const fullNotams =
+        portable.notamTextFull ||
+        portable.notamText ||
+        "";
+
+    if (notamInput && fullNotams) {
+        notamInput.value = fullNotams;
+
+        // Mémorise le NOTAM complet pour "Tout afficher"
+        window.__notamTextFull = fullNotams;
+
+        if (typeof window.parseAndDisplayNotams === "function") {
+            window.parseAndDisplayNotams(portable.notamState || null);
+        }
+    }
+}
+     
             function openDB() { 
                 return new Promise((resolve, reject) => { 
                     const r = indexedDB.open(dbName, 1); 
@@ -1778,47 +1802,36 @@
     }
 
     async function buildPortableSessionObject_() {
-        const checkedNotamIds = [], highlightedNotams = {};
-        document.querySelectorAll('#notam-display .notam-item').forEach(item => {
-            const id = item.dataset.notamId; if (!id) return;
-            if (item.querySelector('.notam-checkbox').checked) checkedNotamIds.push(id);
-            const content = item.querySelector('.notam-text-content').innerHTML;
-            if (content.includes('<mark')) highlightedNotams[id] = content;
-        });
+    const notamInput = document.getElementById('notam-input');
 
-        const gaarMapState = gaarDrawnCircuits.map(circuit => ({
-            color: circuit.color,
-            isManual: circuit.isManual,
-            points: circuit.markers.map((marker, index) => ({
-                lat: marker.getLatLng().lat,
-                lng: marker.getLatLng().lng,
-                name: circuit.cityNames[index]
-            }))
-        }));
+    // NOTAM : éléments sélectionnés
+    const checkedNotamIds = Array.from(
+        document.querySelectorAll('.notam-checkbox:checked')
+    ).map(cb => cb.closest('.notam-item')?.dataset.notamId).filter(Boolean);
 
-        const weatherData = {};
-        document.querySelectorAll('.airport-section-container[data-loaded="true"]').forEach(container => {
-            const icao = container.dataset.icao;
-            if (icao) {
-                weatherData[icao] = {
-                    metarHTML: container.querySelector('.metar-container').innerHTML,
-                    tafHTML: container.querySelector('.taf-container').innerHTML
-                };
-            }
-        });
+    // NOTAM : éléments surlignés
+    const highlightedNotams = Array.from(
+        document.querySelectorAll('.notam-item mark.highlighted-text')
+    ).map(mark => mark.closest('.notam-item')?.dataset.notamId).filter(Boolean);
 
-        return {
-            version: "portableSessionV1",
-            exportedAt: new Date().toISOString(),
-            fds: await fileToPortableSavable(fdsFileObject),
-            gaar: await fileToPortableSavable(gaarFileObject),
-            gaarMapState: gaarMapState,
-            supAips: await Promise.all(supAipFileObjects.map(f => fileToPortableSavable(f))),
-            notamText: document.getElementById('notam-input').value,
-            notamState: { checkedIds: checkedNotamIds, highlights: highlightedNotams },
-            weatherData: weatherData
-        };
-    }
+    return {
+        version: "portableSessionV2",
+        exportedAt: new Date().toISOString(),
+
+        // ===== NOTAM COMPLET (clé du besoin) =====
+        notamTextFull: window.__notamTextFull || (notamInput ? notamInput.value : ""),
+
+        // ===== NOTAM tel qu’affiché (compat / debug) =====
+        notamText: notamInput ? notamInput.value : "",
+
+        // ===== État de sélection NOTAM =====
+        notamState: {
+            checkedIds: checkedNotamIds,
+            highlights: highlightedNotams
+        }
+    };
+}
+
 
     async function applyPortableSessionObject_(portable) {
         if (!portable || portable.version !== "portableSessionV1") {
@@ -2023,26 +2036,26 @@
         importBtn.addEventListener('click', () => importInput.click());
 
         importInput.addEventListener('change', async (e) => {
-            const file = e.target.files && e.target.files[0];
-            if (!file) return;
+    const file = e.target.files && e.target.files[0];
+    if (!file) return;
 
-            try {
-                sessionStatus.textContent = "Import en cours...";
-                const text = await file.text();
-                const portable = JSON.parse(text);
-                await applyPortableSessionObject_(portable);
+    try {
+        sessionStatus.textContent = "Import en cours.";
+        const text = await file.text();
+        const portable = JSON.parse(text);
 
-                // Option : sauvegarder sur l’iPad tout de suite après import
-                // await performSave();
-            } catch (err) {
-                console.error(err);
-                sessionStatus.textContent = `Erreur import: ${err.message || err}`;
-                alert("Impossible d’importer cette session.");
-            } finally {
-                importInput.value = '';
-            }
-        });
+        // ✅ UN SEUL POINT D’ENTRÉE
+        await applyPortableSessionObject_(portable);
+
+        sessionStatus.textContent = "Import terminé.";
+    } catch (err) {
+        console.error(err);
+        alert("Impossible d’importer cette session.");
+    } finally {
+        importInput.value = '';
     }
+});
+
 
             document.getElementById('clear-session-btn').addEventListener('click', async () => {
                 if (confirm("Vraiment effacer la session sauvegardée ?")) {
@@ -2165,6 +2178,9 @@
                     fullText += '\n\n';
                 } 
                 notamInput.value = fullText.trim().replace(/Page\s+\d+\s+of\s+\d+/g, ''); 
+                // ✅ Snapshot du NOTAM complet (sert pour export/import "Tout afficher")
+window.__notamTextFull = notamInput.value;
+
                 pdfInfoElement.textContent = `Texte extrait de ${file.name}.`; 
                 window.parseAndDisplayNotams();
             } catch (error) { 
