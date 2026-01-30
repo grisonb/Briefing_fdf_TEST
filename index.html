@@ -629,7 +629,7 @@
     <button id="save-session-btn" class="link-button" style="background-color: #28a745;">Sauvegarder</button>
     <button id="clear-session-btn" class="link-button" style="background-color: var(--sc-red);">Effacer</button>
 
-    <button id="export-session-btn" class="link-button" style="background-color: #8e44ad;">Exporter (.json)</button>
+    <button id="export-session-btn" class="link-button" style="background-color: #8e44ad;">Exporter & partager</button>
     <button id="import-session-btn" class="link-button" style="background-color: #2c3e50;">Importer (.json)</button>
     <input type="file" id="import-session-input" accept="application/json" style="display:none;">
 
@@ -1965,32 +1965,59 @@
             saveBtnTop.addEventListener('click', performSave);
             saveBtnBottom.addEventListener('click', performSave);
     if (exportBtn) {
-        exportBtn.addEventListener('click', async () => {
-            try {
-                sessionStatus.textContent = "Export en cours...";
-                const portable = await buildPortableSessionObject_();
-                const blob = new Blob([JSON.stringify(portable)], { type: "application/json" });
+    exportBtn.addEventListener('click', async () => {
+        try {
+            sessionStatus.textContent = "Export en cours.";
 
-                const now = new Date();
-                const stamp = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}_${String(now.getHours()).padStart(2,'0')}${String(now.getMinutes()).padStart(2,'0')}`;
-                const filename = `BriefingSession_${stamp}.json`;
+            const portable = await buildPortableSessionObject_();
+            const jsonText = JSON.stringify(portable, null, 2);
 
-                const a = document.createElement('a');
-                a.href = URL.createObjectURL(blob);
-                a.download = filename;
-                document.body.appendChild(a);
-                a.click();
-                a.remove();
-                URL.revokeObjectURL(a.href);
+            const now = new Date();
+            const stamp = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}_${String(now.getHours()).padStart(2,'0')}${String(now.getMinutes()).padStart(2,'0')}`;
+            const filename = `BriefingSession_${stamp}.json`;
 
-                sessionStatus.textContent = `Session exportée : ${filename}`;
-            } catch (e) {
-                console.error(e);
-                sessionStatus.textContent = `Erreur export: ${e.message || e}`;
-                alert("Erreur lors de l’export.");
+            const blob = new Blob([jsonText], { type: "application/json" });
+
+            // ✅ iPad / iOS : si le partage natif est dispo, on l'utilise (AirDrop, Fichiers, etc.)
+            // (sur iPadOS, c'est la méthode la plus fiable)
+            if (navigator.share && window.File) {
+                try {
+                    const file = new File([blob], filename, { type: "application/json" });
+                    await navigator.share({
+                        title: filename,
+                        files: [file]
+                    });
+                    sessionStatus.textContent = `Session prête à partager : ${filename}`;
+                    return;
+                } catch (shareErr) {
+                    // Si l'utilisateur annule, ce n'est pas une "erreur"
+                    if (shareErr && (shareErr.name === "AbortError" || shareErr.name === "NotAllowedError")) {
+                        sessionStatus.textContent = "Partage annulé.";
+                        return;
+                    }
+                    // Sinon on tombe en fallback téléchargement
+                    console.warn("Partage indisponible/échoué, fallback download:", shareErr);
+                }
             }
-        });
-    }
+
+            // ✅ Fallback (PC/Mac/Android) : téléchargement classique
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+            setTimeout(() => URL.revokeObjectURL(url), 1000);
+
+            sessionStatus.textContent = `Session exportée : ${filename}`;
+        } catch (e) {
+            console.error(e);
+            sessionStatus.textContent = `Erreur export: ${e.message || e}`;
+            alert("Erreur lors de l’export.");
+        }
+    });
+}
 
     if (importBtn && importInput) {
         importBtn.addEventListener('click', () => importInput.click());
