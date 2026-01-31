@@ -621,7 +621,7 @@
         <div class="page-header-background"></div>
         <h1 id="main-title">Briefing Fdf</h1>
         <p id="current-time-display"></p>
-        <p style="position: relative; z-index: 2; text-align: center; color: #333; font-size: 1em; margin-top: -25px; margin-bottom: 30px;">v0.6</p>
+        <p style="position: relative; z-index: 2; text-align: center; color: #333; font-size: 1em; margin-top: -25px; margin-bottom: 30px;">v0.7</p>
     </div>
 
     <div class="session-management" id="session-section">
@@ -853,11 +853,11 @@
         const CHECKWX_API_KEY = "b8071d79ae4a482491114af48c9c0246";
 
         // --- GLOBAL VARIABLES ---
-        let fdsFileObject = null;
-        let gaarFileObject = null;
-        let supAipFileObjects = [];
+        window.fdsFileObject = null;
+        window.gaarFileObject = null;
+        window.supAipFileObjects = [];
         let gaarMap = null;
-        let gaarDrawnCircuits = [];
+        window.gaarDrawnCircuits = [];
         let isAddingManualCircuit = false;
         let isSavingSession = false;
         const manualCircuitColors = ['#ff00ff', '#00ffff', '#ff8c00', '#00ff00', '#ff1493'];
@@ -1374,7 +1374,7 @@
                     color: savedCircuit.color,
                     isManual: savedCircuit.isManual,
                 };
-                const circuitIndex = gaarDrawnCircuits.length;
+                const circuitIndex = window.gaarDrawnCircuits.length;
 
                 savedCircuit.points.forEach((point, cityIndex) => {
                     const coord = [point.lat, point.lng];
@@ -1384,15 +1384,15 @@
                     newCircuit.cityNames.push(name);
                 });
 
-                gaarDrawnCircuits.push(newCircuit);
+                window.gaarDrawnCircuits.push(newCircuit);
                 updatePolygon(circuitIndex);
             });
-            if (gaarDrawnCircuits.length > 0) {
-                const allMarkers = gaarDrawnCircuits.flatMap(c => c.markers);
+            if (window.gaarDrawnCircuits.length > 0) {
+                const allMarkers = window.gaarDrawnCircuits.flatMap(c => c.markers);
                 if (allMarkers.length > 0) {
                     gaarMap.fitBounds(L.featureGroup(allMarkers).getBounds().pad(0.2));
                 }
-                document.getElementById('gaar-status').textContent = `Affichage de ${gaarDrawnCircuits.length} circuit(s) restauré(s).`;
+                document.getElementById('gaar-status').textContent = `Affichage de ${window.gaarDrawnCircuits.length} circuit(s) restauré(s).`;
             }
             updateCircuitControlsVisibility();
         }
@@ -1421,7 +1421,7 @@
             statusDiv.textContent = `Recherche de "${newName}"...`;
             const geo = await geocodeCity(newName, 1);
             if (geo) {
-                const circuit = gaarDrawnCircuits[circuitIndex], marker = circuit.markers[cityIndex];
+                const circuit = window.gaarDrawnCircuits[circuitIndex], marker = circuit.markers[cityIndex];
                 marker.setLatLng(geo[0].latlon);
                 circuit.cityNames[cityIndex] = newName;
                 marker.setTooltipContent(newName.split(',')[0]);
@@ -1434,7 +1434,7 @@
         };
         
         window.handleGaarPointDelete = function(circuitIndex, cityIndex) {
-            const circuit = gaarDrawnCircuits[circuitIndex];
+            const circuit = window.gaarDrawnCircuits[circuitIndex];
             if (!circuit) return;
 
             const markerToRemove = circuit.markers[cityIndex];
@@ -1452,16 +1452,16 @@
                 if (circuit.polygon) gaarMap.removeLayer(circuit.polygon);
                 circuit.polygon = null;
                 if (circuit.markers.length === 0) {
-                     gaarDrawnCircuits[circuitIndex] = null;
+                     window.gaarDrawnCircuits[circuitIndex] = null;
                 }
             } else {
                 updatePolygon(circuitIndex);
             }
             
-            const wasCircuitDeleted = gaarDrawnCircuits[circuitIndex] === null;
+            const wasCircuitDeleted = window.gaarDrawnCircuits[circuitIndex] === null;
             if (wasCircuitDeleted) {
-                gaarDrawnCircuits = gaarDrawnCircuits.filter(Boolean);
-                gaarDrawnCircuits.forEach((c, newCIndex) => {
+                window.gaarDrawnCircuits = window.gaarDrawnCircuits.filter(Boolean);
+                window.gaarDrawnCircuits.forEach((c, newCIndex) => {
                      c.markers.forEach(m => {
                         m.options.circuitIndex = newCIndex;
                         m.bindPopup(() => createPopupContent(m.getTooltip().getContent(), newCIndex, m.options.cityIndex));
@@ -1485,7 +1485,7 @@
         }
 
         function updatePolygon(circuitIndex) {
-            const circuit = gaarDrawnCircuits[circuitIndex];
+            const circuit = window.gaarDrawnCircuits[circuitIndex];
             if (!circuit) return;
 
             if (circuit.markers.length < 2) {
@@ -1554,7 +1554,7 @@
             const clickPoint = gaarMap.latLngToContainerPoint(e.latlng);
             const proximityThreshold = 20;
 
-            for (const circuit of gaarDrawnCircuits) {
+            for (const circuit of window.gaarDrawnCircuits) {
                 for (const marker of circuit.markers) {
                     const markerPoint = gaarMap.latLngToContainerPoint(marker.getLatLng());
                     if (clickPoint.distanceTo(markerPoint) < proximityThreshold) {
@@ -1564,10 +1564,10 @@
                 }
             }
 
-            let targetCircuit = gaarDrawnCircuits.find(c => c && c.isManual && c.markers.length < 3);
+            let targetCircuit = window.gaarDrawnCircuits.find(c => c && c.isManual && c.markers.length < 3);
 
             if (!targetCircuit) {
-                const manualCircuitsCount = gaarDrawnCircuits.filter(c => c && c.isManual).length;
+                const manualCircuitsCount = window.gaarDrawnCircuits.filter(c => c && c.isManual).length;
                 const newCircuitColor = manualCircuitColors[manualCircuitsCount % manualCircuitColors.length];
                 
                 targetCircuit = {
@@ -1577,10 +1577,10 @@
                     color: newCircuitColor,
                     isManual: true,
                 };
-                gaarDrawnCircuits.push(targetCircuit);
+                window.gaarDrawnCircuits.push(targetCircuit);
             }
             
-            const circuitIndex = gaarDrawnCircuits.indexOf(targetCircuit);
+            const circuitIndex = window.gaarDrawnCircuits.indexOf(targetCircuit);
             const cityIndex = targetCircuit.markers.length;
             const pointName = (await reverseGeocode(e.latlng)) || `Point ${cityIndex + 1}`;
             const newMarker = createGaarMarker(e.latlng, pointName, circuitIndex, cityIndex, targetCircuit.color);
@@ -1595,23 +1595,23 @@
         function updateCircuitControlsVisibility() {
             const deleteBtn = document.getElementById('delete-circuits-btn');
             if (deleteBtn) {
-                const hasCircuits = gaarDrawnCircuits.some(c => c && c.markers.length > 0);
+                const hasCircuits = window.gaarDrawnCircuits.some(c => c && c.markers.length > 0);
                 deleteBtn.style.display = hasCircuits ? 'inline-block' : 'none';
             }
         }
 
         function clearAllCircuits() {
             if (!gaarMap) return;
-            gaarDrawnCircuits.forEach(({ polygon, markers }) => {
+            window.gaarDrawnCircuits.forEach(({ polygon, markers }) => {
                 if (polygon) gaarMap.removeLayer(polygon);
                 if (markers) markers.forEach(m => gaarMap.removeLayer(m));
             });
-            gaarDrawnCircuits = [];
+            window.gaarDrawnCircuits = [];
             updateCircuitControlsVisibility();
         }
 
         function resetGaarPdfOnly() {
-            gaarFileObject = null;
+            window.gaarFileObject = null;
             document.getElementById('pdf-input-gaar').value = null;
             document.getElementById('pdf-info-gaar').textContent = '';
             document.getElementById('pdf-interactive-container-gaar').style.display = 'none';
@@ -1638,7 +1638,7 @@
         function initializeGaarMapControls() {
             document.getElementById('add-manual-circuit-btn').addEventListener('click', toggleManualCircuitMode);
             document.getElementById('delete-circuits-btn').addEventListener('click', () => {
-                if (gaarDrawnCircuits.length > 0 && confirm("Voulez-vous vraiment supprimer tous les circuits tracés sur la carte ?")) {
+                if (window.gaarDrawnCircuits.length > 0 && confirm("Voulez-vous vraiment supprimer tous les circuits tracés sur la carte ?")) {
                     clearAllCircuits();
                     document.getElementById('gaar-status').textContent = 'Tous les circuits ont été supprimés.';
                 }
@@ -1657,8 +1657,8 @@
                     document.getElementById('pdf-reset-gaar-btn').style.display = 'inline-block';
                 }
             };
-            const fdsHandler = createFileHandler(f => fdsFileObject = f, 'pdf-info-fds', 'pdf-interactive-container-fds', null, 1.65);
-            const gaarHandler = createFileHandler(f => gaarFileObject = f, 'pdf-info-gaar', 'pdf-interactive-container-gaar', initializeGaarMapFromFile, 1.3);
+            const fdsHandler = createFileHandler(f => window.fdsFileObject = f, 'pdf-info-fds', 'pdf-interactive-container-fds', null, 1.65);
+            const gaarHandler = createFileHandler(f => window.gaarFileObject = f, 'pdf-info-gaar', 'pdf-interactive-container-gaar', initializeGaarMapFromFile, 1.3);
             const notamHandler = (files) => {
                 const file = files[0]; if (!file || file.type !== 'application/pdf') return;
                 document.getElementById('pdf-info-notam').textContent = `Document chargé : ${file.name}`;
@@ -1693,14 +1693,14 @@
             container.addEventListener('click', (e) => {
                 if (e.target && e.target.matches('.sup-aip-delete-btn')) {
                     const itemToRemove = e.target.closest('.sup-aip-item'), fileName = itemToRemove.dataset.fileName;
-                    supAipFileObjects = supAipFileObjects.filter(f => f.name !== fileName); itemToRemove.remove();
+                    window.supAipFileObjects = window.supAipFileObjects.filter(f => f.name !== fileName); itemToRemove.remove();
                 }
             });
             const addSupAipFiles = (files) => {
                 if (!files.length) return;
                 for (const file of files) {
-                    if (file.type !== 'application/pdf' || supAipFileObjects.some(f => f.name === file.name)) continue;
-                    supAipFileObjects.push(file);
+                    if (file.type !== 'application/pdf' || window.supAipFileObjects.some(f => f.name === file.name)) continue;
+                    window.supAipFileObjects.push(file);
                     const item = document.createElement('div');
                     item.className = 'sup-aip-item'; item.dataset.fileName = file.name;
                     item.innerHTML = `<h3>${file.name}<button class="sup-aip-delete-btn" title="Supprimer">×</button></h3><div class="interactive-pdf-viewer"><div class="interactive-pdf-controls"><button class="pdf-nav-btn" data-action="prev">Préc.</button><span>Page <span class="page-num">1</span>/<span class="page-count">1</span></span><button class="pdf-nav-btn" data-action="next">Suiv.</button><div class="zoom-controls"><button class="pdf-nav-btn" data-action="zoom-out">-</button><span>Zoom</span><button class="pdf-nav-btn" data-action="zoom-in">+</button></div></div><div class="pdf-canvas-wrapper"><canvas class="pdf-canvas"></canvas></div></div>`;
