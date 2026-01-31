@@ -621,7 +621,7 @@
         <div class="page-header-background"></div>
         <h1 id="main-title">Briefing Fdf</h1>
         <p id="current-time-display"></p>
-        <p style="position: relative; z-index: 2; text-align: center; color: #333; font-size: 1em; margin-top: -25px; margin-bottom: 30px;">v0.7</p>
+        <p style="position: relative; z-index: 2; text-align: center; color: #333; font-size: 1em; margin-top: -25px; margin-bottom: 30px;">v0.8</p>
     </div>
 
     <div class="session-management" id="session-section">
@@ -1997,25 +1997,36 @@
                 const blob = new Blob([json], { type: "application/json" });
 
                 const now = new Date();
-                const stamp = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}_${String(now.getHours()).padStart(2, '0')}${String(now.getMinutes()).padStart(2, '0')}`;
-                const filename = `BriefingSession_${stamp}.json`;
+const yyyy = now.getFullYear();
+const mm = String(now.getMonth() + 1).padStart(2, '0');
+const dd = String(now.getDate()).padStart(2, '0');
+const HH = String(now.getHours()).padStart(2, '0');
+const MM = String(now.getMinutes()).padStart(2, '0');
 
-                // 1) iPad/iPhone : Web Share API (AirDrop / Messages / Mail / Fichiers…)
-                try {
-                    const file = new File([blob], filename, { type: "application/json" });
-                    if (navigator.share && (!navigator.canShare || navigator.canShare({ files: [file] }))) {
-                        await navigator.share({
-                            title: "Briefing FDF",
-                            text: "Session de briefing (JSON)",
-                            files: [file]
-                        });
-                        sessionStatus.textContent = "Session partagée.";
-                        return;
-                    }
-                } catch (shareErr) {
-                    // Si partage échoue, on bascule sur le download
-                    console.warn("Partage impossible, fallback téléchargement:", shareErr);
-                }
+const datePart = `${yyyy}-${mm}-${dd}`;
+const timePartDisplay = `${HH}h${MM}`;      // affichage
+const timePartFile = `${HH}h${MM}`;         // nom de fichier
+
+const filename = `Bfg FdF ${datePart} ${timePartFile}.json`;
+
+
+// 1) iPad/iPhone : Web Share API (AirDrop / Messages / Mail / Fichiers…)
+try {
+    const file = new File([blob], filename, { type: "application/json" });
+    if (navigator.share && (!navigator.canShare || navigator.canShare({ files: [file] }))) {
+        await navigator.share({
+            title: `Bfg FdF ${datePart} ${timePartDisplay}`,
+            text: "Session de briefing (JSON)",
+            files: [file]
+        });
+        sessionStatus.textContent = "Session partagée.";
+        return;
+    }
+} catch (shareErr) {
+    // Si partage échoue, on bascule sur le download
+    console.warn("Partage impossible, fallback téléchargement:", shareErr);
+}
+
 
                 // 2) Fallback PC/Mac : téléchargement classique
                 const a = document.createElement('a');
