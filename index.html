@@ -621,7 +621,7 @@
         <div class="page-header-background"></div>
         <h1 id="main-title">Briefing Fdf</h1>
         <p id="current-time-display"></p>
-        <p style="position: relative; z-index: 2; text-align: center; color: #333; font-size: 1em; margin-top: -25px; margin-bottom: 30px;">v0.5</p>
+        <p style="position: relative; z-index: 2; text-align: center; color: #333; font-size: 1em; margin-top: -25px; margin-bottom: 30px;">v0.6</p>
     </div>
 
     <div class="session-management" id="session-section">
@@ -1734,44 +1734,24 @@
     const saveBtnTop = document.getElementById('save-session-btn');
     const saveBtnBottom = document.getElementById('save-session-btn-bottom');
 
+    const clearBtn = document.getElementById('clear-session-btn');
     const exportBtn = document.getElementById('export-session-btn');
     const importBtn = document.getElementById('import-session-btn');
     const importInput = document.getElementById('import-session-input');
 
-       async function applyPortableSessionObject_(portable) {
-    if (!portable || typeof portable !== 'object') {
-        throw new Error("Session invalide");
+    let isSavingSession = false;
+
+    function openDB() {
+        return new Promise((resolve, reject) => {
+            const r = indexedDB.open(dbName, 1);
+            r.onerror = (e) => reject("Erreur DB: " + e.target.error);
+            r.onsuccess = e => resolve(e.target.result);
+            r.onupgradeneeded = e => e.target.result.createObjectStore(storeName, { keyPath: 'id' });
+        });
     }
 
-    // ===== NOTAM =====
-    const notamInput = document.getElementById('notam-input');
-
-    const fullNotams =
-        portable.notamTextFull ||
-        portable.notamText ||
-        "";
-
-    if (notamInput && fullNotams) {
-        notamInput.value = fullNotams;
-
-        // Mémorise le NOTAM complet pour "Tout afficher"
-        window.__notamTextFull = fullNotams;
-
-        if (typeof window.parseAndDisplayNotams === "function") {
-            window.parseAndDisplayNotams(portable.notamState || null);
-        }
-    }
-}
-     
-            function openDB() { 
-                return new Promise((resolve, reject) => { 
-                    const r = indexedDB.open(dbName, 1); 
-                    r.onerror = (e) => reject("Erreur DB: " + e.target.error); 
-                    r.onsuccess = e => resolve(e.target.result); 
-                    r.onupgradeneeded = e => e.target.result.createObjectStore(storeName, { keyPath: 'id' }); 
-                }); 
-            }
-                function arrayBufferToBase64(buffer) {
+    // ===== Helpers base64 (fichiers) =====
+    function arrayBufferToBase64(buffer) {
         let binary = '';
         const bytes = new Uint8Array(buffer);
         const chunkSize = 0x8000;
@@ -1801,51 +1781,79 @@
         return new File([buffer], s.name, { type: s.type });
     }
 
+    // ===== Export "portable" (partage/import) =====
     async function buildPortableSessionObject_() {
-    const notamInput = document.getElementById('notam-input');
+        const checkedNotamIds = [], highlightedNotams = {};
+        document.querySelectorAll('#notam-display .notam-item').forEach(item => {
+            const id = item.dataset.notamId; if (!id) return;
+            if (item.querySelector('.notam-checkbox')?.checked) checkedNotamIds.push(id);
+            const content = item.querySelector('.notam-text-content')?.innerHTML || "";
+            if (content.includes('<mark')) highlightedNotams[id] = content;
+        });
 
-    // NOTAM : éléments sélectionnés
-    const checkedNotamIds = Array.from(
-        document.querySelectorAll('.notam-checkbox:checked')
-    ).map(cb => cb.closest('.notam-item')?.dataset.notamId).filter(Boolean);
+        const gaarMapState = (window.gaarDrawnCircuits || []).map(circuit => ({
+            color: circuit.color,
+            isManual: circuit.isManual,
+            points: (circuit.markers || []).map((marker, index) => ({
+                lat: marker.getLatLng().lat,
+                lng: marker.getLatLng().lng,
+                name: (circuit.cityNames || [])[index]
+            }))
+        }));
 
-    // NOTAM : éléments surlignés
-    const highlightedNotams = Array.from(
-        document.querySelectorAll('.notam-item mark.highlighted-text')
-    ).map(mark => mark.closest('.notam-item')?.dataset.notamId).filter(Boolean);
+        const weatherData = {};
+        document.querySelectorAll('.airport-section-container[data-loaded="true"]').forEach(container => {
+            const icao = container.dataset.icao;
+            if (icao) {
+                weatherData[icao] = {
+                    metarHTML: container.querySelector('.metar-container')?.innerHTML || "",
+                    tafHTML: container.querySelector('.taf-container')?.innerHTML || ""
+                };
+            }
+        });
 
-    return {
-        version: "portableSessionV2",
-        exportedAt: new Date().toISOString(),
+        const notamInput = document.getElementById('notam-input');
 
-        // ===== NOTAM COMPLET (clé du besoin) =====
-        notamTextFull: window.__notamTextFull || (notamInput ? notamInput.value : ""),
+        return {
+            version: "portableSessionV2",
+            exportedAt: new Date().toISOString(),
 
-        // ===== NOTAM tel qu’affiché (compat / debug) =====
-        notamText: notamInput ? notamInput.value : "",
+            // ===== PDFs / Fichiers =====
+            fds: await fileToPortableSavable(window.fdsFileObject),
+            gaar: await fileToPortableSavable(window.gaarFileObject),
+            gaarMapState: gaarMapState,
+            supAips: await Promise.all((window.supAipFileObjects || []).map(f => fileToPortableSavable(f))),
 
-        // ===== État de sélection NOTAM =====
-        notamState: {
-            checkedIds: checkedNotamIds,
-            highlights: highlightedNotams
-        }
-    };
-}
+            // ===== NOTAM =====
+            // NOTAM complet (pour permettre "Afficher tout" chez le receveur)
+            notamTextFull: window.__notamTextFull || (notamInput ? notamInput.value : ""),
+            // NOTAM tel qu'affiché/filtré (compat)
+            notamText: notamInput ? notamInput.value : "",
+            notamState: { checkedIds: checkedNotamIds, highlights: highlightedNotams },
 
+            // ===== METAR/TAF =====
+            weatherData: weatherData
+        };
+    }
 
     async function applyPortableSessionObject_(portable) {
-        if (!portable || portable.version !== "portableSessionV1") {
+        if (!portable || (portable.version !== "portableSessionV1" && portable.version !== "portableSessionV2")) {
             alert("Fichier de session invalide ou version non supportée.");
             return;
         }
 
+        // IMPORTANT UX : on revient sur la Feuille de Service après import
+        const fdsSection = document.getElementById('fds-section');
+
+        // ===== FDS =====
         if (portable.fds) {
             const file = portableSavableToFile(portable.fds);
-            fdsFileObject = file;
+            window.fdsFileObject = file;
             document.getElementById('pdf-info-fds').textContent = `Document chargé : ${file.name}`;
             createInteractivePdfHandler(document.getElementById('pdf-interactive-container-fds'), file, null, 1.65);
         }
 
+        // ===== GAAR + MAP =====
         const hasGaarPdf = !!portable.gaar;
         const hasGaarMapState = portable.gaarMapState && portable.gaarMapState.length > 0;
 
@@ -1859,7 +1867,7 @@
 
         if (hasGaarPdf) {
             const file = portableSavableToFile(portable.gaar);
-            gaarFileObject = file;
+            window.gaarFileObject = file;
             document.getElementById('pdf-info-gaar').textContent = `Document chargé : ${file.name}`;
             createInteractivePdfHandler(document.getElementById('pdf-interactive-container-gaar'), file, initializeGaarMapFromFile, 1.3);
         }
@@ -1868,16 +1876,24 @@
             recreateGaarCircuitsFromState(portable.gaarMapState);
         }
 
+        // ===== SUP AIP =====
         if (portable.supAips && portable.supAips.length > 0) {
             const files = portable.supAips.map(s => portableSavableToFile(s)).filter(Boolean);
             if (files.length > 0) window.addSupAipFiles(files);
         }
 
-        if (portable.notamText) {
-            document.getElementById('notam-input').value = portable.notamText;
-            window.parseAndDisplayNotams(portable.notamState || null);
+        // ===== NOTAM (FULL) =====
+        const notamInput = document.getElementById('notam-input');
+        const fullNotams = portable.notamTextFull || portable.notamText || "";
+        if (notamInput) {
+            notamInput.value = fullNotams;
+            window.__notamTextFull = fullNotams; // pour "Afficher tout"
+            if (fullNotams && typeof window.parseAndDisplayNotams === "function") {
+                window.parseAndDisplayNotams(portable.notamState || null);
+            }
         }
 
+        // ===== METAR/TAF =====
         if (portable.weatherData) {
             Object.entries(portable.weatherData).forEach(([icao, weather]) => {
                 let container = document.getElementById(`notam-container-${icao}`);
@@ -1885,278 +1901,273 @@
                     container = createAirportSectionElement(icao, icao);
                     (document.getElementById('manual-metar-display') || document.getElementById('notam-display')).appendChild(container);
                 }
-                container.querySelector('.metar-container').innerHTML = weather.metarHTML;
-                container.querySelector('.taf-container').innerHTML = weather.tafHTML;
+                container.querySelector('.metar-container').innerHTML = weather.metarHTML || "";
+                container.querySelector('.taf-container').innerHTML = weather.tafHTML || "";
                 container.dataset.loaded = 'true';
             });
             checkWeatherValidity();
         }
 
-        sessionStatus.textContent = `Session importée (export du ${new Date(portable.exportedAt).toLocaleString('fr-FR')})`;
+        // Revenir sur la feuille de service (évite les scrolls auto vers Windy)
+        if (fdsSection) {
+            requestAnimationFrame(() => fdsSection.scrollIntoView({ block: 'start' }));
+        }
     }
 
-            async function performSave() {
-                if (isSavingSession) return;
-                isSavingSession = true;
-                saveBtnTop.disabled = true;
-                saveBtnBottom.disabled = true;
-                sessionStatus.textContent = "Sauvegarde en cours...";
-                
-                let localDb;
-                try {
-                    // On ouvre une nouvelle connexion DB à chaque sauvegarde pour éviter les connexions périmées.
-                    localDb = await openDB();
+    async function performSave() {
+        if (isSavingSession) return;
+        isSavingSession = true;
 
-                    const checkedNotamIds = [], highlightedNotams = {};
-                    document.querySelectorAll('#notam-display .notam-item').forEach(item => {
-                        const id = item.dataset.notamId; if (!id) return;
-                        if (item.querySelector('.notam-checkbox').checked) checkedNotamIds.push(id);
-                        const content = item.querySelector('.notam-text-content').innerHTML;
-                        if (content.includes('<mark')) highlightedNotams[id] = content;
-                    });
-                    
-                    const gaarMapState = gaarDrawnCircuits.map(circuit => ({
-                        color: circuit.color,
-                        isManual: circuit.isManual,
-                        points: circuit.markers.map((marker, index) => ({
-                            lat: marker.getLatLng().lat,
-                            lng: marker.getLatLng().lng,
-                            name: circuit.cityNames[index]
-                        }))
-                    }));
+        saveBtnTop && (saveBtnTop.disabled = true);
+        saveBtnBottom && (saveBtnBottom.disabled = true);
 
-                    const weatherData = {};
-                    document.querySelectorAll('.airport-section-container[data-loaded="true"]').forEach(container => {
-                        const icao = container.dataset.icao;
-                        if (icao) {
-                            weatherData[icao] = {
-                                metarHTML: container.querySelector('.metar-container').innerHTML,
-                                tafHTML: container.querySelector('.taf-container').innerHTML
-                            };
-                        }
-                    });
-                
-                    const dataToSave = {
-                        id: 'currentSession',
-                        fds: await fileToSavable(fdsFileObject),
-                        gaar: await fileToSavable(gaarFileObject),
-                        gaarMapState: gaarMapState,
-                        supAips: await Promise.all(supAipFileObjects.map(f => fileToSavable(f))),
-                        notamText: document.getElementById('notam-input').value,
-                        notamState: { checkedIds: checkedNotamIds, highlights: highlightedNotams },
-                        weatherData: weatherData,
-                        savedAt: new Date()
-                    };
-
-                    const store = localDb.transaction([storeName], 'readwrite').objectStore(storeName);
-                    
-                    // La méthode .put() est atomique : elle remplace l'ancienne sauvegarde par la nouvelle.
-                    // C'est plus sûr qu'un .clear() suivi d'un .add(), car il n'y a pas de risque de perte de données si l'ajout échoue.
-                    const request = store.put(dataToSave);
-
-                    request.onsuccess = () => { 
-                        const now = new Date();
-                        const formattedTime = `${String(now.getHours()).padStart(2, '0')}h${String(now.getMinutes()).padStart(2, '0')}`;
-                        sessionStatus.textContent = `Session sauvegardée à ${formattedTime}`; 
-                    };
-                    request.onerror = (e) => { 
-                        sessionStatus.textContent = `Erreur de sauvegarde: ${e.target.error}`; 
-                        console.error("Erreur IndexedDB:", e.target.error);
-                    };
-
-                } catch (error) {
-                    sessionStatus.textContent = `Erreur lors de la sauvegarde: ${error.message}`;
-                    console.error("Erreur de sauvegarde :", error);
-                } finally {
-                    if (localDb) localDb.close(); // On ferme la connexion après usage.
-                    isSavingSession = false;
-                    saveBtnTop.disabled = false;
-                    saveBtnBottom.disabled = false;
-                }
-            }
-
-            saveBtnTop.addEventListener('click', performSave);
-            saveBtnBottom.addEventListener('click', performSave);
-    if (exportBtn) {
-    exportBtn.addEventListener('click', async () => {
+        let localDb;
         try {
-            sessionStatus.textContent = "Export en cours.";
+            sessionStatus.textContent = "Sauvegarde en cours...";
+            localDb = await openDB();
 
-            const portable = await buildPortableSessionObject_();
-            const jsonText = JSON.stringify(portable, null, 2);
+            const savable = {
+                id: 'currentSession',
+                savedAt: new Date().toISOString(),
 
-            const now = new Date();
-            const stamp = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}_${String(now.getHours()).padStart(2,'0')}${String(now.getMinutes()).padStart(2,'0')}`;
-            const filename = `BriefingSession_${stamp}.json`;
+                fds: window.fdsFileObject ? await fileToSavable(window.fdsFileObject) : null,
+                gaar: window.gaarFileObject ? await fileToSavable(window.gaarFileObject) : null,
 
-            const blob = new Blob([jsonText], { type: "application/json" });
+                gaarMapState: (window.gaarDrawnCircuits || []).map(circuit => ({
+                    color: circuit.color,
+                    isManual: circuit.isManual,
+                    points: (circuit.markers || []).map((marker, index) => ({
+                        lat: marker.getLatLng().lat,
+                        lng: marker.getLatLng().lng,
+                        name: (circuit.cityNames || [])[index]
+                    }))
+                })),
 
-            // ✅ iPad / iOS : si le partage natif est dispo, on l'utilise (AirDrop, Fichiers, etc.)
-            // (sur iPadOS, c'est la méthode la plus fiable)
-            if (navigator.share && window.File) {
+                supAips: await Promise.all((window.supAipFileObjects || []).map(f => fileToSavable(f))),
+
+                notamText: document.getElementById('notam-input')?.value || "",
+                notamState: window.__lastNotamState || null,
+
+                weatherData: window.collectWeatherData ? window.collectWeatherData() : null
+            };
+
+            const tx = localDb.transaction([storeName], 'readwrite');
+            const store = tx.objectStore(storeName);
+            store.put(savable);
+
+            await new Promise((resolve, reject) => {
+                tx.oncomplete = resolve;
+                tx.onerror = () => reject(tx.error);
+            });
+
+            sessionStatus.textContent = `Session sauvegardée (${new Date(savable.savedAt).toLocaleString('fr-FR')})`;
+        } catch (error) {
+            sessionStatus.textContent = `Erreur lors de la sauvegarde: ${error.message || error}`;
+            console.error("Erreur de sauvegarde :", error);
+        } finally {
+            if (localDb) localDb.close();
+            isSavingSession = false;
+            saveBtnTop && (saveBtnTop.disabled = false);
+            saveBtnBottom && (saveBtnBottom.disabled = false);
+        }
+    }
+
+    // ===== fileToSavable / savableToFile (IndexedDB) =====
+    async function fileToSavable(file) {
+        if (!file) return null;
+        const buffer = await file.arrayBuffer();
+        return { name: file.name, type: file.type, buffer: buffer };
+    }
+
+    function savableToFile(s) {
+        if (!s || !s.buffer) return null;
+        return new File([s.buffer], s.name, { type: s.type });
+    }
+
+    // ===== Wire buttons =====
+    saveBtnTop && saveBtnTop.addEventListener('click', performSave);
+    saveBtnBottom && saveBtnBottom.addEventListener('click', performSave);
+
+    if (exportBtn) {
+        exportBtn.addEventListener('click', async () => {
+            try {
+                sessionStatus.textContent = "Préparation du partage...";
+                const portable = await buildPortableSessionObject_();
+                const json = JSON.stringify(portable);
+                const blob = new Blob([json], { type: "application/json" });
+
+                const now = new Date();
+                const stamp = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}_${String(now.getHours()).padStart(2, '0')}${String(now.getMinutes()).padStart(2, '0')}`;
+                const filename = `BriefingSession_${stamp}.json`;
+
+                // 1) iPad/iPhone : Web Share API (AirDrop / Messages / Mail / Fichiers…)
                 try {
                     const file = new File([blob], filename, { type: "application/json" });
-                    await navigator.share({
-                        title: filename,
-                        files: [file]
-                    });
-                    sessionStatus.textContent = `Session prête à partager : ${filename}`;
-                    return;
-                } catch (shareErr) {
-                    // Si l'utilisateur annule, ce n'est pas une "erreur"
-                    if (shareErr && (shareErr.name === "AbortError" || shareErr.name === "NotAllowedError")) {
-                        sessionStatus.textContent = "Partage annulé.";
+                    if (navigator.share && (!navigator.canShare || navigator.canShare({ files: [file] }))) {
+                        await navigator.share({
+                            title: "Briefing FDF",
+                            text: "Session de briefing (JSON)",
+                            files: [file]
+                        });
+                        sessionStatus.textContent = "Session partagée.";
                         return;
                     }
-                    // Sinon on tombe en fallback téléchargement
-                    console.warn("Partage indisponible/échoué, fallback download:", shareErr);
+                } catch (shareErr) {
+                    // Si partage échoue, on bascule sur le download
+                    console.warn("Partage impossible, fallback téléchargement:", shareErr);
                 }
+
+                // 2) Fallback PC/Mac : téléchargement classique
+                const a = document.createElement('a');
+                a.href = URL.createObjectURL(blob);
+                a.download = filename;
+                document.body.appendChild(a);
+                a.click();
+                a.remove();
+                URL.revokeObjectURL(a.href);
+
+                sessionStatus.textContent = `Session exportée : ${filename}`;
+            } catch (e) {
+                console.error(e);
+                sessionStatus.textContent = `Erreur export: ${e.message || e}`;
+                alert("Erreur lors de l’export/partage.");
             }
-
-            // ✅ Fallback (PC/Mac/Android) : téléchargement classique
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = filename;
-            document.body.appendChild(a);
-            a.click();
-            a.remove();
-            setTimeout(() => URL.revokeObjectURL(url), 1000);
-
-            sessionStatus.textContent = `Session exportée : ${filename}`;
-        } catch (e) {
-            console.error(e);
-            sessionStatus.textContent = `Erreur export: ${e.message || e}`;
-            alert("Erreur lors de l’export.");
-        }
-    });
-}
+        });
+    }
 
     if (importBtn && importInput) {
         importBtn.addEventListener('click', () => importInput.click());
 
         importInput.addEventListener('change', async (e) => {
-    const file = e.target.files && e.target.files[0];
-    if (!file) return;
+            const file = e.target.files && e.target.files[0];
+            if (!file) return;
 
-    try {
-        sessionStatus.textContent = "Import en cours.";
-        const text = await file.text();
-        const portable = JSON.parse(text);
+            try {
+                sessionStatus.textContent = "Import en cours.";
+                const text = await file.text();
+                const portable = JSON.parse(text);
 
-        // ✅ UN SEUL POINT D’ENTRÉE
-        await applyPortableSessionObject_(portable);
+                // ✅ UN SEUL POINT D’ENTRÉE
+                await applyPortableSessionObject_(portable);
 
-        sessionStatus.textContent = "Import terminé.";
-    } catch (err) {
-        console.error(err);
-        alert("Impossible d’importer cette session.");
-    } finally {
-        importInput.value = '';
+                sessionStatus.textContent = "Import terminé.";
+            } catch (err) {
+                console.error(err);
+                alert("Impossible d’importer cette session.");
+                sessionStatus.textContent = `Import échoué: ${err.message || err}`;
+            } finally {
+                importInput.value = '';
+            }
+        });
     }
-});
 
+    if (clearBtn) {
+        clearBtn.addEventListener('click', async () => {
+            if (!confirm("Vraiment effacer la session sauvegardée ?")) return;
 
-            document.getElementById('clear-session-btn').addEventListener('click', async () => {
-                if (confirm("Vraiment effacer la session sauvegardée ?")) {
-                    let localDb;
-                    try { 
-                        localDb = await openDB();
-                        const request = localDb.transaction([storeName], 'readwrite').objectStore(storeName).clear(); 
-                        request.onsuccess = () => {
-                            alert("Sauvegarde effacée. Rechargement..."); 
-                            location.reload();
-                        };
-                        request.onerror = (e) => {
-                            sessionStatus.textContent = `Erreur: ${e.target.error}`;
-                        };
+            let localDb;
+            try {
+                localDb = await openDB();
+                const request = localDb.transaction([storeName], 'readwrite').objectStore(storeName).clear();
+                request.onsuccess = () => {
+                    alert("Sauvegarde effacée. Rechargement.");
+                    location.reload();
+                };
+                request.onerror = (e) => {
+                    sessionStatus.textContent = `Erreur: ${e.target.error}`;
+                };
+            } catch (error) {
+                sessionStatus.textContent = `Erreur: ${error.message || error}`;
+            } finally {
+                if (localDb) localDb.close();
+            }
+        });
+    }
+
+    // ===== Restore on load =====
+    (async function loadSession() {
+        let db;
+        try {
+            db = await openDB();
+            const request = db.transaction([storeName], 'readonly').objectStore(storeName).get('currentSession');
+
+            request.onerror = (e) => {
+                sessionStatus.textContent = `Erreur DB: ${e.target.error}`;
+            };
+
+            request.onsuccess = e => {
+                const data = e.target.result;
+                if (data) {
+                    if (data.fds) {
+                        const file = savableToFile(data.fds);
+                        window.fdsFileObject = file;
+                        document.getElementById('pdf-info-fds').textContent = `Document chargé : ${file.name}`;
+                        createInteractivePdfHandler(document.getElementById('pdf-interactive-container-fds'), file, null, 1.65);
                     }
-                    catch (error) { 
-                        sessionStatus.textContent = `Erreur: ${error}`; 
-                    } finally {
-                        if (localDb) localDb.close();
+
+                    const hasGaarPdf = !!data.gaar;
+                    const hasGaarMapState = data.gaarMapState && data.gaarMapState.length > 0;
+
+                    if (hasGaarPdf || hasGaarMapState) {
+                        document.getElementById('gaar-map-section').style.display = 'block';
+                        initGaarMap();
+                        if (hasGaarPdf) document.getElementById('pdf-load-gaar-btn').style.display = 'none';
+                        document.getElementById('pdf-reset-gaar-btn').style.display = hasGaarPdf ? 'inline-block' : 'none';
+                        document.getElementById('gaar-map-nav-link').style.display = 'block';
                     }
-                }
-            });
 
-            (async function loadSession() {
-                let db;
-                try {
-                    db = await openDB(); // Ouvre la connexion pour la lecture initiale
-                    const request = db.transaction([storeName], 'readonly').objectStore(storeName).get('currentSession');
+                    if (hasGaarPdf) {
+                        const file = savableToFile(data.gaar);
+                        window.gaarFileObject = file;
+                        document.getElementById('pdf-info-gaar').textContent = `Document chargé : ${file.name}`;
+                        createInteractivePdfHandler(document.getElementById('pdf-interactive-container-gaar'), file, initializeGaarMapFromFile, 1.3);
+                    }
 
-                    request.onerror = (e) => {
-                         sessionStatus.textContent = `Erreur DB: ${e.target.error}`;
-                    };
+                    if (hasGaarMapState) {
+                        recreateGaarCircuitsFromState(data.gaarMapState);
+                    }
 
-                    request.onsuccess = e => {
-                        const data = e.target.result;
-                        if (data) {
-                            if (data.fds) {
-                                const file = savableToFile(data.fds);
-                                fdsFileObject = file;
-                                document.getElementById('pdf-info-fds').textContent = `Document chargé : ${file.name}`;
-                                createInteractivePdfHandler(document.getElementById('pdf-interactive-container-fds'), file, null, 1.65);
-                            }
-                            
-                            const hasGaarPdf = !!data.gaar;
-                            const hasGaarMapState = data.gaarMapState && data.gaarMapState.length > 0;
+                    if (data.supAips && data.supAips.length > 0) {
+                        const files = data.supAips.map(s => savableToFile(s)).filter(Boolean);
+                        if (files.length > 0) window.addSupAipFiles(files);
+                    }
 
-                            if (hasGaarPdf || hasGaarMapState) {
-                                document.getElementById('gaar-map-section').style.display = 'block';
-                                initGaarMap();
-                                if (hasGaarPdf) {
-                                   document.getElementById('pdf-load-gaar-btn').style.display = 'none';
-                                }
-                                document.getElementById('pdf-reset-gaar-btn').style.display = hasGaarPdf ? 'inline-block' : 'none';
-                                document.getElementById('gaar-map-nav-link').style.display = 'block';
-                            }
-                            
-                            if (hasGaarPdf) {
-                                const file = savableToFile(data.gaar);
-                                gaarFileObject = file;
-                                document.getElementById('pdf-info-gaar').textContent = `Document chargé : ${file.name}`;
-                                createInteractivePdfHandler(document.getElementById('pdf-interactive-container-gaar'), file, initializeGaarMapFromFile, 1.3);
-                            }
-                            
-                            if (hasGaarMapState) {
-                                recreateGaarCircuitsFromState(data.gaarMapState);
-                            }
-
-                            if (data.supAips && data.supAips.length > 0) {
-                                const files = data.supAips.map(s => savableToFile(s)).filter(Boolean);
-                                if (files.length > 0) window.addSupAipFiles(files);
-                            }
-                            if (data.notamText) {
-                                document.getElementById('notam-input').value = data.notamText;
-                                if(data.notamText) window.parseAndDisplayNotams(data.notamState || null);
-                            }
-                             if (data.weatherData) {
-                                Object.entries(data.weatherData).forEach(([icao, weather]) => {
-                                    let container = document.getElementById(`notam-container-${icao}`);
-                                    if (!container) { 
-                                        container = createAirportSectionElement(icao, icao);
-                                        (document.getElementById('manual-metar-display') || document.getElementById('notam-display')).appendChild(container);
-                                    }
-                                    container.querySelector('.metar-container').innerHTML = weather.metarHTML;
-                                    container.querySelector('.taf-container').innerHTML = weather.tafHTML;
-                                    container.dataset.loaded = 'true';
-                                });
-                                checkWeatherValidity();
-                            }
-                            sessionStatus.textContent = `Session restaurée (du ${new Date(data.savedAt).toLocaleString('fr-FR')})`;
-                        } else {
-                            sessionStatus.textContent = "Aucune session sauvegardée.";
+                    if (data.notamText) {
+                        document.getElementById('notam-input').value = data.notamText;
+                        window.__notamTextFull = data.notamText; // par défaut, on considère le texte restauré comme "full"
+                        if (data.notamText && typeof window.parseAndDisplayNotams === "function") {
+                            window.parseAndDisplayNotams(data.notamState || null);
                         }
-                    };
-                } catch (error) { 
-                    sessionStatus.textContent = `Erreur DB: ${error}`; 
-                } finally {
-                    if (db) db.close(); // On ferme la connexion après la lecture/écriture
+                    }
+
+                    if (data.weatherData) {
+                        Object.entries(data.weatherData).forEach(([icao, weather]) => {
+                            let container = document.getElementById(`notam-container-${icao}`);
+                            if (!container) {
+                                container = createAirportSectionElement(icao, icao);
+                                (document.getElementById('manual-metar-display') || document.getElementById('notam-display')).appendChild(container);
+                            }
+                            container.querySelector('.metar-container').innerHTML = weather.metarHTML || "";
+                            container.querySelector('.taf-container').innerHTML = weather.tafHTML || "";
+                            container.dataset.loaded = 'true';
+                        });
+                        checkWeatherValidity();
+                    }
+
+                    sessionStatus.textContent = `Session restaurée (du ${new Date(data.savedAt).toLocaleString('fr-FR')})`;
+                } else {
+                    sessionStatus.textContent = "Aucune session sauvegardée.";
                 }
-            })();
+            };
+        } catch (error) {
+            sessionStatus.textContent = `Erreur DB: ${error.message || error}`;
+        } finally {
+            if (db) db.close();
         }
-        
+    })();
+}
+
+
         async function extractTextFromPdf(file, pdfInfoElement) { 
             const notamInput = document.getElementById('notam-input'); 
             pdfInfoElement.textContent = `Extraction du texte de ${file.name}...`; 
