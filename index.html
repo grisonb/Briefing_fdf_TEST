@@ -621,7 +621,7 @@
         <div class="page-header-background"></div>
         <h1 id="main-title">Briefing Fdf</h1>
         <p id="current-time-display"></p>
-        <p style="position: relative; z-index: 2; text-align: center; color: #333; font-size: 1em; margin-top: -25px; margin-bottom: 30px;">v0.8</p>
+        <p style="position: relative; z-index: 2; text-align: center; color: #333; font-size: 1em; margin-top: -25px; margin-bottom: 30px;">v0.9</p>
     </div>
 
     <div class="session-management" id="session-section">
@@ -1350,13 +1350,56 @@
 
         // --- GAAR MAP LOGIC ---
         function initGaarMap() {
-            if (gaarMap) return; 
+            if (gaarMap) return;
 
             const mapDisplay = document.getElementById('gaar-map-display');
+
+            // Init Leaflet
             gaarMap = L.map(mapDisplay).setView([46.2276, 2.2137], 6);
             L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '© OpenStreetMap' }).addTo(gaarMap);
             gaarMap.on('click', handleMapClickForManualAdd);
+
+            // --- Fix iPad/Safari : la carte peut se créer avant que le conteneur ait sa taille finale ---
+            const forceInvalidate = () => {
+                if (!gaarMap) return;
+                try { gaarMap.invalidateSize(true); } catch (e) {}
+            };
+
+            // 1) Juste après le 1er rendu
+            requestAnimationFrame(() => forceInvalidate());
+            setTimeout(() => forceInvalidate(), 250);
+
+            // 2) Après rotation / resize (iPad)
+            if (!window.__gaarMapFixResizeBound) {
+                window.__gaarMapFixResizeBound = true;
+
+                let t;
+                const onResize = () => {
+                    clearTimeout(t);
+                    t = setTimeout(() => forceInvalidate(), 200);
+                };
+
+                window.addEventListener('resize', onResize, { passive: true });
+                window.addEventListener('orientationchange', () => {
+                    setTimeout(() => forceInvalidate(), 350);
+                }, { passive: true });
+            }
+
+            // 3) Quand la carte redevient visible (scroll retour sur la carte)
+            if (!window.__gaarMapFixObserver && 'IntersectionObserver' in window) {
+                window.__gaarMapFixObserver = new IntersectionObserver((entries) => {
+                    for (const entry of entries) {
+                        if (entry.isIntersecting) {
+                            // Petit délai = Safari laisse le layout se stabiliser
+                            setTimeout(() => forceInvalidate(), 120);
+                        }
+                    }
+                }, { threshold: 0.15 });
+
+                window.__gaarMapFixObserver.observe(mapDisplay);
+            }
         }
+
 
         function initializeGaarMapFromFile(gaarPdfFile) {
             initGaarMap();
@@ -1675,11 +1718,24 @@
             document.getElementById('show-gaar-map-btn').addEventListener('click', () => {
                 const mapSection = document.getElementById('gaar-map-section');
                 mapSection.style.display = 'block';
-                initGaarMap(); 
+
+                initGaarMap();
+
                 document.getElementById('gaar-status').textContent = 'Prêt pour l\'ajout manuel de circuits.';
-                mapSection.scrollIntoView({ behavior: 'smooth' });
                 document.getElementById('gaar-map-nav-link').style.display = 'block';
+
+                mapSection.scrollIntoView({ behavior: 'smooth' });
+
+                // Fix iPad : après le scroll + layout, on force Leaflet à recalculer
+                setTimeout(() => {
+                    if (window.gaarMap) {
+                        try { window.gaarMap.invalidateSize(true); } catch (e) {}
+                    } else if (typeof gaarMap !== 'undefined' && gaarMap) {
+                        try { gaarMap.invalidateSize(true); } catch (e) {}
+                    }
+                }, 450);
             });
+
 
             document.getElementById('pdf-load-notam-btn').addEventListener('click', () => document.getElementById('pdf-input-notam').click());
             document.getElementById('pdf-input-notam').addEventListener('change', (e) => notamHandler(e.target.files));
