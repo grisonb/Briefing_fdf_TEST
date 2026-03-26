@@ -214,6 +214,32 @@
         .session-management .link-button { margin: 5px 10px; font-size: 1em; padding: 10px 20px; }
         .session-management .link-button:disabled { background-color: #95a5a6; cursor: not-allowed; opacity: 0.7; }
         #session-status { font-style: italic; color: white; opacity: 0.9; margin-top: 15px; font-weight: bold; }
+        #share-result {
+            margin-top: 15px;
+            background: rgba(255,255,255,0.1);
+            border: 1px solid rgba(255,255,255,0.3);
+            border-radius: 8px;
+            padding: 12px;
+            display: none;
+        }
+        #share-link-input {
+            width: 100%;
+            max-width: 760px;
+            margin: 8px auto 0 auto;
+            display: block;
+            border-radius: 6px;
+            border: none;
+            padding: 8px 10px;
+            font-size: 0.95em;
+        }
+        #share-qr-image {
+            margin-top: 12px;
+            width: 180px;
+            height: 180px;
+            background: white;
+            border-radius: 8px;
+            padding: 6px;
+        }
         
         .map-section, .pdf-section, .notam-section {
             width: 100%;
@@ -621,7 +647,7 @@
         <div class="page-header-background"></div>
         <h1 id="main-title">Briefing Fdf</h1>
         <p id="current-time-display"></p>
-        <p style="position: relative; z-index: 2; text-align: center; color: #333; font-size: 1em; margin-top: -25px; margin-bottom: 30px;">v0.9</p>
+        <p style="position: relative; z-index: 2; text-align: center; color: #333; font-size: 1em; margin-top: -25px; margin-bottom: 30px;">v<span id="app-version">0.10</span></p>
     </div>
 
     <div class="session-management" id="session-section">
@@ -635,6 +661,14 @@
 
     <a href="https://cncasc-app.fr/" target="_blank" class="link-button" style="background-color: #3498db;">CNCASC</a>
     <p id="session-status"></p>
+    <div id="share-result">
+        <strong>Lien de présentation :</strong>
+        <input id="share-link-input" type="text" readonly>
+        <button id="copy-share-link-btn" class="link-button" style="background-color: #16a085; margin-top: 10px;">Copier le lien</button>
+        <div>
+            <img id="share-qr-image" alt="QR code du lien de partage">
+        </div>
+    </div>
 </div>
 
 
@@ -849,6 +883,8 @@
     <footer>Données : Météo-France, SIA, Windy.com, CheckWX.com. Page non commerciale, à usage personnel.</footer>
     
     <script>
+        const APP_VERSION = "0.10";
+
         // --- Clé API pour la source de données météo ---
         const CHECKWX_API_KEY = "b8071d79ae4a482491114af48c9c0246";
 
@@ -874,6 +910,8 @@
         
         function initializePage() {
             window.scrollTo(0, 0);
+            const appVersionEl = document.getElementById('app-version');
+            if (appVersionEl) appVersionEl.textContent = APP_VERSION;
             initializeNavigation(); 
             initializePageTitle();
             initializeTemsi();
@@ -1794,8 +1832,13 @@
     const exportBtn = document.getElementById('export-session-btn');
     const importBtn = document.getElementById('import-session-btn');
     const importInput = document.getElementById('import-session-input');
+    const shareResult = document.getElementById('share-result');
+    const shareLinkInput = document.getElementById('share-link-input');
+    const copyShareLinkBtn = document.getElementById('copy-share-link-btn');
+    const shareQrImage = document.getElementById('share-qr-image');
 
     let isSavingSession = false;
+    const SHARE_API_BASE = 'https://grisonb.synology.me/briefing-api';
 
     function openDB() {
         return new Promise((resolve, reject) => {
@@ -1970,6 +2013,79 @@
         }
     }
 
+    function buildShareUrl(shareId) {
+        const url = new URL(window.location.href);
+        url.searchParams.set('share', shareId);
+        return url.toString();
+    }
+
+    function showShareResult(shareUrl) {
+        if (!shareResult || !shareLinkInput || !shareQrImage) return;
+        shareLinkInput.value = shareUrl;
+        shareQrImage.src = `https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(shareUrl)}`;
+        shareResult.style.display = 'block';
+    }
+
+    function getShareIdFromUrl_(shareUrl) {
+        try {
+            const url = new URL(shareUrl);
+            return url.searchParams.get('share');
+        } catch {
+            return null;
+        }
+    }
+
+    async function createRemoteShare_(portable) {
+        const response = await fetch(`${SHARE_API_BASE}/create.php`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(portable)
+        });
+        const payload = await response.json().catch(() => ({}));
+        if (!response.ok || !payload.id) {
+            throw new Error(payload.error || `HTTP ${response.status}`);
+        }
+        return payload.id;
+    }
+
+    function downloadPortableJson_(portable) {
+        const json = JSON.stringify(portable);
+        const blob = new Blob([json], { type: "application/json" });
+        const now = new Date();
+        const yyyy = now.getFullYear();
+        const mm = String(now.getMonth() + 1).padStart(2, '0');
+        const dd = String(now.getDate()).padStart(2, '0');
+        const HH = String(now.getHours()).padStart(2, '0');
+        const MM = String(now.getMinutes()).padStart(2, '0');
+        const filename = `Bfg FdF ${yyyy}-${mm}-${dd} ${HH}h${MM}.json`;
+
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        URL.revokeObjectURL(a.href);
+        return filename;
+    }
+
+    async function loadSharedSessionFromUrl_() {
+        const params = new URLSearchParams(window.location.search);
+        const shareId = params.get('share');
+        if (!shareId) return false;
+
+        sessionStatus.textContent = "Chargement du briefing partagé...";
+        const response = await fetch(`${SHARE_API_BASE}/get.php?id=${encodeURIComponent(shareId)}`);
+        const payload = await response.json().catch(() => ({}));
+        if (!response.ok) {
+            throw new Error(payload.error || `HTTP ${response.status}`);
+        }
+
+        await applyPortableSessionObject_(payload);
+        sessionStatus.textContent = "Briefing partagé chargé.";
+        return true;
+    }
+
     async function performSave() {
         if (isSavingSession) return;
         isSavingSession = true;
@@ -2046,58 +2162,56 @@
 
     if (exportBtn) {
         exportBtn.addEventListener('click', async () => {
+            let portable;
             try {
                 sessionStatus.textContent = "Préparation du partage...";
-                const portable = await buildPortableSessionObject_();
-                const json = JSON.stringify(portable);
-                const blob = new Blob([json], { type: "application/json" });
+                portable = await buildPortableSessionObject_();
+                const shareId = await createRemoteShare_(portable);
+                const shareUrl = buildShareUrl(shareId);
+                showShareResult(shareUrl);
 
-                const now = new Date();
-const yyyy = now.getFullYear();
-const mm = String(now.getMonth() + 1).padStart(2, '0');
-const dd = String(now.getDate()).padStart(2, '0');
-const HH = String(now.getHours()).padStart(2, '0');
-const MM = String(now.getMinutes()).padStart(2, '0');
+                if (navigator.share) {
+                    try {
+                        await navigator.share({
+                            title: "Briefing FdF",
+                            text: "Lien du briefing",
+                            url: shareUrl
+                        });
+                    } catch (shareErr) {
+                        console.warn("Partage natif annulé ou indisponible:", shareErr);
+                    }
+                }
 
-const datePart = `${yyyy}-${mm}-${dd}`;
-const timePartDisplay = `${HH}h${MM}`;      // affichage
-const timePartFile = `${HH}h${MM}`;         // nom de fichier
-
-const filename = `Bfg FdF ${datePart} ${timePartFile}.json`;
-
-
-// 1) iPad/iPhone : Web Share API (AirDrop / Messages / Mail / Fichiers…)
-try {
-    const file = new File([blob], filename, { type: "application/json" });
-    if (navigator.share && (!navigator.canShare || navigator.canShare({ files: [file] }))) {
-        await navigator.share({
-            title: `Bfg FdF ${datePart} ${timePartDisplay}`,
-            text: "Session de briefing (JSON)",
-            files: [file]
-        });
-        sessionStatus.textContent = "Session partagée.";
-        return;
-    }
-} catch (shareErr) {
-    // Si partage échoue, on bascule sur le download
-    console.warn("Partage impossible, fallback téléchargement:", shareErr);
-}
-
-
-                // 2) Fallback PC/Mac : téléchargement classique
-                const a = document.createElement('a');
-                a.href = URL.createObjectURL(blob);
-                a.download = filename;
-                document.body.appendChild(a);
-                a.click();
-                a.remove();
-                URL.revokeObjectURL(a.href);
-
-                sessionStatus.textContent = `Session exportée : ${filename}`;
+                const extractedShareId = getShareIdFromUrl_(shareUrl);
+                if (extractedShareId) {
+                    sessionStatus.textContent = `Lien de partage généré (ID: ${extractedShareId}).`;
+                } else {
+                    sessionStatus.textContent = "Lien de partage généré.";
+                }
             } catch (e) {
                 console.error(e);
-                sessionStatus.textContent = `Erreur export: ${e.message || e}`;
-                alert("Erreur lors de l’export/partage.");
+                if (portable) {
+                    const filename = downloadPortableJson_(portable);
+                    sessionStatus.textContent = `Lien indisponible, JSON exporté : ${filename}`;
+                    alert("Lien indisponible pour le moment : export JSON généré automatiquement.");
+                } else {
+                    sessionStatus.textContent = `Erreur partage: ${e.message || e}`;
+                    alert("Impossible de préparer le partage.");
+                }
+            }
+        });
+    }
+
+    if (copyShareLinkBtn) {
+        copyShareLinkBtn.addEventListener('click', async () => {
+            if (!shareLinkInput || !shareLinkInput.value) return;
+            try {
+                await navigator.clipboard.writeText(shareLinkInput.value);
+                sessionStatus.textContent = "Lien copié.";
+            } catch {
+                shareLinkInput.select();
+                document.execCommand('copy');
+                sessionStatus.textContent = "Lien copié.";
             }
         });
     }
@@ -2155,6 +2269,13 @@ try {
     (async function loadSession() {
         let db;
         try {
+            const loadedFromLink = await loadSharedSessionFromUrl_().catch((err) => {
+                console.error(err);
+                sessionStatus.textContent = `Erreur lien partagé: ${err.message || err}`;
+                return false;
+            });
+            if (loadedFromLink) return;
+
             db = await openDB();
             const request = db.transaction([storeName], 'readonly').objectStore(storeName).get('currentSession');
 
