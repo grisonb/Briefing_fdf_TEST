@@ -883,7 +883,7 @@
     <footer>Données : Météo-France, SIA, Windy.com, CheckWX.com. Page non commerciale, à usage personnel.</footer>
     
     <script>
-        const APP_VERSION = "0.18";
+        const APP_VERSION = "0.19";
 
         // --- Clé API pour la source de données météo ---
         const CHECKWX_API_KEY = "b8071d79ae4a482491114af48c9c0246";
@@ -1838,7 +1838,9 @@
     const shareQrImage = document.getElementById('share-qr-image');
 
     let isSavingSession = false;
-    const SHARE_API_BASE = 'https://grisonb.synology.me/briefing-api';
+    const SHARE_API_BASE = (window.location.origin && window.location.origin.startsWith('http'))
+        ? `${window.location.origin}/briefing-api`
+        : 'https://grisonb.synology.me/briefing-api';
     const ENABLE_REMOTE_SHARE = true; // Partage NAS activé : génère un lien + QR code.
 
     function openDB() {
@@ -2270,7 +2272,7 @@
                 if (portable) {
                     const filename = downloadPortableJson_(portable);
                     shareResult && (shareResult.style.display = 'none');
-                    sessionStatus.textContent = `Partage distant indisponible : JSON exporté (${filename}).`;
+                    sessionStatus.textContent = `Partage distant indisponible (${e.message || e}) : JSON exporté (${filename}).`;
                 } else {
                     sessionStatus.textContent = `Erreur partage: ${e.message || e}`;
                     alert("Impossible de préparer le partage.");
