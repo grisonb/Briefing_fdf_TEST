@@ -884,7 +884,7 @@
     <footer>Données : Météo-France, SIA, Windy.com, CheckWX.com. Page non commerciale, à usage personnel.</footer>
     
     <script>
-        const APP_VERSION = "0.24";
+        const APP_VERSION = "0.25";
 
         // --- Clé API pour la source de données météo ---
         const CHECKWX_API_KEY = "b8071d79ae4a482491114af48c9c0246";
@@ -2083,31 +2083,51 @@
     }
 
     async function createRemoteShare_(portable) {
-        const bodyCandidate = { payload: portable };
-        let response = await fetch(`${SHARE_API_BASE}/create.php`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(bodyCandidate)
-        });
+        const jsonBody = JSON.stringify({ payload: portable });
+        const formBody = new URLSearchParams();
+        formBody.set('payload', JSON.stringify(portable));
 
-        // Fallback pour serveurs NAS qui refusent le JSON (HTTP 405/415).
-        if (response.status === 405 || response.status === 415) {
-            const formBody = new URLSearchParams();
-            formBody.set('payload', JSON.stringify(portable));
-            response = await fetch(`${SHARE_API_BASE}/create.php`, {
+        const candidateEndpoints = [`${SHARE_API_BASE}/create.php`, `${SHARE_API_BASE}/create`];
+        const attempts = [];
+
+        candidateEndpoints.forEach(url => {
+            attempts.push(async () => fetch(url, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: jsonBody
+            }));
+            attempts.push(async () => fetch(url, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8' },
                 body: formBody.toString()
+            }));
+        });
+
+        // Dernier recours: GET uniquement si payload assez court.
+        if (formBody.toString().length < 1800) {
+            candidateEndpoints.forEach(url => {
+                attempts.push(async () => fetch(`${url}?${formBody.toString()}`, { method: 'GET' }));
             });
         }
 
-        const payload = await response.json().catch(() => ({}));
-        const shareId = payload.id || payload.shareId || payload.token || null;
-        const shareUrl = payload.url || payload.shareUrl || null;
-        if (!response.ok || !shareId) {
-            throw new Error(payload.error || `HTTP ${response.status}`);
+        let lastError = null;
+        for (const runAttempt of attempts) {
+            try {
+                const response = await runAttempt();
+                const payload = await response.json().catch(() => ({}));
+                const shareId = payload.id || payload.shareId || payload.token || null;
+                const shareUrl = payload.url || payload.shareUrl || null;
+                if (!response.ok || !shareId) {
+                    lastError = new Error(payload.error || `HTTP ${response.status}`);
+                    continue;
+                }
+                return { shareId, shareUrl };
+            } catch (e) {
+                lastError = e;
+            }
         }
-        return { shareId, shareUrl };
+
+        throw lastError || new Error("Impossible de créer le lien distant.");
     }
 
     function downloadPortableJson_(portable) {
