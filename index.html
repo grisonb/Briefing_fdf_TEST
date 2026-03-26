@@ -648,7 +648,7 @@
         <div class="page-header-background"></div>
         <h1 id="main-title">Briefing Fdf</h1>
         <p id="current-time-display"></p>
-        <p style="position: relative; z-index: 2; text-align: center; color: #333; font-size: 1em; margin-top: -25px; margin-bottom: 30px;">v<span id="app-version">0.22</span></p>
+        <p style="position: relative; z-index: 2; text-align: center; color: #333; font-size: 1em; margin-top: -25px; margin-bottom: 30px;">v<span id="app-version">0.28</span></p>
     </div>
 
     <div class="session-management" id="session-section">
@@ -884,7 +884,7 @@
     <footer>Données : Météo-France, SIA, Windy.com, CheckWX.com. Page non commerciale, à usage personnel.</footer>
     
     <script>
-        const APP_VERSION = "0.27";
+        const APP_VERSION = "0.28";
 
         // --- Clé API pour la source de données météo ---
         const CHECKWX_API_KEY = "b8071d79ae4a482491114af48c9c0246";
@@ -1854,7 +1854,7 @@
     const SHARE_API_BASE = (window.location.origin && window.location.origin.startsWith('http'))
         ? `${window.location.origin}/briefing-api`
         : LEGACY_SHARE_API_BASE;
-    const SHARE_API_BASE_CANDIDATES = Array.from(new Set([SHARE_API_BASE, LEGACY_SHARE_API_BASE]));
+    const SHARE_API_BASE_CANDIDATES = [SHARE_API_BASE];
     let activeShareApiBase = SHARE_API_BASE;
     const ENABLE_REMOTE_SHARE = true; // Partage NAS activé : génère un lien + QR code.
 
