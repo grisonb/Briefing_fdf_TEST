@@ -2069,7 +2069,7 @@
     }
 
     async function fetchSharedPortableById_(shareId) {
-        const response = await fetch(`${SHARE_API_BASE}/get.php?id=${encodeURIComponent(shareId)}`);
+        const response = await fetch(`${activeShareApiBase}/get.php?id=${encodeURIComponent(shareId)}`);
         const payload = await response.json().catch(() => ({}));
         if (!response.ok) {
             throw new Error(payload.error || `HTTP ${response.status}`);
