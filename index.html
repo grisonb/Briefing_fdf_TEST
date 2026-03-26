@@ -647,10 +647,8 @@
         <div class="page-header-background"></div>
         <h1 id="main-title">Briefing Fdf</h1>
         <p id="current-time-display"></p>
-<<<<<<< codex/add-sharing-link-for-json-file-2n0gay
+        <p style="position: relative; z-index: 2; text-align: center; color: #333; font-size: 1em; margin-top: -25px; margin-bottom: 30px;">v<span id="app-version"></span></p>
         <p style="position: relative; z-index: 2; text-align: center; color: #333; font-size: 1em; margin-top: -25px; margin-bottom: 30px;">v<span id="app-version">0.11</span></p>
-=======
-        <p sty<p style="position: relative; z-index: 2; text-align: center; color: #333; font-size: 1em; margin-top: -25px; margin-bottom: 30px;">v<span id="app-version">0.11</span></p>
 >>>>>>> main
     </div>
 
@@ -887,7 +885,7 @@
     <footer>Données : Météo-France, SIA, Windy.com, CheckWX.com. Page non commerciale, à usage personnel.</footer>
     
     <script>
-        const APP_VERSION = "0.11";
+        const APP_VERSION = "0.12";
 
         // --- Clé API pour la source de données météo ---
         const CHECKWX_API_KEY = "b8071d79ae4a482491114af48c9c0246";
@@ -1940,7 +1938,6 @@
     }
 
     function isPortableSessionObject_(candidate) {
-<<<<<<< codex/add-sharing-link-for-json-file-2n0gay
         if (!candidate || typeof candidate !== 'object') return false;
         return candidate.version === "portableSessionV1" || candidate.version === "portableSessionV2";
     }
@@ -2082,7 +2079,6 @@ async function applyPortableSessionObject_(portable) {
         }
     }
 
-<<<<<<< codex/add-sharing-link-for-json-file-2n0gay
     async function fetchSharedPortableById_(shareId) {
         const response = await fetch(`${SHARE_API_BASE}/get.php?id=${encodeURIComponent(shareId)}`);
         const payload = await response.json().catch(() => ({}));
@@ -2097,7 +2093,6 @@ async function applyPortableSessionObject_(portable) {
         return portablePayload;
     }
 
-=======
 >>>>>>> main
     async function createRemoteShare_(portable) {
         const response = await fetch(`${SHARE_API_BASE}/create.php`, {
@@ -2109,7 +2104,6 @@ async function applyPortableSessionObject_(portable) {
         if (!response.ok || !payload.id) {
             throw new Error(payload.error || `HTTP ${response.status}`);
         }
-<<<<<<< codex/add-sharing-link-for-json-file-2n0gay
 
         const shareId = payload.id;
         // Vérifie immédiatement que les données ont bien été persistées côté NAS.
@@ -2119,8 +2113,6 @@ async function applyPortableSessionObject_(portable) {
         }
 
         return shareId;
-=======
-        return payload.id;
 >>>>>>> main
     }
 
@@ -2151,17 +2143,10 @@ async function applyPortableSessionObject_(portable) {
         if (!shareId) return false;
 
         sessionStatus.textContent = "Chargement du briefing partagé...";
-<<<<<<< codex/add-sharing-link-for-json-file-2n0gay
         const portablePayload = await fetchSharedPortableById_(shareId);
         await applyPortableSessionObject_(portablePayload);
-=======
-        const response = await fetch(`${SHARE_API_BASE}/get.php?id=${encodeURIComponent(shareId)}`);
-        const payload = await response.json().catch(() => ({}));
-        if (!response.ok) {
-            throw new Error(payload.error || `HTTP ${response.status}`);
-        }
-
-        await applyPortableSessionObject_(payload);
+        const portablePayload = await fetchSharedPortableById_(shareId);
+        await applyPortableSessionObject_(portablePayload);
 >>>>>>> main
         sessionStatus.textContent = "Briefing partagé chargé.";
         return true;
