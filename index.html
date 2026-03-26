@@ -648,8 +648,6 @@
         <h1 id="main-title">Briefing Fdf</h1>
         <p id="current-time-display"></p>
         <p style="position: relative; z-index: 2; text-align: center; color: #333; font-size: 1em; margin-top: -25px; margin-bottom: 30px;">v<span id="app-version"></span></p>
-        <p style="position: relative; z-index: 2; text-align: center; color: #333; font-size: 1em; margin-top: -25px; margin-bottom: 30px;">v<span id="app-version">0.11</span></p>
->>>>>>> main
     </div>
 
     <div class="session-management" id="session-section">
@@ -885,7 +883,7 @@
     <footer>Données : Météo-France, SIA, Windy.com, CheckWX.com. Page non commerciale, à usage personnel.</footer>
     
     <script>
-        const APP_VERSION = "0.12";
+        const APP_VERSION = "0.18";
 
         // --- Clé API pour la source de données météo ---
         const CHECKWX_API_KEY = "b8071d79ae4a482491114af48c9c0246";
@@ -1841,6 +1839,7 @@
 
     let isSavingSession = false;
     const SHARE_API_BASE = 'https://grisonb.synology.me/briefing-api';
+    const ENABLE_REMOTE_SHARE = true; // Partage NAS activé : génère un lien + QR code.
 
     function openDB() {
         return new Promise((resolve, reject) => {
@@ -1960,30 +1959,6 @@
         if (!isPortableSessionObject_(portable)) {
             throw new Error("Fichier de session invalide ou version non supportée.");
         }
-=======
-    if (!candidate || typeof candidate !== 'object') return false;
-    return candidate.version === "portableSessionV1" || candidate.version === "portableSessionV2";
-}
-
-function extractPortablePayload_(payload) {
-    const candidates = [
-        payload,
-        payload && payload.payload,
-        payload && payload.data,
-        payload && payload.session,
-        payload && payload.briefing,
-        payload && payload.portable,
-        payload && payload.record && payload.record.payload,
-        payload && payload.payload && payload.payload.payload
-    ];
-    return candidates.find(isPortableSessionObject_) || null;
-}
-
-async function applyPortableSessionObject_(portable) {
-    if (!isPortableSessionObject_(portable)) {
-        throw new Error("Fichier de session invalide ou version non supportée.");
-    }
->>>>>>> main
 
         // IMPORTANT UX : on revient sur la Feuille de Service après import
         const fdsSection = document.getElementById('fds-section');
@@ -2093,27 +2068,59 @@ async function applyPortableSessionObject_(portable) {
         return portablePayload;
     }
 
->>>>>>> main
     async function createRemoteShare_(portable) {
-        const response = await fetch(`${SHARE_API_BASE}/create.php`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(portable)
-        });
-        const payload = await response.json().catch(() => ({}));
-        if (!response.ok || !payload.id) {
-            throw new Error(payload.error || `HTTP ${response.status}`);
+        const requestBodies = [
+            { payload: portable },
+            { data: portable },
+            { briefing: portable },
+            portable
+        ];
+
+        let lastError = null;
+
+        for (const bodyCandidate of requestBodies) {
+            try {
+                const response = await fetch(`${SHARE_API_BASE}/create.php`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(bodyCandidate)
+                });
+
+                const payload = await response.json().catch(() => ({}));
+                const shareId = payload.id || payload.shareId || payload.token || null;
+                const shareUrl = payload.url || payload.shareUrl || null;
+
+                if (!response.ok || !shareId) {
+                    lastError = new Error(payload.error || `HTTP ${response.status}`);
+                    continue;
+                }
+
+                // Vérification de cohérence: s'assurer que ce qui est relu contient bien les pièces jointes attendues.
+                const reloadedPortable = await fetchSharedPortableById_(shareId);
+                if (!isPortableSessionObject_(reloadedPortable)) {
+                    lastError = new Error("Partage créé mais contenu non relisible.");
+                    continue;
+                }
+                if (portable.fds && !reloadedPortable.fds) {
+                    lastError = new Error("Partage incomplet: FDS manquante après lecture.");
+                    continue;
+                }
+                if (portable.gaar && !reloadedPortable.gaar) {
+                    lastError = new Error("Partage incomplet: GAAR manquante après lecture.");
+                    continue;
+                }
+                if ((portable.supAips || []).length > 0 && (reloadedPortable.supAips || []).length === 0) {
+                    lastError = new Error("Partage incomplet: SUP AIP manquants après lecture.");
+                    continue;
+                }
+
+                return { shareId, shareUrl };
+            } catch (err) {
+                lastError = err;
+            }
         }
 
-        const shareId = payload.id;
-        // Vérifie immédiatement que les données ont bien été persistées côté NAS.
-        const reloadedPortable = await fetchSharedPortableById_(shareId);
-        if (!isPortableSessionObject_(reloadedPortable)) {
-            throw new Error("Partage créé mais données non relisibles.");
-        }
-
-        return shareId;
->>>>>>> main
+        throw lastError || new Error("Échec de création du lien de partage.");
     }
 
     function downloadPortableJson_(portable) {
@@ -2145,9 +2152,6 @@ async function applyPortableSessionObject_(portable) {
         sessionStatus.textContent = "Chargement du briefing partagé...";
         const portablePayload = await fetchSharedPortableById_(shareId);
         await applyPortableSessionObject_(portablePayload);
-        const portablePayload = await fetchSharedPortableById_(shareId);
-        await applyPortableSessionObject_(portablePayload);
->>>>>>> main
         sessionStatus.textContent = "Briefing partagé chargé.";
         return true;
     }
@@ -2232,34 +2236,41 @@ async function applyPortableSessionObject_(portable) {
             try {
                 sessionStatus.textContent = "Préparation du partage...";
                 portable = await buildPortableSessionObject_();
-                const shareId = await createRemoteShare_(portable);
-                const shareUrl = buildShareUrl(shareId);
-                showShareResult(shareUrl);
+                if (ENABLE_REMOTE_SHARE) {
+                    const remoteShare = await createRemoteShare_(portable);
+                    const shareId = remoteShare.shareId;
+                    const shareUrl = remoteShare.shareUrl || buildShareUrl(shareId);
+                    showShareResult(shareUrl);
 
-                if (navigator.share) {
-                    try {
-                        await navigator.share({
-                            title: "Briefing FdF",
-                            text: "Lien du briefing",
-                            url: shareUrl
-                        });
-                    } catch (shareErr) {
-                        console.warn("Partage natif annulé ou indisponible:", shareErr);
+                    if (navigator.share) {
+                        try {
+                            await navigator.share({
+                                title: "Briefing FdF",
+                                text: "Lien du briefing",
+                                url: shareUrl
+                            });
+                        } catch (shareErr) {
+                            console.warn("Partage natif annulé ou indisponible:", shareErr);
+                        }
                     }
-                }
 
-                const extractedShareId = getShareIdFromUrl_(shareUrl);
-                if (extractedShareId) {
-                    sessionStatus.textContent = `Lien de partage généré (ID: ${extractedShareId}).`;
+                    const extractedShareId = getShareIdFromUrl_(shareUrl);
+                    if (extractedShareId) {
+                        sessionStatus.textContent = `Lien de partage généré (ID: ${extractedShareId}).`;
+                    } else {
+                        sessionStatus.textContent = "Lien de partage généré.";
+                    }
                 } else {
-                    sessionStatus.textContent = "Lien de partage généré.";
+                    const filename = downloadPortableJson_(portable);
+                    shareResult && (shareResult.style.display = 'none');
+                    sessionStatus.textContent = `Partage distant désactivé : JSON exporté (${filename}).`;
                 }
             } catch (e) {
                 console.error(e);
                 if (portable) {
                     const filename = downloadPortableJson_(portable);
-                    sessionStatus.textContent = `Lien indisponible, JSON exporté : ${filename}`;
-                    alert("Lien indisponible pour le moment : export JSON généré automatiquement.");
+                    shareResult && (shareResult.style.display = 'none');
+                    sessionStatus.textContent = `Partage distant indisponible : JSON exporté (${filename}).`;
                 } else {
                     sessionStatus.textContent = `Erreur partage: ${e.message || e}`;
                     alert("Impossible de préparer le partage.");
