@@ -883,7 +883,7 @@
     <footer>Données : Météo-France, SIA, Windy.com, CheckWX.com. Page non commerciale, à usage personnel.</footer>
     
     <script>
-        const APP_VERSION = "0.13";
+        const APP_VERSION = "0.14";
 
         // --- Clé API pour la source de données météo ---
         const CHECKWX_API_KEY = "b8071d79ae4a482491114af48c9c0246";
@@ -2068,24 +2068,44 @@
     }
 
     async function createRemoteShare_(portable) {
-        const response = await fetch(`${SHARE_API_BASE}/create.php`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(portable)
-        });
-        const payload = await response.json().catch(() => ({}));
-        if (!response.ok || !payload.id) {
-            throw new Error(payload.error || `HTTP ${response.status}`);
+        const requestBodies = [
+            portable,
+            { payload: portable },
+            { data: portable },
+            { briefing: portable }
+        ];
+
+        let lastError = null;
+
+        for (const bodyCandidate of requestBodies) {
+            try {
+                const response = await fetch(`${SHARE_API_BASE}/create.php`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(bodyCandidate)
+                });
+
+                const payload = await response.json().catch(() => ({}));
+                const shareId = payload.id || payload.shareId || payload.token || null;
+
+                if (!response.ok || !shareId) {
+                    lastError = new Error(payload.error || `HTTP ${response.status}`);
+                    continue;
+                }
+
+                // Vérifie immédiatement que les données ont bien été persistées côté API.
+                const reloadedPortable = await fetchSharedPortableById_(shareId);
+                if (!isPortableSessionObject_(reloadedPortable)) {
+                    throw new Error("Partage créé mais données non relisibles.");
+                }
+
+                return shareId;
+            } catch (err) {
+                lastError = err;
+            }
         }
 
-        const shareId = payload.id;
-        // Vérifie immédiatement que les données ont bien été persistées côté NAS.
-        const reloadedPortable = await fetchSharedPortableById_(shareId);
-        if (!isPortableSessionObject_(reloadedPortable)) {
-            throw new Error("Partage créé mais données non relisibles.");
-        }
-
-        return shareId;
+        throw lastError || new Error("Échec de création du lien de partage.");
     }
 
     function downloadPortableJson_(portable) {
