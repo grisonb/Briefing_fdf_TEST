@@ -883,7 +883,11 @@
     <footer>Données : Météo-France, SIA, Windy.com, CheckWX.com. Page non commerciale, à usage personnel.</footer>
     
     <script>
+<<<<<<< codex/fix-version-display-issues-and-update-to-v0.13-ebovqt
+        const APP_VERSION = "0.20";
+=======
         const APP_VERSION = "0.19";
+>>>>>>> main
 
         // --- Clé API pour la source de données météo ---
         const CHECKWX_API_KEY = "b8071d79ae4a482491114af48c9c0246";
@@ -1838,9 +1842,18 @@
     const shareQrImage = document.getElementById('share-qr-image');
 
     let isSavingSession = false;
+<<<<<<< codex/fix-version-display-issues-and-update-to-v0.13-ebovqt
+    const LEGACY_SHARE_API_BASE = 'https://grisonb.synology.me/briefing-api';
+    const PREFERRED_SHARE_API_BASE = (window.location.origin && window.location.origin.startsWith('http'))
+        ? `${window.location.origin}/briefing-api`
+        : LEGACY_SHARE_API_BASE;
+    const SHARE_API_BASE_CANDIDATES = Array.from(new Set([PREFERRED_SHARE_API_BASE, LEGACY_SHARE_API_BASE]));
+    let activeShareApiBase = PREFERRED_SHARE_API_BASE;
+=======
     const SHARE_API_BASE = (window.location.origin && window.location.origin.startsWith('http'))
         ? `${window.location.origin}/briefing-api`
         : 'https://grisonb.synology.me/briefing-api';
+>>>>>>> main
     const ENABLE_REMOTE_SHARE = true; // Partage NAS activé : génère un lien + QR code.
 
     function openDB() {
@@ -2057,7 +2070,7 @@
     }
 
     async function fetchSharedPortableById_(shareId) {
-        const response = await fetch(`${SHARE_API_BASE}/get.php?id=${encodeURIComponent(shareId)}`);
+        const response = await fetch(`${activeShareApiBase}/get.php?id=${encodeURIComponent(shareId)}`);
         const payload = await response.json().catch(() => ({}));
         if (!response.ok) {
             throw new Error(payload.error || `HTTP ${response.status}`);
@@ -2080,6 +2093,61 @@
 
         let lastError = null;
 
+<<<<<<< codex/fix-version-display-issues-and-update-to-v0.13-ebovqt
+        for (const apiBase of SHARE_API_BASE_CANDIDATES) {
+            for (const bodyCandidate of requestBodies) {
+                try {
+                    let response = await fetch(`${apiBase}/create.php`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(bodyCandidate)
+                    });
+
+                    // Fallback pour serveurs NAS qui refusent le JSON (HTTP 405/415).
+                    if (response.status === 405 || response.status === 415) {
+                        const formBody = new URLSearchParams();
+                        formBody.set('payload', JSON.stringify(bodyCandidate));
+                        response = await fetch(`${apiBase}/create.php`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8' },
+                            body: formBody.toString()
+                        });
+                    }
+
+                    const payload = await response.json().catch(() => ({}));
+                    const shareId = payload.id || payload.shareId || payload.token || null;
+                    const shareUrl = payload.url || payload.shareUrl || null;
+
+                    if (!response.ok || !shareId) {
+                        lastError = new Error(payload.error || `HTTP ${response.status}`);
+                        continue;
+                    }
+
+                    // Vérification de cohérence: s'assurer que ce qui est relu contient bien les pièces jointes attendues.
+                    activeShareApiBase = apiBase;
+                    const reloadedPortable = await fetchSharedPortableById_(shareId);
+                    if (!isPortableSessionObject_(reloadedPortable)) {
+                        lastError = new Error("Partage créé mais contenu non relisible.");
+                        continue;
+                    }
+                    if (portable.fds && !reloadedPortable.fds) {
+                        lastError = new Error("Partage incomplet: FDS manquante après lecture.");
+                        continue;
+                    }
+                    if (portable.gaar && !reloadedPortable.gaar) {
+                        lastError = new Error("Partage incomplet: GAAR manquante après lecture.");
+                        continue;
+                    }
+                    if ((portable.supAips || []).length > 0 && (reloadedPortable.supAips || []).length === 0) {
+                        lastError = new Error("Partage incomplet: SUP AIP manquants après lecture.");
+                        continue;
+                    }
+
+                    return { shareId, shareUrl };
+                } catch (err) {
+                    lastError = err;
+                }
+=======
         for (const bodyCandidate of requestBodies) {
             try {
                 const response = await fetch(`${SHARE_API_BASE}/create.php`, {
@@ -2119,6 +2187,7 @@
                 return { shareId, shareUrl };
             } catch (err) {
                 lastError = err;
+>>>>>>> main
             }
         }
 
