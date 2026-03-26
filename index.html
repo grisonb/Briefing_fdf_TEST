@@ -647,7 +647,7 @@
         <div class="page-header-background"></div>
         <h1 id="main-title">Briefing Fdf</h1>
         <p id="current-time-display"></p>
-        <p style="position: relative; z-index: 2; text-align: center; color: #333; font-size: 1em; margin-top: -25px; margin-bottom: 30px;">v<span id="app-version">0.10</span></p>
+        <p sty<p style="position: relative; z-index: 2; text-align: center; color: #333; font-size: 1em; margin-top: -25px; margin-bottom: 30px;">v<span id="app-version">0.11</span></p>
     </div>
 
     <div class="session-management" id="session-section">
@@ -883,7 +883,7 @@
     <footer>Données : Météo-France, SIA, Windy.com, CheckWX.com. Page non commerciale, à usage personnel.</footer>
     
     <script>
-        const APP_VERSION = "0.10";
+        const APP_VERSION = "0.11";
 
         // --- Clé API pour la source de données météo ---
         const CHECKWX_API_KEY = "b8071d79ae4a482491114af48c9c0246";
@@ -1935,11 +1935,29 @@
         };
     }
 
-    async function applyPortableSessionObject_(portable) {
-        if (!portable || (portable.version !== "portableSessionV1" && portable.version !== "portableSessionV2")) {
-            alert("Fichier de session invalide ou version non supportée.");
-            return;
-        }
+    function isPortableSessionObject_(candidate) {
+    if (!candidate || typeof candidate !== 'object') return false;
+    return candidate.version === "portableSessionV1" || candidate.version === "portableSessionV2";
+}
+
+function extractPortablePayload_(payload) {
+    const candidates = [
+        payload,
+        payload && payload.payload,
+        payload && payload.data,
+        payload && payload.session,
+        payload && payload.briefing,
+        payload && payload.portable,
+        payload && payload.record && payload.record.payload,
+        payload && payload.payload && payload.payload.payload
+    ];
+    return candidates.find(isPortableSessionObject_) || null;
+}
+
+async function applyPortableSessionObject_(portable) {
+    if (!isPortableSessionObject_(portable)) {
+        throw new Error("Fichier de session invalide ou version non supportée.");
+    }
 
         // IMPORTANT UX : on revient sur la Feuille de Service après import
         const fdsSection = document.getElementById('fds-section');
