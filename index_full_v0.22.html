@@ -884,7 +884,7 @@
     <footer>Données : Météo-France, SIA, Windy.com, CheckWX.com. Page non commerciale, à usage personnel.</footer>
     
     <script>
-        const APP_VERSION = "0.24";
+        const APP_VERSION = "0.22";
 
         // --- Clé API pour la source de données météo ---
         const CHECKWX_API_KEY = "b8071d79ae4a482491114af48c9c0246";
@@ -1850,9 +1850,12 @@
     const shareQrImage = document.getElementById('share-qr-image');
 
     let isSavingSession = false;
-    const SHARE_API_BASE = (window.location.origin && window.location.origin.startsWith('http'))
+    const LEGACY_SHARE_API_BASE = 'https://grisonb.synology.me/briefing-api';
+    const PREFERRED_SHARE_API_BASE = (window.location.origin && window.location.origin.startsWith('http'))
         ? `${window.location.origin}/briefing-api`
-        : 'https://grisonb.synology.me/briefing-api';
+        : LEGACY_SHARE_API_BASE;
+    const SHARE_API_BASE_CANDIDATES = Array.from(new Set([PREFERRED_SHARE_API_BASE, LEGACY_SHARE_API_BASE]));
+    let activeShareApiBase = PREFERRED_SHARE_API_BASE;
     const ENABLE_REMOTE_SHARE = true; // Partage NAS activé : génère un lien + QR code.
 
     function openDB() {
@@ -2069,7 +2072,7 @@
     }
 
     async function fetchSharedPortableById_(shareId) {
-        const response = await fetch(`${SHARE_API_BASE}/get.php?id=${encodeURIComponent(shareId)}`);
+        const response = await fetch(`${activeShareApiBase}/get.php?id=${encodeURIComponent(shareId)}`);
         const payload = await response.json().catch(() => ({}));
         if (!response.ok) {
             throw new Error(payload.error || `HTTP ${response.status}`);
@@ -2083,31 +2086,72 @@
     }
 
     async function createRemoteShare_(portable) {
-        const bodyCandidate = { payload: portable };
-        let response = await fetch(`${SHARE_API_BASE}/create.php`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(bodyCandidate)
-        });
+        const requestBodies = [
+            { payload: portable },
+            { data: portable },
+            { briefing: portable },
+            portable
+        ];
 
-        // Fallback pour serveurs NAS qui refusent le JSON (HTTP 405/415).
-        if (response.status === 405 || response.status === 415) {
-            const formBody = new URLSearchParams();
-            formBody.set('payload', JSON.stringify(portable));
-            response = await fetch(`${SHARE_API_BASE}/create.php`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8' },
-                body: formBody.toString()
-            });
+        let lastError = null;
+
+        for (const apiBase of SHARE_API_BASE_CANDIDATES) {
+            for (const bodyCandidate of requestBodies) {
+                try {
+                    let response = await fetch(`${apiBase}/create.php`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(bodyCandidate)
+                    });
+
+                    // Fallback pour serveurs NAS qui refusent le JSON (HTTP 405/415).
+                    if (response.status === 405 || response.status === 415) {
+                        const formBody = new URLSearchParams();
+                        formBody.set('payload', JSON.stringify(bodyCandidate));
+                        response = await fetch(`${apiBase}/create.php`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8' },
+                            body: formBody.toString()
+                        });
+                    }
+
+                    const payload = await response.json().catch(() => ({}));
+                    const shareId = payload.id || payload.shareId || payload.token || null;
+                    const shareUrl = payload.url || payload.shareUrl || null;
+
+                    if (!response.ok || !shareId) {
+                        lastError = new Error(payload.error || `HTTP ${response.status}`);
+                        continue;
+                    }
+
+                    // Vérification de cohérence: s'assurer que ce qui est relu contient bien les pièces jointes attendues.
+                    activeShareApiBase = apiBase;
+                    const reloadedPortable = await fetchSharedPortableById_(shareId);
+                    if (!isPortableSessionObject_(reloadedPortable)) {
+                        lastError = new Error("Partage créé mais contenu non relisible.");
+                        continue;
+                    }
+                    if (portable.fds && !reloadedPortable.fds) {
+                        lastError = new Error("Partage incomplet: FDS manquante après lecture.");
+                        continue;
+                    }
+                    if (portable.gaar && !reloadedPortable.gaar) {
+                        lastError = new Error("Partage incomplet: GAAR manquante après lecture.");
+                        continue;
+                    }
+                    if ((portable.supAips || []).length > 0 && (reloadedPortable.supAips || []).length === 0) {
+                        lastError = new Error("Partage incomplet: SUP AIP manquants après lecture.");
+                        continue;
+                    }
+
+                    return { shareId, shareUrl };
+                } catch (err) {
+                    lastError = err;
+                }
+            }
         }
 
-        const payload = await response.json().catch(() => ({}));
-        const shareId = payload.id || payload.shareId || payload.token || null;
-        const shareUrl = payload.url || payload.shareUrl || null;
-        if (!response.ok || !shareId) {
-            throw new Error(payload.error || `HTTP ${response.status}`);
-        }
-        return { shareId, shareUrl };
+        throw lastError || new Error("Échec de création du lien de partage.");
     }
 
     function downloadPortableJson_(portable) {
@@ -2129,15 +2173,6 @@
         a.remove();
         URL.revokeObjectURL(a.href);
         return filename;
-    }
-
-    function getShareDiagnosticsMessage_(errorLike) {
-        const raw = (errorLike && errorLike.message) ? errorLike.message : String(errorLike || "Erreur inconnue");
-        const isNetworkLike = /failed to fetch|networkerror|load failed|cors/i.test(raw);
-        if (isNetworkLike) {
-            return `Échec réseau/CORS vers ${SHARE_API_BASE}. Vérifier NAS, reverse proxy HTTPS et en-têtes CORS (Access-Control-Allow-Origin).`;
-        }
-        return raw;
     }
 
     async function loadSharedSessionFromUrl_() {
@@ -2266,8 +2301,7 @@
                 if (portable) {
                     const filename = downloadPortableJson_(portable);
                     shareResult && (shareResult.style.display = 'none');
-                    const diag = getShareDiagnosticsMessage_(e);
-                    sessionStatus.textContent = `Partage distant indisponible (${diag}) : JSON exporté (${filename}).`;
+                    sessionStatus.textContent = `Partage distant indisponible (${e.message || e}) : JSON exporté (${filename}).`;
                 } else {
                     sessionStatus.textContent = `Erreur partage: ${e.message || e}`;
                     alert("Impossible de préparer le partage.");
