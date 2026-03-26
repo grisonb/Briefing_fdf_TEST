@@ -883,7 +883,7 @@
     <footer>Données : Météo-France, SIA, Windy.com, CheckWX.com. Page non commerciale, à usage personnel.</footer>
     
     <script>
-        const APP_VERSION = "0.16";
+        const APP_VERSION = "0.17";
 
         // --- Clé API pour la source de données météo ---
         const CHECKWX_API_KEY = "b8071d79ae4a482491114af48c9c0246";
@@ -2088,19 +2088,13 @@
 
                 const payload = await response.json().catch(() => ({}));
                 const shareId = payload.id || payload.shareId || payload.token || null;
+                const shareUrl = payload.url || payload.shareUrl || null;
 
                 if (!response.ok || !shareId) {
                     lastError = new Error(payload.error || `HTTP ${response.status}`);
                     continue;
                 }
-
-                // Vérifie immédiatement que les données ont bien été persistées côté API.
-                const reloadedPortable = await fetchSharedPortableById_(shareId);
-                if (!isPortableSessionObject_(reloadedPortable)) {
-                    throw new Error("Partage créé mais données non relisibles.");
-                }
-
-                return shareId;
+                return { shareId, shareUrl };
             } catch (err) {
                 lastError = err;
             }
@@ -2223,8 +2217,9 @@
                 sessionStatus.textContent = "Préparation du partage...";
                 portable = await buildPortableSessionObject_();
                 if (ENABLE_REMOTE_SHARE) {
-                    const shareId = await createRemoteShare_(portable);
-                    const shareUrl = buildShareUrl(shareId);
+                    const remoteShare = await createRemoteShare_(portable);
+                    const shareId = remoteShare.shareId;
+                    const shareUrl = remoteShare.shareUrl || buildShareUrl(shareId);
                     showShareResult(shareUrl);
 
                     if (navigator.share) {
