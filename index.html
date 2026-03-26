@@ -884,7 +884,7 @@
     <footer>Données : Météo-France, SIA, Windy.com, CheckWX.com. Page non commerciale, à usage personnel.</footer>
     
     <script>
-        const APP_VERSION = "0.26";
+        const APP_VERSION = "0.27";
 
         // --- Clé API pour la source de données météo ---
         const CHECKWX_API_KEY = "b8071d79ae4a482491114af48c9c0246";
@@ -2131,6 +2131,7 @@
                 const endpointUrl = (response.url || "").toString();
                 const detectedBase = SHARE_API_BASE_CANDIDATES.find(base => endpointUrl.startsWith(base));
                 if (detectedBase) activeShareApiBase = detectedBase;
+                await validateSharedPayload_(portable, shareId);
                 return { shareId, shareUrl };
             } catch (e) {
                 lastError = e;
@@ -2138,6 +2139,23 @@
         }
 
         throw lastError || new Error("Impossible de créer le lien distant.");
+    }
+
+    async function validateSharedPayload_(localPortable, shareId) {
+        const remotePortable = await fetchSharedPortableById_(shareId);
+        if (!remotePortable || !isPortableSessionObject_(remotePortable)) {
+            throw new Error("Partage distant invalide après enregistrement.");
+        }
+
+        const expectedSupAips = (localPortable.supAips || []).length;
+        const remoteSupAips = (remotePortable.supAips || []).length;
+        if (!!localPortable.fds !== !!remotePortable.fds) throw new Error("Partage incomplet: FDS absente.");
+        if (!!localPortable.gaar !== !!remotePortable.gaar) throw new Error("Partage incomplet: GAAR absente.");
+        if (expectedSupAips !== remoteSupAips) throw new Error(`Partage incomplet: SUP AIP (${remoteSupAips}/${expectedSupAips}).`);
+
+        const localNotamLen = (localPortable.notamTextFull || localPortable.notamText || "").length;
+        const remoteNotamLen = (remotePortable.notamTextFull || remotePortable.notamText || "").length;
+        if (localNotamLen > 0 && remoteNotamLen === 0) throw new Error("Partage incomplet: NOTAM vides après relecture.");
     }
 
     function downloadPortableJson_(portable) {
@@ -2376,12 +2394,17 @@
     (async function loadSession() {
         let db;
         try {
+            const hasShareParam = new URLSearchParams(window.location.search).has('share');
             const loadedFromLink = await loadSharedSessionFromUrl_().catch((err) => {
                 console.error(err);
                 sessionStatus.textContent = `Erreur lien partagé: ${err.message || err}`;
                 return false;
             });
             if (loadedFromLink) return;
+            if (hasShareParam) {
+                // Important: éviter de masquer un échec de partage distant avec la session locale.
+                return;
+            }
 
             db = await openDB();
             const request = db.transaction([storeName], 'readonly').objectStore(storeName).get('currentSession');
