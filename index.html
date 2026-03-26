@@ -647,7 +647,7 @@
         <div class="page-header-background"></div>
         <h1 id="main-title">Briefing Fdf</h1>
         <p id="current-time-display"></p>
-        <p style="position: relative; z-index: 2; text-align: center; color: #333; font-size: 1em; margin-top: -25px; margin-bottom: 30px;">v0.9</p>
+        <p style="position: relative; z-index: 2; text-align: center; color: #333; font-size: 1em; margin-top: -25px; margin-bottom: 30px;">v<span id="app-version">0.10</span></p>
     </div>
 
     <div class="session-management" id="session-section">
@@ -883,6 +883,8 @@
     <footer>Données : Météo-France, SIA, Windy.com, CheckWX.com. Page non commerciale, à usage personnel.</footer>
     
     <script>
+        const APP_VERSION = "0.10";
+
         // --- Clé API pour la source de données météo ---
         const CHECKWX_API_KEY = "b8071d79ae4a482491114af48c9c0246";
 
@@ -908,6 +910,8 @@
         
         function initializePage() {
             window.scrollTo(0, 0);
+            const appVersionEl = document.getElementById('app-version');
+            if (appVersionEl) appVersionEl.textContent = APP_VERSION;
             initializeNavigation(); 
             initializePageTitle();
             initializeTemsi();
