@@ -883,7 +883,7 @@
     <footer>Données : Météo-France, SIA, Windy.com, CheckWX.com. Page non commerciale, à usage personnel.</footer>
     
     <script>
-        const APP_VERSION = "0.14";
+        const APP_VERSION = "0.16";
 
         // --- Clé API pour la source de données météo ---
         const CHECKWX_API_KEY = "b8071d79ae4a482491114af48c9c0246";
@@ -1839,6 +1839,7 @@
 
     let isSavingSession = false;
     const SHARE_API_BASE = 'https://grisonb.synology.me/briefing-api';
+    const ENABLE_REMOTE_SHARE = true; // Partage NAS activé : génère un lien + QR code.
 
     function openDB() {
         return new Promise((resolve, reject) => {
@@ -2221,34 +2222,40 @@
             try {
                 sessionStatus.textContent = "Préparation du partage...";
                 portable = await buildPortableSessionObject_();
-                const shareId = await createRemoteShare_(portable);
-                const shareUrl = buildShareUrl(shareId);
-                showShareResult(shareUrl);
+                if (ENABLE_REMOTE_SHARE) {
+                    const shareId = await createRemoteShare_(portable);
+                    const shareUrl = buildShareUrl(shareId);
+                    showShareResult(shareUrl);
 
-                if (navigator.share) {
-                    try {
-                        await navigator.share({
-                            title: "Briefing FdF",
-                            text: "Lien du briefing",
-                            url: shareUrl
-                        });
-                    } catch (shareErr) {
-                        console.warn("Partage natif annulé ou indisponible:", shareErr);
+                    if (navigator.share) {
+                        try {
+                            await navigator.share({
+                                title: "Briefing FdF",
+                                text: "Lien du briefing",
+                                url: shareUrl
+                            });
+                        } catch (shareErr) {
+                            console.warn("Partage natif annulé ou indisponible:", shareErr);
+                        }
                     }
-                }
 
-                const extractedShareId = getShareIdFromUrl_(shareUrl);
-                if (extractedShareId) {
-                    sessionStatus.textContent = `Lien de partage généré (ID: ${extractedShareId}).`;
+                    const extractedShareId = getShareIdFromUrl_(shareUrl);
+                    if (extractedShareId) {
+                        sessionStatus.textContent = `Lien de partage généré (ID: ${extractedShareId}).`;
+                    } else {
+                        sessionStatus.textContent = "Lien de partage généré.";
+                    }
                 } else {
-                    sessionStatus.textContent = "Lien de partage généré.";
+                    const filename = downloadPortableJson_(portable);
+                    shareResult && (shareResult.style.display = 'none');
+                    sessionStatus.textContent = `Partage distant désactivé : JSON exporté (${filename}).`;
                 }
             } catch (e) {
                 console.error(e);
                 if (portable) {
                     const filename = downloadPortableJson_(portable);
-                    sessionStatus.textContent = `Lien indisponible, JSON exporté : ${filename}`;
-                    alert("Lien indisponible pour le moment : export JSON généré automatiquement.");
+                    shareResult && (shareResult.style.display = 'none');
+                    sessionStatus.textContent = `Partage distant indisponible : JSON exporté (${filename}).`;
                 } else {
                     sessionStatus.textContent = `Erreur partage: ${e.message || e}`;
                     alert("Impossible de préparer le partage.");
