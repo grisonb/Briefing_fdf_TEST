@@ -647,7 +647,11 @@
         <div class="page-header-background"></div>
         <h1 id="main-title">Briefing Fdf</h1>
         <p id="current-time-display"></p>
+<<<<<<< codex/add-sharing-link-for-json-file-2n0gay
         <p style="position: relative; z-index: 2; text-align: center; color: #333; font-size: 1em; margin-top: -25px; margin-bottom: 30px;">v<span id="app-version">0.11</span></p>
+=======
+        <p sty<p style="position: relative; z-index: 2; text-align: center; color: #333; font-size: 1em; margin-top: -25px; margin-bottom: 30px;">v<span id="app-version">0.11</span></p>
+>>>>>>> main
     </div>
 
     <div class="session-management" id="session-section">
@@ -1936,6 +1940,7 @@
     }
 
     function isPortableSessionObject_(candidate) {
+<<<<<<< codex/add-sharing-link-for-json-file-2n0gay
         if (!candidate || typeof candidate !== 'object') return false;
         return candidate.version === "portableSessionV1" || candidate.version === "portableSessionV2";
     }
@@ -1958,6 +1963,30 @@
         if (!isPortableSessionObject_(portable)) {
             throw new Error("Fichier de session invalide ou version non supportée.");
         }
+=======
+    if (!candidate || typeof candidate !== 'object') return false;
+    return candidate.version === "portableSessionV1" || candidate.version === "portableSessionV2";
+}
+
+function extractPortablePayload_(payload) {
+    const candidates = [
+        payload,
+        payload && payload.payload,
+        payload && payload.data,
+        payload && payload.session,
+        payload && payload.briefing,
+        payload && payload.portable,
+        payload && payload.record && payload.record.payload,
+        payload && payload.payload && payload.payload.payload
+    ];
+    return candidates.find(isPortableSessionObject_) || null;
+}
+
+async function applyPortableSessionObject_(portable) {
+    if (!isPortableSessionObject_(portable)) {
+        throw new Error("Fichier de session invalide ou version non supportée.");
+    }
+>>>>>>> main
 
         // IMPORTANT UX : on revient sur la Feuille de Service après import
         const fdsSection = document.getElementById('fds-section');
@@ -2053,6 +2082,7 @@
         }
     }
 
+<<<<<<< codex/add-sharing-link-for-json-file-2n0gay
     async function fetchSharedPortableById_(shareId) {
         const response = await fetch(`${SHARE_API_BASE}/get.php?id=${encodeURIComponent(shareId)}`);
         const payload = await response.json().catch(() => ({}));
@@ -2067,6 +2097,8 @@
         return portablePayload;
     }
 
+=======
+>>>>>>> main
     async function createRemoteShare_(portable) {
         const response = await fetch(`${SHARE_API_BASE}/create.php`, {
             method: 'POST',
@@ -2077,6 +2109,7 @@
         if (!response.ok || !payload.id) {
             throw new Error(payload.error || `HTTP ${response.status}`);
         }
+<<<<<<< codex/add-sharing-link-for-json-file-2n0gay
 
         const shareId = payload.id;
         // Vérifie immédiatement que les données ont bien été persistées côté NAS.
@@ -2086,6 +2119,9 @@
         }
 
         return shareId;
+=======
+        return payload.id;
+>>>>>>> main
     }
 
     function downloadPortableJson_(portable) {
@@ -2115,8 +2151,18 @@
         if (!shareId) return false;
 
         sessionStatus.textContent = "Chargement du briefing partagé...";
+<<<<<<< codex/add-sharing-link-for-json-file-2n0gay
         const portablePayload = await fetchSharedPortableById_(shareId);
         await applyPortableSessionObject_(portablePayload);
+=======
+        const response = await fetch(`${SHARE_API_BASE}/get.php?id=${encodeURIComponent(shareId)}`);
+        const payload = await response.json().catch(() => ({}));
+        if (!response.ok) {
+            throw new Error(payload.error || `HTTP ${response.status}`);
+        }
+
+        await applyPortableSessionObject_(payload);
+>>>>>>> main
         sessionStatus.textContent = "Briefing partagé chargé.";
         return true;
     }
