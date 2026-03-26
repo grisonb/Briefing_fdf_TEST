@@ -2022,6 +2022,15 @@
         shareResult.style.display = 'block';
     }
 
+    function getShareIdFromUrl_(shareUrl) {
+        try {
+            const url = new URL(shareUrl);
+            return url.searchParams.get('share');
+        } catch {
+            return null;
+        }
+    }
+
     async function createRemoteShare_(portable) {
         const response = await fetch(`${SHARE_API_BASE}/create.php`, {
             method: 'POST',
@@ -2169,7 +2178,12 @@
                     }
                 }
 
-                sessionStatus.textContent = "Lien de partage généré.";
+                const extractedShareId = getShareIdFromUrl_(shareUrl);
+                if (extractedShareId) {
+                    sessionStatus.textContent = `Lien de partage généré (ID: ${extractedShareId}).`;
+                } else {
+                    sessionStatus.textContent = "Lien de partage généré.";
+                }
             } catch (e) {
                 console.error(e);
                 if (portable) {
