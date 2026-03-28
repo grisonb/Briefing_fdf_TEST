@@ -639,18 +639,16 @@
         <div class="page-header-background"></div>
         <h1 id="main-title">Briefing Fdf</h1>
         <p id="current-time-display"></p>
-        <p style="position: relative; z-index: 2; text-align: center; color: #333; font-size: 1em; margin-top: -25px; margin-bottom: 30px;">v<span id="app-version">0.30</span></p>
+        <p style="position: relative; z-index: 2; text-align: center; color: #333; font-size: 1em; margin-top: -25px; margin-bottom: 30px;">v<span id="app-version">0.31</span></p>
     </div>
 
     <div class="session-management" id="session-section">
-    <h3>Session</h3>
     <button id="save-session-btn" class="link-button" style="background-color: #28a745;">Sauvegarder</button>
     <button id="restore-session-btn" class="link-button" style="background-color: #1abc9c;">Restaurer</button>
     <button id="clear-session-btn" class="link-button" style="background-color: var(--sc-red);">Effacer</button>
+    <button id="restore-session-btn" class="link-button" style="background-color: #1abc9c;">Restaurer</button>
 
     <button id="export-session-btn" class="link-button" style="background-color: #8e44ad;">Partager</button>
-    <button id="import-session-btn" class="link-button" style="background-color: #f39c12; color: #000;">Importer (.json)</button>
-    <input type="file" id="import-session-input" accept="application/json" style="display:none;">
 
     <a href="https://cncasc-app.fr/" target="_blank" class="link-button" style="background-color: #3498db;">CNCASC</a>
     <p id="session-status"></p>
@@ -875,7 +873,7 @@
     <footer>Données : Météo-France, SIA, Windy.com, CheckWX.com. Page non commerciale, à usage personnel.</footer>
     
     <script>
-        const APP_VERSION = "0.30";
+        const APP_VERSION = "0.31";
 
         // --- Clé API pour la source de données météo ---
         const CHECKWX_API_KEY = "b8071d79ae4a482491114af48c9c0246";
@@ -1834,8 +1832,6 @@
     const clearBtn = document.getElementById('clear-session-btn');
     const restoreBtn = document.getElementById('restore-session-btn');
     const exportBtn = document.getElementById('export-session-btn');
-    const importBtn = document.getElementById('import-session-btn');
-    const importInput = document.getElementById('import-session-input');
     const shareResult = document.getElementById('share-result');
     const shareLinkInput = document.getElementById('share-link-input');
     const copyShareLinkBtn = document.getElementById('copy-share-link-btn');
@@ -2343,32 +2339,6 @@
         });
     }
 
-    if (importBtn && importInput) {
-        importBtn.addEventListener('click', () => importInput.click());
-
-        importInput.addEventListener('change', async (e) => {
-            const file = e.target.files && e.target.files[0];
-            if (!file) return;
-
-            try {
-                sessionStatus.textContent = "Import en cours.";
-                const text = await file.text();
-                const portable = JSON.parse(text);
-
-                // ✅ UN SEUL POINT D’ENTRÉE
-                await applyPortableSessionObject_(portable);
-
-                sessionStatus.textContent = "Import terminé.";
-            } catch (err) {
-                console.error(err);
-                alert("Impossible d’importer cette session.");
-                sessionStatus.textContent = `Import échoué: ${err.message || err}`;
-            } finally {
-                importInput.value = '';
-            }
-        });
-    }
-
     if (clearBtn) {
         clearBtn.addEventListener('click', async () => {
             sessionStatus.textContent = "Effacement en cours...";
@@ -2460,6 +2430,47 @@
             sessionStatus.textContent = `Erreur DB: ${error.message || error}`;
         } finally {
             if (db) db.close();
+        }
+    }
+
+    async function clearLocalSession_() {
+        let db;
+        try {
+            db = await openDB();
+            const tx = db.transaction([storeName], 'readwrite');
+            tx.objectStore(storeName).clear();
+            await new Promise((resolve, reject) => {
+                tx.oncomplete = resolve;
+                tx.onerror = () => reject(tx.error);
+            });
+        } finally {
+            if (db) db.close();
+        }
+    }
+
+    // ===== Restore on load =====
+    (async function loadSession() {
+        try {
+            const skipAutoRestoreOnce = sessionStorage.getItem('skipAutoRestoreOnce') === '1';
+            if (skipAutoRestoreOnce) sessionStorage.removeItem('skipAutoRestoreOnce');
+            const hasShareParam = new URLSearchParams(window.location.search).has('share');
+            const loadedFromLink = await loadSharedSessionFromUrl_().catch((err) => {
+                console.error(err);
+                sessionStatus.textContent = `Erreur lien partagé: ${err.message || err}`;
+                return false;
+            });
+            if (loadedFromLink) return;
+            if (hasShareParam) {
+                // Important: éviter de masquer un échec de partage distant avec la session locale.
+                return;
+            }
+            if (skipAutoRestoreOnce) {
+                sessionStatus.textContent = "Page vierge chargée (sauvegarde locale conservée).";
+                return;
+            }
+            await restoreLocalSession_();
+        } catch (error) {
+            sessionStatus.textContent = `Erreur DB: ${error.message || error}`;
         }
     }
 
