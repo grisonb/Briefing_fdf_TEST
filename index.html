@@ -4,6 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0">
     <title>Briefing Fdf</title>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
@@ -222,16 +223,7 @@
             padding: 12px;
             display: none;
         }
-        #share-link-input {
-            width: 100%;
-            max-width: 760px;
-            margin: 8px auto 0 auto;
-            display: block;
-            border-radius: 6px;
-            border: none;
-            padding: 8px 10px;
-            font-size: 0.95em;
-        }
+        #share-link-input { display: none; }
         #share-qr-image {
             margin-top: 12px;
             width: 180px;
@@ -647,24 +639,19 @@
         <div class="page-header-background"></div>
         <h1 id="main-title">Briefing Fdf</h1>
         <p id="current-time-display"></p>
-        <p style="position: relative; z-index: 2; text-align: center; color: #333; font-size: 1em; margin-top: -25px; margin-bottom: 30px;">v<span id="app-version"></span></p>
-        <p style="position: relative; z-index: 2; text-align: center; color: #333; font-size: 1em; margin-top: -25px; margin-bottom: 30px;">v<span id="app-version">0.11</span></p>
->>>>>>> main
+        <p style="position: relative; z-index: 2; text-align: center; color: #333; font-size: 1em; margin-top: -25px; margin-bottom: 30px;">v<span id="app-version">0.31</span></p>
     </div>
 
     <div class="session-management" id="session-section">
-    <h3>Gestion de la Session</h3>
     <button id="save-session-btn" class="link-button" style="background-color: #28a745;">Sauvegarder</button>
     <button id="clear-session-btn" class="link-button" style="background-color: var(--sc-red);">Effacer</button>
+    <button id="restore-session-btn" class="link-button" style="background-color: #1abc9c;">Restaurer</button>
 
     <button id="export-session-btn" class="link-button" style="background-color: #8e44ad;">Partager</button>
-    <button id="import-session-btn" class="link-button" style="background-color: #f39c12; color: #000;">Importer (.json)</button>
-    <input type="file" id="import-session-input" accept="application/json" style="display:none;">
 
     <a href="https://cncasc-app.fr/" target="_blank" class="link-button" style="background-color: #3498db;">CNCASC</a>
     <p id="session-status"></p>
     <div id="share-result">
-        <strong>Lien de présentation :</strong>
         <input id="share-link-input" type="text" readonly>
         <button id="copy-share-link-btn" class="link-button" style="background-color: #16a085; margin-top: 10px;">Copier le lien</button>
         <div>
@@ -885,7 +872,7 @@
     <footer>Données : Météo-France, SIA, Windy.com, CheckWX.com. Page non commerciale, à usage personnel.</footer>
     
     <script>
-        const APP_VERSION = "0.12";
+        const APP_VERSION = "0.31";
 
         // --- Clé API pour la source de données météo ---
         const CHECKWX_API_KEY = "b8071d79ae4a482491114af48c9c0246";
@@ -901,10 +888,17 @@
         const manualCircuitColors = ['#ff00ff', '#00ffff', '#ff8c00', '#00ff00', '#ff1493'];
 
         // --- CORE INITIALIZATION ---
+        let pdfJsWaitAttempts = 0;
         function waitForPdfJsAndInitialize() {
             if (window.pdfjsLib) {
                 initializePage();
             } else {
+                pdfJsWaitAttempts += 1;
+                if (pdfJsWaitAttempts > 50) {
+                    console.warn("pdf.js non disponible, initialisation partielle de la page.");
+                    initializePage();
+                    return;
+                }
                 setTimeout(waitForPdfJsAndInitialize, 100);
             }
         }
@@ -918,7 +912,11 @@
             initializePageTitle();
             initializeTemsi();
             initializeWindy();
-            initializeInteractivePdfViewers();
+            if (window.pdfjsLib) {
+                initializeInteractivePdfViewers();
+            } else {
+                console.warn("Visionneuse PDF désactivée (pdf.js introuvable).");
+            }
             initializeSupAipLoader();
             initializeNotamParser(); 
             initializeManualMetarFetch();
@@ -1831,16 +1829,22 @@
     const saveBtnBottom = document.getElementById('save-session-btn-bottom');
 
     const clearBtn = document.getElementById('clear-session-btn');
+    const restoreBtn = document.getElementById('restore-session-btn');
     const exportBtn = document.getElementById('export-session-btn');
-    const importBtn = document.getElementById('import-session-btn');
-    const importInput = document.getElementById('import-session-input');
     const shareResult = document.getElementById('share-result');
     const shareLinkInput = document.getElementById('share-link-input');
     const copyShareLinkBtn = document.getElementById('copy-share-link-btn');
     const shareQrImage = document.getElementById('share-qr-image');
+    let lastShareUrl = "";
 
     let isSavingSession = false;
-    const SHARE_API_BASE = 'https://grisonb.synology.me/briefing-api';
+    const LEGACY_SHARE_API_BASE = 'https://grisonb.synology.me/briefing-api';
+    const SHARE_API_BASE = (window.location.origin && window.location.origin.startsWith('http'))
+        ? `${window.location.origin}/briefing-api`
+        : LEGACY_SHARE_API_BASE;
+    const SHARE_API_BASE_CANDIDATES = Array.from(new Set([SHARE_API_BASE, LEGACY_SHARE_API_BASE]));
+    let activeShareApiBase = SHARE_API_BASE;
+    const ENABLE_REMOTE_SHARE = true; // Partage NAS activé : génère un lien + QR code.
 
     function openDB() {
         return new Promise((resolve, reject) => {
@@ -1960,30 +1964,6 @@
         if (!isPortableSessionObject_(portable)) {
             throw new Error("Fichier de session invalide ou version non supportée.");
         }
-=======
-    if (!candidate || typeof candidate !== 'object') return false;
-    return candidate.version === "portableSessionV1" || candidate.version === "portableSessionV2";
-}
-
-function extractPortablePayload_(payload) {
-    const candidates = [
-        payload,
-        payload && payload.payload,
-        payload && payload.data,
-        payload && payload.session,
-        payload && payload.briefing,
-        payload && payload.portable,
-        payload && payload.record && payload.record.payload,
-        payload && payload.payload && payload.payload.payload
-    ];
-    return candidates.find(isPortableSessionObject_) || null;
-}
-
-async function applyPortableSessionObject_(portable) {
-    if (!isPortableSessionObject_(portable)) {
-        throw new Error("Fichier de session invalide ou version non supportée.");
-    }
->>>>>>> main
 
         // IMPORTANT UX : on revient sur la Feuille de Service après import
         const fdsSection = document.getElementById('fds-section');
@@ -2065,6 +2045,7 @@ async function applyPortableSessionObject_(portable) {
 
     function showShareResult(shareUrl) {
         if (!shareResult || !shareLinkInput || !shareQrImage) return;
+        lastShareUrl = shareUrl || "";
         shareLinkInput.value = shareUrl;
         shareQrImage.src = `https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(shareUrl)}`;
         shareResult.style.display = 'block';
@@ -2080,40 +2061,90 @@ async function applyPortableSessionObject_(portable) {
     }
 
     async function fetchSharedPortableById_(shareId) {
-        const response = await fetch(`${SHARE_API_BASE}/get.php?id=${encodeURIComponent(shareId)}`);
-        const payload = await response.json().catch(() => ({}));
-        if (!response.ok) {
-            throw new Error(payload.error || `HTTP ${response.status}`);
+        let lastError = null;
+        for (const base of SHARE_API_BASE_CANDIDATES) {
+            const response = await fetch(`${base}/get.php?id=${encodeURIComponent(shareId)}`);
+            const payload = await response.json().catch(() => ({}));
+            if (response.ok) {
+                activeShareApiBase = base;
+                const portablePayload = extractPortablePayload_(payload);
+                if (!portablePayload) {
+                    throw new Error("Données partagées invalides (format non reconnu).");
+                }
+                return portablePayload;
+            }
+            lastError = new Error(payload.error || `HTTP ${response.status}`);
         }
-
-        const portablePayload = extractPortablePayload_(payload);
-        if (!portablePayload) {
-            throw new Error("Données partagées invalides (format non reconnu).");
-        }
-        return portablePayload;
+        throw lastError || new Error("Impossible de lire le partage distant.");
     }
 
->>>>>>> main
     async function createRemoteShare_(portable) {
-        const response = await fetch(`${SHARE_API_BASE}/create.php`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(portable)
+        const jsonBody = JSON.stringify({ payload: portable });
+        const formBody = new URLSearchParams();
+        formBody.set('payload', JSON.stringify(portable));
+
+        const candidateEndpoints = SHARE_API_BASE_CANDIDATES.flatMap(base => [`${base}/create.php`, `${base}/create`]);
+        const attempts = [];
+
+        candidateEndpoints.forEach(url => {
+            attempts.push(async () => fetch(url, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: jsonBody
+            }));
+            attempts.push(async () => fetch(url, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8' },
+                body: formBody.toString()
+            }));
         });
-        const payload = await response.json().catch(() => ({}));
-        if (!response.ok || !payload.id) {
-            throw new Error(payload.error || `HTTP ${response.status}`);
+
+        // Dernier recours: GET uniquement si payload assez court.
+        if (formBody.toString().length < 1800) {
+            candidateEndpoints.forEach(url => {
+                attempts.push(async () => fetch(`${url}?${formBody.toString()}`, { method: 'GET' }));
+            });
         }
 
-        const shareId = payload.id;
-        // Vérifie immédiatement que les données ont bien été persistées côté NAS.
-        const reloadedPortable = await fetchSharedPortableById_(shareId);
-        if (!isPortableSessionObject_(reloadedPortable)) {
-            throw new Error("Partage créé mais données non relisibles.");
+        let lastError = null;
+        for (const runAttempt of attempts) {
+            try {
+                const response = await runAttempt();
+                const payload = await response.json().catch(() => ({}));
+                const shareId = payload.id || payload.shareId || payload.token || null;
+                const shareUrl = payload.url || payload.shareUrl || null;
+                if (!response.ok || !shareId) {
+                    lastError = new Error(payload.error || `HTTP ${response.status}`);
+                    continue;
+                }
+                const endpointUrl = (response.url || "").toString();
+                const detectedBase = SHARE_API_BASE_CANDIDATES.find(base => endpointUrl.startsWith(base));
+                if (detectedBase) activeShareApiBase = detectedBase;
+                await validateSharedPayload_(portable, shareId);
+                return { shareId, shareUrl };
+            } catch (e) {
+                lastError = e;
+            }
         }
 
-        return shareId;
->>>>>>> main
+        throw lastError || new Error("Impossible de créer le lien distant.");
+    }
+
+    async function validateSharedPayload_(localPortable, shareId) {
+        const remotePortable = await fetchSharedPortableById_(shareId);
+        if (!remotePortable || !isPortableSessionObject_(remotePortable)) {
+            throw new Error("Partage distant invalide après enregistrement.");
+        }
+
+        const expectedSupAips = (localPortable.supAips || []).length;
+        const remoteSupAips = (remotePortable.supAips || []).length;
+        if (!!localPortable.fds !== !!remotePortable.fds) throw new Error("Partage incomplet: FDS absente.");
+        if (!!localPortable.gaar !== !!remotePortable.gaar) throw new Error("Partage incomplet: GAAR absente.");
+        if (expectedSupAips !== remoteSupAips) throw new Error(`Partage incomplet: SUP AIP (${remoteSupAips}/${expectedSupAips}).`);
+
+        const localNotamLen = (localPortable.notamTextFull || localPortable.notamText || "").length;
+        const remoteNotamLen = (remotePortable.notamTextFull || remotePortable.notamText || "").length;
+        if (localNotamLen > 0 && remoteNotamLen === 0) throw new Error("Partage incomplet: NOTAM vides après relecture.");
     }
 
     function downloadPortableJson_(portable) {
@@ -2137,6 +2168,18 @@ async function applyPortableSessionObject_(portable) {
         return filename;
     }
 
+    function getShareDiagnosticsMessage_(errorLike) {
+        const raw = (errorLike && errorLike.message) ? errorLike.message : String(errorLike || "Erreur inconnue");
+        const isNetworkLike = /failed to fetch|networkerror|load failed|cors/i.test(raw);
+        if (isNetworkLike) {
+            return `Échec réseau/CORS vers ${activeShareApiBase}. Vérifier NAS, reverse proxy HTTPS et en-têtes CORS (Access-Control-Allow-Origin).`;
+        }
+        if (/HTTP 404/i.test(raw)) {
+            return `HTTP 404 sur API de partage (${SHARE_API_BASE_CANDIDATES.join(" ou ")}). Vérifier le chemin create.php/get.php sur le NAS.`;
+        }
+        return raw;
+    }
+
     async function loadSharedSessionFromUrl_() {
         const params = new URLSearchParams(window.location.search);
         const shareId = params.get('share');
@@ -2145,9 +2188,6 @@ async function applyPortableSessionObject_(portable) {
         sessionStatus.textContent = "Chargement du briefing partagé...";
         const portablePayload = await fetchSharedPortableById_(shareId);
         await applyPortableSessionObject_(portablePayload);
-        const portablePayload = await fetchSharedPortableById_(shareId);
-        await applyPortableSessionObject_(portablePayload);
->>>>>>> main
         sessionStatus.textContent = "Briefing partagé chargé.";
         return true;
     }
@@ -2198,7 +2238,7 @@ async function applyPortableSessionObject_(portable) {
                 tx.onerror = () => reject(tx.error);
             });
 
-            sessionStatus.textContent = `Session sauvegardée (${new Date(savable.savedAt).toLocaleString('fr-FR')})`;
+            sessionStatus.textContent = `Sauvegarde locale effectuée (${new Date(savable.savedAt).toLocaleString('fr-FR')})`;
         } catch (error) {
             sessionStatus.textContent = `Erreur lors de la sauvegarde: ${error.message || error}`;
             console.error("Erreur de sauvegarde :", error);
@@ -2225,6 +2265,9 @@ async function applyPortableSessionObject_(portable) {
     // ===== Wire buttons =====
     saveBtnTop && saveBtnTop.addEventListener('click', performSave);
     saveBtnBottom && saveBtnBottom.addEventListener('click', performSave);
+    restoreBtn && restoreBtn.addEventListener('click', async () => {
+        await restoreLocalSession_();
+    });
 
     if (exportBtn) {
         exportBtn.addEventListener('click', async () => {
@@ -2232,34 +2275,42 @@ async function applyPortableSessionObject_(portable) {
             try {
                 sessionStatus.textContent = "Préparation du partage...";
                 portable = await buildPortableSessionObject_();
-                const shareId = await createRemoteShare_(portable);
-                const shareUrl = buildShareUrl(shareId);
-                showShareResult(shareUrl);
+                if (ENABLE_REMOTE_SHARE) {
+                    const remoteShare = await createRemoteShare_(portable);
+                    const shareId = remoteShare.shareId;
+                    const shareUrl = remoteShare.shareUrl || buildShareUrl(shareId);
+                    showShareResult(shareUrl);
 
-                if (navigator.share) {
-                    try {
-                        await navigator.share({
-                            title: "Briefing FdF",
-                            text: "Lien du briefing",
-                            url: shareUrl
-                        });
-                    } catch (shareErr) {
-                        console.warn("Partage natif annulé ou indisponible:", shareErr);
+                    if (navigator.share) {
+                        try {
+                            await navigator.share({
+                                title: "Briefing FdF",
+                                text: "Lien du briefing",
+                                url: shareUrl
+                            });
+                        } catch (shareErr) {
+                            console.warn("Partage natif annulé ou indisponible:", shareErr);
+                        }
                     }
-                }
 
-                const extractedShareId = getShareIdFromUrl_(shareUrl);
-                if (extractedShareId) {
-                    sessionStatus.textContent = `Lien de partage généré (ID: ${extractedShareId}).`;
+                    const extractedShareId = getShareIdFromUrl_(shareUrl);
+                    if (extractedShareId) {
+                        sessionStatus.textContent = `Lien de partage généré (ID: ${extractedShareId}).`;
+                    } else {
+                        sessionStatus.textContent = "Lien de partage généré.";
+                    }
                 } else {
-                    sessionStatus.textContent = "Lien de partage généré.";
+                    const filename = downloadPortableJson_(portable);
+                    shareResult && (shareResult.style.display = 'none');
+                    sessionStatus.textContent = `Partage distant désactivé : JSON exporté (${filename}).`;
                 }
             } catch (e) {
                 console.error(e);
                 if (portable) {
                     const filename = downloadPortableJson_(portable);
-                    sessionStatus.textContent = `Lien indisponible, JSON exporté : ${filename}`;
-                    alert("Lien indisponible pour le moment : export JSON généré automatiquement.");
+                    shareResult && (shareResult.style.display = 'none');
+                    const diag = getShareDiagnosticsMessage_(e);
+                    sessionStatus.textContent = `Partage distant indisponible (${diag}) : JSON exporté (${filename}).`;
                 } else {
                     sessionStatus.textContent = `Erreur partage: ${e.message || e}`;
                     alert("Impossible de préparer le partage.");
@@ -2270,153 +2321,155 @@ async function applyPortableSessionObject_(portable) {
 
     if (copyShareLinkBtn) {
         copyShareLinkBtn.addEventListener('click', async () => {
-            if (!shareLinkInput || !shareLinkInput.value) return;
+            const urlToCopy = lastShareUrl || (shareLinkInput ? shareLinkInput.value : "");
+            if (!urlToCopy) return;
             try {
-                await navigator.clipboard.writeText(shareLinkInput.value);
+                await navigator.clipboard.writeText(urlToCopy);
                 sessionStatus.textContent = "Lien copié.";
             } catch {
-                shareLinkInput.select();
+                const ta = document.createElement('textarea');
+                ta.value = urlToCopy;
+                document.body.appendChild(ta);
+                ta.select();
                 document.execCommand('copy');
+                document.body.removeChild(ta);
                 sessionStatus.textContent = "Lien copié.";
-            }
-        });
-    }
-
-    if (importBtn && importInput) {
-        importBtn.addEventListener('click', () => importInput.click());
-
-        importInput.addEventListener('change', async (e) => {
-            const file = e.target.files && e.target.files[0];
-            if (!file) return;
-
-            try {
-                sessionStatus.textContent = "Import en cours.";
-                const text = await file.text();
-                const portable = JSON.parse(text);
-
-                // ✅ UN SEUL POINT D’ENTRÉE
-                await applyPortableSessionObject_(portable);
-
-                sessionStatus.textContent = "Import terminé.";
-            } catch (err) {
-                console.error(err);
-                alert("Impossible d’importer cette session.");
-                sessionStatus.textContent = `Import échoué: ${err.message || err}`;
-            } finally {
-                importInput.value = '';
             }
         });
     }
 
     if (clearBtn) {
         clearBtn.addEventListener('click', async () => {
-            if (!confirm("Vraiment effacer la session sauvegardée ?")) return;
-
-            let localDb;
-            try {
-                localDb = await openDB();
-                const request = localDb.transaction([storeName], 'readwrite').objectStore(storeName).clear();
-                request.onsuccess = () => {
-                    alert("Sauvegarde effacée. Rechargement.");
-                    location.reload();
-                };
-                request.onerror = (e) => {
-                    sessionStatus.textContent = `Erreur: ${e.target.error}`;
-                };
-            } catch (error) {
-                sessionStatus.textContent = `Erreur: ${error.message || error}`;
-            } finally {
-                if (localDb) localDb.close();
-            }
+            sessionStatus.textContent = "Effacement en cours...";
+            sessionStorage.setItem('skipAutoRestoreOnce', '1');
+            const cleanUrl = `${window.location.origin}${window.location.pathname}`;
+            window.location.assign(cleanUrl);
         });
+    }
+
+    function applySavedSessionData_(data) {
+        if (!data) {
+            sessionStatus.textContent = "Aucune session sauvegardée.";
+            return;
+        }
+
+        if (data.fds) {
+            const file = savableToFile(data.fds);
+            window.fdsFileObject = file;
+            document.getElementById('pdf-info-fds').textContent = `Document chargé : ${file.name}`;
+            createInteractivePdfHandler(document.getElementById('pdf-interactive-container-fds'), file, null, 1.65);
+        }
+
+        const hasGaarPdf = !!data.gaar;
+        const hasGaarMapState = data.gaarMapState && data.gaarMapState.length > 0;
+
+        if (hasGaarPdf || hasGaarMapState) {
+            document.getElementById('gaar-map-section').style.display = 'block';
+            initGaarMap();
+            if (hasGaarPdf) document.getElementById('pdf-load-gaar-btn').style.display = 'none';
+            document.getElementById('pdf-reset-gaar-btn').style.display = hasGaarPdf ? 'inline-block' : 'none';
+            document.getElementById('gaar-map-nav-link').style.display = 'block';
+        }
+
+        if (hasGaarPdf) {
+            const file = savableToFile(data.gaar);
+            window.gaarFileObject = file;
+            document.getElementById('pdf-info-gaar').textContent = `Document chargé : ${file.name}`;
+            createInteractivePdfHandler(document.getElementById('pdf-interactive-container-gaar'), file, initializeGaarMapFromFile, 1.3);
+        }
+
+        if (hasGaarMapState) {
+            recreateGaarCircuitsFromState(data.gaarMapState);
+        }
+
+        if (data.supAips && data.supAips.length > 0) {
+            const files = data.supAips.map(s => savableToFile(s)).filter(Boolean);
+            if (files.length > 0) window.addSupAipFiles(files);
+        }
+
+        if (data.notamText) {
+            document.getElementById('notam-input').value = data.notamText;
+            window.__notamTextFull = data.notamText;
+            if (data.notamText && typeof window.parseAndDisplayNotams === "function") {
+                window.parseAndDisplayNotams(data.notamState || null);
+            }
+        }
+
+        if (data.weatherData) {
+            Object.entries(data.weatherData).forEach(([icao, weather]) => {
+                let container = document.getElementById(`notam-container-${icao}`);
+                if (!container) {
+                    container = createAirportSectionElement(icao, icao);
+                    (document.getElementById('manual-metar-display') || document.getElementById('notam-display')).appendChild(container);
+                }
+                container.querySelector('.metar-container').innerHTML = weather.metarHTML || "";
+                container.querySelector('.taf-container').innerHTML = weather.tafHTML || "";
+                container.dataset.loaded = 'true';
+            });
+            checkWeatherValidity();
+        }
+
+        sessionStatus.textContent = `Session restaurée (du ${new Date(data.savedAt).toLocaleString('fr-FR')})`;
+    }
+
+    async function restoreLocalSession_() {
+        let db;
+        try {
+            db = await openDB();
+            const request = db.transaction([storeName], 'readonly').objectStore(storeName).get('currentSession');
+
+            await new Promise((resolve, reject) => {
+                request.onerror = () => reject(request.error);
+                request.onsuccess = () => {
+                    applySavedSessionData_(request.result);
+                    resolve();
+                };
+            });
+        } catch (error) {
+            sessionStatus.textContent = `Erreur DB: ${error.message || error}`;
+        } finally {
+            if (db) db.close();
+        }
+    }
+
+    async function clearLocalSession_() {
+        let db;
+        try {
+            db = await openDB();
+            const tx = db.transaction([storeName], 'readwrite');
+            tx.objectStore(storeName).clear();
+            await new Promise((resolve, reject) => {
+                tx.oncomplete = resolve;
+                tx.onerror = () => reject(tx.error);
+            });
+        } finally {
+            if (db) db.close();
+        }
     }
 
     // ===== Restore on load =====
     (async function loadSession() {
-        let db;
         try {
+            const skipAutoRestoreOnce = sessionStorage.getItem('skipAutoRestoreOnce') === '1';
+            if (skipAutoRestoreOnce) sessionStorage.removeItem('skipAutoRestoreOnce');
+            const hasShareParam = new URLSearchParams(window.location.search).has('share');
             const loadedFromLink = await loadSharedSessionFromUrl_().catch((err) => {
                 console.error(err);
                 sessionStatus.textContent = `Erreur lien partagé: ${err.message || err}`;
                 return false;
             });
             if (loadedFromLink) return;
-
-            db = await openDB();
-            const request = db.transaction([storeName], 'readonly').objectStore(storeName).get('currentSession');
-
-            request.onerror = (e) => {
-                sessionStatus.textContent = `Erreur DB: ${e.target.error}`;
-            };
-
-            request.onsuccess = e => {
-                const data = e.target.result;
-                if (data) {
-                    if (data.fds) {
-                        const file = savableToFile(data.fds);
-                        window.fdsFileObject = file;
-                        document.getElementById('pdf-info-fds').textContent = `Document chargé : ${file.name}`;
-                        createInteractivePdfHandler(document.getElementById('pdf-interactive-container-fds'), file, null, 1.65);
-                    }
-
-                    const hasGaarPdf = !!data.gaar;
-                    const hasGaarMapState = data.gaarMapState && data.gaarMapState.length > 0;
-
-                    if (hasGaarPdf || hasGaarMapState) {
-                        document.getElementById('gaar-map-section').style.display = 'block';
-                        initGaarMap();
-                        if (hasGaarPdf) document.getElementById('pdf-load-gaar-btn').style.display = 'none';
-                        document.getElementById('pdf-reset-gaar-btn').style.display = hasGaarPdf ? 'inline-block' : 'none';
-                        document.getElementById('gaar-map-nav-link').style.display = 'block';
-                    }
-
-                    if (hasGaarPdf) {
-                        const file = savableToFile(data.gaar);
-                        window.gaarFileObject = file;
-                        document.getElementById('pdf-info-gaar').textContent = `Document chargé : ${file.name}`;
-                        createInteractivePdfHandler(document.getElementById('pdf-interactive-container-gaar'), file, initializeGaarMapFromFile, 1.3);
-                    }
-
-                    if (hasGaarMapState) {
-                        recreateGaarCircuitsFromState(data.gaarMapState);
-                    }
-
-                    if (data.supAips && data.supAips.length > 0) {
-                        const files = data.supAips.map(s => savableToFile(s)).filter(Boolean);
-                        if (files.length > 0) window.addSupAipFiles(files);
-                    }
-
-                    if (data.notamText) {
-                        document.getElementById('notam-input').value = data.notamText;
-                        window.__notamTextFull = data.notamText; // par défaut, on considère le texte restauré comme "full"
-                        if (data.notamText && typeof window.parseAndDisplayNotams === "function") {
-                            window.parseAndDisplayNotams(data.notamState || null);
-                        }
-                    }
-
-                    if (data.weatherData) {
-                        Object.entries(data.weatherData).forEach(([icao, weather]) => {
-                            let container = document.getElementById(`notam-container-${icao}`);
-                            if (!container) {
-                                container = createAirportSectionElement(icao, icao);
-                                (document.getElementById('manual-metar-display') || document.getElementById('notam-display')).appendChild(container);
-                            }
-                            container.querySelector('.metar-container').innerHTML = weather.metarHTML || "";
-                            container.querySelector('.taf-container').innerHTML = weather.tafHTML || "";
-                            container.dataset.loaded = 'true';
-                        });
-                        checkWeatherValidity();
-                    }
-
-                    sessionStatus.textContent = `Session restaurée (du ${new Date(data.savedAt).toLocaleString('fr-FR')})`;
-                } else {
-                    sessionStatus.textContent = "Aucune session sauvegardée.";
-                }
-            };
+            if (hasShareParam) {
+                // Important: éviter de masquer un échec de partage distant avec la session locale.
+                return;
+            }
+            if (skipAutoRestoreOnce) {
+                sessionStatus.textContent = "Page vierge chargée (sauvegarde locale conservée).";
+                return;
+            }
+            await restoreLocalSession_();
         } catch (error) {
             sessionStatus.textContent = `Erreur DB: ${error.message || error}`;
-        } finally {
-            if (db) db.close();
         }
     })();
 }
