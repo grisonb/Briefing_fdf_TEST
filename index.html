@@ -648,7 +648,7 @@
         <div class="page-header-background"></div>
         <h1 id="main-title">Briefing Fdf</h1>
         <p id="current-time-display"></p>
-        <p style="position: relative; z-index: 2; text-align: center; color: #333; font-size: 1em; margin-top: -25px; margin-bottom: 30px;">v<span id="app-version">0.22</span></p>
+        <p style="position: relative; z-index: 2; text-align: center; color: #333; font-size: 1em; margin-top: -25px; margin-bottom: 30px;">v<span id="app-version">0.28</span></p>
     </div>
 
     <div class="session-management" id="session-section">
@@ -884,7 +884,7 @@
     <footer>Données : Météo-France, SIA, Windy.com, CheckWX.com. Page non commerciale, à usage personnel.</footer>
     
     <script>
-        const APP_VERSION = "1.1";
+        const APP_VERSION = "0.28";
 
         // --- Clé API pour la source de données météo ---
         const CHECKWX_API_KEY = "b8071d79ae4a482491114af48c9c0246";
@@ -1851,7 +1851,9 @@
 
     let isSavingSession = false;
     const LEGACY_SHARE_API_BASE = 'https://grisonb.synology.me/briefing-api';
-    const SHARE_API_BASE = 'https://grisonb.synology.me/briefing-api';
+    const SHARE_API_BASE = (window.location.origin && window.location.origin.startsWith('http'))
+        ? `${window.location.origin}/briefing-api`
+        : LEGACY_SHARE_API_BASE;
     const SHARE_API_BASE_CANDIDATES = Array.from(new Set([SHARE_API_BASE, LEGACY_SHARE_API_BASE]));
     let activeShareApiBase = SHARE_API_BASE;
     const ENABLE_REMOTE_SHARE = true; // Partage NAS activé : génère un lien + QR code.
@@ -2129,6 +2131,7 @@
                 const endpointUrl = (response.url || "").toString();
                 const detectedBase = SHARE_API_BASE_CANDIDATES.find(base => endpointUrl.startsWith(base));
                 if (detectedBase) activeShareApiBase = detectedBase;
+                await validateSharedPayload_(portable, shareId);
                 return { shareId, shareUrl };
             } catch (e) {
                 lastError = e;
@@ -2136,6 +2139,23 @@
         }
 
         throw lastError || new Error("Impossible de créer le lien distant.");
+    }
+
+    async function validateSharedPayload_(localPortable, shareId) {
+        const remotePortable = await fetchSharedPortableById_(shareId);
+        if (!remotePortable || !isPortableSessionObject_(remotePortable)) {
+            throw new Error("Partage distant invalide après enregistrement.");
+        }
+
+        const expectedSupAips = (localPortable.supAips || []).length;
+        const remoteSupAips = (remotePortable.supAips || []).length;
+        if (!!localPortable.fds !== !!remotePortable.fds) throw new Error("Partage incomplet: FDS absente.");
+        if (!!localPortable.gaar !== !!remotePortable.gaar) throw new Error("Partage incomplet: GAAR absente.");
+        if (expectedSupAips !== remoteSupAips) throw new Error(`Partage incomplet: SUP AIP (${remoteSupAips}/${expectedSupAips}).`);
+
+        const localNotamLen = (localPortable.notamTextFull || localPortable.notamText || "").length;
+        const remoteNotamLen = (remotePortable.notamTextFull || remotePortable.notamText || "").length;
+        if (localNotamLen > 0 && remoteNotamLen === 0) throw new Error("Partage incomplet: NOTAM vides après relecture.");
     }
 
     function downloadPortableJson_(portable) {
@@ -2349,6 +2369,11 @@
 
     if (clearBtn) {
         clearBtn.addEventListener('click', async () => {
+            const hasShareParam = new URLSearchParams(window.location.search).has('share');
+            if (hasShareParam) {
+                sessionStatus.textContent = "Briefing partagé : ce bouton est désactivé.";
+                return;
+            }
             if (!confirm("Vraiment effacer la session sauvegardée ?")) return;
 
             let localDb;
@@ -2374,12 +2399,17 @@
     (async function loadSession() {
         let db;
         try {
+            const hasShareParam = new URLSearchParams(window.location.search).has('share');
             const loadedFromLink = await loadSharedSessionFromUrl_().catch((err) => {
                 console.error(err);
                 sessionStatus.textContent = `Erreur lien partagé: ${err.message || err}`;
                 return false;
             });
             if (loadedFromLink) return;
+            if (hasShareParam) {
+                // Important: éviter de masquer un échec de partage distant avec la session locale.
+                return;
+            }
 
             db = await openDB();
             const request = db.transaction([storeName], 'readonly').objectStore(storeName).get('currentSession');
