@@ -639,7 +639,7 @@
         <div class="page-header-background"></div>
         <h1 id="main-title">Briefing Fdf</h1>
         <p id="current-time-display"></p>
-        <p style="position: relative; z-index: 2; text-align: center; color: #333; font-size: 1em; margin-top: -25px; margin-bottom: 30px;">v<span id="app-version">0.31</span></p>
+        <p style="position: relative; z-index: 2; text-align: center; color: #333; font-size: 1em; margin-top: -25px; margin-bottom: 30px;">v<span id="app-version">0.32</span></p>
     </div>
 
     <div class="session-management" id="session-section">
@@ -873,7 +873,7 @@
     <footer>Données : Météo-France, SIA, Windy.com, CheckWX.com. Page non commerciale, à usage personnel.</footer>
     
     <script>
-        const APP_VERSION = "0.31";
+        const APP_VERSION = "0.32";
 
         // --- Clé API pour la source de données météo ---
         const CHECKWX_API_KEY = "b8071d79ae4a482491114af48c9c0246";
@@ -1829,8 +1829,6 @@
     const saveBtnTop = document.getElementById('save-session-btn');
     const saveBtnBottom = document.getElementById('save-session-btn-bottom');
 
-    const clearBtn = document.getElementById('clear-session-btn');
-    const restoreBtn = document.getElementById('restore-session-btn');
     const exportBtn = document.getElementById('export-session-btn');
     const shareResult = document.getElementById('share-result');
     const shareLinkInput = document.getElementById('share-link-input');
@@ -2266,8 +2264,10 @@
     // ===== Wire buttons =====
     saveBtnTop && saveBtnTop.addEventListener('click', performSave);
     saveBtnBottom && saveBtnBottom.addEventListener('click', performSave);
-    restoreBtn && restoreBtn.addEventListener('click', async () => {
-        await restoreLocalSession_();
+    document.querySelectorAll('#restore-session-btn').forEach((btn) => {
+        btn.addEventListener('click', async () => {
+            await restoreLocalSession_();
+        });
     });
 
     if (exportBtn) {
@@ -2339,14 +2339,14 @@
         });
     }
 
-    if (clearBtn) {
-        clearBtn.addEventListener('click', async () => {
+    document.querySelectorAll('#clear-session-btn').forEach((btn) => {
+        btn.addEventListener('click', async () => {
             sessionStatus.textContent = "Effacement en cours...";
             sessionStorage.setItem('skipAutoRestoreOnce', '1');
             const cleanUrl = `${window.location.origin}${window.location.pathname}`;
             window.location.assign(cleanUrl);
         });
-    }
+    });
 
     function applySavedSessionData_(data) {
         if (!data) {
@@ -2430,47 +2430,6 @@
             sessionStatus.textContent = `Erreur DB: ${error.message || error}`;
         } finally {
             if (db) db.close();
-        }
-    }
-
-    async function clearLocalSession_() {
-        let db;
-        try {
-            db = await openDB();
-            const tx = db.transaction([storeName], 'readwrite');
-            tx.objectStore(storeName).clear();
-            await new Promise((resolve, reject) => {
-                tx.oncomplete = resolve;
-                tx.onerror = () => reject(tx.error);
-            });
-        } finally {
-            if (db) db.close();
-        }
-    }
-
-    // ===== Restore on load =====
-    (async function loadSession() {
-        try {
-            const skipAutoRestoreOnce = sessionStorage.getItem('skipAutoRestoreOnce') === '1';
-            if (skipAutoRestoreOnce) sessionStorage.removeItem('skipAutoRestoreOnce');
-            const hasShareParam = new URLSearchParams(window.location.search).has('share');
-            const loadedFromLink = await loadSharedSessionFromUrl_().catch((err) => {
-                console.error(err);
-                sessionStatus.textContent = `Erreur lien partagé: ${err.message || err}`;
-                return false;
-            });
-            if (loadedFromLink) return;
-            if (hasShareParam) {
-                // Important: éviter de masquer un échec de partage distant avec la session locale.
-                return;
-            }
-            if (skipAutoRestoreOnce) {
-                sessionStatus.textContent = "Page vierge chargée (sauvegarde locale conservée).";
-                return;
-            }
-            await restoreLocalSession_();
-        } catch (error) {
-            sessionStatus.textContent = `Erreur DB: ${error.message || error}`;
         }
     }
 
