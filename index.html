@@ -644,6 +644,7 @@
 
     <div class="session-management" id="session-section">
     <button id="save-session-btn" class="link-button" style="background-color: #28a745;">Sauvegarder</button>
+    <button id="restore-session-btn" class="link-button" style="background-color: #1abc9c;">Restaurer</button>
     <button id="clear-session-btn" class="link-button" style="background-color: var(--sc-red);">Effacer</button>
     <button id="restore-session-btn" class="link-button" style="background-color: #1abc9c;">Restaurer</button>
 
@@ -2429,6 +2430,47 @@
             sessionStatus.textContent = `Erreur DB: ${error.message || error}`;
         } finally {
             if (db) db.close();
+        }
+    }
+
+    async function clearLocalSession_() {
+        let db;
+        try {
+            db = await openDB();
+            const tx = db.transaction([storeName], 'readwrite');
+            tx.objectStore(storeName).clear();
+            await new Promise((resolve, reject) => {
+                tx.oncomplete = resolve;
+                tx.onerror = () => reject(tx.error);
+            });
+        } finally {
+            if (db) db.close();
+        }
+    }
+
+    // ===== Restore on load =====
+    (async function loadSession() {
+        try {
+            const skipAutoRestoreOnce = sessionStorage.getItem('skipAutoRestoreOnce') === '1';
+            if (skipAutoRestoreOnce) sessionStorage.removeItem('skipAutoRestoreOnce');
+            const hasShareParam = new URLSearchParams(window.location.search).has('share');
+            const loadedFromLink = await loadSharedSessionFromUrl_().catch((err) => {
+                console.error(err);
+                sessionStatus.textContent = `Erreur lien partagé: ${err.message || err}`;
+                return false;
+            });
+            if (loadedFromLink) return;
+            if (hasShareParam) {
+                // Important: éviter de masquer un échec de partage distant avec la session locale.
+                return;
+            }
+            if (skipAutoRestoreOnce) {
+                sessionStatus.textContent = "Page vierge chargée (sauvegarde locale conservée).";
+                return;
+            }
+            await restoreLocalSession_();
+        } catch (error) {
+            sessionStatus.textContent = `Erreur DB: ${error.message || error}`;
         }
     }
 
