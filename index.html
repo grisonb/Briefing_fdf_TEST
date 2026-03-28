@@ -648,7 +648,7 @@
         <div class="page-header-background"></div>
         <h1 id="main-title">Briefing Fdf</h1>
         <p id="current-time-display"></p>
-        <p style="position: relative; z-index: 2; text-align: center; color: #333; font-size: 1em; margin-top: -25px; margin-bottom: 30px;">v<span id="app-version">0.28</span></p>
+        <p style="position: relative; z-index: 2; text-align: center; color: #333; font-size: 1em; margin-top: -25px; margin-bottom: 30px;">v<span id="app-version">0.29</span></p>
     </div>
 
     <div class="session-management" id="session-section">
@@ -884,7 +884,7 @@
     <footer>Données : Météo-France, SIA, Windy.com, CheckWX.com. Page non commerciale, à usage personnel.</footer>
     
     <script>
-        const APP_VERSION = "0.28";
+        const APP_VERSION = "0.29";
 
         // --- Clé API pour la source de données météo ---
         const CHECKWX_API_KEY = "b8071d79ae4a482491114af48c9c0246";
@@ -2249,7 +2249,9 @@
                 tx.onerror = () => reject(tx.error);
             });
 
-            sessionStatus.textContent = `Session sauvegardée (${new Date(savable.savedAt).toLocaleString('fr-FR')})`;
+            const portable = await buildPortableSessionObject_();
+            const exportedFilename = downloadPortableJson_(portable);
+            sessionStatus.textContent = `Session sauvegardée (${new Date(savable.savedAt).toLocaleString('fr-FR')}) + JSON exporté (${exportedFilename})`;
         } catch (error) {
             sessionStatus.textContent = `Erreur lors de la sauvegarde: ${error.message || error}`;
             console.error("Erreur de sauvegarde :", error);
