@@ -643,7 +643,7 @@
     </div>
 
     <div class="session-management" id="session-section">
-    <h3>Gestion de la Session</h3>
+    <h3>Session</h3>
     <button id="save-session-btn" class="link-button" style="background-color: #28a745;">Sauvegarder</button>
     <button id="restore-session-btn" class="link-button" style="background-color: #1abc9c;">Restaurer</button>
     <button id="clear-session-btn" class="link-button" style="background-color: var(--sc-red);">Effacer</button>
@@ -655,7 +655,6 @@
     <a href="https://cncasc-app.fr/" target="_blank" class="link-button" style="background-color: #3498db;">CNCASC</a>
     <p id="session-status"></p>
     <div id="share-result">
-        <strong>QR code de présentation :</strong>
         <input id="share-link-input" type="text" readonly>
         <button id="copy-share-link-btn" class="link-button" style="background-color: #16a085; margin-top: 10px;">Copier le lien</button>
         <div>
@@ -2373,7 +2372,7 @@
     if (clearBtn) {
         clearBtn.addEventListener('click', async () => {
             sessionStatus.textContent = "Effacement en cours...";
-            await clearLocalSession_();
+            sessionStorage.setItem('skipAutoRestoreOnce', '1');
             const cleanUrl = `${window.location.origin}${window.location.pathname}`;
             window.location.assign(cleanUrl);
         });
@@ -2482,6 +2481,8 @@
     // ===== Restore on load =====
     (async function loadSession() {
         try {
+            const skipAutoRestoreOnce = sessionStorage.getItem('skipAutoRestoreOnce') === '1';
+            if (skipAutoRestoreOnce) sessionStorage.removeItem('skipAutoRestoreOnce');
             const hasShareParam = new URLSearchParams(window.location.search).has('share');
             const loadedFromLink = await loadSharedSessionFromUrl_().catch((err) => {
                 console.error(err);
@@ -2491,6 +2492,10 @@
             if (loadedFromLink) return;
             if (hasShareParam) {
                 // Important: éviter de masquer un échec de partage distant avec la session locale.
+                return;
+            }
+            if (skipAutoRestoreOnce) {
+                sessionStatus.textContent = "Page vierge chargée (sauvegarde locale conservée).";
                 return;
             }
             await restoreLocalSession_();
