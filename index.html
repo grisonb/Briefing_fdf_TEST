@@ -1851,9 +1851,7 @@
 
     let isSavingSession = false;
     const LEGACY_SHARE_API_BASE = 'https://grisonb.synology.me/briefing-api';
-    const SHARE_API_BASE = (window.location.origin && window.location.origin.startsWith('http'))
-        ? `${window.location.origin}/briefing-api`
-        : LEGACY_SHARE_API_BASE;
+    const SHARE_API_BASE = 'https://grisonb.synology.me/briefing-api';
     const SHARE_API_BASE_CANDIDATES = Array.from(new Set([SHARE_API_BASE, LEGACY_SHARE_API_BASE]));
     let activeShareApiBase = SHARE_API_BASE;
     const ENABLE_REMOTE_SHARE = true; // Partage NAS activé : génère un lien + QR code.
