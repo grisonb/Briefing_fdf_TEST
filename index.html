@@ -223,16 +223,7 @@
             padding: 12px;
             display: none;
         }
-        #share-link-input {
-            width: 100%;
-            max-width: 760px;
-            margin: 8px auto 0 auto;
-            display: block;
-            border-radius: 6px;
-            border: none;
-            padding: 8px 10px;
-            font-size: 0.95em;
-        }
+        #share-link-input { display: none; }
         #share-qr-image {
             margin-top: 12px;
             width: 180px;
@@ -648,12 +639,13 @@
         <div class="page-header-background"></div>
         <h1 id="main-title">Briefing Fdf</h1>
         <p id="current-time-display"></p>
-        <p style="position: relative; z-index: 2; text-align: center; color: #333; font-size: 1em; margin-top: -25px; margin-bottom: 30px;">v<span id="app-version">0.29</span></p>
+        <p style="position: relative; z-index: 2; text-align: center; color: #333; font-size: 1em; margin-top: -25px; margin-bottom: 30px;">v<span id="app-version">0.30</span></p>
     </div>
 
     <div class="session-management" id="session-section">
     <h3>Gestion de la Session</h3>
     <button id="save-session-btn" class="link-button" style="background-color: #28a745;">Sauvegarder</button>
+    <button id="restore-session-btn" class="link-button" style="background-color: #1abc9c;">Restaurer</button>
     <button id="clear-session-btn" class="link-button" style="background-color: var(--sc-red);">Effacer</button>
 
     <button id="export-session-btn" class="link-button" style="background-color: #8e44ad;">Partager</button>
@@ -663,7 +655,7 @@
     <a href="https://cncasc-app.fr/" target="_blank" class="link-button" style="background-color: #3498db;">CNCASC</a>
     <p id="session-status"></p>
     <div id="share-result">
-        <strong>Lien de présentation :</strong>
+        <strong>QR code de présentation :</strong>
         <input id="share-link-input" type="text" readonly>
         <button id="copy-share-link-btn" class="link-button" style="background-color: #16a085; margin-top: 10px;">Copier le lien</button>
         <div>
@@ -884,7 +876,7 @@
     <footer>Données : Météo-France, SIA, Windy.com, CheckWX.com. Page non commerciale, à usage personnel.</footer>
     
     <script>
-        const APP_VERSION = "0.29";
+        const APP_VERSION = "0.30";
 
         // --- Clé API pour la source de données météo ---
         const CHECKWX_API_KEY = "b8071d79ae4a482491114af48c9c0246";
@@ -1841,6 +1833,7 @@
     const saveBtnBottom = document.getElementById('save-session-btn-bottom');
 
     const clearBtn = document.getElementById('clear-session-btn');
+    const restoreBtn = document.getElementById('restore-session-btn');
     const exportBtn = document.getElementById('export-session-btn');
     const importBtn = document.getElementById('import-session-btn');
     const importInput = document.getElementById('import-session-input');
@@ -1848,6 +1841,7 @@
     const shareLinkInput = document.getElementById('share-link-input');
     const copyShareLinkBtn = document.getElementById('copy-share-link-btn');
     const shareQrImage = document.getElementById('share-qr-image');
+    let lastShareUrl = "";
 
     let isSavingSession = false;
     const LEGACY_SHARE_API_BASE = 'https://grisonb.synology.me/briefing-api';
@@ -2057,6 +2051,7 @@
 
     function showShareResult(shareUrl) {
         if (!shareResult || !shareLinkInput || !shareQrImage) return;
+        lastShareUrl = shareUrl || "";
         shareLinkInput.value = shareUrl;
         shareQrImage.src = `https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(shareUrl)}`;
         shareResult.style.display = 'block';
@@ -2249,9 +2244,7 @@
                 tx.onerror = () => reject(tx.error);
             });
 
-            const portable = await buildPortableSessionObject_();
-            const exportedFilename = downloadPortableJson_(portable);
-            sessionStatus.textContent = `Session sauvegardée (${new Date(savable.savedAt).toLocaleString('fr-FR')}) + JSON exporté (${exportedFilename})`;
+            sessionStatus.textContent = `Sauvegarde locale effectuée (${new Date(savable.savedAt).toLocaleString('fr-FR')})`;
         } catch (error) {
             sessionStatus.textContent = `Erreur lors de la sauvegarde: ${error.message || error}`;
             console.error("Erreur de sauvegarde :", error);
@@ -2278,6 +2271,9 @@
     // ===== Wire buttons =====
     saveBtnTop && saveBtnTop.addEventListener('click', performSave);
     saveBtnBottom && saveBtnBottom.addEventListener('click', performSave);
+    restoreBtn && restoreBtn.addEventListener('click', async () => {
+        await restoreLocalSession_();
+    });
 
     if (exportBtn) {
         exportBtn.addEventListener('click', async () => {
@@ -2331,13 +2327,18 @@
 
     if (copyShareLinkBtn) {
         copyShareLinkBtn.addEventListener('click', async () => {
-            if (!shareLinkInput || !shareLinkInput.value) return;
+            const urlToCopy = lastShareUrl || (shareLinkInput ? shareLinkInput.value : "");
+            if (!urlToCopy) return;
             try {
-                await navigator.clipboard.writeText(shareLinkInput.value);
+                await navigator.clipboard.writeText(urlToCopy);
                 sessionStatus.textContent = "Lien copié.";
             } catch {
-                shareLinkInput.select();
+                const ta = document.createElement('textarea');
+                ta.value = urlToCopy;
+                document.body.appendChild(ta);
+                ta.select();
                 document.execCommand('copy');
+                document.body.removeChild(ta);
                 sessionStatus.textContent = "Lien copié.";
             }
         });
@@ -2371,35 +2372,115 @@
 
     if (clearBtn) {
         clearBtn.addEventListener('click', async () => {
-            const hasShareParam = new URLSearchParams(window.location.search).has('share');
-            if (hasShareParam) {
-                sessionStatus.textContent = "Briefing partagé : ce bouton est désactivé.";
-                return;
-            }
-            if (!confirm("Vraiment effacer la session sauvegardée ?")) return;
-
-            let localDb;
-            try {
-                localDb = await openDB();
-                const request = localDb.transaction([storeName], 'readwrite').objectStore(storeName).clear();
-                request.onsuccess = () => {
-                    alert("Sauvegarde effacée. Rechargement.");
-                    location.reload();
-                };
-                request.onerror = (e) => {
-                    sessionStatus.textContent = `Erreur: ${e.target.error}`;
-                };
-            } catch (error) {
-                sessionStatus.textContent = `Erreur: ${error.message || error}`;
-            } finally {
-                if (localDb) localDb.close();
-            }
+            sessionStatus.textContent = "Effacement en cours...";
+            await clearLocalSession_();
+            const cleanUrl = `${window.location.origin}${window.location.pathname}`;
+            window.location.assign(cleanUrl);
         });
+    }
+
+    function applySavedSessionData_(data) {
+        if (!data) {
+            sessionStatus.textContent = "Aucune session sauvegardée.";
+            return;
+        }
+
+        if (data.fds) {
+            const file = savableToFile(data.fds);
+            window.fdsFileObject = file;
+            document.getElementById('pdf-info-fds').textContent = `Document chargé : ${file.name}`;
+            createInteractivePdfHandler(document.getElementById('pdf-interactive-container-fds'), file, null, 1.65);
+        }
+
+        const hasGaarPdf = !!data.gaar;
+        const hasGaarMapState = data.gaarMapState && data.gaarMapState.length > 0;
+
+        if (hasGaarPdf || hasGaarMapState) {
+            document.getElementById('gaar-map-section').style.display = 'block';
+            initGaarMap();
+            if (hasGaarPdf) document.getElementById('pdf-load-gaar-btn').style.display = 'none';
+            document.getElementById('pdf-reset-gaar-btn').style.display = hasGaarPdf ? 'inline-block' : 'none';
+            document.getElementById('gaar-map-nav-link').style.display = 'block';
+        }
+
+        if (hasGaarPdf) {
+            const file = savableToFile(data.gaar);
+            window.gaarFileObject = file;
+            document.getElementById('pdf-info-gaar').textContent = `Document chargé : ${file.name}`;
+            createInteractivePdfHandler(document.getElementById('pdf-interactive-container-gaar'), file, initializeGaarMapFromFile, 1.3);
+        }
+
+        if (hasGaarMapState) {
+            recreateGaarCircuitsFromState(data.gaarMapState);
+        }
+
+        if (data.supAips && data.supAips.length > 0) {
+            const files = data.supAips.map(s => savableToFile(s)).filter(Boolean);
+            if (files.length > 0) window.addSupAipFiles(files);
+        }
+
+        if (data.notamText) {
+            document.getElementById('notam-input').value = data.notamText;
+            window.__notamTextFull = data.notamText;
+            if (data.notamText && typeof window.parseAndDisplayNotams === "function") {
+                window.parseAndDisplayNotams(data.notamState || null);
+            }
+        }
+
+        if (data.weatherData) {
+            Object.entries(data.weatherData).forEach(([icao, weather]) => {
+                let container = document.getElementById(`notam-container-${icao}`);
+                if (!container) {
+                    container = createAirportSectionElement(icao, icao);
+                    (document.getElementById('manual-metar-display') || document.getElementById('notam-display')).appendChild(container);
+                }
+                container.querySelector('.metar-container').innerHTML = weather.metarHTML || "";
+                container.querySelector('.taf-container').innerHTML = weather.tafHTML || "";
+                container.dataset.loaded = 'true';
+            });
+            checkWeatherValidity();
+        }
+
+        sessionStatus.textContent = `Session restaurée (du ${new Date(data.savedAt).toLocaleString('fr-FR')})`;
+    }
+
+    async function restoreLocalSession_() {
+        let db;
+        try {
+            db = await openDB();
+            const request = db.transaction([storeName], 'readonly').objectStore(storeName).get('currentSession');
+
+            await new Promise((resolve, reject) => {
+                request.onerror = () => reject(request.error);
+                request.onsuccess = () => {
+                    applySavedSessionData_(request.result);
+                    resolve();
+                };
+            });
+        } catch (error) {
+            sessionStatus.textContent = `Erreur DB: ${error.message || error}`;
+        } finally {
+            if (db) db.close();
+        }
+    }
+
+    async function clearLocalSession_() {
+        let db;
+        try {
+            db = await openDB();
+            const tx = db.transaction([storeName], 'readwrite');
+            tx.objectStore(storeName).clear();
+            await new Promise((resolve, reject) => {
+                tx.oncomplete = resolve;
+                tx.onerror = () => reject(tx.error);
+            });
+        } finally {
+            if (db) db.close();
+        }
     }
 
     // ===== Restore on load =====
     (async function loadSession() {
-        let db;
         try {
             const hasShareParam = new URLSearchParams(window.location.search).has('share');
             const loadedFromLink = await loadSharedSessionFromUrl_().catch((err) => {
@@ -2412,82 +2493,9 @@
                 // Important: éviter de masquer un échec de partage distant avec la session locale.
                 return;
             }
-
-            db = await openDB();
-            const request = db.transaction([storeName], 'readonly').objectStore(storeName).get('currentSession');
-
-            request.onerror = (e) => {
-                sessionStatus.textContent = `Erreur DB: ${e.target.error}`;
-            };
-
-            request.onsuccess = e => {
-                const data = e.target.result;
-                if (data) {
-                    if (data.fds) {
-                        const file = savableToFile(data.fds);
-                        window.fdsFileObject = file;
-                        document.getElementById('pdf-info-fds').textContent = `Document chargé : ${file.name}`;
-                        createInteractivePdfHandler(document.getElementById('pdf-interactive-container-fds'), file, null, 1.65);
-                    }
-
-                    const hasGaarPdf = !!data.gaar;
-                    const hasGaarMapState = data.gaarMapState && data.gaarMapState.length > 0;
-
-                    if (hasGaarPdf || hasGaarMapState) {
-                        document.getElementById('gaar-map-section').style.display = 'block';
-                        initGaarMap();
-                        if (hasGaarPdf) document.getElementById('pdf-load-gaar-btn').style.display = 'none';
-                        document.getElementById('pdf-reset-gaar-btn').style.display = hasGaarPdf ? 'inline-block' : 'none';
-                        document.getElementById('gaar-map-nav-link').style.display = 'block';
-                    }
-
-                    if (hasGaarPdf) {
-                        const file = savableToFile(data.gaar);
-                        window.gaarFileObject = file;
-                        document.getElementById('pdf-info-gaar').textContent = `Document chargé : ${file.name}`;
-                        createInteractivePdfHandler(document.getElementById('pdf-interactive-container-gaar'), file, initializeGaarMapFromFile, 1.3);
-                    }
-
-                    if (hasGaarMapState) {
-                        recreateGaarCircuitsFromState(data.gaarMapState);
-                    }
-
-                    if (data.supAips && data.supAips.length > 0) {
-                        const files = data.supAips.map(s => savableToFile(s)).filter(Boolean);
-                        if (files.length > 0) window.addSupAipFiles(files);
-                    }
-
-                    if (data.notamText) {
-                        document.getElementById('notam-input').value = data.notamText;
-                        window.__notamTextFull = data.notamText; // par défaut, on considère le texte restauré comme "full"
-                        if (data.notamText && typeof window.parseAndDisplayNotams === "function") {
-                            window.parseAndDisplayNotams(data.notamState || null);
-                        }
-                    }
-
-                    if (data.weatherData) {
-                        Object.entries(data.weatherData).forEach(([icao, weather]) => {
-                            let container = document.getElementById(`notam-container-${icao}`);
-                            if (!container) {
-                                container = createAirportSectionElement(icao, icao);
-                                (document.getElementById('manual-metar-display') || document.getElementById('notam-display')).appendChild(container);
-                            }
-                            container.querySelector('.metar-container').innerHTML = weather.metarHTML || "";
-                            container.querySelector('.taf-container').innerHTML = weather.tafHTML || "";
-                            container.dataset.loaded = 'true';
-                        });
-                        checkWeatherValidity();
-                    }
-
-                    sessionStatus.textContent = `Session restaurée (du ${new Date(data.savedAt).toLocaleString('fr-FR')})`;
-                } else {
-                    sessionStatus.textContent = "Aucune session sauvegardée.";
-                }
-            };
+            await restoreLocalSession_();
         } catch (error) {
             sessionStatus.textContent = `Erreur DB: ${error.message || error}`;
-        } finally {
-            if (db) db.close();
         }
     })();
 }
