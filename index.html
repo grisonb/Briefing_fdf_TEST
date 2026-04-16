@@ -639,16 +639,14 @@
         <div class="page-header-background"></div>
         <h1 id="main-title">Briefing Fdf</h1>
         <p id="current-time-display"></p>
-        <p style="position: relative; z-index: 2; text-align: center; color: #333; font-size: 1em; margin-top: -25px; margin-bottom: 30px;">v<span id="app-version">1.0</span></p>
+        <p style="position: relative; z-index: 2; text-align: center; color: #333; font-size: 1em; margin-top: -25px; margin-bottom: 30px;">v<span id="app-version">1.1</span></p>
     </div>
 
     <div class="session-management" id="session-section">
     <button id="save-session-btn" class="link-button" style="background-color: #28a745;">Sauvegarder</button>
     <button id="restore-session-btn" class="link-button" style="background-color: #1abc9c;">Restaurer</button>
-    <button id="clear-session-btn" class="link-button" style="background-color: var(--sc-red);">Effacer</button>
-    <button id="restore-session-btn" class="link-button" style="background-color: #1abc9c;">Restaurer</button>
-
     <button id="export-session-btn" class="link-button" style="background-color: #8e44ad;">Partager</button>
+    <button id="clear-session-btn" class="link-button" style="background-color: var(--sc-red);">Effacer</button>
     <a href="https://cncasc-app.fr/" target="_blank" class="link-button" style="background-color: #3498db;">CNCASC</a>
     <p id="session-status"></p>
     <div id="share-result">
@@ -863,16 +861,14 @@
         </div>
     </div>
     
-    <div style="text-align: center; margin: 40px 0 20px 0;">
-        <button id="save-session-btn-bottom" class="link-button" style="background-color: #28a745;">Sauvegarder la session</button>
-    </div>
+
     
     <button id="back-to-top-btn" title="Retour en haut">&#8679;</button>
 
     <footer>Données : Météo-France, SIA, Windy.com, CheckWX.com. Page non commerciale, à usage personnel.</footer>
     
     <script>
-        const APP_VERSION = "1.0";
+        const APP_VERSION = "1.1";
 
         // --- Clé API pour la source de données météo ---
         const CHECKWX_API_KEY = "b8071d79ae4a482491114af48c9c0246";
@@ -1840,14 +1836,17 @@
     const shareQrImage = document.getElementById('share-qr-image');
     let lastShareUrl = "";
 
-    // Sécurité anti-merge/caching: ne garder qu'un seul bouton Restaurer visible.
-    const restoreButtons = Array.from(document.querySelectorAll('#restore-session-btn'));
-    restoreButtons.forEach((btn, idx) => { if (idx > 0) btn.remove(); });
-    const clearBtnPrimary = document.querySelector('#clear-session-btn');
-    const restoreBtnPrimary = document.querySelector('#restore-session-btn');
-    if (clearBtnPrimary && restoreBtnPrimary) {
-        clearBtnPrimary.insertAdjacentElement('afterend', restoreBtnPrimary);
-    }
+   // Sécurité anti-merge/caching: ne garder qu'un seul bouton Restaurer visible
+// et le laisser juste après "Sauvegarder".
+const restoreButtons = Array.from(document.querySelectorAll('#restore-session-btn'));
+restoreButtons.forEach((btn, idx) => { if (idx > 0) btn.remove(); });
+
+const saveBtnPrimary = document.querySelector('#save-session-btn');
+const restoreBtnPrimary = document.querySelector('#restore-session-btn');
+
+if (saveBtnPrimary && restoreBtnPrimary) {
+    saveBtnPrimary.insertAdjacentElement('afterend', restoreBtnPrimary);
+}
 
     let isSavingSession = false;
     const LEGACY_SHARE_API_BASE = 'https://grisonb.synology.me/briefing-api';
