@@ -1,4 +1,4 @@
-const CACHE_NAME = 'briefing-fdf-v0.37';
+const CACHE_NAME = 'briefing-fdf-v1.0';
 const CORE_ASSETS = [
   './',
   './index.html',
