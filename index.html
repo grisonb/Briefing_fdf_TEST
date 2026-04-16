@@ -639,7 +639,12 @@
         <div class="page-header-background"></div>
         <h1 id="main-title">Briefing Fdf</h1>
         <p id="current-time-display"></p>
-        <p style="position: relative; z-index: 2; text-align: center; color: #333; font-size: 1em; margin-top: -25px; margin-bottom: 30px;">v<span id="app-version">1.1</span></p>
+        <p style="position: relative; z-index: 2; text-align: center; color: #333; font-size: 1em; margin-top: -25px; margin-bottom: 30px;">
+    v<span id="app-version">1.2</span>
+    <button id="force-update-btn" class="link-button" style="background-color: #34495e; padding: 4px 10px; font-size: 0.8em; margin-left: 10px; vertical-align: middle;">
+        Forcer MAJ
+    </button>
+</p>
     </div>
 
     <div class="session-management" id="session-section">
@@ -868,7 +873,7 @@
     <footer>Données : Météo-France, SIA, Windy.com, CheckWX.com. Page non commerciale, à usage personnel.</footer>
     
     <script>
-        const APP_VERSION = "1.1";
+        const APP_VERSION = "1.2";
 
         // --- Clé API pour la source de données météo ---
         const CHECKWX_API_KEY = "b8071d79ae4a482491114af48c9c0246";
@@ -906,28 +911,75 @@
         }
         
         function initializePage() {
-            window.scrollTo(0, 0);
-            const appVersionEl = document.getElementById('app-version');
-            if (appVersionEl) appVersionEl.textContent = APP_VERSION;
-            initializeNavigation(); 
-            initializePageTitle();
-            initializeTemsi();
-            initializeWindy();
-            if (window.pdfjsLib) {
-                initializeInteractivePdfViewers();
-            } else {
-                console.warn("Visionneuse PDF désactivée (pdf.js introuvable).");
-            }
-            initializeSupAipLoader();
-            initializeNotamParser(); 
-            initializeManualMetarFetch();
-            initializeForeFlightButton();
-            initializeSessionManagement();
-            initializeHelpTooltips();
-            initializeGaarMapControls();
-            setInterval(checkWeatherValidity, 60000); // Vérifie la validité des METARs et TAFs chaque minute
+    window.scrollTo(0, 0);
+    const appVersionEl = document.getElementById('app-version');
+    if (appVersionEl) appVersionEl.textContent = APP_VERSION;
+
+    const forceUpdateBtn = document.getElementById('force-update-btn');
+    if (forceUpdateBtn) {
+        forceUpdateBtn.addEventListener('click', forceAppUpdate);
+    }
+
+    initializeNavigation(); 
+    initializePageTitle();
+    initializeTemsi();
+    initializeWindy();
+    if (window.pdfjsLib) {
+        initializeInteractivePdfViewers();
+    } else {
+        console.warn("Visionneuse PDF désactivée (pdf.js introuvable).");
+    }
+    initializeSupAipLoader();
+    initializeNotamParser(); 
+    initializeManualMetarFetch();
+    initializeForeFlightButton();
+    initializeSessionManagement();
+    initializeHelpTooltips();
+    initializeGaarMapControls();
+    setInterval(checkWeatherValidity, 60000); // Vérifie la validité des METARs et TAFs chaque minute
+}
+        async function forceAppUpdate() {
+    const btn = document.getElementById('force-update-btn');
+    const originalText = btn ? btn.textContent : '';
+
+    try {
+        if (btn) {
+            btn.disabled = true;
+            btn.textContent = 'Mise à jour...';
         }
-        
+
+        // 1) Demande au navigateur de vérifier les SW enregistrés
+        if ('serviceWorker' in navigator) {
+            const registrations = await navigator.serviceWorker.getRegistrations();
+
+            for (const registration of registrations) {
+                try {
+                    await registration.update();
+                } catch (e) {}
+
+                try {
+                    await registration.unregister();
+                } catch (e) {}
+            }
+        }
+
+        // 2) Vide tous les caches connus
+        if ('caches' in window) {
+            const cacheNames = await caches.keys();
+            await Promise.all(cacheNames.map((cacheName) => caches.delete(cacheName)));
+        }
+
+        // 3) Rechargement propre depuis le serveur
+        window.location.reload();
+    } catch (error) {
+        console.error('Erreur lors du forçage de mise à jour :', error);
+        alert("Impossible de forcer la mise à jour automatiquement. Fermez puis rouvrez la page.");
+        if (btn) {
+            btn.disabled = false;
+            btn.textContent = originalText;
+        }
+    }
+}
         function initializeNavigation() {
             const nav = document.getElementById('main-nav');
             const navToggle = document.getElementById('nav-toggle');
