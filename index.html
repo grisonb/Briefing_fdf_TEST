@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0">
-    <title>Briefing Fdf</title>
+    <title>Briefing Fdf TEST</title>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js"></script>
@@ -353,14 +353,6 @@
         .link-button:hover { opacity: 0.9; transform: translateY(-2px); box-shadow: 0 4px 8px rgba(0,0,0,0.2); }
         
         .notam-controls { display: none; justify-content: center; flex-wrap: wrap; gap: 15px; margin-top: 20px; }
-        .nats-server-config { max-width: 720px; margin: 15px auto 0; text-align: left; }
-        .nats-server-config summary { cursor: pointer; color: var(--sc-blue); font-weight: 600; }
-        .nats-server-row { display: flex; gap: 10px; align-items: center; margin-top: 10px; }
-        .nats-server-row input { flex: 1; min-width: 220px; }
-        .nats-status { min-height: 1.4em; margin: 12px 0 0; font-weight: 600; text-align: center; }
-        .nats-status.loading { color: #8e44ad; }
-        .nats-status.success { color: #18794e; }
-        .nats-status.error { color: #b42318; }
         
         #notam-controls-bottom { 
             width: 100%; 
@@ -645,10 +637,10 @@
 
     <div class="page-header">
         <div class="page-header-background"></div>
-        <h1 id="main-title">Briefing Fdf</h1>
+        <h1 id="main-title">Briefing Fdf TEST</h1>
         <p id="current-time-display"></p>
         <p style="position: relative; z-index: 2; text-align: center; color: #333; font-size: 1em; margin-top: -25px; margin-bottom: 30px;">
-    v<span id="app-version">1.2</span>
+    v<span id="app-version">1.3 TEST</span>
     <button id="force-update-btn" class="link-button" style="background-color: #34495e; padding: 4px 10px; font-size: 0.8em; margin-left: 10px; vertical-align: middle;">
         Forcer MAJ
     </button>
@@ -766,32 +758,34 @@
     <div id="notam-pdf-dropzone" class="pdf-section dropzone">
         <h2>Importation NOTAMs</h2>
         <div class="pdf-controls">
-            <span id="nats-help-icon" class="help-icon" title="Configuration NATS automatisée">?</span>
-            <button id="nats-download-btn" class="link-button" style="background-color: #8e44ad;">Télécharger automatiquement via le NAS</button>
-            <button id="pdf-load-notam-btn" class="link-button" style="background-color: #2c3e50;">Importer un PDF manuellement</button>
+            <span id="nats-help-icon" class="help-icon" title="Comment utiliser NATS ?">?</span>
+            <a href="https://nats-uk.ead-it.com/fwf-nats/restricted/user/ino/brief_aerodrome.faces?menuId=C920E9BB76441A9AE05341741DC25BDD" target="_blank" class="link-button" style="background-color: #8e44ad;">Accéder au Briefing NATS</a>
+            <button id="pdf-load-notam-btn" class="link-button" style="background-color: #2c3e50;">Importation NOTAMs</button>
             <input type="file" id="pdf-input-notam" accept="application/pdf">
         </div>
-
-        <details class="nats-server-config">
-            <summary>Adresse du service NATS sur le NAS</summary>
-            <div class="nats-server-row">
-                <input id="nats-server-url" type="url" placeholder="Même serveur, ou https://nas.exemple.fr" autocomplete="url">
-                <button id="nats-server-save-btn" type="button">Enregistrer</button>
-            </div>
-            <small>Si ce champ reste vide, l’application utilise son propre domaine. Une adresse HTTPS est recommandée.</small>
-        </details>
-
+        
         <div id="nats-help-tooltip" class="help-tooltip" style="display: none;">
-            <h4>Téléchargement automatisé NATS</h4>
-            <p>Le NAS ouvre NATS, restaure une session sécurisée, sélectionne le favori configuré, génère le briefing puis renvoie le PDF à cette application.</p>
-            <ul>
-                <li>Les identifiants NATS doivent être enregistrés uniquement dans le fichier <code>server/.env</code> du NAS.</li>
-                <li>Ils ne sont jamais demandés ni conservés par le navigateur.</li>
-                <li>L’import manuel reste disponible en cas d’indisponibilité du NAS ou de changement du portail NATS.</li>
-            </ul>
+            <h4>Tutoriel : Récupérer les NOTAMs sur NATS</h4>
+            <ol>
+                <li>
+                    Connectez-vous sur le site NATS avec les identifiants suivants :
+                    <ul style="margin-top: 8px;">
+                        <li><strong>Login :</strong> <code>Dash8</code></li>
+                        <li><strong>Mot de Passe :</strong> <code>D@sh8secucivile</code></li>
+                    </ul>
+                </li>
+                <li>Cliquez sur <strong>Pre-Flight Briefing</strong>.</li>
+                <li>Puis sur <strong>Aerodrome PIB</strong>.</li>
+                <li>
+                    Sous "Briefing Options", trouvez les 4 petits boutons. Cliquez sur celui avec une <strong>étoile (favoris)</strong>, qui se trouve à droite du bouton <strong>+</strong>.
+                </li>
+                <li>Dans la liste qui apparaît, cliquez sur <strong>PELICANDROMES</strong>.</li>
+                <li>Tout en bas de la page, cliquez sur le bouton <strong>Generate</strong>.</li>
+                <li>Enfin, cliquez sur <strong>Print PDF</strong> pour télécharger le fichier.</li>
+                <li>Enregistrez le PDF sur votre appareil, puis chargez-le sur cette page à l'aide du bouton "Charger PDF des NOTAMs".</li>
+            </ol>
         </div>
-
-        <p id="nats-download-status" class="nats-status" role="status" aria-live="polite"></p>
+        
         <p id="pdf-info-notam" class="pdf-info"></p>
     </div>
     
@@ -879,7 +873,7 @@
     <footer>Données : Météo-France, SIA, Windy.com, CheckWX.com. Page non commerciale, à usage personnel.</footer>
     
     <script>
-        const APP_VERSION = "1.2";
+        const APP_VERSION = "1.3 TEST";
 
         // --- Clé API pour la source de données météo ---
         const CHECKWX_API_KEY = "b8071d79ae4a482491114af48c9c0246";
@@ -937,7 +931,6 @@
     }
     initializeSupAipLoader();
     initializeNotamParser(); 
-    initializeNatsAutomation();
     initializeManualMetarFetch();
     initializeForeFlightButton();
     initializeSessionManagement();
@@ -1800,7 +1793,11 @@
             };
             const fdsHandler = createFileHandler(f => window.fdsFileObject = f, 'pdf-info-fds', 'pdf-interactive-container-fds', null, 1.65);
             const gaarHandler = createFileHandler(f => window.gaarFileObject = f, 'pdf-info-gaar', 'pdf-interactive-container-gaar', initializeGaarMapFromFile, 1.3);
-            const notamHandler = (files) => processNotamPdfFile(files[0]);
+            const notamHandler = (files) => {
+                const file = files[0]; if (!file || file.type !== 'application/pdf') return;
+                document.getElementById('pdf-info-notam').textContent = `Document chargé : ${file.name}`;
+                extractTextFromPdf(file, document.getElementById('pdf-info-notam')); 
+            };
             document.getElementById('pdf-load-fds-btn').addEventListener('click', () => document.getElementById('pdf-input-fds').click());
             document.getElementById('pdf-input-fds').addEventListener('change', (e) => fdsHandler(e.target.files));
             setupDropzone('fds-section', fdsHandler);
@@ -2544,72 +2541,6 @@ if (saveBtnPrimary && restoreBtnPrimary) {
 }
 
 
-        function processNotamPdfFile(file) {
-            if (!file || file.type !== 'application/pdf') {
-                throw new Error('Le service NATS n’a pas renvoyé un fichier PDF valide.');
-            }
-            const pdfInfo = document.getElementById('pdf-info-notam');
-            pdfInfo.textContent = `Document chargé : ${file.name}`;
-            return extractTextFromPdf(file, pdfInfo);
-        }
-
-        function initializeNatsAutomation() {
-            const downloadButton = document.getElementById('nats-download-btn');
-            const serverInput = document.getElementById('nats-server-url');
-            const saveButton = document.getElementById('nats-server-save-btn');
-            const status = document.getElementById('nats-download-status');
-            if (!downloadButton || !serverInput || !saveButton || !status) return;
-
-            const storageKey = 'briefingFdf.natsServerUrl';
-            serverInput.value = localStorage.getItem(storageKey) || '';
-
-            saveButton.addEventListener('click', () => {
-                const value = serverInput.value.trim().replace(/\/$/, '');
-                if (value) localStorage.setItem(storageKey, value);
-                else localStorage.removeItem(storageKey);
-                serverInput.value = value;
-                status.className = 'nats-status success';
-                status.textContent = value ? 'Adresse du NAS enregistrée sur cet appareil.' : 'Utilisation du même serveur que l’application.';
-            });
-
-            downloadButton.addEventListener('click', async () => {
-                const baseUrl = (serverInput.value.trim() || localStorage.getItem(storageKey) || '').replace(/\/$/, '');
-                const endpoint = `${baseUrl}/api/nats/notams`;
-                downloadButton.disabled = true;
-                status.className = 'nats-status loading';
-                status.textContent = 'Connexion au NAS et génération du briefing NATS… Cette opération peut prendre une minute.';
-
-                try {
-                    const response = await fetch(endpoint, { method: 'POST', cache: 'no-store' });
-                    if (!response.ok) {
-                        let detail = `Erreur HTTP ${response.status}`;
-                        try {
-                            const payload = await response.json();
-                            if (payload.message) detail = payload.message;
-                        } catch (_) {}
-                        throw new Error(detail);
-                    }
-
-                    const blob = await response.blob();
-                    const contentType = response.headers.get('content-type') || blob.type;
-                    if (!contentType.toLowerCase().includes('application/pdf')) {
-                        throw new Error('Le NAS a répondu, mais sans renvoyer de PDF.');
-                    }
-
-                    const file = new File([blob], `nats-notams-${new Date().toISOString().slice(0, 10)}.pdf`, { type: 'application/pdf' });
-                    await processNotamPdfFile(file);
-                    status.className = 'nats-status success';
-                    status.textContent = 'Briefing NATS téléchargé et analysé avec succès.';
-                } catch (error) {
-                    console.error('Erreur de téléchargement NATS:', error);
-                    status.className = 'nats-status error';
-                    status.textContent = `Téléchargement automatique impossible : ${error.message}. Utilisez l’import manuel si nécessaire.`;
-                } finally {
-                    downloadButton.disabled = false;
-                }
-            });
-        }
-
         async function extractTextFromPdf(file, pdfInfoElement) { 
             const notamInput = document.getElementById('notam-input'); 
             pdfInfoElement.textContent = `Extraction du texte de ${file.name}...`; 
@@ -3037,7 +2968,7 @@ window.__notamTextFull = notamInput.value;
 
         function initializePageTitle() {
             const titleElement = document.getElementById('main-title');
-            titleElement.textContent = `Briefing Fdf du ${new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}`;
+            titleElement.textContent = `Briefing Fdf TEST du ${new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}`;
             const timeDisplay = document.getElementById('current-time-display');
             const updateTime = () => timeDisplay.textContent = new Date().toLocaleTimeString('fr-FR');
             updateTime(); setInterval(updateTime, 1000);
