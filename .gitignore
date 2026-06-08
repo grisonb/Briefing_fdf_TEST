@@ -1,4 +1,0 @@
-server/.env
-server/data/
-server/node_modules/
-*.log
