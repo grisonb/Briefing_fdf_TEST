@@ -926,7 +926,7 @@
     <footer>Données : Météo-France, SIA, Windy.com, CheckWX.com. Page non commerciale, à usage personnel.</footer>
     
     <script>
-        const APP_VERSION = "1.8 TEST TDF 2026";
+        const APP_VERSION = "1.9 TEST TDF 2026";
 
         // --- Clé API pour la source de données météo ---
         const CHECKWX_API_KEY = "b8071d79ae4a482491114af48c9c0246";
@@ -1075,7 +1075,29 @@ const tdfStages = [
     initializeHelpTooltips();
     initializeGaarMapControls();
     initializeTdfViewer();
+    initializeNamedExternalTabs();
     setInterval(checkWeatherValidity, 60000); // Vérifie la validité des METARs et TAFs chaque minute
+}
+
+        function initializeNamedExternalTabs() {
+    document.querySelectorAll('a[target]:not([target="_self"]):not([target="_parent"]):not([target="_top"])').forEach((link) => {
+        link.addEventListener('click', (event) => {
+            const href = link.getAttribute('href');
+            const targetName = link.getAttribute('target');
+
+            if (!href || href === '#' || href.startsWith('mailto:') || href.startsWith('tel:') || href.startsWith('foreflightmobile:') || href.startsWith('googleearth:')) return;
+
+            event.preventDefault();
+            const openedWindow = window.open(href, targetName);
+            if (openedWindow) {
+                try {
+                    openedWindow.focus();
+                } catch (error) {
+                    console.warn('Impossible de remettre l’onglet au premier plan :', error);
+                }
+            }
+        });
+    });
 }
         async function forceAppUpdate() {
     const btn = document.getElementById('force-update-btn');
