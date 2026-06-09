@@ -660,11 +660,11 @@
             <li><a href="#dispo-pelic-section">DISPO AVIONS/PELIC</a></li>
             <li><a href="#gaar-section">GAAR</a></li>
             <li id="gaar-map-nav-link"><a href="#gaar-map-section">Carte GAAR</a></li>
-            <li><a href="#tdf-section">Tour de France</a></li>
             <li><a href="#risk-maps-section">RISQUES</a></li>
             <li><a href="#temsi-section">TEMSI</a></li>
             <li><a href="#windy-section">WINDY</a></li>
             <li><a href="#notam-section">NOTAMs/METAR</a></li>
+            <li><a href="#tdf-section">Tour de France</a></li>
             <li><a href="#sup-aip-section">SUP AIP</a></li>
             <li><a href="#synergi-section">SYNERGI</a></li>
             <li><a href="#google-earth-section">GOOGLE EARTH</a></li>
@@ -748,21 +748,7 @@
         </div>
     </div>
 
-<div class="map-section" id="tdf-section">
-    <h2>Tour de France 2026</h2>
-    <div class="tdf-controls">
-        <label for="tdf-stage-selector" style="font-weight: bold;">Choisir une étape :</label>
-        <select id="tdf-stage-selector" style="font-size: 1.1em; padding: 10px; border: 1px solid #bdc3c7; border-radius: 5px; flex-grow: 1; max-width: 500px;"></select>
-        <span id="tdf-stage-date" style="font-size: 1.1em; font-weight: 500; color: #34495e; background-color: #ffffff; padding: 10px 15px; border-radius: 5px; border: 1px solid #ddd;"></span>
-    </div>
-    <div style="text-align: center; margin-top: 20px; margin-bottom: 20px;">
-        <img id="tdf-stage-map" src="" alt="Carte de l'étape du Tour de France" style="max-width: 100%; height: auto; border: 1px solid #ddd; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.08);">
-    </div>
-    <div style="text-align: center; margin-top: 15px;">
-        <a id="tdf-sup-aip-link" href="#" target="_blank" class="link-button" style="display: none; background-color: #c0392b;"></a>
-    </div>
-</div>
-    
+
     <div class="map-section" id="risk-maps-section">
         <h2>Carte des risques</h2>
         <div class="controles" style="gap: 20px;">
@@ -884,6 +870,21 @@
         </div>
     </div>
 
+<div class="map-section" id="tdf-section">
+    <div class="tdf-controls">
+        <label for="tdf-stage-selector" style="font-weight: bold;">Choisir une étape :</label>
+        <select id="tdf-stage-selector" style="font-size: 1.1em; padding: 10px; border: 1px solid #bdc3c7; border-radius: 5px; flex-grow: 1; max-width: 500px;"></select>
+        <span id="tdf-stage-date" style="font-size: 1.1em; font-weight: 500; color: #34495e; background-color: #ffffff; padding: 10px 15px; border-radius: 5px; border: 1px solid #ddd;"></span>
+    </div>
+    <div style="text-align: center; margin-top: 20px; margin-bottom: 20px;">
+        <img id="tdf-stage-map" src="" alt="Carte de l'étape du Tour de France" style="max-width: 100%; height: auto; border: 1px solid #ddd; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.08);">
+    </div>
+    <div style="text-align: center; margin-top: 15px;">
+        <a id="tdf-sup-aip-link" href="#" target="_blank" class="link-button" style="display: none; background-color: #c0392b;"></a>
+    </div>
+</div>
+    
+
     <div class="map-section">
         <h2>Carte AZBA</h2>
         <div style="text-align:center;">
@@ -924,7 +925,7 @@
     <footer>Données : Météo-France, SIA, Windy.com, CheckWX.com. Page non commerciale, à usage personnel.</footer>
     
     <script>
-        const APP_VERSION = "1.5 TEST TDF 2026";
+        const APP_VERSION = "1.6 TEST TDF 2026";
 
         // --- Clé API pour la source de données météo ---
         const CHECKWX_API_KEY = "b8071d79ae4a482491114af48c9c0246";
