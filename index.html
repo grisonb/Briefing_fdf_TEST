@@ -615,6 +615,41 @@
             font-weight: bold;
         }
 
+        /* --- TOUR DE FRANCE TEST --- */
+        #tdf-section .tdf-controls {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            align-items: center;
+            margin-bottom: 20px;
+            gap: 15px;
+        }
+        #tdf-stage-selector {
+            font-size: 1.1em;
+            padding: 10px;
+            border: 1px solid #bdc3c7;
+            border-radius: 5px;
+            flex-grow: 1;
+            max-width: 520px;
+        }
+        #tdf-stage-date {
+            font-size: 1.1em;
+            font-weight: 600;
+            color: #34495e;
+            background-color: #ffffff;
+            padding: 10px 15px;
+            border-radius: 5px;
+            border: 1px solid #ddd;
+        }
+        #tdf-stage-map {
+            max-width: 100%;
+            height: auto;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        }
+
+
     </style>
 </head>
 <body>
@@ -625,6 +660,7 @@
             <li><a href="#dispo-pelic-section">DISPO AVIONS/PELIC</a></li>
             <li><a href="#gaar-section">GAAR</a></li>
             <li id="gaar-map-nav-link"><a href="#gaar-map-section">Carte GAAR</a></li>
+            <li><a href="#tdf-section">Tour de France</a></li>
             <li><a href="#risk-maps-section">RISQUES</a></li>
             <li><a href="#temsi-section">TEMSI</a></li>
             <li><a href="#windy-section">WINDY</a></li>
@@ -712,6 +748,21 @@
         </div>
     </div>
 
+<div class="map-section" id="tdf-section">
+    <h2>Tour de France 2025</h2>
+    <div class="tdf-controls">
+        <label for="tdf-stage-selector" style="font-weight: bold;">Choisir une étape :</label>
+        <select id="tdf-stage-selector" style="font-size: 1.1em; padding: 10px; border: 1px solid #bdc3c7; border-radius: 5px; flex-grow: 1; max-width: 500px;"></select>
+        <span id="tdf-stage-date" style="font-size: 1.1em; font-weight: 500; color: #34495e; background-color: #ffffff; padding: 10px 15px; border-radius: 5px; border: 1px solid #ddd;"></span>
+    </div>
+    <div style="text-align: center; margin-top: 20px; margin-bottom: 20px;">
+        <img id="tdf-stage-map" src="" alt="Carte de l'étape du Tour de France" style="max-width: 100%; height: auto; border: 1px solid #ddd; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.08);">
+    </div>
+    <div style="text-align: center; margin-top: 15px;">
+        <a id="tdf-sup-aip-link" href="#" target="_blank" class="link-button" style="display: none; background-color: #c0392b;"></a>
+    </div>
+</div>
+    
     <div class="map-section" id="risk-maps-section">
         <h2>Carte des risques</h2>
         <div class="controles" style="gap: 20px;">
@@ -873,7 +924,7 @@
     <footer>Données : Météo-France, SIA, Windy.com, CheckWX.com. Page non commerciale, à usage personnel.</footer>
     
     <script>
-        const APP_VERSION = "1.3 TEST";
+        const APP_VERSION = "1.4 TEST";
 
         // --- Clé API pour la source de données météo ---
         const CHECKWX_API_KEY = "b8071d79ae4a482491114af48c9c0246";
@@ -887,6 +938,82 @@
         let isAddingManualCircuit = false;
         let isSavingSession = false;
         const manualCircuitColors = ['#ff00ff', '#00ffff', '#ff8c00', '#00ff00', '#ff1493'];
+
+
+
+        // --- TOUR DE FRANCE TEST ---
+// --- DONNÉES TOUR DE FRANCE (CORRECTED V1.1) ---
+const tdfStages = [
+    { stage: 1, name: "Lille Métropole > Lille Métropole", date: "2025-07-05", mapUrl: "https://img.aso.fr/core_app/img-cycling-tdf-jpg/tdf25-et01-cartepot-v3/62214/0:0,2480:3508-960-0-90/da039", supAipUrl: null },
+    { stage: 2, name: "Lauwin-Planque > Boulogne-sur-Mer", date: "2025-07-06", mapUrl: "https://img.aso.fr/core_app/img-cycling-tdf-jpg/tdf25-et02-cartepot-v3/62224/0:0,3508:2480-960-0-90/bc0f0", supAipUrl: null },
+    { stage: 3, name: "Valenciennes > Dunkerque", date: "2025-07-07", mapUrl: "https://img.aso.fr/core_app/img-cycling-tdf-jpg/tdf25-et03-cartepot-v3/62218/0:0,3508:2480-960-0-90/9bd5e", supAipUrl: null },
+    { stage: 4, name: "Amiens Métropole > Rouen", date: "2025-07-08", mapUrl: "https://img.aso.fr/core_app/img-cycling-tdf-jpg/tdf25-et04-cartepot-v2/62230/0:0,3508:2480-960-0-90/15d73", supAipUrl: null },
+    { stage: 5, name: "Caen > Caen", date: "2025-07-09", mapUrl: "https://img.aso.fr/core_app/img-cycling-tdf-jpg/tdf25-et05-cartepot-v2/62228/0:0,2480:3508-960-0-90/e7873", supAipUrl: null },
+    { stage: 6, name: "Bayeux > Vire Normandie", date: "2025-07-10", mapUrl: "https://img.aso.fr/core_app/img-cycling-tdf-jpg/tdf25-et06-cartepot-v4/62233/0:0,2480:3508-960-0-90/e0036", supAipUrl: null },
+    { stage: 7, name: "Saint-Malo > Mûr-de-Bretagne Guerlédan", date: "2025-07-11", mapUrl: "https://img.aso.fr/core_app/img-cycling-tdf-jpg/tdf25-et07-cartepot-v2/62231/0:0,3508:2480-960-0-90/36515", supAipUrl: null },
+    { stage: 8, name: "Saint-Méen-le-Grand > Laval Espace Mayenne", date: "2025-07-12", mapUrl: "https://img.aso.fr/core_app/img-cycling-tdf-jpg/tdf25-et08-cartepot-v2/62215/0:0,3508:2480-960-0-90/9643c", supAipUrl: null },
+    { stage: 9, name: "Chinon > Châteauroux", date: "2025-07-13", mapUrl: "https://img.aso.fr/core_app/img-cycling-tdf-jpg/tdf25-et09-cartepot-v3/62223/0:0,3508:2480-960-0-90/89bfe", supAipUrl: null },
+    { stage: 10, name: "Ennezat > Le Mont-Dore Puy de Sancy", date: "2025-07-14", mapUrl: "https://img.aso.fr/core_app/img-cycling-tdf-jpg/tdf25-et10-cartepot-v2/62221/0:0,2480:3508-960-0-90/e1642", supAipUrl: null },
+    { stage: 11, name: "Toulouse > Toulouse", date: "2025-07-16", mapUrl: "https://img.aso.fr/core_app/img-cycling-tdf-jpg/tdf25-et11-cartepot-v2/62220/0:0,2480:3508-960-0-90/2392a", supAipUrl: null },
+    { stage: 12, name: "Auch > Hautacam", date: "2025-07-17", mapUrl: "https://img.aso.fr/core_app/img-cycling-tdf-jpg/tdf25-et12-cartepot-v1/62232/0:0,3508:2480-960-0-90/e3131", supAipUrl: "https://www.sia.aviation-civile.gouv.fr/media/store/documents/file/l/f/lf_sup_2025_116_fr.pdf" },
+    { stage: 13, name: "Loudenvielle > Peyragudes", date: "2025-07-18", mapUrl: "https://img.aso.fr/core_app/img-cycling-tdf-jpg/tdf25-et13-cartepot-v5/62219/0:0,2480:3508-960-0-90/6886e", supAipUrl: "https://www.sia.aviation-civile.gouv.fr/media/store/documents/file/l/f/lf_sup_2025_117_fr.pdf" },
+    { stage: 14, name: "Pau > Luchon-Superbagnères", date: "2025-07-19", mapUrl: "https://img.aso.fr/core_app/img-cycling-tdf-jpg/tdf25-et14-cartepot-v3/62225/0:0,3508:2480-960-0-90/cd24e", supAipUrl: "https://www.sia.aviation-civile.gouv.fr/media/store/documents/file/l/f/lf_sup_2025_115_fr.pdf" },
+    { stage: 15, name: "Muret > Carcassonne", date: "2025-07-20", mapUrl: "https://img.aso.fr/core_app/img-cycling-tdf-jpg/tdf25-et15-cartepot-v2/62229/0:0,3508:2480-960-0-90/200df", supAipUrl: null },
+    { stage: 16, name: "Montpellier > Mont Ventoux", date: "2025-07-22", mapUrl: "https://img.aso.fr/core_app/img-cycling-tdf-jpg/tdf25-et16-cartepot-v1/62222/0:0,3508:2480-960-0-90/ead66", supAipUrl: null },
+    { stage: 17, name: "Bollène > Valence", date: "2025-07-23", mapUrl: "https://img.aso.fr/core_app/img-cycling-tdf-jpg/tdf25-et17-cartepot-v1/62226/0:0,2480:3508-960-0-90/01f1d", supAipUrl: null },
+    { stage: 18, name: "Vif > Courchevel Col de la Loze", date: "2025-07-24", mapUrl: "https://img.aso.fr/core_app/img-cycling-tdf-jpg/tdf25-et18-cartepot-v2/62227/0:0,3508:2480-960-0-90/1d1c4", supAipUrl: "https://www.sia.aviation-civile.gouv.fr/media/store/documents/file/l/f/lf_sup_2025_121_fr.pdf" },
+    { stage: 19, name: "Albertville > La Plagne", date: "2025-07-25", mapUrl: "https://img.aso.fr/core_app/img-cycling-tdf-jpg/tdf25-et19-cartepot-v2/62216/0:0,2480:3508-960-0-90/ef7f5", supAipUrl: "https://www.sia.aviation-civile.gouv.fr/media/store/documents/file/l/f/lf_sup_2025_122_fr.pdf" },
+    { stage: 20, name: "Nantua > Pontarlier", date: "2025-07-26", mapUrl: "https://img.aso.fr/core_app/img-cycling-tdf-jpg/tdf25-et20-cartepot-v1/62213/0:0,2480:3508-960-0-90/09c45", supAipUrl: null },
+    { stage: 21, name: "Mantes-la-Ville > Paris Champs-Élysées", date: "2025-07-27", mapUrl: "https://img.aso.fr/core_app/img-cycling-tdf-jpg/tdf25-et21-cartepot-v3/62217/0:0,3508:2480-960-0-90/811cb", supAipUrl: null }
+];
+
+        function initializeTdfViewer() {
+            const stageSelector = document.getElementById('tdf-stage-selector');
+            const stageMap = document.getElementById('tdf-stage-map');
+            const stageDateSpan = document.getElementById('tdf-stage-date');
+            const supAipLink = document.getElementById('tdf-sup-aip-link');
+            
+            if (!stageSelector || !stageMap || !stageDateSpan || !supAipLink) return;
+        
+            function updateDisplay(stageIndex) {
+                const selectedStage = tdfStages[stageIndex];
+                stageMap.src = selectedStage.mapUrl;
+                stageMap.alt = `Carte de l'étape ${selectedStage.stage}: ${selectedStage.name}`;
+                const date = new Date(`${selectedStage.date}T12:00:00`);
+                stageDateSpan.textContent = date.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+                if (selectedStage.supAipUrl) {
+                    supAipLink.href = selectedStage.supAipUrl;
+                    supAipLink.textContent = `Consulter le SUP AIP pour l'étape ${selectedStage.stage}`;
+                    supAipLink.style.display = 'inline-block';
+                } else {
+                    supAipLink.style.display = 'none';
+                }
+            }
+        
+            function setDefaultStage() {
+                const now = new Date();
+                let defaultStageIndex = 0;
+                const referenceDate = new Date(now);
+                if (now.getHours() >= 22) referenceDate.setDate(referenceDate.getDate() + 1);
+                referenceDate.setHours(0, 0, 0, 0);
+                const foundIndex = tdfStages.findIndex(stage => new Date(`${stage.date}T00:00:00`) >= referenceDate);
+                defaultStageIndex = (foundIndex !== -1) ? foundIndex : tdfStages.length - 1;
+                stageSelector.selectedIndex = defaultStageIndex;
+                updateDisplay(defaultStageIndex);
+            }
+        
+            tdfStages.forEach((stage, index) => {
+                const option = document.createElement('option');
+                option.value = index;
+                const dateObj = new Date(`${stage.date}T12:00:00`);
+                const formattedDate = dateObj.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' });
+                option.textContent = `Étape ${stage.stage} (${formattedDate}) : ${stage.name}`;
+                stageSelector.appendChild(option);
+            });
+        
+            setDefaultStage();
+            stageSelector.addEventListener('change', (event) => updateDisplay(event.target.value));
+        }
 
         // --- CORE INITIALIZATION ---
         let pdfJsWaitAttempts = 0;
@@ -936,6 +1063,7 @@
     initializeSessionManagement();
     initializeHelpTooltips();
     initializeGaarMapControls();
+    initializeTdfViewer();
     setInterval(checkWeatherValidity, 60000); // Vérifie la validité des METARs et TAFs chaque minute
 }
         async function forceAppUpdate() {
