@@ -1,4 +1,4 @@
-const CACHE_NAME = 'briefing-fdf-test-v1.9-tdf2026-focus';
+const CACHE_NAME = 'briefing-fdf-test-v2.0-tdf2026-blank';
 const CORE_ASSETS = [
   './',
   './index.html',
