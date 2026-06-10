@@ -1,7 +1,11 @@
-const CACHE_NAME = 'briefing-fdf-test-v2.0-tdf2026-blank';
+const CACHE_NAME = 'briefing-fdf-test-v2.1-pwa-tdf2026';
 const CORE_ASSETS = [
   './',
   './index.html',
+  './manifest.json',
+  './icons/icon-180.png',
+  './icons/icon-192.png',
+  './icons/icon-512.png',
   './tdf2026/stage01.jpg',
   './tdf2026/stage02.jpg',
   './tdf2026/stage03.jpg',
