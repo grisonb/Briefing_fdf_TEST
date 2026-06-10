@@ -6,6 +6,12 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0">
     <title>Briefing Fdf TEST</title>
+    <link rel="manifest" href="./manifest.json?v=2.2">
+    <link rel="apple-touch-icon" href="./icons/icon-180.png?v=2.2">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-title" content="Briefing TEST">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="theme-color" content="#0a2c5a">
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js"></script>
@@ -664,7 +670,7 @@
             <li><a href="#temsi-section">TEMSI</a></li>
             <li><a href="#windy-section">WINDY</a></li>
             <li><a href="#notam-section">NOTAMs/METAR</a></li>
-            <li><a href="#tdf-section">Tour de France</a></li>
+            <li id="tdf-nav-link"><a href="#tdf-section">Tour de France</a></li>
             <li><a href="#sup-aip-section">SUP AIP</a></li>
             <li><a href="#synergi-section">SYNERGI</a></li>
             <li><a href="#google-earth-section">GOOGLE EARTH</a></li>
@@ -676,7 +682,7 @@
         <h1 id="main-title">Briefing Fdf TEST</h1>
         <p id="current-time-display"></p>
         <p style="position: relative; z-index: 2; text-align: center; color: #333; font-size: 1em; margin-top: -25px; margin-bottom: 30px;">
-    v<span id="app-version">1.7 TEST TDF 2026</span>
+    v<span id="app-version">2.2 TEST PWA TDF 2026</span>
     <button id="force-update-btn" class="link-button" style="background-color: #34495e; padding: 4px 10px; font-size: 0.8em; margin-left: 10px; vertical-align: middle;">
         Forcer MAJ
     </button>
@@ -926,7 +932,7 @@
     <footer>Données : Météo-France, SIA, Windy.com, CheckWX.com. Page non commerciale, à usage personnel.</footer>
     
     <script>
-        const APP_VERSION = "2.1 TEST PWA TDF 2026";
+        const APP_VERSION = "2.2 TEST PWA TDF 2026";
 
         // --- Clé API pour la source de données météo ---
         const CHECKWX_API_KEY = "b8071d79ae4a482491114af48c9c0246";
@@ -970,12 +976,35 @@ const tdfStages = [
 ];
 
         function initializeTdfViewer() {
+            const tdfSection = document.getElementById('tdf-section');
+            const tdfNavLink = document.getElementById('tdf-nav-link');
             const stageSelector = document.getElementById('tdf-stage-selector');
             const stageMap = document.getElementById('tdf-stage-map');
             const stageDateSpan = document.getElementById('tdf-stage-date');
             const supAipLink = document.getElementById('tdf-sup-aip-link');
             
-            if (!stageSelector || !stageMap || !stageDateSpan || !supAipLink) return;
+            if (!tdfSection || !stageSelector || !stageMap || !stageDateSpan || !supAipLink) return;
+
+            function getLocalDateString(date) {
+                const yyyy = date.getFullYear();
+                const mm = String(date.getMonth() + 1).padStart(2, '0');
+                const dd = String(date.getDate()).padStart(2, '0');
+                return `${yyyy}-${mm}-${dd}`;
+            }
+
+            const today = getLocalDateString(new Date());
+            const tdfStartDate = '2026-07-04';
+            const tdfHideDate = '2026-07-27';
+            const shouldShowTdf = today >= tdfStartDate && today < tdfHideDate;
+
+            if (!shouldShowTdf) {
+                tdfSection.style.display = 'none';
+                if (tdfNavLink) tdfNavLink.style.display = 'none';
+                return;
+            }
+
+            tdfSection.style.display = '';
+            if (tdfNavLink) tdfNavLink.style.display = '';
         
             function updateDisplay(stageIndex) {
                 const selectedStage = tdfStages[stageIndex];
@@ -993,12 +1022,6 @@ const tdfStages = [
             }
         
             function setDefaultStage() {
-                const now = new Date();
-                const yyyy = now.getFullYear();
-                const mm = String(now.getMonth() + 1).padStart(2, '0');
-                const dd = String(now.getDate()).padStart(2, '0');
-                const today = `${yyyy}-${mm}-${dd}`;
-
                 let defaultStageIndex = tdfStages.findIndex(stage => stage.date === today);
 
                 if (defaultStageIndex === -1) {
