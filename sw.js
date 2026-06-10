@@ -1,7 +1,5 @@
-const CACHE_NAME = 'briefing-fdf-test-v2.3-pwa-tdf2026-gaar';
+const CACHE_NAME = 'briefing-fdf-test-v2.4-pwa-tdf2026-gaar-cache';
 const CORE_ASSETS = [
-  './',
-  './index.html',
   './manifest.json',
   './icons/icon-180.png',
   './icons/apple-touch-icon.png',
@@ -35,9 +33,42 @@ const CORE_ASSETS = [
   'https://unpkg.com/leaflet@1.9.3/dist/leaflet.js'
 ];
 
+async function networkFirst(request) {
+  try {
+    const networkRes = await fetch(request, { cache: 'no-store' });
+    const cache = await caches.open(CACHE_NAME);
+    cache.put(request, networkRes.clone()).catch(() => {});
+    return networkRes;
+  } catch (err) {
+    const cached = await caches.match(request);
+    if (cached) return cached;
+    const fallback = await caches.match('./index.html');
+    if (fallback) return fallback;
+    throw err;
+  }
+}
+
+async function cacheFirst(request) {
+  const cached = await caches.match(request);
+  if (cached) return cached;
+
+  const networkRes = await fetch(request);
+  const cache = await caches.open(CACHE_NAME);
+  cache.put(request, networkRes.clone()).catch(() => {});
+  return networkRes;
+}
+
 self.addEventListener('install', (event) => {
   event.waitUntil((async () => {
     const cache = await caches.open(CACHE_NAME);
+
+    // On garde index.html en cache uniquement comme secours offline,
+    // mais les navigations le demanderont d'abord au réseau.
+    try {
+      const indexRes = await fetch(new Request('./index.html', { cache: 'no-store' }));
+      if (indexRes) await cache.put('./index.html', indexRes.clone());
+    } catch (_) {}
+
     for (const url of CORE_ASSETS) {
       try {
         const isCrossOrigin = /^https?:\/\//.test(url);
@@ -48,6 +79,7 @@ self.addEventListener('install', (event) => {
         // Ignore les échecs ponctuels; le runtime mettra en cache au fur et à mesure.
       }
     }
+
     self.skipWaiting();
   })());
 });
@@ -62,18 +94,18 @@ self.addEventListener('activate', (event) => {
 
 self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET') return;
-  event.respondWith((async () => {
-    const cached = await caches.match(event.request);
-    if (cached) return cached;
-    try {
-      const networkRes = await fetch(event.request);
-      const cache = await caches.open(CACHE_NAME);
-      cache.put(event.request, networkRes.clone()).catch(() => {});
-      return networkRes;
-    } catch (err) {
-      const fallback = await caches.match('./index.html');
-      if (fallback && event.request.mode === 'navigate') return fallback;
-      throw err;
-    }
-  })());
+
+  const url = new URL(event.request.url);
+
+  // Important : l'application HTML doit toujours être demandée au réseau d'abord.
+  // Cela évite de rester bloqué sur une ancienne version qui casse Leaflet/GAAR.
+  const isNavigation = event.request.mode === 'navigate';
+  const isIndex = url.pathname.endsWith('/index.html') || url.pathname.endsWith('/Briefing_fdf_TEST/') || url.pathname.endsWith('/Briefing-fdf/');
+
+  if (isNavigation || isIndex) {
+    event.respondWith(networkFirst(event.request));
+    return;
+  }
+
+  event.respondWith(cacheFirst(event.request));
 });
