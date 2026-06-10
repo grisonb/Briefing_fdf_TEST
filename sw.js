@@ -1,5 +1,6 @@
-const CACHE_NAME = 'briefing-fdf-test-v2.4-pwa-tdf2026-gaar-cache';
-const CORE_ASSETS = [
+const CACHE_NAME = 'briefing-fdf-test-v2.5-pwa-tdf2026-gaar-sans-cache-externe';
+
+const LOCAL_ASSETS = [
   './manifest.json',
   './icons/icon-180.png',
   './icons/apple-touch-icon.png',
@@ -25,12 +26,7 @@ const CORE_ASSETS = [
   './tdf2026/stage18.jpg',
   './tdf2026/stage19.jpg',
   './tdf2026/stage20.jpg',
-  './tdf2026/stage21.jpg',
-  'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js',
-  'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js',
-  'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js',
-  'https://unpkg.com/leaflet@1.9.3/dist/leaflet.css',
-  'https://unpkg.com/leaflet@1.9.3/dist/leaflet.js'
+  './tdf2026/stage21.jpg'
 ];
 
 async function networkFirst(request) {
@@ -62,21 +58,17 @@ self.addEventListener('install', (event) => {
   event.waitUntil((async () => {
     const cache = await caches.open(CACHE_NAME);
 
-    // On garde index.html en cache uniquement comme secours offline,
-    // mais les navigations le demanderont d'abord au réseau.
     try {
       const indexRes = await fetch(new Request('./index.html', { cache: 'no-store' }));
       if (indexRes) await cache.put('./index.html', indexRes.clone());
     } catch (_) {}
 
-    for (const url of CORE_ASSETS) {
+    for (const url of LOCAL_ASSETS) {
       try {
-        const isCrossOrigin = /^https?:\/\//.test(url);
-        const req = isCrossOrigin ? new Request(url, { mode: 'no-cors' }) : new Request(url);
-        const res = await fetch(req);
+        const res = await fetch(new Request(url));
         if (res) await cache.put(url, res.clone());
       } catch (_) {
-        // Ignore les échecs ponctuels; le runtime mettra en cache au fur et à mesure.
+        // Ignore les échecs ponctuels.
       }
     }
 
@@ -96,11 +88,22 @@ self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET') return;
 
   const url = new URL(event.request.url);
+  const sameOrigin = url.origin === self.location.origin;
 
-  // Important : l'application HTML doit toujours être demandée au réseau d'abord.
-  // Cela évite de rester bloqué sur une ancienne version qui casse Leaflet/GAAR.
+  // IMPORTANT GAAR/Leaflet/iPad :
+  // On ne met plus en cache les ressources externes.
+  // Leaflet, OpenStreetMap, CDNJS, UNPKG, CheckWX, Météo-France, Windy, etc.
+  // passent directement au réseau.
+  if (!sameOrigin) {
+    event.respondWith(fetch(event.request));
+    return;
+  }
+
   const isNavigation = event.request.mode === 'navigate';
-  const isIndex = url.pathname.endsWith('/index.html') || url.pathname.endsWith('/Briefing_fdf_TEST/') || url.pathname.endsWith('/Briefing-fdf/');
+  const isIndex =
+    url.pathname.endsWith('/index.html') ||
+    url.pathname.endsWith('/Briefing_fdf_TEST/') ||
+    url.pathname.endsWith('/Briefing-fdf/');
 
   if (isNavigation || isIndex) {
     event.respondWith(networkFirst(event.request));
