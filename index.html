@@ -79,15 +79,16 @@
             display: flex;
             color: white;
             text-decoration: none;
-            padding: 7px 10px;
-            margin: 0 3px;
+            padding: 6px 7px;
+            margin: 0 2px;
             font-weight: 700;
-            font-size: 0.9em;
+            font-size: 0.84em;
+            letter-spacing: -0.2px;
             white-space: nowrap;
-            border: 1px solid rgba(255,255,255,0.38);
-            border-radius: 8px;
-            background: rgba(255,255,255,0.12);
-            box-shadow: inset 0 1px 0 rgba(255,255,255,0.18), 0 1px 3px rgba(0,0,0,0.18);
+            border: 1px solid rgba(255,255,255,0.32);
+            border-radius: 7px;
+            background: rgba(255,255,255,0.10);
+            box-shadow: inset 0 1px 0 rgba(255,255,255,0.14), 0 1px 2px rgba(0,0,0,0.14);
         }
 .nav-links li a:hover {
             background: rgba(255,255,255,0.22);
@@ -681,7 +682,7 @@
             <li><a href="#risk-maps-section">RISQUES</a></li>
             <li><a href="#temsi-section">TEMSI</a></li>
             <li><a href="#windy-section">WINDY</a></li>
-            <li><a href="#notam-section">NOTAMs/METAR</a></li>
+            <li><a href="#notam-section">NOTAM/METAR</a></li>
             <li id="tdf-nav-link"><a href="#tdf-section">Tour de France</a></li>
             <li><a href="#sup-aip-section">SUP AIP</a></li>
             <li><a href="#synergi-section">SYNERGI</a></li>
@@ -694,7 +695,7 @@
         <h1 id="main-title">Briefing Fdf TEST</h1>
         <p id="current-time-display"></p>
         <p style="position: relative; z-index: 2; text-align: center; color: #333; font-size: 1em; margin-top: -25px; margin-bottom: 30px;">
-    v<span id="app-version">2.9 TEST PWA TDF 2026</span>
+    v<span id="app-version">3.0 TEST PWA TDF 2026</span>
     <button id="force-update-btn" class="link-button" style="background-color: #34495e; padding: 4px 10px; font-size: 0.8em; margin-left: 10px; vertical-align: middle;">
         Forcer MAJ
     </button>
@@ -944,7 +945,7 @@
     <footer>Données : Météo-France, SIA, Windy.com, CheckWX.com. Page non commerciale, à usage personnel.</footer>
     
     <script>
-        const APP_VERSION = "2.9 TEST PWA TDF 2026";
+        const APP_VERSION = "3.0 TEST PWA TDF 2026";
 
         // --- Clé API pour la source de données météo ---
         const CHECKWX_API_KEY = "b8071d79ae4a482491114af48c9c0246";
@@ -2504,6 +2505,7 @@ if (saveBtnPrimary && restoreBtnPrimary) {
         let localDb;
         try {
             sessionStatus.textContent = "Sauvegarde en cours...";
+            localStorage.removeItem('briefingFdfDoNotAutoRestore');
             localDb = await openDB();
             const portableSnapshot = await buildPortableSessionObject_();
 
@@ -2646,9 +2648,28 @@ if (saveBtnPrimary && restoreBtnPrimary) {
     document.querySelectorAll('#clear-session-btn').forEach((btn) => {
         btn.addEventListener('click', async () => {
             sessionStatus.textContent = "Effacement en cours...";
-            sessionStorage.setItem('skipAutoRestoreOnce', '1');
-            const cleanUrl = `${window.location.origin}${window.location.pathname}`;
-            window.location.assign(cleanUrl);
+            try {
+                // Efface réellement la sauvegarde IndexedDB, pas seulement l'affichage courant.
+                await clearLocalSession_();
+
+                // Empêche aussi toute restauration automatique au redémarrage suivant.
+                localStorage.setItem('briefingFdfDoNotAutoRestore', 'true');
+                sessionStorage.setItem('skipAutoRestoreOnce', '1');
+
+                // Nettoyage visuel immédiat de l'application.
+                window.fdsFileObject = null;
+                window.gaarFileObject = null;
+                window.supAipFileObjects = [];
+                window.gaarDrawnCircuits = [];
+                window.__lastNotamState = null;
+                window.__notamTextFull = "";
+
+                const cleanUrl = `${window.location.origin}${window.location.pathname}`;
+                window.location.assign(cleanUrl);
+            } catch (error) {
+                sessionStatus.textContent = `Erreur lors de l'effacement: ${error.message || error}`;
+                console.error("Erreur effacement :", error);
+            }
         });
     });
 
@@ -2778,7 +2799,7 @@ if (saveBtnPrimary && restoreBtnPrimary) {
                 return;
             }
             if (localStorage.getItem('briefingFdfDoNotAutoRestore') === 'true') {
-                localStorage.removeItem('briefingFdfDoNotAutoRestore');
+                sessionStatus.textContent = "Page vierge chargée.";
                 return;
             }
 
