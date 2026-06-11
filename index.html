@@ -76,7 +76,7 @@
         }
 
         .nav-links li a {
-            display: block;
+            display: flex;
             color: white;
             text-decoration: none;
             padding: 7px 10px;
@@ -113,7 +113,7 @@
                 justify-content: flex-start; /* Aligne les éléments au début pour le menu */
             }
             .nav-toggle {
-                display: block;
+                display: flex;
                 background: none;
                 border: none;
                 color: white;
@@ -147,27 +147,33 @@
             bottom: 20px;
             right: 20px;
             display: none;
-            width: 50px;
-            height: 50px;
+            width: 54px;
+            height: 54px;
             background-color: var(--sc-red);
             color: white;
             border: none;
             border-radius: 50%;
-            font-size: 24px;
-            line-height: 50px;
+            font-size: 31px;
+            font-weight: 900;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            padding: 0 0 3px 0;
             text-align: center;
             cursor: pointer;
-            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+            box-shadow: 0 4px 10px rgba(0,0,0,0.28);
             z-index: 999;
             opacity: 0;
             transition: opacity 0.3s, transform 0.3s;
+            -webkit-appearance: none;
+            appearance: none;
         }
         #back-to-top-btn.visible {
-            display: block;
+            display: flex;
             opacity: 1;
         }
         #back-to-top-btn:hover {
-            transform: scale(1.1);
+            transform: scale(1.08);
         }
 
         .page-header {
@@ -425,7 +431,7 @@
             right: 0;
         }
         .filter-list label {
-            display: block;
+            display: flex;
             padding: 4px 8px;
             cursor: pointer;
             color: var(--dark-text);
@@ -598,7 +604,7 @@
             transition: transform 0.2s;
         }
         .help-icon:hover {
-            transform: scale(1.1);
+            transform: scale(1.08);
         }
 
         .help-tooltip {
@@ -695,7 +701,7 @@
         <h1 id="main-title">Briefing Fdf TEST</h1>
         <p id="current-time-display"></p>
         <p style="position: relative; z-index: 2; text-align: center; color: #333; font-size: 1em; margin-top: -25px; margin-bottom: 30px;">
-    v<span id="app-version">2.7 TEST PWA TDF 2026</span>
+    v<span id="app-version">2.8 TEST PWA TDF 2026</span>
     <button id="force-update-btn" class="link-button" style="background-color: #34495e; padding: 4px 10px; font-size: 0.8em; margin-left: 10px; vertical-align: middle;">
         Forcer MAJ
     </button>
@@ -940,12 +946,12 @@
     
 
     
-    <button id="back-to-top-btn" title="Retour en haut">&#8679;</button>
+    <button id="back-to-top-btn" title="Retour en haut" aria-label="Retour en haut">↑</button>
 
     <footer>Données : Météo-France, SIA, Windy.com, CheckWX.com. Page non commerciale, à usage personnel.</footer>
     
     <script>
-        const APP_VERSION = "2.7 TEST PWA TDF 2026";
+        const APP_VERSION = "2.8 TEST PWA TDF 2026";
 
         // --- Clé API pour la source de données météo ---
         const CHECKWX_API_KEY = "b8071d79ae4a482491114af48c9c0246";
