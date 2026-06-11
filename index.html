@@ -695,7 +695,7 @@
         <h1 id="main-title">Briefing Fdf TEST</h1>
         <p id="current-time-display"></p>
         <p style="position: relative; z-index: 2; text-align: center; color: #333; font-size: 1em; margin-top: -25px; margin-bottom: 30px;">
-    v<span id="app-version">3.0 TEST PWA TDF 2026</span>
+    v<span id="app-version">3.1 TEST PWA TDF 2026</span>
     <button id="force-update-btn" class="link-button" style="background-color: #34495e; padding: 4px 10px; font-size: 0.8em; margin-left: 10px; vertical-align: middle;">
         Forcer MAJ
     </button>
@@ -759,8 +759,9 @@
         <h2>Carte des Circuits GAAR</h2>
         <div id="gaar-map-container">
             <div id="gaar-map-controls">
-                <button id="add-manual-circuit-btn" class="link-button" style="background-color: #27ae60;">Ajout manuel circuit(s) GAAR</button>
+                <button id="add-manual-circuit-btn" class="link-button" style="background-color: #27ae60;">Ajout circuit(s) GAAR</button>
                 <button id="delete-circuits-btn" class="link-button" style="background-color: var(--sc-red); display: none;">Supprimer circuit(s) GAAR</button>
+                <button id="hide-gaar-map-btn" class="link-button" style="background-color: #7f8c8d;">Masquer carte</button>
             </div>
             <div id="gaar-map-display"></div>
             <div id="gaar-status">Préparez vos circuits sur la carte</div>
@@ -945,7 +946,7 @@
     <footer>Données : Météo-France, SIA, Windy.com, CheckWX.com. Page non commerciale, à usage personnel.</footer>
     
     <script>
-        const APP_VERSION = "3.0 TEST PWA TDF 2026";
+        const APP_VERSION = "3.1 TEST PWA TDF 2026";
 
         // --- Clé API pour la source de données météo ---
         const CHECKWX_API_KEY = "b8071d79ae4a482491114af48c9c0246";
@@ -2067,6 +2068,16 @@ const tdfStages = [
                 setTimeout(forceGaarMapRefresh, 1500);
             });
 
+            document.getElementById('hide-gaar-map-btn').addEventListener('click', () => {
+                const mapSection = document.getElementById('gaar-map-section');
+                const mapNavLink = document.getElementById('gaar-map-nav-link');
+
+                if (mapSection) mapSection.style.display = 'none';
+                if (mapNavLink) mapNavLink.style.display = 'none';
+
+                document.getElementById('gaar-section').scrollIntoView({ behavior: 'smooth' });
+            });
+
 
             document.getElementById('pdf-load-notam-btn').addEventListener('click', () => document.getElementById('pdf-input-notam').click());
             document.getElementById('pdf-input-notam').addEventListener('change', (e) => notamHandler(e.target.files));
@@ -2991,12 +3002,12 @@ window.__notamTextFull = notamInput.value;
         function initializeNotamParser() { 
             const notamInput = document.getElementById('notam-input'), notamDisplay = document.getElementById('notam-display'), notamSection = document.querySelector('.notam-section');
             const filterButtons = document.querySelectorAll('.filter-action'), showAllButtons = document.querySelectorAll('.show-all-action'), savePdfButtons = document.querySelectorAll('.save-pdf-action');
-            const predefinedIcaoOrder = ['LFTW', 'LFML', 'LFTH', 'LFMD', 'LFHO', 'LFLU', 'LFMH', 'LFMU', 'LFMP', 'LFMK', 'LFCC', 'LFBD', 'LFBL', 'LFBM', 'LFBP', 'LFKC', 'LFKB', 'LFKJ', 'LFKF', 'LFJR', 'LFAQ', 'LFLX', 'LFSG', 'LFRV'];
+            const predefinedIcaoOrder = ['LFTW', 'LFML', 'LFTH', 'LFMD', 'LFHO', 'LFLU', 'LFMH', 'LFMU', 'LFMP', 'LFMK', 'LFCR', 'LFCC', 'LFBD', 'LFBL', 'LFBM', 'LFBP', 'LFKC', 'LFKB', 'LFKJ', 'LFKF', 'LFBN', 'LFJR', 'LFAQ', 'LFLX', 'LFSG', 'LFRV'];
             const icaoToFullName = {
                 'LFTW':'LFTW - NIMES GARONS', 'LFML':'LFML - MARSEILLE PROVENCE', 'LFTH':'LFTH - TOULON HYERES', 
                 'LFMD':'LFMD - CANNES MANDELIEU', 'LFHO':'LFHO - AUBENAS ARDECHE MERIDIONALE', 'LFLU':'LFLU - VALENCE CHABEUIL', 
                 'LFMH':'LFMH - ST ETIENNE BOUTHEON', 'LFMU':'LFMU - BEZIERS VIAS', 'LFMP':'LFMP - PERPIGNAN RIVESALTES', 
-                'LFMK':'LFMK - CARCASSONNE SALVAZA', 'LFCC':'LFCC - CAHORS LALBENQUE', 'LFBD':'LFBD - BORDEAUX MERIGNAC', 
+                'LFMK':'LFMK - CARCASSONNE SALVAZA', 'LFCR':'LFCR - RODEZ', 'LFCC':'LFCC - CAHORS LALBENQUE', 'LFBD':'LFBD - BORDEAUX MERIGNAC', 
                 'LFBL':'LFBL - LIMOGES BELLEGARDE', 'LFBM':'LFBM - MONT DE MARSAN', 'LFBP':'LFBP - PAU PYRENEES', 
                 'LFKC':'LFKC - CALVI STE CATHERINE', 'LFKB':'LFKB - BASTIA PORETTA', 'LFKJ':'LFKJ - AJACCIO NAPOLEON BONAPARTE', 
                 'LFKF':'LFKF - FIGARI SUD CORSE', 'LFJR':'LFJR - ANGERS LOIRE', 
