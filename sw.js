@@ -1,4 +1,4 @@
-const CACHE_NAME = 'briefing-fdf-test-v3.2-pwa-tdf2026-boutons-validation';
+const CACHE_NAME = 'briefing-fdf-test-v3.3-pwa-tdf2026-tuto-sauvegarde';
 
 const LOCAL_ASSETS = [
   './manifest.json',
