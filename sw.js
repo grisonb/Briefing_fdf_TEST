@@ -1,4 +1,4 @@
-const CACHE_NAME = 'briefing-fdf-test-v2.7-pwa-tdf2026-menu-visible';
+const CACHE_NAME = 'briefing-fdf-test-v2.8-pwa-tdf2026-fleche-haut';
 
 const LOCAL_ASSETS = [
   './manifest.json',
