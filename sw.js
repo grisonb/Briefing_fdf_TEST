@@ -1,4 +1,4 @@
-const CACHE_NAME = 'briefing-fdf-test-v2.5-pwa-tdf2026-gaar-sans-cache-externe';
+const CACHE_NAME = 'briefing-fdf-test-v2.6-pwa-tdf2026-accueil-temsi';
 
 const LOCAL_ASSETS = [
   './manifest.json',
