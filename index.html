@@ -682,7 +682,7 @@
         <h1 id="main-title">Briefing Fdf TEST</h1>
         <p id="current-time-display"></p>
         <p style="position: relative; z-index: 2; text-align: center; color: #333; font-size: 1em; margin-top: -25px; margin-bottom: 30px;">
-    v<span id="app-version">2.5 TEST PWA TDF 2026</span>
+    v<span id="app-version">2.6 TEST PWA TDF 2026</span>
     <button id="force-update-btn" class="link-button" style="background-color: #34495e; padding: 4px 10px; font-size: 0.8em; margin-left: 10px; vertical-align: middle;">
         Forcer MAJ
     </button>
@@ -763,7 +763,7 @@
         </div>
     </div>
     
-    <div class="map-section" id="temsi-section"><h2>Carte SIGWX France (TEMSI)</h2><div class="controles"><label for="temsi-select">Choisir une échéance :</label><select id="temsi-select"></select></div><p class="info-carte" id="temsi-info-carte">Chargement...</p><div class="carte-container"><iframe id="temsi-frame" title="Carte SIGWX France"></iframe></div></div>
+    <div class="map-section" id="temsi-section"><h2>Carte TEMSI France</h2><div class="controles"><label for="temsi-select">Choisir une échéance :</label><select id="temsi-select"></select></div><p class="info-carte" id="temsi-info-carte">Chargement...</p><div class="carte-container"><iframe id="temsi-frame" title="Carte SIGWX France"></iframe></div></div>
     
     <div class="map-section" id="windy-section">
         <h2>WINDY</h2>
@@ -932,7 +932,7 @@
     <footer>Données : Météo-France, SIA, Windy.com, CheckWX.com. Page non commerciale, à usage personnel.</footer>
     
     <script>
-        const APP_VERSION = "2.5 TEST PWA TDF 2026";
+        const APP_VERSION = "2.6 TEST PWA TDF 2026";
 
         // --- Clé API pour la source de données météo ---
         const CHECKWX_API_KEY = "b8071d79ae4a482491114af48c9c0246";
@@ -1071,8 +1071,16 @@ const tdfStages = [
             });
         }
         
+        function forceBriefingStartAtTop() {
+    // iPad/PWA : certains rendus PDF/iframes ou la restauration NOTAM
+    // peuvent provoquer un scroll automatique vers TEMSI/NOTAM.
+    window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
+    document.documentElement.scrollTop = 0;
+    document.body.scrollTop = 0;
+}
+
         function initializePage() {
-    window.scrollTo(0, 0);
+    forceBriefingStartAtTop();
     const appVersionEl = document.getElementById('app-version');
     if (appVersionEl) appVersionEl.textContent = APP_VERSION;
 
@@ -1098,6 +1106,12 @@ const tdfStages = [
     initializeHelpTooltips();
     initializeGaarMapControls();
     initializeTdfViewer();
+
+    // Forçage accueil : au chargement initial, on revient toujours au début.
+    setTimeout(forceBriefingStartAtTop, 0);
+    setTimeout(forceBriefingStartAtTop, 300);
+    setTimeout(forceBriefingStartAtTop, 1200);
+
     setInterval(checkWeatherValidity, 60000); // Vérifie la validité des METARs et TAFs chaque minute
 }
 
@@ -2737,7 +2751,12 @@ if (saveBtnPrimary && restoreBtnPrimary) {
                 sessionStatus.textContent = `Erreur lien partagé: ${err.message || err}`;
                 return false;
             });
-            if (loadedFromLink) return;
+            if (loadedFromLink) {
+                setTimeout(forceBriefingStartAtTop, 0);
+                setTimeout(forceBriefingStartAtTop, 300);
+                setTimeout(forceBriefingStartAtTop, 1200);
+                return;
+            }
             if (hasShareParam) {
                 // Important: éviter de masquer un échec de partage distant avec la session locale.
                 return;
@@ -2747,6 +2766,11 @@ if (saveBtnPrimary && restoreBtnPrimary) {
                 return;
             }
             await restoreLocalSession_();
+
+            // Après restauration automatique d'un briefing, on force l'accueil au début.
+            setTimeout(forceBriefingStartAtTop, 0);
+            setTimeout(forceBriefingStartAtTop, 300);
+            setTimeout(forceBriefingStartAtTop, 1200);
         } catch (error) {
             sessionStatus.textContent = `Erreur DB: ${error.message || error}`;
         }
