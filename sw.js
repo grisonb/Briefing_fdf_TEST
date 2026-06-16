@@ -1,4 +1,4 @@
-const CACHE_NAME = 'briefing-fdf-test-v3.5-partage-api-directe';
+const CACHE_NAME = 'briefing-fdf-test-v3.6-lfbn-niort';
 
 const LOCAL_ASSETS = [
   './manifest.json',
