@@ -1,4 +1,4 @@
-const CACHE_NAME = 'briefing-fdf-test-v3.8-saisie-code-bfg-assistee';
+const CACHE_NAME = 'briefing-fdf-test-v3.9-saisie-code-bfg-corrigee';
 
 const LOCAL_ASSETS = [
   './manifest.json',
