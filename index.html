@@ -709,7 +709,7 @@
         <h1 id="main-title">Briefing Fdf TEST</h1>
         <p id="current-time-display"></p>
         <p style="position: relative; z-index: 2; text-align: center; color: #333; font-size: 1em; margin-top: -25px; margin-bottom: 30px;">
-    v<span id="app-version">3.6 TEST PWA TDF 2026</span>
+    v<span id="app-version">3.7 TEST PWA TDF 2026</span>
     <button id="force-update-btn" class="link-button" style="background-color: #34495e; padding: 4px 10px; font-size: 0.8em; margin-left: 10px; vertical-align: middle;">
         Forcer MAJ
     </button>
@@ -735,11 +735,18 @@
         </ol>
     </div>
     <div id="share-result">
-        <input id="share-link-input" type="text" readonly>
-        <button id="copy-share-link-btn" class="link-button" style="background-color: #16a085; margin-top: 10px;">Copier le lien</button>
+        <label for="share-link-input" style="font-weight: bold; display: block; margin-bottom: 6px;">Code de partage</label>
+        <input id="share-link-input" type="text" readonly style="text-align: center; font-weight: bold; letter-spacing: 1px;">
+        <button id="copy-share-link-btn" class="link-button" style="background-color: #16a085; margin-top: 10px;">Copier le code</button>
         <div>
-            <img id="share-qr-image" alt="QR code du lien de partage">
+            <img id="share-qr-image" alt="QR code du code de partage">
         </div>
+    </div>
+
+    <div id="shared-code-loader" style="margin-top: 14px; padding-top: 12px; border-top: 1px solid #ddd;">
+        <label for="shared-code-input" style="font-weight: bold; display: block; margin-bottom: 6px;">Ouvrir un briefing partagé</label>
+        <input id="shared-code-input" type="text" placeholder="BFG-1806-01" autocomplete="off" autocapitalize="characters" style="text-align: center; font-weight: bold; letter-spacing: 1px; max-width: 180px;">
+        <button id="open-shared-code-btn" class="link-button" style="background-color: #34495e; margin-top: 10px;">Ouvrir</button>
     </div>
 </div>
 
@@ -971,7 +978,7 @@
     <footer>Données : Météo-France, SIA, Windy.com, CheckWX.com. Page non commerciale, à usage personnel.</footer>
     
     <script>
-        const APP_VERSION = "3.6 TEST PWA TDF 2026";
+        const APP_VERSION = "3.7 TEST PWA TDF 2026";
 
         // --- Clé API pour la source de données météo ---
         const CHECKWX_API_KEY = "b8071d79ae4a482491114af48c9c0246";
@@ -2173,7 +2180,10 @@ const tdfStages = [
     const shareLinkInput = document.getElementById('share-link-input');
     const copyShareLinkBtn = document.getElementById('copy-share-link-btn');
     const shareQrImage = document.getElementById('share-qr-image');
+    const sharedCodeInput = document.getElementById('shared-code-input');
+    const openSharedCodeBtn = document.getElementById('open-shared-code-btn');
     let lastShareUrl = "";
+    let lastShareCode = ""; 
 
    // Sécurité anti-merge/caching: ne garder qu'un seul bouton Restaurer visible
 // et le laisser juste après "Sauvegarder".
@@ -2391,11 +2401,16 @@ let activeShareApiBase = SHARE_API_BASE;
         return url.toString();
     }
 
-    function showShareResult(shareUrl) {
+    function normalizeShareCode_(value) {
+        return String(value || "").trim().toUpperCase();
+    }
+
+    function showShareResult(shareCode, shareUrl) {
         if (!shareResult || !shareLinkInput || !shareQrImage) return;
+        lastShareCode = normalizeShareCode_(shareCode);
         lastShareUrl = shareUrl || "";
-        shareLinkInput.value = shareUrl;
-        shareQrImage.src = `https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(shareUrl)}`;
+        shareLinkInput.value = lastShareCode;
+        shareQrImage.src = `https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(lastShareCode)}`;
         shareResult.style.display = 'block';
     }
 
@@ -2460,16 +2475,17 @@ let activeShareApiBase = SHARE_API_BASE;
                 const response = await runAttempt();
                 const payload = await response.json().catch(() => ({}));
                 const shareId = payload.id || payload.shareId || payload.token || null;
+                const shareCode = normalizeShareCode_(payload.code || payload.shareCode || shareId || "");
                 const shareUrl = payload.url || payload.shareUrl || null;
-                if (!response.ok || !shareId) {
+                if (!response.ok || !shareId || !shareCode) {
                     lastError = new Error(payload.error || `HTTP ${response.status}`);
                     continue;
                 }
                 const endpointUrl = (response.url || "").toString();
                 const detectedBase = SHARE_API_BASE_CANDIDATES.find(base => endpointUrl.startsWith(base));
                 if (detectedBase) activeShareApiBase = detectedBase;
-                await validateSharedPayload_(portable, shareId);
-                return { shareId, shareUrl };
+                await validateSharedPayload_(portable, shareCode);
+                return { shareId, shareCode, shareUrl };
             } catch (e) {
                 lastError = e;
             }
@@ -2530,7 +2546,7 @@ let activeShareApiBase = SHARE_API_BASE;
 
     async function loadSharedSessionFromUrl_() {
         const params = new URLSearchParams(window.location.search);
-        const shareId = params.get('share');
+        const shareId = normalizeShareCode_(params.get('share'));
         if (!shareId) return false;
 
         sessionStatus.textContent = "Chargement du briefing partagé...";
@@ -2629,28 +2645,10 @@ let activeShareApiBase = SHARE_API_BASE;
                 portable = await buildPortableSessionObject_();
                 if (ENABLE_REMOTE_SHARE) {
                     const remoteShare = await createRemoteShare_(portable);
-                    const shareId = remoteShare.shareId;
-                    const shareUrl = remoteShare.shareUrl || buildShareUrl(shareId);
-                    showShareResult(shareUrl);
-
-                    if (navigator.share) {
-                        try {
-                            await navigator.share({
-                                title: "Briefing FdF",
-                                text: "Lien du briefing",
-                                url: shareUrl
-                            });
-                        } catch (shareErr) {
-                            console.warn("Partage natif annulé ou indisponible:", shareErr);
-                        }
-                    }
-
-                    const extractedShareId = getShareIdFromUrl_(shareUrl);
-                    if (extractedShareId) {
-                        sessionStatus.textContent = `Lien de partage généré (ID: ${extractedShareId}).`;
-                    } else {
-                        sessionStatus.textContent = "Lien de partage généré.";
-                    }
+                    const shareCode = normalizeShareCode_(remoteShare.shareCode || remoteShare.shareId);
+                    const shareUrl = remoteShare.shareUrl || buildShareUrl(shareCode);
+                    showShareResult(shareCode, shareUrl);
+                    sessionStatus.textContent = `Code de partage généré : ${shareCode}`;
                 } else {
                     const filename = downloadPortableJson_(portable);
                     shareResult && (shareResult.style.display = 'none');
@@ -2673,20 +2671,52 @@ let activeShareApiBase = SHARE_API_BASE;
 
     if (copyShareLinkBtn) {
         copyShareLinkBtn.addEventListener('click', async () => {
-            const urlToCopy = lastShareUrl || (shareLinkInput ? shareLinkInput.value : "");
-            if (!urlToCopy) return;
+            const codeToCopy = lastShareCode || (shareLinkInput ? shareLinkInput.value : "");
+            if (!codeToCopy) return;
             try {
-                await navigator.clipboard.writeText(urlToCopy);
-                sessionStatus.textContent = "Lien copié.";
+                await navigator.clipboard.writeText(codeToCopy);
+                sessionStatus.textContent = "Code copié.";
             } catch {
                 const ta = document.createElement('textarea');
-                ta.value = urlToCopy;
+                ta.value = codeToCopy;
                 document.body.appendChild(ta);
                 ta.select();
                 document.execCommand('copy');
                 document.body.removeChild(ta);
-                sessionStatus.textContent = "Lien copié.";
+                sessionStatus.textContent = "Code copié.";
             }
+        });
+    }
+
+    if (openSharedCodeBtn) {
+        openSharedCodeBtn.addEventListener('click', async () => {
+            const code = normalizeShareCode_(sharedCodeInput ? sharedCodeInput.value : "");
+            if (!code) {
+                sessionStatus.textContent = "Saisir un code de partage.";
+                return;
+            }
+            try {
+                sessionStatus.textContent = `Chargement du briefing partagé ${code}...`;
+                const portablePayload = await fetchSharedPortableById_(code);
+                await applyPortableSessionObject_(portablePayload);
+                sessionStatus.textContent = `Briefing partagé chargé : ${code}`;
+            } catch (e) {
+                console.error(e);
+                sessionStatus.textContent = `Code de partage introuvable ou invalide : ${code}`;
+                alert("Impossible d'ouvrir ce briefing partagé.");
+            }
+        });
+    }
+
+    if (sharedCodeInput) {
+        sharedCodeInput.addEventListener('keydown', (event) => {
+            if (event.key === 'Enter') {
+                event.preventDefault();
+                openSharedCodeBtn && openSharedCodeBtn.click();
+            }
+        });
+        sharedCodeInput.addEventListener('input', () => {
+            sharedCodeInput.value = normalizeShareCode_(sharedCodeInput.value);
         });
     }
 
