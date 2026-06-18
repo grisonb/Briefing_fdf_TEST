@@ -688,6 +688,27 @@
         }
 
 
+    
+        #tdf-sup-aip-viewer {
+            display: none;
+            margin-top: 18px;
+            border: 1px solid #d0d7de;
+            border-radius: 8px;
+            background: #fff;
+            padding: 10px;
+        }
+        #tdf-sup-aip-frame {
+            width: 100%;
+            height: 78vh;
+            border: 1px solid #d0d7de;
+            border-radius: 6px;
+            background: #f8f9fa;
+        }
+        #tdf-close-sup-aip-btn {
+            margin-bottom: 10px;
+            background-color: var(--sc-red);
+        }
+
     </style>
 </head>
 <body>
@@ -714,7 +735,7 @@
         <h1 id="main-title">Briefing Fdf TEST</h1>
         <p id="current-time-display"></p>
         <p style="position: relative; z-index: 2; text-align: center; color: #333; font-size: 1em; margin-top: -25px; margin-bottom: 30px;">
-    v<span id="app-version">3.10 TEST PWA TDF 2026</span>
+    v<span id="app-version">3.11 TEST PWA TDF 2026</span>
     <button id="force-update-btn" class="link-button" style="background-color: #34495e; padding: 4px 10px; font-size: 0.8em; margin-left: 10px; vertical-align: middle;">
         Forcer MAJ
     </button>
@@ -938,7 +959,11 @@
         <img id="tdf-stage-map" src="" alt="Carte de l'étape du Tour de France" style="max-width: 100%; height: auto; border: 1px solid #ddd; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.08);">
     </div>
     <div style="text-align: center; margin-top: 15px;">
-        <a id="tdf-sup-aip-link" href="#" target="_blank" class="link-button" style="display: none; background-color: #c0392b;"></a>
+        <a id="tdf-sup-aip-link" href="#" class="link-button" style="display: none; background-color: #c0392b;"></a>
+    </div>
+    <div id="tdf-sup-aip-viewer">
+        <button id="tdf-close-sup-aip-btn" class="link-button">Fermer le SUP AIP</button>
+        <iframe id="tdf-sup-aip-frame" title="SUP AIP Tour de France"></iframe>
     </div>
 </div>
     
@@ -983,7 +1008,7 @@
     <footer>Données : Météo-France, SIA, Windy.com, CheckWX.com. Page non commerciale, à usage personnel.</footer>
     
     <script>
-        const APP_VERSION = "3.10 TEST PWA TDF 2026";
+        const APP_VERSION = "3.11 TEST PWA TDF 2026";
 
         // --- Clé API pour la source de données météo ---
         const CHECKWX_API_KEY = "b8071d79ae4a482491114af48c9c0246";
@@ -1034,7 +1059,11 @@ const tdfStages = [
             const stageDateSpan = document.getElementById('tdf-stage-date');
             const supAipLink = document.getElementById('tdf-sup-aip-link');
             
-            if (!tdfSection || !stageSelector || !stageMap || !stageDateSpan || !supAipLink) return;
+            const supAipViewer = document.getElementById('tdf-sup-aip-viewer');
+            const supAipFrame = document.getElementById('tdf-sup-aip-frame');
+            const closeSupAipBtn = document.getElementById('tdf-close-sup-aip-btn');
+            
+            if (!tdfSection || !stageSelector || !stageMap || !stageDateSpan || !supAipLink || !supAipViewer || !supAipFrame || !closeSupAipBtn) return;
 
             function getLocalDateString(date) {
                 const yyyy = date.getFullYear();
@@ -1068,17 +1097,37 @@ const tdfStages = [
                 stageMap.alt = `Carte de l'étape ${selectedStage.stage}: ${selectedStage.name}`;
                 const date = new Date(`${selectedStage.date}T12:00:00`);
                 stageDateSpan.textContent = `${date.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })} — ${selectedStage.type || ''} ${selectedStage.distance ? '(' + selectedStage.distance + ')' : ''}`;
+                supAipViewer.style.display = 'none';
+                supAipFrame.removeAttribute('src');
+
                 if (selectedStage.supAipUrl) {
                     supAipLink.href = selectedStage.supAipUrl;
+                    supAipLink.dataset.supAipUrl = selectedStage.supAipUrl;
                     supAipLink.textContent = `Afficher le SUP AIP étape ${selectedStage.stage}`;
                     supAipLink.style.display = 'inline-block';
                 } else {
                     supAipLink.removeAttribute('href');
+                    supAipLink.removeAttribute('data-sup-aip-url');
                     supAipLink.textContent = '';
                     supAipLink.style.display = 'none';
                 }
             }
         
+            supAipLink.addEventListener('click', (event) => {
+                event.preventDefault();
+                const url = supAipLink.dataset.supAipUrl || supAipLink.getAttribute('href');
+                if (!url || url === '#') return;
+                supAipFrame.src = url;
+                supAipViewer.style.display = 'block';
+                supAipViewer.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            });
+
+            closeSupAipBtn.addEventListener('click', () => {
+                supAipFrame.removeAttribute('src');
+                supAipViewer.style.display = 'none';
+                tdfSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            });
+
             function setDefaultStage() {
                 let defaultStageIndex = tdfStages.findIndex(stage => stage.date === today);
 
