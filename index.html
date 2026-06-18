@@ -697,16 +697,49 @@
             background: #fff;
             padding: 10px;
         }
-        #tdf-sup-aip-frame {
+        #tdf-sup-aip-toolbar {
+            position: sticky;
+            top: 0;
+            z-index: 20;
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            align-items: center;
+            gap: 8px;
+            padding: 8px;
+            background: #fff;
+            border-bottom: 1px solid #d0d7de;
+            margin: -10px -10px 10px -10px;
+            border-radius: 8px 8px 0 0;
+        }
+        #tdf-sup-aip-pages {
             width: 100%;
-            height: 78vh;
+            max-height: 82vh;
+            overflow: auto;
+            background: #f1f3f5;
             border: 1px solid #d0d7de;
             border-radius: 6px;
-            background: #f8f9fa;
+            padding: 8px;
+            -webkit-overflow-scrolling: touch;
+        }
+        #tdf-sup-aip-pages canvas {
+            display: block;
+            margin: 0 auto 14px auto;
+            max-width: none;
+            background: #fff;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.18);
         }
         #tdf-close-sup-aip-btn {
-            margin-bottom: 10px;
             background-color: var(--sc-red);
+        }
+        #tdf-sup-aip-zoom-out-btn,
+        #tdf-sup-aip-zoom-in-btn {
+            background-color: #34495e;
+        }
+        #tdf-sup-aip-zoom-label {
+            font-weight: 700;
+            min-width: 58px;
+            display: inline-block;
         }
 
     </style>
@@ -735,7 +768,7 @@
         <h1 id="main-title">Briefing Fdf TEST</h1>
         <p id="current-time-display"></p>
         <p style="position: relative; z-index: 2; text-align: center; color: #333; font-size: 1em; margin-top: -25px; margin-bottom: 30px;">
-    v<span id="app-version">3.11 TEST PWA TDF 2026</span>
+    v<span id="app-version">3.12 TEST PWA TDF 2026</span>
     <button id="force-update-btn" class="link-button" style="background-color: #34495e; padding: 4px 10px; font-size: 0.8em; margin-left: 10px; vertical-align: middle;">
         Forcer MAJ
     </button>
@@ -962,8 +995,13 @@
         <a id="tdf-sup-aip-link" href="#" class="link-button" style="display: none; background-color: #c0392b;"></a>
     </div>
     <div id="tdf-sup-aip-viewer">
-        <button id="tdf-close-sup-aip-btn" class="link-button">Fermer le SUP AIP</button>
-        <iframe id="tdf-sup-aip-frame" title="SUP AIP Tour de France"></iframe>
+        <div id="tdf-sup-aip-toolbar">
+            <button id="tdf-close-sup-aip-btn" class="link-button">Fermer le SUP AIP</button>
+            <button id="tdf-sup-aip-zoom-out-btn" class="link-button">−</button>
+            <span id="tdf-sup-aip-zoom-label">100%</span>
+            <button id="tdf-sup-aip-zoom-in-btn" class="link-button">+</button>
+        </div>
+        <div id="tdf-sup-aip-pages"></div>
     </div>
 </div>
     
@@ -1008,7 +1046,7 @@
     <footer>Données : Météo-France, SIA, Windy.com, CheckWX.com. Page non commerciale, à usage personnel.</footer>
     
     <script>
-        const APP_VERSION = "3.11 TEST PWA TDF 2026";
+        const APP_VERSION = "3.12 TEST PWA TDF 2026";
 
         // --- Clé API pour la source de données météo ---
         const CHECKWX_API_KEY = "b8071d79ae4a482491114af48c9c0246";
@@ -1060,10 +1098,16 @@ const tdfStages = [
             const supAipLink = document.getElementById('tdf-sup-aip-link');
             
             const supAipViewer = document.getElementById('tdf-sup-aip-viewer');
-            const supAipFrame = document.getElementById('tdf-sup-aip-frame');
+            const supAipPages = document.getElementById('tdf-sup-aip-pages');
             const closeSupAipBtn = document.getElementById('tdf-close-sup-aip-btn');
-            
-            if (!tdfSection || !stageSelector || !stageMap || !stageDateSpan || !supAipLink || !supAipViewer || !supAipFrame || !closeSupAipBtn) return;
+            const supAipZoomOutBtn = document.getElementById('tdf-sup-aip-zoom-out-btn');
+            const supAipZoomInBtn = document.getElementById('tdf-sup-aip-zoom-in-btn');
+            const supAipZoomLabel = document.getElementById('tdf-sup-aip-zoom-label');
+            let currentTdfSupAipUrl = "";
+            let currentTdfSupAipPdf = null;
+            let currentTdfSupAipScale = 1.25;
+
+            if (!tdfSection || !stageSelector || !stageMap || !stageDateSpan || !supAipLink || !supAipViewer || !supAipPages || !closeSupAipBtn || !supAipZoomOutBtn || !supAipZoomInBtn || !supAipZoomLabel) return;
 
             function getLocalDateString(date) {
                 const yyyy = date.getFullYear();
@@ -1097,8 +1141,7 @@ const tdfStages = [
                 stageMap.alt = `Carte de l'étape ${selectedStage.stage}: ${selectedStage.name}`;
                 const date = new Date(`${selectedStage.date}T12:00:00`);
                 stageDateSpan.textContent = `${date.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })} — ${selectedStage.type || ''} ${selectedStage.distance ? '(' + selectedStage.distance + ')' : ''}`;
-                supAipViewer.style.display = 'none';
-                supAipFrame.removeAttribute('src');
+                closeTdfSupAipViewer_();
 
                 if (selectedStage.supAipUrl) {
                     supAipLink.href = selectedStage.supAipUrl;
@@ -1113,19 +1156,79 @@ const tdfStages = [
                 }
             }
         
-            supAipLink.addEventListener('click', (event) => {
+            async function renderTdfSupAipPages_() {
+                if (!currentTdfSupAipPdf || !supAipPages) return;
+                supAipPages.innerHTML = "";
+                supAipZoomLabel.textContent = `${Math.round(currentTdfSupAipScale * 100)}%`;
+
+                for (let pageNumber = 1; pageNumber <= currentTdfSupAipPdf.numPages; pageNumber++) {
+                    const page = await currentTdfSupAipPdf.getPage(pageNumber);
+                    const viewport = page.getViewport({ scale: currentTdfSupAipScale });
+                    const canvas = document.createElement('canvas');
+                    const context = canvas.getContext('2d');
+
+                    canvas.width = Math.floor(viewport.width);
+                    canvas.height = Math.floor(viewport.height);
+                    canvas.style.width = `${Math.floor(viewport.width)}px`;
+                    canvas.style.height = `${Math.floor(viewport.height)}px`;
+
+                    supAipPages.appendChild(canvas);
+                    await page.render({ canvasContext: context, viewport }).promise;
+                }
+            }
+
+            async function openTdfSupAipViewer_(url) {
+                if (!url || !window.pdfjsLib) {
+                    window.open(url, '_blank');
+                    return;
+                }
+
+                currentTdfSupAipUrl = url;
+                currentTdfSupAipScale = 1.25;
+                supAipViewer.style.display = 'block';
+                supAipPages.innerHTML = "<p style=\"text-align:center; font-weight:bold;\">Chargement du SUP AIP...</p>";
+                supAipZoomLabel.textContent = "125%";
+                supAipViewer.scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+                currentTdfSupAipPdf = await pdfjsLib.getDocument(url).promise;
+                await renderTdfSupAipPages_();
+            }
+
+            function closeTdfSupAipViewer_() {
+                currentTdfSupAipUrl = "";
+                currentTdfSupAipPdf = null;
+                supAipPages.innerHTML = "";
+                supAipViewer.style.display = 'none';
+            }
+
+            supAipLink.addEventListener('click', async (event) => {
                 event.preventDefault();
                 const url = supAipLink.dataset.supAipUrl || supAipLink.getAttribute('href');
                 if (!url || url === '#') return;
-                supAipFrame.src = url;
-                supAipViewer.style.display = 'block';
-                supAipViewer.scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+                try {
+                    await openTdfSupAipViewer_(url);
+                } catch (e) {
+                    console.error(e);
+                    alert("Impossible d'afficher le SUP AIP dans l'application.");
+                }
             });
 
             closeSupAipBtn.addEventListener('click', () => {
-                supAipFrame.removeAttribute('src');
-                supAipViewer.style.display = 'none';
+                closeTdfSupAipViewer_();
                 tdfSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            });
+
+            supAipZoomOutBtn.addEventListener('click', async () => {
+                if (!currentTdfSupAipPdf) return;
+                currentTdfSupAipScale = Math.max(0.75, currentTdfSupAipScale - 0.25);
+                await renderTdfSupAipPages_();
+            });
+
+            supAipZoomInBtn.addEventListener('click', async () => {
+                if (!currentTdfSupAipPdf) return;
+                currentTdfSupAipScale = Math.min(3.0, currentTdfSupAipScale + 0.25);
+                await renderTdfSupAipPages_();
             });
 
             function setDefaultStage() {
