@@ -6,8 +6,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0">
     <title>Briefing Fdf TEST</title>
-    <link rel="manifest" href="./manifest.json?v=3.20">
-    <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png?v=3.20">
+    <link rel="manifest" href="./manifest.json?v=3.21">
+    <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png?v=3.21">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-title" content="Briefing TEST">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
@@ -1169,6 +1169,67 @@
             vertical-align: middle;
         }
 
+    
+        /* v3.21 - Accès CNCASC protégé */
+        .cncasc-auth-panel {
+            width: 100%;
+            max-width: 980px;
+            margin: 0 auto 22px auto;
+            position: relative;
+            z-index: 2;
+            padding: 16px 18px;
+            background: rgba(255,255,255,0.94);
+            border: 1px solid #d0d7de;
+            border-left: 6px solid #2980b9;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.12);
+            text-align: center;
+            box-sizing: border-box;
+        }
+        .cncasc-auth-panel h3 {
+            margin: 0 0 10px 0;
+            color: #0a2c5a;
+        }
+        .cncasc-auth-row {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            align-items: center;
+            gap: 10px;
+        }
+        #cncasc-password-input {
+            min-width: 230px;
+            max-width: 320px;
+            padding: 11px 12px;
+            border: 1px solid #c9d1d9;
+            border-radius: 8px;
+            font-size: 1em;
+            text-align: center;
+        }
+        #cncasc-auth-status {
+            margin: 10px 0 0 0;
+            font-weight: 800;
+            color: #34495e;
+        }
+        .cncasc-warning {
+            display: none;
+            margin: 12px auto 0 auto;
+            max-width: 880px;
+            padding: 10px 12px;
+            border-radius: 8px;
+            background: #fff3cd;
+            border: 1px solid #ffda6a;
+            color: #664d03;
+            font-weight: 800;
+        }
+        .cncasc-warning.visible {
+            display: block;
+        }
+        .abe-fleet-block.abe-fleet-abel .abe-aircraft-table td:nth-child(1) strong {
+            font-size: 1.12em;
+            letter-spacing: 0;
+        }
+
     </style>
 </head>
 <body>
@@ -1196,11 +1257,23 @@
         <h1 id="main-title">Briefing Fdf TEST</h1>
         <p id="current-time-display"></p>
         <p style="position: relative; z-index: 2; text-align: center; color: #333; font-size: 1em; margin-top: -25px; margin-bottom: 30px;">
-    v<span id="app-version">3.20 TEST PWA TDF 2026</span>
+    v<span id="app-version">3.21 TEST PWA TDF 2026</span>
     <button id="force-update-btn" class="link-button" style="background-color: #34495e; padding: 4px 10px; font-size: 0.8em; margin-left: 10px; vertical-align: middle;">
         Forcer MAJ
     </button>
 </p>
+    </div>
+
+
+    <div class="cncasc-auth-panel" id="cncasc-auth-panel">
+        <h3>Accès données CNCASC</h3>
+        <div class="cncasc-auth-row">
+            <input id="cncasc-password-input" type="password" placeholder="Mot de passe CNCASC" autocomplete="current-password">
+            <button id="cncasc-unlock-btn" class="link-button" style="background-color:#2980b9;">Déverrouiller / Actualiser</button>
+            <button id="cncasc-lock-btn" class="link-button" style="background-color:#7f8c8d;">Verrouiller</button>
+        </div>
+        <p id="cncasc-auth-status">Accès CNCASC verrouillé.</p>
+        <p id="cncasc-warning" class="cncasc-warning"></p>
     </div>
 
     <div class="session-management" id="session-section">
@@ -1496,7 +1569,7 @@
     <footer>Données : Météo-France, SIA, Windy.com, CheckWX.com. Page non commerciale, à usage personnel.</footer>
     
     <script>
-        const APP_VERSION = "3.20 TEST PWA TDF 2026";
+        const APP_VERSION = "3.21 TEST PWA TDF 2026";
 
         // --- Clé API pour la source de données météo ---
         const CHECKWX_API_KEY = "b8071d79ae4a482491114af48c9c0246";
@@ -1712,6 +1785,9 @@ const tdfStages = [
 
         // --- DISPO CNCASC VIA NAS : ABE + ABEL + PELICANDROMES ---
         const CNCASC_DISPO_API_URL = 'https://grisonb.synology.me/briefing-api/dispo-cncasc.php';
+        const CNCASC_AUTH_API_URL = 'https://grisonb.synology.me/briefing-api/auth-cncasc.php';
+        const CNCASC_TOKEN_STORAGE_KEY = 'bfg_cncasc_token_v1';
+        const CNCASC_TOKEN_EXP_STORAGE_KEY = 'bfg_cncasc_token_exp_v1';
 
         function escapeHtml_(value) {
             return String(value ?? '').replace(/[&<>"']/g, (char) => ({
@@ -1754,6 +1830,105 @@ const tdfStages = [
             });
         }
 
+        function setCncascWarning_(message) {
+            const warning = document.getElementById('cncasc-warning');
+            if (!warning) return;
+            warning.textContent = message || '';
+            warning.classList.toggle('visible', Boolean(message));
+        }
+
+        function clearCncascWarning_() {
+            setCncascWarning_('');
+        }
+
+        function getStoredCncascToken_() {
+            const token = localStorage.getItem(CNCASC_TOKEN_STORAGE_KEY) || '';
+            const exp = Number(localStorage.getItem(CNCASC_TOKEN_EXP_STORAGE_KEY) || 0);
+
+            if (!token || !exp || exp <= Date.now()) {
+                localStorage.removeItem(CNCASC_TOKEN_STORAGE_KEY);
+                localStorage.removeItem(CNCASC_TOKEN_EXP_STORAGE_KEY);
+                return null;
+            }
+
+            return { token, exp };
+        }
+
+        function storeCncascToken_(token, expiresAt) {
+            const exp = Date.parse(expiresAt);
+            if (!token || Number.isNaN(exp)) return false;
+
+            localStorage.setItem(CNCASC_TOKEN_STORAGE_KEY, token);
+            localStorage.setItem(CNCASC_TOKEN_EXP_STORAGE_KEY, String(exp));
+            return true;
+        }
+
+        function clearCncascToken_() {
+            localStorage.removeItem(CNCASC_TOKEN_STORAGE_KEY);
+            localStorage.removeItem(CNCASC_TOKEN_EXP_STORAGE_KEY);
+        }
+
+        function updateCncascAuthUi_() {
+            const status = document.getElementById('cncasc-auth-status');
+            const tokenInfo = getStoredCncascToken_();
+
+            if (!status) return;
+
+            if (tokenInfo) {
+                status.textContent = `Accès CNCASC autorisé jusqu'à ${new Date(tokenInfo.exp).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}.`;
+            } else {
+                status.textContent = 'Accès CNCASC verrouillé : saisir le mot de passe pour synchroniser.';
+            }
+        }
+
+        async function unlockCncascAndSync_() {
+            const input = document.getElementById('cncasc-password-input');
+            const unlockBtn = document.getElementById('cncasc-unlock-btn');
+            const password = input ? input.value : '';
+
+            if (!password) {
+                setCncascWarning_('⚠️ Saisir le mot de passe CNCASC avant synchronisation.');
+                if (input) input.focus();
+                return;
+            }
+
+            try {
+                if (unlockBtn) unlockBtn.disabled = true;
+                setCncascWarning_('Connexion CNCASC en cours...');
+
+                const response = await fetch(CNCASC_AUTH_API_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    cache: 'no-store',
+                    body: JSON.stringify({ password })
+                });
+
+                const payload = await response.json().catch(() => null);
+
+                if (!response.ok || !payload || payload.ok === false || !payload.token) {
+                    const errorText = payload && payload.message ? payload.message : (payload && payload.error ? payload.error : `HTTP ${response.status}`);
+                    throw new Error(errorText);
+                }
+
+                if (!storeCncascToken_(payload.token, payload.expiresAt)) {
+                    throw new Error('Jeton CNCASC invalide.');
+                }
+
+                if (input) input.value = '';
+                clearCncascWarning_();
+                updateCncascAuthUi_();
+
+                // Dès que le mot de passe est accepté, toutes les données CNCASC sont actualisées.
+                await fetchAbeDispo_();
+            } catch (error) {
+                clearCncascToken_();
+                updateCncascAuthUi_();
+                setCncascWarning_(`⚠️ Accès CNCASC impossible : ${error.message}`);
+            } finally {
+                if (unlockBtn) unlockBtn.disabled = false;
+            }
+        }
+
         function renderAircraftFleets_(fleets) {
             const summaryHtml = fleets.map((fleet) => `
                 <div class="abe-fleet-card">
@@ -1763,6 +1938,10 @@ const tdfStages = [
             `).join('');
 
             const fleetsHtml = fleets.map((fleet) => {
+                const isAbel = String(fleet.name || '').toUpperCase() === 'ABEL';
+                const aircraftColWidth = isAbel ? '210px' : '118px';
+                const fleetClass = isAbel ? 'abe-fleet-block abe-fleet-abel' : 'abe-fleet-block';
+
                 const rows = (fleet.aircraft || []).map((aircraft) => {
                     const st = String(aircraft.status || '').toUpperCase();
                     const hasObs = String(aircraft.obs || '').trim() !== '';
@@ -1777,12 +1956,12 @@ const tdfStages = [
                 }).join('');
 
                 return `
-                    <div class="abe-fleet-block">
+                    <div class="${fleetClass}">
                         <div class="abe-fleet-title">${escapeHtml_(fleet.name)} : ${escapeHtml_(fleet.available)} / ${escapeHtml_(fleet.total)}</div>
                         <div class="abe-table-shell">
                             <table class="abe-aircraft-table">
                             <colgroup>
-                                <col style="width: 96px;">
+                                <col style="width: ${aircraftColWidth};">
                                 <col style="width: 86px;">
                                 <col>
                             </colgroup>
@@ -2073,24 +2252,52 @@ const tdfStages = [
 
         async function fetchAbeDispo_() {
             const status = document.getElementById('abe-dispo-status');
+            const pelicStatus = document.getElementById('pelic-dispo-status');
             const refreshBtn = document.getElementById('abe-refresh-btn');
+            const tokenInfo = getStoredCncascToken_();
+
+            if (!tokenInfo) {
+                if (status) status.textContent = 'Données CNCASC verrouillées : mot de passe requis.';
+                if (pelicStatus) pelicStatus.textContent = 'Données pélicandromes verrouillées : mot de passe requis.';
+                updateCncascAuthUi_();
+                setCncascWarning_('⚠️ Synchronisation CNCASC impossible : accès verrouillé ou session expirée.');
+                return;
+            }
 
             try {
                 if (refreshBtn) refreshBtn.disabled = true;
                 if (status) status.textContent = 'Chargement données CNCASC...';
+                if (pelicStatus) pelicStatus.textContent = 'Chargement pélicandromes...';
+                clearCncascWarning_();
 
-                const response = await fetch(CNCASC_DISPO_API_URL, { cache: 'no-store' });
+                const response = await fetch(CNCASC_DISPO_API_URL, {
+                    method: 'GET',
+                    cache: 'no-store',
+                    headers: {
+                        'Authorization': `Bearer ${tokenInfo.token}`
+                    }
+                });
+
                 const payload = await response.json().catch(() => null);
 
                 if (!response.ok || !payload || payload.ok === false) {
-                    const errorText = payload && payload.error ? payload.error : `HTTP ${response.status}`;
+                    if (response.status === 401) {
+                        clearCncascToken_();
+                        updateCncascAuthUi_();
+                    }
+                    const errorText = payload && payload.message ? payload.message : (payload && payload.error ? payload.error : `HTTP ${response.status}`);
                     throw new Error(errorText);
                 }
 
                 renderAbeDispo_(payload);
+                updateCncascAuthUi_();
+                clearCncascWarning_();
             } catch (error) {
                 console.error(error);
-                if (status) status.textContent = `Erreur chargement CNCASC : ${error.message}`;
+                const message = `⚠️ Synchronisation CNCASC impossible : ${error.message}`;
+                if (status) status.textContent = message;
+                if (pelicStatus) pelicStatus.textContent = message;
+                setCncascWarning_(message);
             } finally {
                 if (refreshBtn) refreshBtn.disabled = false;
             }
@@ -2098,13 +2305,35 @@ const tdfStages = [
 
         function initializeAbeDispo() {
             const refreshBtn = document.getElementById('abe-refresh-btn');
-            if (!refreshBtn) return;
+            const unlockBtn = document.getElementById('cncasc-unlock-btn');
+            const lockBtn = document.getElementById('cncasc-lock-btn');
+            const passwordInput = document.getElementById('cncasc-password-input');
 
-            refreshBtn.addEventListener('click', fetchAbeDispo_);
+            if (refreshBtn) refreshBtn.addEventListener('click', fetchAbeDispo_);
+            if (unlockBtn) unlockBtn.addEventListener('click', unlockCncascAndSync_);
+            if (lockBtn) {
+                lockBtn.addEventListener('click', () => {
+                    clearCncascToken_();
+                    updateCncascAuthUi_();
+                    setCncascWarning_('Accès CNCASC verrouillé sur cet iPad.');
+                });
+            }
+            if (passwordInput) {
+                passwordInput.addEventListener('keydown', (event) => {
+                    if (event.key === 'Enter') {
+                        event.preventDefault();
+                        unlockCncascAndSync_();
+                    }
+                });
+            }
+
             initPelicModal_();
+            updateCncascAuthUi_();
 
-            // Chargement automatique à l'ouverture du briefing.
-            fetchAbeDispo_();
+            // Si une session 6 h est encore valide sur cet iPad, les données sont actualisées automatiquement.
+            if (getStoredCncascToken_()) {
+                fetchAbeDispo_();
+            }
         }
 
         
