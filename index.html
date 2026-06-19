@@ -742,6 +742,100 @@
             display: inline-block;
         }
 
+    
+        .abe-dispo-panel {
+            margin-top: 18px;
+            padding: 14px;
+            border: 1px solid #d0d7de;
+            border-radius: 8px;
+            background: #ffffff;
+            text-align: left;
+        }
+        .abe-dispo-status {
+            text-align: center;
+            font-weight: 700;
+            margin: 10px 0;
+            color: #34495e;
+        }
+        .abe-dispo-summary {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 10px;
+            margin-bottom: 14px;
+        }
+        .abe-fleet-card {
+            min-width: 150px;
+            padding: 10px 14px;
+            border-radius: 8px;
+            background: #eef2f5;
+            text-align: center;
+            border: 1px solid #d0d7de;
+        }
+        .abe-fleet-card strong {
+            display: block;
+            font-size: 1.15em;
+            color: #2c3e50;
+        }
+        .abe-fleet-card span {
+            display: block;
+            font-size: 1.35em;
+            font-weight: 800;
+            color: #2c3e50;
+        }
+        .abe-fleet-block {
+            margin-top: 16px;
+        }
+        .abe-fleet-title {
+            display: inline-block;
+            padding: 6px 12px;
+            border-radius: 6px;
+            background: #6c757d;
+            color: #fff;
+            font-weight: 800;
+            margin-bottom: 8px;
+        }
+        .abe-aircraft-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.95em;
+        }
+        .abe-aircraft-table th,
+        .abe-aircraft-table td {
+            border: 1px solid #d0d7de;
+            padding: 7px;
+            vertical-align: top;
+        }
+        .abe-aircraft-table th {
+            background: #f1f3f5;
+            color: #2c3e50;
+            text-align: left;
+        }
+        .abe-status-pill {
+            display: inline-block;
+            min-width: 42px;
+            text-align: center;
+            padding: 3px 8px;
+            border-radius: 999px;
+            font-weight: 800;
+            color: #fff;
+        }
+        .abe-status-op {
+            background: #198754;
+        }
+        .abe-status-hs {
+            background: #dc3545;
+        }
+        .abe-status-en {
+            background: #0d6efd;
+        }
+        .abe-status-other {
+            background: #6c757d;
+        }
+        .abe-row-alert {
+            background: #fff7e6;
+        }
+
     </style>
 </head>
 <body>
@@ -768,7 +862,7 @@
         <h1 id="main-title">Briefing Fdf TEST</h1>
         <p id="current-time-display"></p>
         <p style="position: relative; z-index: 2; text-align: center; color: #333; font-size: 1em; margin-top: -25px; margin-bottom: 30px;">
-    v<span id="app-version">3.13 TEST PWA TDF 2026</span>
+    v<span id="app-version">3.14 TEST PWA TDF 2026</span>
     <button id="force-update-btn" class="link-button" style="background-color: #34495e; padding: 4px 10px; font-size: 0.8em; margin-left: 10px; vertical-align: middle;">
         Forcer MAJ
     </button>
@@ -826,9 +920,12 @@
     <div class="map-section" id="dispo-pelic-section">
         <h2>Dispo Avions / Pélicandrome</h2>
         <div class="controles" style="gap: 20px;">
-            <a href="http://cncasc-app.fr/pages/ABE.php" target="_blank" class="link-button" style="background-color:#2980b9;">Dispo Avions</a>
+            <button id="abe-refresh-btn" class="link-button" style="background-color:#2980b9;">Actualiser dispo avions</button>
+            <a href="https://cncasc-app.fr/pages/ABE.php" target="_blank" class="link-button" style="background-color:#34495e;">Ouvrir Dispo Avions</a>
             <a href="https://cncasc-app.fr/pages/pelicandrome.php" target="_blank" class="link-button" style="background-color:#16a085;">Pélicandromes</a>
         </div>
+        <p id="abe-dispo-status" class="abe-dispo-status">Dispo avions non chargée.</p>
+        <div id="abe-dispo-display" class="abe-dispo-panel" style="display: none;"></div>
     </div>
     
     <div id="gaar-section" class="pdf-section dropzone">
@@ -1046,7 +1143,7 @@
     <footer>Données : Météo-France, SIA, Windy.com, CheckWX.com. Page non commerciale, à usage personnel.</footer>
     
     <script>
-        const APP_VERSION = "3.13 TEST PWA TDF 2026";
+        const APP_VERSION = "3.14 TEST PWA TDF 2026";
 
         // --- Clé API pour la source de données météo ---
         const CHECKWX_API_KEY = "b8071d79ae4a482491114af48c9c0246";
@@ -1259,6 +1356,135 @@ const tdfStages = [
             stageSelector.addEventListener('change', (event) => updateDisplay(event.target.value));
         }
 
+
+        // --- DISPO ABE CNCASC VIA NAS ---
+        const ABE_DISPO_API_URL = 'https://grisonb.synology.me/briefing-api/dispo-abe.php';
+
+        function escapeHtml_(value) {
+            return String(value ?? '').replace(/[&<>"']/g, (char) => ({
+                '&': '&amp;',
+                '<': '&lt;',
+                '>': '&gt;',
+                '"': '&quot;',
+                "'": '&#039;'
+            }[char]));
+        }
+
+        function abeStatusClass_(status) {
+            const normalized = String(status || '').toUpperCase();
+            if (normalized === 'OP') return 'abe-status-op';
+            if (normalized === 'HS') return 'abe-status-hs';
+            if (normalized === 'EN') return 'abe-status-en';
+            return 'abe-status-other';
+        }
+
+        function formatAbeDate_(isoDate) {
+            if (!isoDate) return '';
+            const date = new Date(isoDate);
+            if (Number.isNaN(date.getTime())) return isoDate;
+            return date.toLocaleString('fr-FR', {
+                day: '2-digit',
+                month: '2-digit',
+                year: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+        }
+
+        function renderAbeDispo_(data) {
+            const display = document.getElementById('abe-dispo-display');
+            const status = document.getElementById('abe-dispo-status');
+            if (!display || !status) return;
+
+            if (!data || !data.ok || !Array.isArray(data.fleets)) {
+                status.textContent = 'Données dispo avions invalides.';
+                display.style.display = 'none';
+                return;
+            }
+
+            const summaryHtml = data.fleets.map((fleet) => `
+                <div class="abe-fleet-card">
+                    <strong>${escapeHtml_(fleet.name)}</strong>
+                    <span>${escapeHtml_(fleet.available)} / ${escapeHtml_(fleet.total)}</span>
+                </div>
+            `).join('');
+
+            const fleetsHtml = data.fleets.map((fleet) => {
+                const rows = (fleet.aircraft || []).map((aircraft) => {
+                    const st = String(aircraft.status || '').toUpperCase();
+                    const hasObs = String(aircraft.obs || '').trim() !== '';
+                    const alertRow = st !== 'OP' || hasObs ? ' abe-row-alert' : '';
+                    return `
+                        <tr class="${alertRow.trim()}">
+                            <td><strong>${escapeHtml_(aircraft.name)}</strong></td>
+                            <td><span class="abe-status-pill ${abeStatusClass_(st)}">${escapeHtml_(st)}</span></td>
+                            <td>${escapeHtml_(aircraft.obs || '')}</td>
+                        </tr>
+                    `;
+                }).join('');
+
+                return `
+                    <div class="abe-fleet-block">
+                        <div class="abe-fleet-title">${escapeHtml_(fleet.name)} : ${escapeHtml_(fleet.available)} / ${escapeHtml_(fleet.total)}</div>
+                        <table class="abe-aircraft-table">
+                            <thead>
+                                <tr>
+                                    <th>Avion</th>
+                                    <th>Statut</th>
+                                    <th>Observation</th>
+                                </tr>
+                            </thead>
+                            <tbody>${rows}</tbody>
+                        </table>
+                    </div>
+                `;
+            }).join('');
+
+            display.innerHTML = `
+                <div class="abe-dispo-summary">${summaryHtml}</div>
+                ${fleetsHtml}
+            `;
+
+            display.style.display = 'block';
+            status.textContent = `Dispo avions actualisée : ${formatAbeDate_(data.updatedAt)}`;
+        }
+
+        async function fetchAbeDispo_() {
+            const status = document.getElementById('abe-dispo-status');
+            const refreshBtn = document.getElementById('abe-refresh-btn');
+
+            try {
+                if (refreshBtn) refreshBtn.disabled = true;
+                if (status) status.textContent = 'Chargement dispo avions CNCASC...';
+
+                const response = await fetch(ABE_DISPO_API_URL, { cache: 'no-store' });
+                const payload = await response.json().catch(() => null);
+
+                if (!response.ok || !payload || payload.ok === false) {
+                    const errorText = payload && payload.error ? payload.error : `HTTP ${response.status}`;
+                    throw new Error(errorText);
+                }
+
+                renderAbeDispo_(payload);
+            } catch (error) {
+                console.error(error);
+                if (status) status.textContent = `Erreur chargement dispo avions : ${error.message}`;
+            } finally {
+                if (refreshBtn) refreshBtn.disabled = false;
+            }
+        }
+
+        function initializeAbeDispo() {
+            const refreshBtn = document.getElementById('abe-refresh-btn');
+            if (!refreshBtn) return;
+
+            refreshBtn.addEventListener('click', fetchAbeDispo_);
+
+            // Chargement automatique à l'ouverture du briefing.
+            fetchAbeDispo_();
+        }
+
+
         // --- CORE INITIALIZATION ---
         let pdfJsWaitAttempts = 0;
         function waitForPdfJsAndInitialize() {
@@ -1313,6 +1539,7 @@ const tdfStages = [
     initializeManualMetarFetch();
     initializeForeFlightButton();
     initializeSessionManagement();
+    initializeAbeDispo();
     initializeHelpTooltips();
     initializeGaarMapControls();
     initializeTdfViewer();
