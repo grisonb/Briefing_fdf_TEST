@@ -6,8 +6,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0">
     <title>Briefing Fdf TEST</title>
-    <link rel="manifest" href="./manifest.json?v=3.18">
-    <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png?v=3.18">
+    <link rel="manifest" href="./manifest.json?v=3.19">
+    <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png?v=3.19">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-title" content="Briefing TEST">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
@@ -902,7 +902,7 @@
 
         .pelic-map-wrapper {
             position: relative;
-            max-width: 980px;
+            max-width: 820px;
             margin: 0 auto 18px auto;
             background: linear-gradient(180deg, #dceef7 0%, #eef5f9 100%);
             border: 1px solid #d5dee7;
@@ -913,8 +913,9 @@
         .pelic-map-stage {
             position: relative;
             width: 100%;
-            height: min(58vh, 540px);
-            min-height: 390px;
+            max-width: 760px;
+            aspect-ratio: 760 / 620;
+            margin: 0 auto;
             overflow: hidden;
             border-radius: 12px;
             background: #d7ecf7;
@@ -982,6 +983,19 @@
         .pelic-marker.status-1h { background:#7f8c8d; }
         .pelic-marker.status-eau { background:#17a2b8; }
         .pelic-marker.status-indispo { background:#e74c3c; }
+        .pelic-marker.has-observation {
+            animation: pelicObsPulse 2.6s ease-in-out infinite;
+        }
+        @keyframes pelicObsPulse {
+            0%, 100% {
+                transform: translate(-50%, -50%) scale(1);
+                box-shadow: 0 2px 6px rgba(0,0,0,0.30), 0 0 0 0 rgba(230, 0, 18, 0.00);
+            }
+            50% {
+                transform: translate(-50%, -50%) scale(1.16);
+                box-shadow: 0 2px 6px rgba(0,0,0,0.30), 0 0 0 8px rgba(230, 0, 18, 0.18);
+            }
+        }
         .pelic-map-legend {
             display:flex;
             flex-wrap:wrap;
@@ -1149,7 +1163,7 @@
         <h1 id="main-title">Briefing Fdf TEST</h1>
         <p id="current-time-display"></p>
         <p style="position: relative; z-index: 2; text-align: center; color: #333; font-size: 1em; margin-top: -25px; margin-bottom: 30px;">
-    v<span id="app-version">3.18 TEST PWA TDF 2026</span>
+    v<span id="app-version">3.19 TEST PWA TDF 2026</span>
     <button id="force-update-btn" class="link-button" style="background-color: #34495e; padding: 4px 10px; font-size: 0.8em; margin-left: 10px; vertical-align: middle;">
         Forcer MAJ
     </button>
@@ -1449,7 +1463,7 @@
     <footer>Données : Météo-France, SIA, Windy.com, CheckWX.com. Page non commerciale, à usage personnel.</footer>
     
     <script>
-        const APP_VERSION = "3.18 TEST PWA TDF 2026";
+        const APP_VERSION = "3.19 TEST PWA TDF 2026";
 
         // --- Clé API pour la source de données météo ---
         const CHECKWX_API_KEY = "b8071d79ae4a482491114af48c9c0246";
@@ -1921,7 +1935,7 @@ const tdfStages = [
             });
 
             const markers = items.map((item) => `
-                <button type="button" class="pelic-marker ${pelicMarkerClass_(item.statut)}" 
+                <button type="button" class="pelic-marker ${pelicMarkerClass_(item.statut)} ${String(item.observation || '').trim() ? 'has-observation' : ''}" 
                     style="top:${item.coords.top}; left:${item.coords.left};"
                     data-name="${escapeHtml_(item.name)}"
                     data-pelic='${escapeHtml_(JSON.stringify(normalizePelicItem_(item)))}'
@@ -1932,10 +1946,10 @@ const tdfStages = [
                 <div class="pelic-map-wrapper">
                     <div class="pelic-map-title">Carte de France offline — cliquer sur un rond pour le détail</div>
                     <div class="pelic-map-stage">
-                        <svg class="pelic-france-svg" viewBox="0 0 1000 620" role="img" aria-label="Carte de France">
-                            <rect x="0" y="0" width="1000" height="620" fill="#d7ecf7"></rect>
-                            <path class="pelic-france-land" d="M 960.0 556.6 L 939.4 603.1 L 911.0 590.9 L 896.5 550.4 L 909.1 528.0 L 949.4 505.0 L 960.0 556.6 Z"></path>
-                            <path class="pelic-france-land" d="M 586.8 61.5 L 630.4 89.8 L 662.5 85.2 L 717.1 112.6 L 731.1 117.8 L 749.1 116.5 L 778.6 132.3 L 868.7 143.4 L 837.1 184.6 L 829.2 227.5 L 812.0 237.8 L 783.5 232.2 L 785.5 247.5 L 739.8 281.4 L 738.9 308.6 L 768.8 299.2 L 790.2 325.6 L 787.6 342.6 L 806.0 365.2 L 784.4 383.5 L 800.5 430.1 L 834.3 437.7 L 827.2 463.9 L 770.6 497.9 L 647.3 481.6 L 556.3 501.1 L 549.1 537.4 L 476.7 545.2 L 406.3 517.9 L 383.6 530.9 L 268.6 503.6 L 243.7 480.2 L 276.0 444.1 L 287.9 324.2 L 223.4 261.0 L 177.3 230.5 L 81.8 207.4 L 75.5 163.5 L 156.5 150.4 L 261.5 165.9 L 241.7 97.7 L 300.7 123.6 L 446.2 76.6 L 464.9 27.3 L 519.6 15.1 L 528.7 36.3 L 557.7 37.3 L 586.8 61.5 Z"></path>
+                        <svg class="pelic-france-svg" viewBox="0 0 760 620" role="img" aria-label="Carte de France">
+                            <rect x="0" y="0" width="760" height="620" fill="#d7ecf7"></rect>
+                            <path class="pelic-france-land" d="M 729.6 556.6 L 713.9 603.1 L 692.3 590.9 L 681.4 550.4 L 690.9 528.0 L 721.5 505.0 L 729.6 556.6 Z"></path>
+                            <path class="pelic-france-land" d="M 445.9 61.5 L 479.1 89.8 L 503.5 85.2 L 545.0 112.6 L 555.6 117.8 L 569.4 116.5 L 591.8 132.3 L 660.2 143.4 L 636.2 184.6 L 630.2 227.5 L 617.1 237.8 L 595.5 232.2 L 597.0 247.5 L 562.3 281.4 L 561.6 308.6 L 584.3 299.2 L 600.6 325.6 L 598.6 342.6 L 612.6 365.2 L 596.1 383.5 L 608.4 430.1 L 634.1 437.7 L 628.7 463.9 L 585.6 497.9 L 492.0 481.6 L 422.8 501.1 L 417.3 537.4 L 362.3 545.2 L 308.8 517.9 L 291.6 530.9 L 204.1 503.6 L 185.2 480.2 L 209.7 444.1 L 218.8 324.2 L 169.8 261.0 L 134.7 230.5 L 62.2 207.4 L 57.4 163.5 L 118.9 150.4 L 198.7 165.9 L 183.7 97.7 L 228.5 123.6 L 339.1 76.6 L 353.4 27.3 L 394.9 15.1 L 401.8 36.3 L 423.9 37.3 L 445.9 61.5 Z"></path>
                         </svg>
                         ${markers}
                     </div>
@@ -1946,7 +1960,7 @@ const tdfStages = [
                         <span><i style="background:#17a2b8"></i> Armé à l'eau</span>
                         <span><i style="background:#e74c3c"></i> Indispo</span>
                     </div>
-                    <p class="pelic-map-note">Carte SVG intégrée : aucun appel internet, affichage conçu pour iPad en mode paysage.</p>
+                    <p class="pelic-map-note">Carte SVG intégrée : aucun appel internet. Les ronds clignotants signalent une observation.</p>
                 </div>
             `;
         }
