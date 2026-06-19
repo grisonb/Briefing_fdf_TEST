@@ -6,8 +6,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0">
     <title>Briefing Fdf TEST</title>
-    <link rel="manifest" href="./manifest.json?v=3.19">
-    <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png?v=3.19">
+    <link rel="manifest" href="./manifest.json?v=3.20">
+    <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png?v=3.20">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-title" content="Briefing TEST">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
@@ -1136,6 +1136,39 @@
             display: block;
         }
 
+    
+        /* v3.20 - Tableaux : centrage complet et lisibilité renforcée */
+        .abe-aircraft-table th,
+        .abe-aircraft-table td,
+        .pelic-table th,
+        .pelic-table td {
+            text-align: center;
+            vertical-align: middle;
+        }
+        .abe-aircraft-table td:nth-child(1) strong {
+            font-size: 1.22em;
+            font-weight: 900;
+            letter-spacing: 0.2px;
+        }
+        .pelic-table td:nth-child(1) strong {
+            font-size: 1.14em;
+            font-weight: 900;
+            letter-spacing: 0.1px;
+        }
+        .abe-aircraft-table td:nth-child(3),
+        .pelic-table td:nth-child(6) {
+            text-align: center;
+            vertical-align: middle;
+            white-space: normal;
+            overflow-wrap: anywhere;
+            word-break: normal;
+            line-height: 1.32;
+        }
+        .abe-status-pill,
+        .pelic-statut-pill {
+            vertical-align: middle;
+        }
+
     </style>
 </head>
 <body>
@@ -1163,7 +1196,7 @@
         <h1 id="main-title">Briefing Fdf TEST</h1>
         <p id="current-time-display"></p>
         <p style="position: relative; z-index: 2; text-align: center; color: #333; font-size: 1em; margin-top: -25px; margin-bottom: 30px;">
-    v<span id="app-version">3.19 TEST PWA TDF 2026</span>
+    v<span id="app-version">3.20 TEST PWA TDF 2026</span>
     <button id="force-update-btn" class="link-button" style="background-color: #34495e; padding: 4px 10px; font-size: 0.8em; margin-left: 10px; vertical-align: middle;">
         Forcer MAJ
     </button>
@@ -1463,7 +1496,7 @@
     <footer>Données : Météo-France, SIA, Windy.com, CheckWX.com. Page non commerciale, à usage personnel.</footer>
     
     <script>
-        const APP_VERSION = "3.19 TEST PWA TDF 2026";
+        const APP_VERSION = "3.20 TEST PWA TDF 2026";
 
         // --- Clé API pour la source de données météo ---
         const CHECKWX_API_KEY = "b8071d79ae4a482491114af48c9c0246";
@@ -1944,7 +1977,6 @@ const tdfStages = [
 
             return `
                 <div class="pelic-map-wrapper">
-                    <div class="pelic-map-title">Carte de France offline — cliquer sur un rond pour le détail</div>
                     <div class="pelic-map-stage">
                         <svg class="pelic-france-svg" viewBox="0 0 760 620" role="img" aria-label="Carte de France">
                             <rect x="0" y="0" width="760" height="620" fill="#d7ecf7"></rect>
@@ -1960,7 +1992,6 @@ const tdfStages = [
                         <span><i style="background:#17a2b8"></i> Armé à l'eau</span>
                         <span><i style="background:#e74c3c"></i> Indispo</span>
                     </div>
-                    <p class="pelic-map-note">Carte SVG intégrée : aucun appel internet. Les ronds clignotants signalent une observation.</p>
                 </div>
             `;
         }
