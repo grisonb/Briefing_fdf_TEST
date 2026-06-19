@@ -1,4 +1,4 @@
-const CACHE_NAME = 'briefing-fdf-test-v3.13-tdf-supaip-zoom-150';
+const CACHE_NAME = 'briefing-fdf-test-v3.14-dispo-abe-auto';
 
 const LOCAL_ASSETS = [
   './manifest.json',
