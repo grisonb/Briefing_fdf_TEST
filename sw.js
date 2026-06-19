@@ -1,4 +1,4 @@
-const CACHE_NAME = 'briefing-fdf-test-v3.27-notams-timeout-30s';
+const CACHE_NAME = 'briefing-fdf-test-v3.28-sauvegarde-supprimee';
 
 const LOCAL_ASSETS = [
   './manifest.json',
