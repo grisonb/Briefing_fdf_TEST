@@ -2101,14 +2101,21 @@ const tdfStages = [
         async function waitForNotamsGeneration_(requestId, token, statusElement) {
             const startedAt = Date.now();
             const timeoutMs = 240000;
+            const workerPickupTimeoutMs = 30000;
             const pollMs = 5000;
+            let workerHasStarted = false;
 
             while (Date.now() - startedAt < timeoutMs) {
+                const elapsedMs = Date.now() - startedAt;
                 const payload = await getNotamsGenerationStatus_(token);
 
                 if (payload.requestId === requestId) {
                     const currentStatus = String(payload.status || '').toLowerCase();
                     const message = payload.message ? ` — ${payload.message}` : '';
+
+                    if (currentStatus === 'running' || currentStatus === 'success') {
+                        workerHasStarted = true;
+                    }
 
                     if (statusElement) {
                         if (currentStatus === 'pending') {
@@ -2131,6 +2138,12 @@ const tdfStages = [
                     if (currentStatus === 'error') {
                         throw new Error(payload.message || payload.error || 'Génération NOTAM en erreur côté PC worker.');
                     }
+
+                    if (!workerHasStarted && elapsedMs >= workerPickupTimeoutMs) {
+                        throw new Error('Service NOTAM PC inaccessible : aucune prise en charge de la demande depuis plus de 30 secondes. Vérifier que le PC est allumé, non en veille, et que le worker BFG NOTAM est lancé.');
+                    }
+                } else if (!workerHasStarted && elapsedMs >= workerPickupTimeoutMs) {
+                    throw new Error('Service NOTAM PC inaccessible : aucun statut de génération reçu pour cette demande depuis plus de 30 secondes. Vérifier que le PC est allumé, non en veille, et que le worker BFG NOTAM est lancé.');
                 }
 
                 await sleepNotamsAuto_(pollMs);
@@ -4687,7 +4700,7 @@ let activeShareApiBase = SHARE_API_BASE;
                 // ✅ Snapshot du NOTAM complet (sert pour export/import "Tout afficher")
 window.__notamTextFull = notamInput.value;
 
-                pdfInfoElement.textContent = `Texte extrait de ${file.name}.`; 
+                pdfInfoElement.textContent = file.name === 'latest-notams.pdf' ? '' : `Texte extrait de ${file.name}.`; 
                 window.parseAndDisplayNotams();
             } catch (error) { 
                 console.error("Erreur d'extraction PDF:", error); 
