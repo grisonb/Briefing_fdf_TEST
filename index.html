@@ -6,8 +6,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0">
     <title>Briefing Fdf TEST</title>
-    <link rel="manifest" href="./manifest.json?v=2.3">
-    <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png?v=2.3">
+    <link rel="manifest" href="./manifest.json?v=3.16">
+    <link rel="apple-touch-icon" href="./icons/icons/apple-touch-icon.png?v=3.16">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-title" content="Briefing TEST">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
@@ -899,6 +899,136 @@
             background: #fff7e6;
         }
 
+
+        .pelic-map-wrapper {
+            position: relative;
+            max-width: 760px;
+            margin: 0 auto 24px auto;
+            background: linear-gradient(180deg, #dceef7 0%, #eef5f9 100%);
+            border: 1px solid #d5dee7;
+            border-radius: 16px;
+            padding: 14px;
+            box-shadow: inset 0 1px 0 rgba(255,255,255,0.8), 0 3px 10px rgba(0,0,0,0.08);
+        }
+        .pelic-map-stage {
+            position: relative;
+            width: 100%;
+            aspect-ratio: 0.95 / 1;
+            max-height: 780px;
+            overflow: hidden;
+        }
+        .pelic-map-france {
+            position: absolute;
+            inset: 3% 8% 4% 8%;
+            width: 84%;
+            height: 92%;
+            background: #f8fbfd;
+            clip-path: polygon(49% 1%, 68% 8%, 84% 22%, 87% 38%, 81% 54%, 84% 73%, 74% 91%, 56% 98%, 39% 96%, 22% 86%, 12% 71%, 8% 52%, 12% 32%, 19% 16%, 34% 6%);
+            border: 3px solid #2c3e50;
+            box-shadow: inset 0 0 0 4px rgba(10,44,90,0.06);
+        }
+        .pelic-map-title {
+            text-align: center;
+            font-weight: 700;
+            color: #0a2c5a;
+            margin: 0 0 10px 0;
+            font-size: 1.08em;
+        }
+        .pelic-map-note {
+            text-align:center;
+            font-size:0.92em;
+            color:#4a5a6a;
+            margin:10px 0 0 0;
+        }
+        .pelic-marker {
+            position: absolute;
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            border: 2px solid #fff;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.30);
+            cursor: pointer;
+            transform: translate(-50%, -50%);
+            z-index: 2;
+        }
+        .pelic-marker::after {
+            content: attr(data-name);
+            position: absolute;
+            left: 50%;
+            top: 22px;
+            transform: translateX(-50%);
+            background: rgba(255,255,255,0.92);
+            color: #1f2d3d;
+            font-size: 0.70em;
+            font-weight: 700;
+            padding: 2px 6px;
+            border-radius: 999px;
+            white-space: nowrap;
+            border: 1px solid rgba(10,44,90,0.16);
+        }
+        .pelic-marker.status-arme { background:#1e9d55; }
+        .pelic-marker.status-30 { background:#f39c12; }
+        .pelic-marker.status-1h { background:#7f8c8d; }
+        .pelic-marker.status-eau { background:#17a2b8; }
+        .pelic-marker.status-indispo { background:#e74c3c; }
+        .pelic-map-legend {
+            display:flex;
+            flex-wrap:wrap;
+            justify-content:center;
+            gap:10px 16px;
+            margin-top:12px;
+            font-size:0.88em;
+        }
+        .pelic-map-legend span { display:inline-flex; align-items:center; gap:6px; }
+        .pelic-map-legend i { width:12px; height:12px; border-radius:50%; display:inline-block; }
+        .pelic-map-modal {
+            position: fixed;
+            inset: 0;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            background: rgba(0,0,0,0.45);
+            z-index: 3000;
+            padding: 16px;
+        }
+        .pelic-map-modal.visible { display:flex; }
+        .pelic-map-modal-card {
+            width: min(92vw, 520px);
+            background:#fff;
+            border-radius: 16px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.25);
+            overflow: hidden;
+            border: 1px solid #dce3ea;
+        }
+        .pelic-map-modal-header {
+            background:#0a2c5a;
+            color:#fff;
+            padding:14px 18px;
+            display:flex;
+            align-items:center;
+            justify-content:space-between;
+            gap:10px;
+        }
+        .pelic-map-modal-header h4 { margin:0; font-size:1.15em; }
+        .pelic-map-modal-close {
+            border:none;
+            background:rgba(255,255,255,0.16);
+            color:#fff;
+            border-radius:10px;
+            padding:8px 10px;
+            font-size:1.1em;
+            cursor:pointer;
+        }
+        .pelic-map-modal-body { padding:16px 18px 18px 18px; }
+        .pelic-map-modal-grid {
+            display:grid;
+            grid-template-columns: 130px 1fr;
+            gap:8px 12px;
+            align-items:start;
+            font-size:0.96em;
+        }
+        .pelic-map-modal-grid strong { color:#2c3e50; }
+
     </style>
 </head>
 <body>
@@ -906,7 +1036,8 @@
         <button class="nav-toggle" id="nav-toggle" aria-label="Menu">&#9776;</button>
         <ul class="nav-links" id="nav-links">
             <li><a href="#fds-section">FDS</a></li>
-            <li><a href="#dispo-pelic-section">AVIONS/PELIC</a></li>
+            <li><a href="#dispo-avions-section">AVIONS</a></li>
+            <li><a href="#pelicandromes-section">PELIC</a></li>
             <li><a href="#gaar-section">GAAR</a></li>
             <li id="gaar-map-nav-link"><a href="#gaar-map-section">Carte GAAR</a></li>
             <li><a href="#risk-maps-section">RISQUES</a></li>
@@ -980,16 +1111,34 @@
         <p id="pdf-info-fds" class="pdf-info"></p>
     </div>
 
-    <div class="map-section" id="dispo-pelic-section">
-        <h2>Dispo Avions / ABEL / Pélicandromes</h2>
+    <div class="map-section" id="dispo-avions-section">
+        <h2>Dispo Avions / ABE / ABEL</h2>
         <div class="controles" style="gap: 20px;">
             <button id="abe-refresh-btn" class="link-button" style="background-color:#2980b9;">Actualiser CNCASC</button>
             <a href="https://cncasc-app.fr/pages/ABE.php" target="_blank" class="link-button" style="background-color:#34495e;">Ouvrir ABE</a>
             <a href="https://cncasc-app.fr/pages/ABEL.php" target="_blank" class="link-button" style="background-color:#7f8c8d;">Ouvrir ABEL</a>
-            <a href="https://cncasc-app.fr/pages/pelicandrome.php" target="_blank" class="link-button" style="background-color:#16a085;">Ouvrir Pélicandromes</a>
         </div>
         <p id="abe-dispo-status" class="abe-dispo-status">Données CNCASC non chargées.</p>
         <div id="abe-dispo-display" class="abe-dispo-panel" style="display: none;"></div>
+    </div>
+
+    <div class="map-section" id="pelicandromes-section">
+        <h2>Pélicandromes</h2>
+        <div class="controles" style="gap: 20px;">
+            <a href="https://cncasc-app.fr/pages/pelicandrome.php" target="_blank" class="link-button" style="background-color:#16a085;">Ouvrir Pélicandromes</a>
+        </div>
+        <p id="pelic-dispo-status" class="abe-dispo-status">Données pélicandromes non chargées.</p>
+        <div id="pelic-dispo-display" class="abe-dispo-panel" style="display: none;"></div>
+    </div>
+
+    <div id="pelic-map-modal" class="pelic-map-modal" aria-hidden="true">
+        <div class="pelic-map-modal-card">
+            <div class="pelic-map-modal-header">
+                <h4 id="pelic-map-modal-title">Pélicandrome</h4>
+                <button type="button" id="pelic-map-modal-close" class="pelic-map-modal-close">✕</button>
+            </div>
+            <div id="pelic-map-modal-body" class="pelic-map-modal-body"></div>
+        </div>
     </div>
     
     <div id="gaar-section" class="pdf-section dropzone">
@@ -1575,24 +1724,160 @@ const tdfStages = [
             `;
         }
 
+        function getPelicMapCoords_() {
+            return {
+                LFTW: { top: '73%', left: '58%' },
+                LFMU: { top: '69%', left: '61%' },
+                LFMK: { top: '68%', left: '55%' },
+                LFMP: { top: '76%', left: '62%' },
+                LFCC: { top: '59%', left: '48%' },
+                LFCR: { top: '57%', left: '51%' },
+                LFML: { top: '71%', left: '64%' },
+                LFTH: { top: '74%', left: '67%' },
+                LFMD: { top: '73%', left: '69%' },
+                LFLU: { top: '58%', left: '59%' },
+                LFHO: { top: '61%', left: '57%' },
+                LFKC: { top: '89%', left: '73%' },
+                LFKB: { top: '85%', left: '74%' },
+                LFKJ: { top: '92%', left: '71%' },
+                LFKF: { top: '95%', left: '74%' },
+                LFBD: { top: '56%', left: '32%' },
+                LFBM: { top: '63%', left: '28%' },
+                LFBL: { top: '47%', left: '42%' },
+                LFBP: { top: '72%', left: '25%' },
+                LFBN: { top: '34%', left: '27%' },
+                LFJR: { top: '29%', left: '27%' },
+                LFLX: { top: '36%', left: '43%' },
+                LFAQ: { top: '10%', left: '59%' },
+                LFSG: { top: '14%', left: '72%' },
+                LFMH: { top: '49%', left: '53%' },
+                LFRV: { top: '22%', left: '14%' },
+                LFGJ: { top: '30%', left: '58%' }
+            };
+        }
+
+        function pelicMarkerClass_(statut) {
+            const normalized = String(statut || '').toLowerCase();
+            if (normalized === 'arme') return 'status-arme';
+            if (normalized === 'activable_30min') return 'status-30';
+            if (normalized === 'activable_1h') return 'status-1h';
+            if (normalized === 'actif_eau') return 'status-eau';
+            if (normalized === 'indispo') return 'status-indispo';
+            return 'status-1h';
+        }
+
+        function normalizePelicItem_(item) {
+            const capacite = (item.capacite === null || item.capacite === undefined || item.capacite === '') ? '' : ` / ${item.capacite} t`;
+            return {
+                name: item.name || '',
+                oaci: item.oaci || '',
+                statut: item.statut || '',
+                statutLabel: item.statutLabel || item.statut || '',
+                niveau: `${item.niveau ?? ''} t${capacite}`,
+                commande: item.commande ? 'Oui' : 'Non',
+                observation: item.observation || ''
+            };
+        }
+
+        function buildPelicMap_(pelicandromes) {
+            if (!pelicandromes || !Array.isArray(pelicandromes.zones)) return '';
+            const coords = getPelicMapCoords_();
+            const items = [];
+            pelicandromes.zones.forEach((zone) => {
+                (zone.items || []).forEach((item) => {
+                    if (coords[item.oaci]) items.push({ ...item, zone: zone.name, coords: coords[item.oaci] });
+                });
+            });
+            const markers = items.map((item) => `
+                <button type="button" class="pelic-marker ${pelicMarkerClass_(item.statut)}" 
+                    style="top:${item.coords.top}; left:${item.coords.left};"
+                    data-name="${escapeHtml_(item.name)}"
+                    data-pelic='${escapeHtml_(JSON.stringify(normalizePelicItem_(item)))}'
+                    aria-label="${escapeHtml_(item.name)}"></button>
+            `).join('');
+
+            return `
+                <div class="pelic-map-wrapper">
+                    <div class="pelic-map-title">Carte de France offline — cliquer sur un rond pour le détail</div>
+                    <div class="pelic-map-stage">
+                        <div class="pelic-map-france"></div>
+                        ${markers}
+                    </div>
+                    <div class="pelic-map-legend">
+                        <span><i style="background:#1e9d55"></i> Armé</span>
+                        <span><i style="background:#f39c12"></i> Activable 30'</span>
+                        <span><i style="background:#7f8c8d"></i> Activable 1h</span>
+                        <span><i style="background:#17a2b8"></i> Armé à l'eau</span>
+                        <span><i style="background:#e74c3c"></i> Indispo</span>
+                    </div>
+                    <p class="pelic-map-note">Affichage indicatif offline pour consultation rapide.</p>
+                </div>
+            `;
+        }
+
+        function openPelicModal_(payload) {
+            const modal = document.getElementById('pelic-map-modal');
+            const title = document.getElementById('pelic-map-modal-title');
+            const body = document.getElementById('pelic-map-modal-body');
+            if (!modal || !title || !body) return;
+            const data = typeof payload === 'string' ? JSON.parse(payload) : payload;
+            title.textContent = `${data.name} (${data.oaci})`;
+            body.innerHTML = `
+                <div class="pelic-map-modal-grid">
+                    <strong>Statut</strong><div>${escapeHtml_(data.statutLabel)}</div>
+                    <strong>Niveau</strong><div>${escapeHtml_(data.niveau)}</div>
+                    <strong>Commande</strong><div>${escapeHtml_(data.commande)}</div>
+                    <strong>Observation</strong><div>${escapeHtml_(data.observation || '-')}</div>
+                </div>
+            `;
+            modal.classList.add('visible');
+            modal.setAttribute('aria-hidden', 'false');
+        }
+
+        function initPelicModal_() {
+            const modal = document.getElementById('pelic-map-modal');
+            const closeBtn = document.getElementById('pelic-map-modal-close');
+            if (!modal || !closeBtn) return;
+            closeBtn.addEventListener('click', () => {
+                modal.classList.remove('visible');
+                modal.setAttribute('aria-hidden', 'true');
+            });
+            modal.addEventListener('click', (event) => {
+                if (event.target === modal) {
+                    modal.classList.remove('visible');
+                    modal.setAttribute('aria-hidden', 'true');
+                }
+            });
+            document.addEventListener('click', (event) => {
+                const marker = event.target.closest('.pelic-marker');
+                if (!marker) return;
+                const payload = marker.getAttribute('data-pelic');
+                if (payload) openPelicModal_(payload);
+            });
+        }
+
         function renderAbeDispo_(data) {
             const display = document.getElementById('abe-dispo-display');
             const status = document.getElementById('abe-dispo-status');
-            if (!display || !status) return;
+            const pelicDisplay = document.getElementById('pelic-dispo-display');
+            const pelicStatus = document.getElementById('pelic-dispo-status');
+            if (!display || !status || !pelicDisplay || !pelicStatus) return;
 
             if (!data || !data.ok || !Array.isArray(data.fleets)) {
                 status.textContent = 'Données CNCASC invalides.';
+                pelicStatus.textContent = 'Données pélicandromes invalides.';
                 display.style.display = 'none';
+                pelicDisplay.style.display = 'none';
                 return;
             }
 
-            display.innerHTML = `
-                ${renderAircraftFleets_(data.fleets)}
-                ${renderPelicandromes_(data.pelicandromes)}
-            `;
-
+            display.innerHTML = renderAircraftFleets_(data.fleets);
             display.style.display = 'block';
             status.textContent = `Données CNCASC actualisées : ${formatAbeDate_(data.updatedAt)}`;
+
+            pelicDisplay.innerHTML = `${buildPelicMap_(data.pelicandromes)}${renderPelicandromes_(data.pelicandromes)}`;
+            pelicDisplay.style.display = 'block';
+            pelicStatus.textContent = `Données pélicandromes actualisées : ${formatAbeDate_(data.updatedAt)}`;
         }
 
         async function fetchAbeDispo_() {
@@ -1625,6 +1910,7 @@ const tdfStages = [
             if (!refreshBtn) return;
 
             refreshBtn.addEventListener('click', fetchAbeDispo_);
+            initPelicModal_();
 
             // Chargement automatique à l'ouverture du briefing.
             fetchAbeDispo_();
