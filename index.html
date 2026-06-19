@@ -6,8 +6,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0">
     <title>Briefing Fdf TEST</title>
-    <link rel="manifest" href="./manifest.json?v=3.17">
-    <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png?v=3.17">
+    <link rel="manifest" href="./manifest.json?v=3.18">
+    <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png?v=3.18">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-title" content="Briefing TEST">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
@@ -902,19 +902,19 @@
 
         .pelic-map-wrapper {
             position: relative;
-            max-width: 860px;
-            margin: 0 auto 24px auto;
+            max-width: 980px;
+            margin: 0 auto 18px auto;
             background: linear-gradient(180deg, #dceef7 0%, #eef5f9 100%);
             border: 1px solid #d5dee7;
             border-radius: 16px;
-            padding: 14px;
+            padding: 12px;
             box-shadow: inset 0 1px 0 rgba(255,255,255,0.8), 0 3px 10px rgba(0,0,0,0.08);
         }
         .pelic-map-stage {
             position: relative;
             width: 100%;
-            aspect-ratio: 1.18 / 1;
-            max-height: 760px;
+            height: min(58vh, 540px);
+            min-height: 390px;
             overflow: hidden;
             border-radius: 12px;
             background: #d7ecf7;
@@ -929,32 +929,32 @@
         .pelic-france-land {
             fill: #f8fbfd;
             stroke: #2c3e50;
-            stroke-width: 3.5;
+            stroke-width: 2.4;
             filter: drop-shadow(0 2px 4px rgba(0,0,0,0.18));
         }
         .pelic-france-region-line {
             fill: none;
-            stroke: rgba(10,44,90,0.16);
-            stroke-width: 1.2;
+            stroke: rgba(10,44,90,0.13);
+            stroke-width: 1.1;
             stroke-dasharray: 4 4;
         }
         .pelic-map-title {
             text-align: center;
             font-weight: 700;
             color: #0a2c5a;
-            margin: 0 0 10px 0;
-            font-size: 1.08em;
+            margin: 0 0 8px 0;
+            font-size: 1.05em;
         }
         .pelic-map-note {
             text-align:center;
-            font-size:0.92em;
+            font-size:0.88em;
             color:#4a5a6a;
-            margin:10px 0 0 0;
+            margin:8px 0 0 0;
         }
         .pelic-marker {
             position: absolute;
-            width: 18px;
-            height: 18px;
+            width: 17px;
+            height: 17px;
             border-radius: 50%;
             border: 2px solid #fff;
             box-shadow: 0 2px 6px rgba(0,0,0,0.30);
@@ -966,11 +966,11 @@
             content: attr(data-name);
             position: absolute;
             left: 50%;
-            top: 22px;
+            top: 20px;
             transform: translateX(-50%);
-            background: rgba(255,255,255,0.94);
+            background: rgba(255,255,255,0.95);
             color: #1f2d3d;
-            font-size: 0.70em;
+            font-size: 0.68em;
             font-weight: 700;
             padding: 2px 6px;
             border-radius: 999px;
@@ -986,9 +986,9 @@
             display:flex;
             flex-wrap:wrap;
             justify-content:center;
-            gap:10px 16px;
-            margin-top:12px;
-            font-size:0.88em;
+            gap:8px 14px;
+            margin-top:10px;
+            font-size:0.86em;
         }
         .pelic-map-legend span { display:inline-flex; align-items:center; gap:6px; }
         .pelic-map-legend i { width:12px; height:12px; border-radius:50%; display:inline-block; }
@@ -1040,6 +1040,88 @@
         }
         .pelic-map-modal-grid strong { color:#2c3e50; }
 
+        .abe-table-shell,
+        .pelic-table-shell {
+            width: 100%;
+            overflow-x: auto;
+            border-radius: 10px;
+            border: 1px solid #d0d7de;
+            background: #fff;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.04);
+        }
+        .abe-aircraft-table,
+        .pelic-table {
+            width: 100%;
+            border-collapse: collapse;
+            table-layout: fixed;
+            font-size: 0.94em;
+        }
+        .abe-aircraft-table th,
+        .abe-aircraft-table td,
+        .pelic-table th,
+        .pelic-table td {
+            border-bottom: 1px solid #d0d7de;
+            padding: 8px 9px;
+            vertical-align: top;
+            white-space: normal;
+            overflow-wrap: break-word;
+            word-break: normal;
+            line-height: 1.25;
+        }
+        .abe-aircraft-table th,
+        .pelic-table th {
+            background: #eef2f5;
+            color: #2c3e50;
+            text-align: left;
+            font-weight: 800;
+        }
+        .abe-aircraft-table tr:nth-child(even),
+        .pelic-table tr:nth-child(even) {
+            background: #fafbfc;
+        }
+        .abe-aircraft-table tr:last-child td,
+        .pelic-table tr:last-child td {
+            border-bottom: none;
+        }
+        .abe-aircraft-table td:nth-child(1),
+        .abe-aircraft-table td:nth-child(2),
+        .pelic-table td:nth-child(1),
+        .pelic-table td:nth-child(2),
+        .pelic-table td:nth-child(3),
+        .pelic-table td:nth-child(4),
+        .pelic-table td:nth-child(5) {
+            white-space: nowrap;
+        }
+        .abe-aircraft-table td:nth-child(3),
+        .pelic-table td:nth-child(6) {
+            white-space: normal;
+            overflow-wrap: break-word;
+        }
+        .pelic-table-toggle-title {
+            margin-top: 18px;
+            padding-top: 14px;
+            border-top: 2px solid #d0d7de;
+            text-align: center;
+            color: #2c3e50;
+            font-size: 1.05em;
+            font-weight: 900;
+            letter-spacing: 0.4px;
+        }
+        .pelic-table-toggle-zone {
+            text-align: center;
+            margin: 8px 0 12px 0;
+        }
+        #pelic-table-toggle-btn {
+            background-color: #34495e;
+            min-width: 210px;
+        }
+        #pelic-table-content {
+            display: none;
+        }
+        #pelic-table-content.visible {
+            display: block;
+        }
+
     </style>
 </head>
 <body>
@@ -1067,7 +1149,7 @@
         <h1 id="main-title">Briefing Fdf TEST</h1>
         <p id="current-time-display"></p>
         <p style="position: relative; z-index: 2; text-align: center; color: #333; font-size: 1em; margin-top: -25px; margin-bottom: 30px;">
-    v<span id="app-version">3.17 TEST PWA TDF 2026</span>
+    v<span id="app-version">3.18 TEST PWA TDF 2026</span>
     <button id="force-update-btn" class="link-button" style="background-color: #34495e; padding: 4px 10px; font-size: 0.8em; margin-left: 10px; vertical-align: middle;">
         Forcer MAJ
     </button>
@@ -1367,7 +1449,7 @@
     <footer>Données : Météo-France, SIA, Windy.com, CheckWX.com. Page non commerciale, à usage personnel.</footer>
     
     <script>
-        const APP_VERSION = "3.17 TEST PWA TDF 2026";
+        const APP_VERSION = "3.18 TEST PWA TDF 2026";
 
         // --- Clé API pour la source de données météo ---
         const CHECKWX_API_KEY = "b8071d79ae4a482491114af48c9c0246";
@@ -1650,7 +1732,13 @@ const tdfStages = [
                 return `
                     <div class="abe-fleet-block">
                         <div class="abe-fleet-title">${escapeHtml_(fleet.name)} : ${escapeHtml_(fleet.available)} / ${escapeHtml_(fleet.total)}</div>
-                        <table class="abe-aircraft-table">
+                        <div class="abe-table-shell">
+                            <table class="abe-aircraft-table">
+                            <colgroup>
+                                <col style="width: 96px;">
+                                <col style="width: 86px;">
+                                <col>
+                            </colgroup>
                             <thead>
                                 <tr>
                                     <th>Avion</th>
@@ -1659,7 +1747,8 @@ const tdfStages = [
                                 </tr>
                             </thead>
                             <tbody>${rows}</tbody>
-                        </table>
+                            </table>
+                        </div>
                     </div>
                 `;
             }).join('');
@@ -1710,67 +1799,88 @@ const tdfStages = [
                 return `
                     <div class="pelic-zone-block">
                         <div class="pelic-zone-title">${escapeHtml_(zone.name)}</div>
-                        <table class="pelic-table">
-                            <thead>
-                                <tr>
-                                    <th>Nom</th>
-                                    <th>OACI</th>
-                                    <th>Statut</th>
-                                    <th>Niveau</th>
-                                    <th>Commande</th>
-                                    <th>Observation</th>
-                                </tr>
-                            </thead>
-                            <tbody>${rows}</tbody>
-                        </table>
+                        <div class="pelic-table-shell">
+                            <table class="pelic-table">
+                                <colgroup>
+                                    <col style="width: 150px;">
+                                    <col style="width: 72px;">
+                                    <col style="width: 150px;">
+                                    <col style="width: 110px;">
+                                    <col style="width: 90px;">
+                                    <col>
+                                </colgroup>
+                                <thead>
+                                    <tr>
+                                        <th>Nom</th>
+                                        <th>OACI</th>
+                                        <th>Statut</th>
+                                        <th>Niveau</th>
+                                        <th>Commande</th>
+                                        <th>Observation</th>
+                                    </tr>
+                                </thead>
+                                <tbody>${rows}</tbody>
+                            </table>
+                        </div>
                     </div>
                 `;
             }).join('');
 
             return `
-                <h3 class="pelic-section-title">Pélicandromes</h3>
-                ${conso}
-                <div class="abe-dispo-summary">${countsHtml}</div>
-                ${zonesHtml}
+                <h3 class="pelic-table-toggle-title">TABLEAU ETAT PELICANDROMES</h3>
+                <div class="pelic-table-toggle-zone">
+                    <button id="pelic-table-toggle-btn" class="link-button" type="button">AFFICHER</button>
+                </div>
+                <div id="pelic-table-content">
+                    ${conso}
+                    <div class="abe-dispo-summary">${countsHtml}</div>
+                    ${zonesHtml}
+                </div>
             `;
         }
 
-        function getPelicMapCoords_() {
-            // Positions visuelles sur la carte SVG offline.
-            // left/top en %, ajustées pour une carte France métropolitaine + Corse.
+        function getPelicGeoCoords_() {
             return {
-                LFRV: { top: '28%', left: '18%' },   // Vannes
-                LFJR: { top: '35%', left: '27%' },   // Angers
-                LFBN: { top: '43%', left: '30%' },   // Niort
-                LFBD: { top: '57%', left: '30%' },   // Bordeaux
-                LFBM: { top: '66%', left: '31%' },   // Mont-de-Marsan
-                LFBP: { top: '78%', left: '32%' },   // Pau
+                LFRV: { lat: 47.724, lon: -2.719 },
+                LFJR: { lat: 47.560, lon: -0.312 },
+                LFBN: { lat: 46.313, lon: -0.394 },
+                LFBD: { lat: 44.828, lon: -0.716 },
+                LFBM: { lat: 43.911, lon: -0.507 },
+                LFBP: { lat: 43.380, lon: -0.419 },
+                LFBL: { lat: 45.862, lon: 1.179 },
+                LFCC: { lat: 44.351, lon: 1.475 },
+                LFLX: { lat: 46.862, lon: 1.730 },
+                LFAQ: { lat: 49.971, lon: 2.697 },
+                LFGJ: { lat: 47.042, lon: 5.435 },
+                LFSG: { lat: 48.325, lon: 6.069 },
+                LFMH: { lat: 45.540, lon: 4.296 },
+                LFLU: { lat: 44.921, lon: 4.970 },
+                LFHO: { lat: 44.544, lon: 4.372 },
+                LFCR: { lat: 44.407, lon: 2.482 },
+                LFTW: { lat: 43.757, lon: 4.416 },
+                LFMU: { lat: 43.323, lon: 3.354 },
+                LFMK: { lat: 43.215, lon: 2.306 },
+                LFMP: { lat: 42.740, lon: 2.870 },
+                LFML: { lat: 43.437, lon: 5.214 },
+                LFTH: { lat: 43.097, lon: 6.146 },
+                LFMD: { lat: 43.542, lon: 6.953 },
+                LFKB: { lat: 42.552, lon: 9.483 },
+                LFKC: { lat: 42.531, lon: 8.793 },
+                LFKJ: { lat: 41.924, lon: 8.803 },
+                LFKF: { lat: 41.501, lon: 9.097 }
+            };
+        }
 
-                LFBL: { top: '51%', left: '45%' },   // Limoges
-                LFCC: { top: '65%', left: '47%' },   // Cahors
-                LFLX: { top: '44%', left: '48%' },   // Châteauroux
-                LFAQ: { top: '18%', left: '54%' },   // Albert-Bray
-                LFGJ: { top: '40%', left: '60%' },   // Dôle
-                LFSG: { top: '22%', left: '72%' },   // Épinal
-
-                LFMH: { top: '55%', left: '58%' },   // Saint-Étienne
-                LFLU: { top: '61%', left: '61%' },   // Valence
-                LFHO: { top: '66%', left: '59%' },   // Aubenas
-                LFCR: { top: '63%', left: '52%' },   // Rodez
-
-                LFTW: { top: '76%', left: '55%' },   // Nîmes
-                LFMU: { top: '77%', left: '50%' },   // Béziers
-                LFMK: { top: '79%', left: '46%' },   // Carcassonne
-                LFMP: { top: '86%', left: '48%' },   // Perpignan
-
-                LFML: { top: '75%', left: '65%' },   // Marignane
-                LFTH: { top: '79%', left: '70%' },   // Hyères
-                LFMD: { top: '72%', left: '75%' },   // Cannes
-
-                LFKB: { top: '80%', left: '86%' },   // Bastia
-                LFKC: { top: '83%', left: '82%' },   // Calvi
-                LFKJ: { top: '90%', left: '82%' },   // Ajaccio
-                LFKF: { top: '95%', left: '85%' }    // Figari
+        function geoToPelicMapPercent_(coord) {
+            const minLon = -5.8;
+            const maxLon = 10.2;
+            const minLat = 41.1;
+            const maxLat = 51.4;
+            const left = ((coord.lon - minLon) / (maxLon - minLon)) * 100;
+            const top = ((maxLat - coord.lat) / (maxLat - minLat)) * 100;
+            return {
+                left: `${left.toFixed(2)}%`,
+                top: `${top.toFixed(2)}%`
             };
         }
 
@@ -1799,13 +1909,17 @@ const tdfStages = [
 
         function buildPelicMap_(pelicandromes) {
             if (!pelicandromes || !Array.isArray(pelicandromes.zones)) return '';
-            const coords = getPelicMapCoords_();
+            const coords = getPelicGeoCoords_();
             const items = [];
             pelicandromes.zones.forEach((zone) => {
                 (zone.items || []).forEach((item) => {
-                    if (coords[item.oaci]) items.push({ ...item, zone: zone.name, coords: coords[item.oaci] });
+                    if (coords[item.oaci]) {
+                        const mapPos = geoToPelicMapPercent_(coords[item.oaci]);
+                        items.push({ ...item, zone: zone.name, coords: mapPos });
+                    }
                 });
             });
+
             const markers = items.map((item) => `
                 <button type="button" class="pelic-marker ${pelicMarkerClass_(item.statut)}" 
                     style="top:${item.coords.top}; left:${item.coords.left};"
@@ -1818,16 +1932,10 @@ const tdfStages = [
                 <div class="pelic-map-wrapper">
                     <div class="pelic-map-title">Carte de France offline — cliquer sur un rond pour le détail</div>
                     <div class="pelic-map-stage">
-                        <svg class="pelic-france-svg" viewBox="0 0 900 760" role="img" aria-label="Carte de France">
-                            <rect x="0" y="0" width="900" height="760" fill="#d7ecf7"></rect>
-                            <path class="pelic-france-land" d="M392 42 L485 35 L578 74 L657 137 L704 221 L741 326 L712 425 L734 528 L684 626 L582 694 L482 722 L386 683 L311 616 L249 631 L201 561 L174 448 L198 333 L180 257 L234 176 L309 116 Z"></path>
-                            <path class="pelic-france-land" d="M724 596 C756 610 770 647 758 681 C746 717 713 732 691 705 C668 676 674 623 724 596 Z"></path>
-                            <path class="pelic-france-region-line" d="M250 260 L360 285 L438 247 L547 274 L657 222"></path>
-                            <path class="pelic-france-region-line" d="M310 118 L372 220 L360 285 L374 410 L322 545 L249 631"></path>
-                            <path class="pelic-france-region-line" d="M485 35 L475 156 L438 247 L472 365 L452 514 L482 722"></path>
-                            <path class="pelic-france-region-line" d="M578 74 L547 274 L588 408 L582 694"></path>
-                            <path class="pelic-france-region-line" d="M198 333 L374 410 L588 408 L712 425"></path>
-                            <path class="pelic-france-region-line" d="M201 561 L452 514 L734 528"></path>
+                        <svg class="pelic-france-svg" viewBox="0 0 1000 620" role="img" aria-label="Carte de France">
+                            <rect x="0" y="0" width="1000" height="620" fill="#d7ecf7"></rect>
+                            <path class="pelic-france-land" d="M 960.0 556.6 L 939.4 603.1 L 911.0 590.9 L 896.5 550.4 L 909.1 528.0 L 949.4 505.0 L 960.0 556.6 Z"></path>
+                            <path class="pelic-france-land" d="M 586.8 61.5 L 630.4 89.8 L 662.5 85.2 L 717.1 112.6 L 731.1 117.8 L 749.1 116.5 L 778.6 132.3 L 868.7 143.4 L 837.1 184.6 L 829.2 227.5 L 812.0 237.8 L 783.5 232.2 L 785.5 247.5 L 739.8 281.4 L 738.9 308.6 L 768.8 299.2 L 790.2 325.6 L 787.6 342.6 L 806.0 365.2 L 784.4 383.5 L 800.5 430.1 L 834.3 437.7 L 827.2 463.9 L 770.6 497.9 L 647.3 481.6 L 556.3 501.1 L 549.1 537.4 L 476.7 545.2 L 406.3 517.9 L 383.6 530.9 L 268.6 503.6 L 243.7 480.2 L 276.0 444.1 L 287.9 324.2 L 223.4 261.0 L 177.3 230.5 L 81.8 207.4 L 75.5 163.5 L 156.5 150.4 L 261.5 165.9 L 241.7 97.7 L 300.7 123.6 L 446.2 76.6 L 464.9 27.3 L 519.6 15.1 L 528.7 36.3 L 557.7 37.3 L 586.8 61.5 Z"></path>
                         </svg>
                         ${markers}
                     </div>
@@ -1838,7 +1946,7 @@ const tdfStages = [
                         <span><i style="background:#17a2b8"></i> Armé à l'eau</span>
                         <span><i style="background:#e74c3c"></i> Indispo</span>
                     </div>
-                    <p class="pelic-map-note">Affichage indicatif offline pour consultation rapide.</p>
+                    <p class="pelic-map-note">Carte SVG intégrée : aucun appel internet, affichage conçu pour iPad en mode paysage.</p>
                 </div>
             `;
         }
@@ -1877,6 +1985,16 @@ const tdfStages = [
                 }
             });
             document.addEventListener('click', (event) => {
+                const toggleBtn = event.target.closest('#pelic-table-toggle-btn');
+                if (toggleBtn) {
+                    const tableContent = document.getElementById('pelic-table-content');
+                    if (tableContent) {
+                        const isVisible = tableContent.classList.toggle('visible');
+                        toggleBtn.textContent = isVisible ? 'MASQUER' : 'AFFICHER';
+                    }
+                    return;
+                }
+
                 const marker = event.target.closest('.pelic-marker');
                 if (!marker) return;
                 const payload = marker.getAttribute('data-pelic');
