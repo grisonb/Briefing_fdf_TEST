@@ -6,8 +6,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0">
     <title>Briefing Fdf TEST</title>
-    <link rel="manifest" href="./manifest.json?v=3.23">
-    <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png?v=3.23">
+    <link rel="manifest" href="./manifest.json?v=3.24">
+    <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png?v=3.24">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-title" content="Briefing TEST">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
@@ -1269,7 +1269,7 @@
         <h1 id="main-title">Briefing Fdf TEST</h1>
         <p id="current-time-display"></p>
         <p style="position: relative; z-index: 2; text-align: center; color: #333; font-size: 1em; margin-top: -25px; margin-bottom: 30px;">
-    v<span id="app-version">3.23 TEST PWA TDF 2026</span>
+    v<span id="app-version">3.24 TEST PWA TDF 2026 PDF AUTO</span>
     <button id="force-update-btn" class="link-button" style="background-color: #34495e; padding: 4px 10px; font-size: 0.8em; margin-left: 10px; vertical-align: middle;">
         Forcer MAJ
     </button>
@@ -1583,7 +1583,7 @@
     <footer>Données : Météo-France, SIA, Windy.com, CheckWX.com. Page non commerciale, à usage personnel.</footer>
     
     <script>
-        const APP_VERSION = "3.23 TEST PWA TDF 2026";
+        const APP_VERSION = "3.24 TEST PWA TDF 2026 PDF AUTO";
 
         // --- Clé API pour la source de données météo ---
         const CHECKWX_API_KEY = "b8071d79ae4a482491114af48c9c0246";
@@ -1800,7 +1800,7 @@ const tdfStages = [
         // --- DISPO CNCASC VIA NAS : ABE + ABEL + PELICANDROMES ---
         const CNCASC_DISPO_API_URL = 'https://grisonb.synology.me/briefing-api/dispo-cncasc.php';
         const CNCASC_AUTH_API_URL = 'https://grisonb.synology.me/briefing-api/auth-cncasc.php';
-        const NOTAMS_AUTO_API_URL = 'https://grisonb.synology.me/briefing-api/get-notams.php';
+        const NOTAMS_AUTO_API_URL = 'https://grisonb.synology.me/briefing-api/get-notams-pdf.php';
         const CNCASC_TOKEN_STORAGE_KEY = 'bfg_cncasc_token_v1';
         const CNCASC_TOKEN_EXP_STORAGE_KEY = 'bfg_cncasc_token_exp_v1';
 
@@ -1970,8 +1970,9 @@ const tdfStages = [
 
             try {
                 if (button) button.disabled = true;
+
                 if (status) {
-                    status.textContent = "Importation automatique NOTAMs en cours...";
+                    status.textContent = "Téléchargement du PDF NOTAM automatique depuis le NAS...";
                     status.classList.remove('warning');
                 }
 
@@ -1980,33 +1981,60 @@ const tdfStages = [
                     cache: 'no-store',
                     headers: {
                         'Authorization': `Bearer ${tokenInfo.token}`,
-                        'Accept': 'application/json'
+                        'Accept': 'application/pdf'
                     }
                 });
 
-                const payload = await response.json().catch(() => null);
+                if (!response.ok) {
+                    let errorText = `HTTP ${response.status}`;
 
-                if (!response.ok || !payload || payload.ok === false) {
-                    const errorText = payload && payload.message ? payload.message : (payload && payload.error ? payload.error : `HTTP ${response.status}`);
+                    try {
+                        const contentType = response.headers.get('content-type') || '';
+
+                        if (contentType.toLowerCase().includes('application/json')) {
+                            const payload = await response.json();
+                            errorText = payload.message || payload.error || errorText;
+                        } else {
+                            const text = await response.text();
+                            if (text && text.trim()) {
+                                errorText = text.trim().slice(0, 180);
+                            }
+                        }
+                    } catch (readError) {
+                        console.warn('Erreur lecture réponse NOTAM PDF:', readError);
+                    }
+
                     throw new Error(errorText);
                 }
 
-                const autoText = getAutoNotamTextFromPayload_(payload);
-                if (!autoText.trim()) {
-                    throw new Error("Fichier NOTAMs automatique vide ou format non reconnu.");
+                const blob = await response.blob();
+
+                if (!blob || blob.size === 0) {
+                    throw new Error("PDF NOTAM automatique vide.");
                 }
 
-                notamInput.value = autoText;
-                window.__notamTextFull = autoText;
+                const contentType = response.headers.get('content-type') || blob.type || '';
 
-                if (info) {
-                    const updatedAt = payload.updatedAt ? new Date(payload.updatedAt).toLocaleString('fr-FR') : 'date inconnue';
-                    info.textContent = `NOTAMs automatiques chargés depuis le NAS (${updatedAt}).`;
+                if (!contentType.toLowerCase().includes('pdf')) {
+                    throw new Error("Le fichier reçu depuis le NAS n'est pas un PDF.");
                 }
 
-                if (typeof window.parseAndDisplayNotams === 'function') {
-                    window.parseAndDisplayNotams();
+                const pdfFile = new File([blob], 'latest-notams.pdf', {
+                    type: 'application/pdf'
+                });
+
+                if (notamInput) {
+                    notamInput.value = '';
                 }
+
+                const pdfInfoElement = info || document.createElement('p');
+
+                if (status) {
+                    status.textContent = "PDF NOTAM reçu. Extraction du texte en cours...";
+                    status.classList.remove('warning');
+                }
+
+                await extractTextFromPdf(pdfFile, pdfInfoElement);
 
                 if (status) {
                     const count = document.querySelectorAll('#notam-display .notam-item').length;
@@ -2015,6 +2043,7 @@ const tdfStages = [
                 }
             } catch (error) {
                 console.error('Erreur import auto NOTAMs:', error);
+
                 if (status) {
                     status.textContent = `Importation automatique impossible : ${error.message || error}`;
                     status.classList.add('warning');
