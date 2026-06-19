@@ -6,8 +6,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0">
     <title>Briefing Fdf TEST</title>
-    <link rel="manifest" href="./manifest.json?v=3.16">
-    <link rel="apple-touch-icon" href="./icons/icons/apple-touch-icon.png?v=3.16">
+    <link rel="manifest" href="./manifest.json?v=3.17">
+    <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png?v=3.17">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-title" content="Briefing TEST">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
@@ -902,7 +902,7 @@
 
         .pelic-map-wrapper {
             position: relative;
-            max-width: 760px;
+            max-width: 860px;
             margin: 0 auto 24px auto;
             background: linear-gradient(180deg, #dceef7 0%, #eef5f9 100%);
             border: 1px solid #d5dee7;
@@ -913,19 +913,30 @@
         .pelic-map-stage {
             position: relative;
             width: 100%;
-            aspect-ratio: 0.95 / 1;
-            max-height: 780px;
+            aspect-ratio: 1.18 / 1;
+            max-height: 760px;
             overflow: hidden;
+            border-radius: 12px;
+            background: #d7ecf7;
         }
-        .pelic-map-france {
+        .pelic-france-svg {
             position: absolute;
-            inset: 3% 8% 4% 8%;
-            width: 84%;
-            height: 92%;
-            background: #f8fbfd;
-            clip-path: polygon(49% 1%, 68% 8%, 84% 22%, 87% 38%, 81% 54%, 84% 73%, 74% 91%, 56% 98%, 39% 96%, 22% 86%, 12% 71%, 8% 52%, 12% 32%, 19% 16%, 34% 6%);
-            border: 3px solid #2c3e50;
-            box-shadow: inset 0 0 0 4px rgba(10,44,90,0.06);
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+        .pelic-france-land {
+            fill: #f8fbfd;
+            stroke: #2c3e50;
+            stroke-width: 3.5;
+            filter: drop-shadow(0 2px 4px rgba(0,0,0,0.18));
+        }
+        .pelic-france-region-line {
+            fill: none;
+            stroke: rgba(10,44,90,0.16);
+            stroke-width: 1.2;
+            stroke-dasharray: 4 4;
         }
         .pelic-map-title {
             text-align: center;
@@ -957,7 +968,7 @@
             left: 50%;
             top: 22px;
             transform: translateX(-50%);
-            background: rgba(255,255,255,0.92);
+            background: rgba(255,255,255,0.94);
             color: #1f2d3d;
             font-size: 0.70em;
             font-weight: 700;
@@ -1056,7 +1067,7 @@
         <h1 id="main-title">Briefing Fdf TEST</h1>
         <p id="current-time-display"></p>
         <p style="position: relative; z-index: 2; text-align: center; color: #333; font-size: 1em; margin-top: -25px; margin-bottom: 30px;">
-    v<span id="app-version">3.15 TEST PWA TDF 2026</span>
+    v<span id="app-version">3.17 TEST PWA TDF 2026</span>
     <button id="force-update-btn" class="link-button" style="background-color: #34495e; padding: 4px 10px; font-size: 0.8em; margin-left: 10px; vertical-align: middle;">
         Forcer MAJ
     </button>
@@ -1356,7 +1367,7 @@
     <footer>Données : Météo-France, SIA, Windy.com, CheckWX.com. Page non commerciale, à usage personnel.</footer>
     
     <script>
-        const APP_VERSION = "3.15 TEST PWA TDF 2026";
+        const APP_VERSION = "3.17 TEST PWA TDF 2026";
 
         // --- Clé API pour la source de données météo ---
         const CHECKWX_API_KEY = "b8071d79ae4a482491114af48c9c0246";
@@ -1725,34 +1736,41 @@ const tdfStages = [
         }
 
         function getPelicMapCoords_() {
+            // Positions visuelles sur la carte SVG offline.
+            // left/top en %, ajustées pour une carte France métropolitaine + Corse.
             return {
-                LFTW: { top: '73%', left: '58%' },
-                LFMU: { top: '69%', left: '61%' },
-                LFMK: { top: '68%', left: '55%' },
-                LFMP: { top: '76%', left: '62%' },
-                LFCC: { top: '59%', left: '48%' },
-                LFCR: { top: '57%', left: '51%' },
-                LFML: { top: '71%', left: '64%' },
-                LFTH: { top: '74%', left: '67%' },
-                LFMD: { top: '73%', left: '69%' },
-                LFLU: { top: '58%', left: '59%' },
-                LFHO: { top: '61%', left: '57%' },
-                LFKC: { top: '89%', left: '73%' },
-                LFKB: { top: '85%', left: '74%' },
-                LFKJ: { top: '92%', left: '71%' },
-                LFKF: { top: '95%', left: '74%' },
-                LFBD: { top: '56%', left: '32%' },
-                LFBM: { top: '63%', left: '28%' },
-                LFBL: { top: '47%', left: '42%' },
-                LFBP: { top: '72%', left: '25%' },
-                LFBN: { top: '34%', left: '27%' },
-                LFJR: { top: '29%', left: '27%' },
-                LFLX: { top: '36%', left: '43%' },
-                LFAQ: { top: '10%', left: '59%' },
-                LFSG: { top: '14%', left: '72%' },
-                LFMH: { top: '49%', left: '53%' },
-                LFRV: { top: '22%', left: '14%' },
-                LFGJ: { top: '30%', left: '58%' }
+                LFRV: { top: '28%', left: '18%' },   // Vannes
+                LFJR: { top: '35%', left: '27%' },   // Angers
+                LFBN: { top: '43%', left: '30%' },   // Niort
+                LFBD: { top: '57%', left: '30%' },   // Bordeaux
+                LFBM: { top: '66%', left: '31%' },   // Mont-de-Marsan
+                LFBP: { top: '78%', left: '32%' },   // Pau
+
+                LFBL: { top: '51%', left: '45%' },   // Limoges
+                LFCC: { top: '65%', left: '47%' },   // Cahors
+                LFLX: { top: '44%', left: '48%' },   // Châteauroux
+                LFAQ: { top: '18%', left: '54%' },   // Albert-Bray
+                LFGJ: { top: '40%', left: '60%' },   // Dôle
+                LFSG: { top: '22%', left: '72%' },   // Épinal
+
+                LFMH: { top: '55%', left: '58%' },   // Saint-Étienne
+                LFLU: { top: '61%', left: '61%' },   // Valence
+                LFHO: { top: '66%', left: '59%' },   // Aubenas
+                LFCR: { top: '63%', left: '52%' },   // Rodez
+
+                LFTW: { top: '76%', left: '55%' },   // Nîmes
+                LFMU: { top: '77%', left: '50%' },   // Béziers
+                LFMK: { top: '79%', left: '46%' },   // Carcassonne
+                LFMP: { top: '86%', left: '48%' },   // Perpignan
+
+                LFML: { top: '75%', left: '65%' },   // Marignane
+                LFTH: { top: '79%', left: '70%' },   // Hyères
+                LFMD: { top: '72%', left: '75%' },   // Cannes
+
+                LFKB: { top: '80%', left: '86%' },   // Bastia
+                LFKC: { top: '83%', left: '82%' },   // Calvi
+                LFKJ: { top: '90%', left: '82%' },   // Ajaccio
+                LFKF: { top: '95%', left: '85%' }    // Figari
             };
         }
 
@@ -1800,7 +1818,17 @@ const tdfStages = [
                 <div class="pelic-map-wrapper">
                     <div class="pelic-map-title">Carte de France offline — cliquer sur un rond pour le détail</div>
                     <div class="pelic-map-stage">
-                        <div class="pelic-map-france"></div>
+                        <svg class="pelic-france-svg" viewBox="0 0 900 760" role="img" aria-label="Carte de France">
+                            <rect x="0" y="0" width="900" height="760" fill="#d7ecf7"></rect>
+                            <path class="pelic-france-land" d="M392 42 L485 35 L578 74 L657 137 L704 221 L741 326 L712 425 L734 528 L684 626 L582 694 L482 722 L386 683 L311 616 L249 631 L201 561 L174 448 L198 333 L180 257 L234 176 L309 116 Z"></path>
+                            <path class="pelic-france-land" d="M724 596 C756 610 770 647 758 681 C746 717 713 732 691 705 C668 676 674 623 724 596 Z"></path>
+                            <path class="pelic-france-region-line" d="M250 260 L360 285 L438 247 L547 274 L657 222"></path>
+                            <path class="pelic-france-region-line" d="M310 118 L372 220 L360 285 L374 410 L322 545 L249 631"></path>
+                            <path class="pelic-france-region-line" d="M485 35 L475 156 L438 247 L472 365 L452 514 L482 722"></path>
+                            <path class="pelic-france-region-line" d="M578 74 L547 274 L588 408 L582 694"></path>
+                            <path class="pelic-france-region-line" d="M198 333 L374 410 L588 408 L712 425"></path>
+                            <path class="pelic-france-region-line" d="M201 561 L452 514 L734 528"></path>
+                        </svg>
                         ${markers}
                     </div>
                     <div class="pelic-map-legend">
