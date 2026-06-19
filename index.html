@@ -1269,7 +1269,7 @@
         <h1 id="main-title">Briefing Fdf TEST</h1>
         <p id="current-time-display"></p>
         <p style="position: relative; z-index: 2; text-align: center; color: #333; font-size: 1em; margin-top: -25px; margin-bottom: 30px;">
-    v<span id="app-version">3.24 TEST PWA TDF 2026 PDF AUTO</span>
+    v<span id="app-version">3.25 TEST PWA TDF 2026 NOTAM AUTO COMPLET</span>
     <button id="force-update-btn" class="link-button" style="background-color: #34495e; padding: 4px 10px; font-size: 0.8em; margin-left: 10px; vertical-align: middle;">
         Forcer MAJ
     </button>
@@ -1583,7 +1583,7 @@
     <footer>Données : Météo-France, SIA, Windy.com, CheckWX.com. Page non commerciale, à usage personnel.</footer>
     
     <script>
-        const APP_VERSION = "3.24 TEST PWA TDF 2026 PDF AUTO";
+        const APP_VERSION = "3.25 TEST PWA TDF 2026 NOTAM AUTO COMPLET";
 
         // --- Clé API pour la source de données météo ---
         const CHECKWX_API_KEY = "b8071d79ae4a482491114af48c9c0246";
@@ -1800,7 +1800,9 @@ const tdfStages = [
         // --- DISPO CNCASC VIA NAS : ABE + ABEL + PELICANDROMES ---
         const CNCASC_DISPO_API_URL = 'https://grisonb.synology.me/briefing-api/dispo-cncasc.php';
         const CNCASC_AUTH_API_URL = 'https://grisonb.synology.me/briefing-api/auth-cncasc.php';
-        const NOTAMS_AUTO_API_URL = 'https://grisonb.synology.me/briefing-api/get-notams-pdf.php';
+        const NOTAMS_AUTO_PDF_API_URL = 'https://grisonb.synology.me/briefing-api/get-notams-pdf.php';
+        const NOTAMS_GENERATION_REQUEST_API_URL = 'https://grisonb.synology.me/briefing-api/request-notams-generation.php';
+        const NOTAMS_GENERATION_STATUS_API_URL = 'https://grisonb.synology.me/briefing-api/get-notams-generation-status.php';
         const CNCASC_TOKEN_STORAGE_KEY = 'bfg_cncasc_token_v1';
         const CNCASC_TOKEN_EXP_STORAGE_KEY = 'bfg_cncasc_token_exp_v1';
 
@@ -1952,6 +1954,161 @@ const tdfStages = [
             }).join('\n\n');
         }
 
+        function sleepNotamsAuto_(ms) {
+            return new Promise(resolve => setTimeout(resolve, ms));
+        }
+
+        async function readJsonResponse_(response, fallbackMessage) {
+            const contentType = response.headers.get('content-type') || '';
+            const rawText = await response.text();
+
+            if (contentType.toLowerCase().includes('application/json') || rawText.trim().startsWith('{')) {
+                try {
+                    return JSON.parse(rawText);
+                } catch (error) {
+                    throw new Error(`Réponse JSON invalide : ${rawText.slice(0, 180)}`);
+                }
+            }
+
+            if (rawText && rawText.trim()) {
+                throw new Error(rawText.trim().slice(0, 180));
+            }
+
+            throw new Error(fallbackMessage || `HTTP ${response.status}`);
+        }
+
+        async function requestNotamsGeneration_(token) {
+            const response = await fetch(NOTAMS_GENERATION_REQUEST_API_URL, {
+                method: 'POST',
+                cache: 'no-store',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Accept': 'application/json'
+                }
+            });
+
+            const payload = await readJsonResponse_(response, `HTTP ${response.status}`);
+
+            if (!response.ok || !payload.ok) {
+                throw new Error(payload.message || payload.error || `HTTP ${response.status}`);
+            }
+
+            if (!payload.requestId) {
+                throw new Error('Demande NOTAM créée sans requestId.');
+            }
+
+            return payload;
+        }
+
+        async function getNotamsGenerationStatus_(token) {
+            const response = await fetch(NOTAMS_GENERATION_STATUS_API_URL, {
+                method: 'GET',
+                cache: 'no-store',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Accept': 'application/json'
+                }
+            });
+
+            const payload = await readJsonResponse_(response, `HTTP ${response.status}`);
+
+            if (!response.ok || !payload.ok) {
+                throw new Error(payload.message || payload.error || `HTTP ${response.status}`);
+            }
+
+            return payload;
+        }
+
+        async function waitForNotamsGeneration_(requestId, token, statusElement) {
+            const startedAt = Date.now();
+            const timeoutMs = 240000;
+            const pollMs = 5000;
+
+            while (Date.now() - startedAt < timeoutMs) {
+                const payload = await getNotamsGenerationStatus_(token);
+
+                if (payload.requestId === requestId) {
+                    const currentStatus = String(payload.status || '').toLowerCase();
+                    const message = payload.message ? ` — ${payload.message}` : '';
+
+                    if (statusElement) {
+                        if (currentStatus === 'pending') {
+                            statusElement.textContent = 'Demande enregistrée sur le NAS. En attente du PC worker...';
+                        } else if (currentStatus === 'running') {
+                            statusElement.textContent = `Génération NATS en cours sur le PC${message}`;
+                        } else if (currentStatus === 'success') {
+                            statusElement.textContent = 'Génération NATS terminée. Téléchargement du nouveau PDF...';
+                        } else if (currentStatus === 'error') {
+                            statusElement.textContent = `Génération NATS en erreur${message}`;
+                        } else {
+                            statusElement.textContent = `Statut génération NOTAM : ${currentStatus || 'inconnu'}${message}`;
+                        }
+                    }
+
+                    if (currentStatus === 'success') {
+                        return payload;
+                    }
+
+                    if (currentStatus === 'error') {
+                        throw new Error(payload.message || payload.error || 'Génération NOTAM en erreur côté PC worker.');
+                    }
+                }
+
+                await sleepNotamsAuto_(pollMs);
+            }
+
+            throw new Error('Délai dépassé : le PC worker n’a pas terminé la génération NOTAM.');
+        }
+
+        async function fetchLatestNotamsPdfFromNas_(token) {
+            const response = await fetch(NOTAMS_AUTO_PDF_API_URL, {
+                method: 'GET',
+                cache: 'no-store',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Accept': 'application/pdf'
+                }
+            });
+
+            if (!response.ok) {
+                let errorText = `HTTP ${response.status}`;
+
+                try {
+                    const contentType = response.headers.get('content-type') || '';
+
+                    if (contentType.toLowerCase().includes('application/json')) {
+                        const payload = await response.json();
+                        errorText = payload.message || payload.error || errorText;
+                    } else {
+                        const text = await response.text();
+                        if (text && text.trim()) {
+                            errorText = text.trim().slice(0, 180);
+                        }
+                    }
+                } catch (readError) {
+                    console.warn('Erreur lecture réponse NOTAM PDF:', readError);
+                }
+
+                throw new Error(errorText);
+            }
+
+            const blob = await response.blob();
+
+            if (!blob || blob.size === 0) {
+                throw new Error('PDF NOTAM automatique vide.');
+            }
+
+            const contentType = response.headers.get('content-type') || blob.type || '';
+
+            if (!contentType.toLowerCase().includes('pdf')) {
+                throw new Error("Le fichier reçu depuis le NAS n'est pas un PDF.");
+            }
+
+            return new File([blob], 'latest-notams.pdf', {
+                type: 'application/pdf'
+            });
+        }
+
         async function importAutomaticNotamsFromNas_() {
             const status = document.getElementById('notam-auto-import-status');
             const button = document.getElementById('notam-auto-import-btn');
@@ -1972,56 +2129,20 @@ const tdfStages = [
                 if (button) button.disabled = true;
 
                 if (status) {
-                    status.textContent = "Téléchargement du PDF NOTAM automatique depuis le NAS...";
+                    status.textContent = 'Demande de génération NOTAM envoyée au NAS...';
                     status.classList.remove('warning');
                 }
 
-                const response = await fetch(NOTAMS_AUTO_API_URL, {
-                    method: 'GET',
-                    cache: 'no-store',
-                    headers: {
-                        'Authorization': `Bearer ${tokenInfo.token}`,
-                        'Accept': 'application/pdf'
-                    }
-                });
+                const requestPayload = await requestNotamsGeneration_(tokenInfo.token);
 
-                if (!response.ok) {
-                    let errorText = `HTTP ${response.status}`;
-
-                    try {
-                        const contentType = response.headers.get('content-type') || '';
-
-                        if (contentType.toLowerCase().includes('application/json')) {
-                            const payload = await response.json();
-                            errorText = payload.message || payload.error || errorText;
-                        } else {
-                            const text = await response.text();
-                            if (text && text.trim()) {
-                                errorText = text.trim().slice(0, 180);
-                            }
-                        }
-                    } catch (readError) {
-                        console.warn('Erreur lecture réponse NOTAM PDF:', readError);
-                    }
-
-                    throw new Error(errorText);
+                if (status) {
+                    status.textContent = `Demande ${requestPayload.requestId} enregistrée. Attente du PC worker...`;
+                    status.classList.remove('warning');
                 }
 
-                const blob = await response.blob();
+                await waitForNotamsGeneration_(requestPayload.requestId, tokenInfo.token, status);
 
-                if (!blob || blob.size === 0) {
-                    throw new Error("PDF NOTAM automatique vide.");
-                }
-
-                const contentType = response.headers.get('content-type') || blob.type || '';
-
-                if (!contentType.toLowerCase().includes('pdf')) {
-                    throw new Error("Le fichier reçu depuis le NAS n'est pas un PDF.");
-                }
-
-                const pdfFile = new File([blob], 'latest-notams.pdf', {
-                    type: 'application/pdf'
-                });
+                const pdfFile = await fetchLatestNotamsPdfFromNas_(tokenInfo.token);
 
                 if (notamInput) {
                     notamInput.value = '';
@@ -2030,7 +2151,7 @@ const tdfStages = [
                 const pdfInfoElement = info || document.createElement('p');
 
                 if (status) {
-                    status.textContent = "PDF NOTAM reçu. Extraction du texte en cours...";
+                    status.textContent = 'Nouveau PDF NOTAM reçu. Extraction du texte en cours...';
                     status.classList.remove('warning');
                 }
 
