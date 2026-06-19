@@ -1,4 +1,4 @@
-const CACHE_NAME = 'briefing-fdf-test-v3.20-tableaux-centres-sans-titre-carte';
+const CACHE_NAME = 'briefing-fdf-test-v3.21-cncasc-auth-6h';
 
 const LOCAL_ASSETS = [
   './manifest.json',
