@@ -6,8 +6,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0">
     <title>Briefing Fdf TEST</title>
-    <link rel="manifest" href="./manifest.json?v=3.22">
-    <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png?v=3.22">
+    <link rel="manifest" href="./manifest.json?v=3.23">
+    <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png?v=3.23">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-title" content="Briefing TEST">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
@@ -1269,7 +1269,7 @@
         <h1 id="main-title">Briefing Fdf TEST</h1>
         <p id="current-time-display"></p>
         <p style="position: relative; z-index: 2; text-align: center; color: #333; font-size: 1em; margin-top: -25px; margin-bottom: 30px;">
-    v<span id="app-version">3.22 TEST PWA TDF 2026</span>
+    v<span id="app-version">3.23 TEST PWA TDF 2026</span>
     <button id="force-update-btn" class="link-button" style="background-color: #34495e; padding: 4px 10px; font-size: 0.8em; margin-left: 10px; vertical-align: middle;">
         Forcer MAJ
     </button>
@@ -1583,7 +1583,7 @@
     <footer>Données : Météo-France, SIA, Windy.com, CheckWX.com. Page non commerciale, à usage personnel.</footer>
     
     <script>
-        const APP_VERSION = "3.22 TEST PWA TDF 2026";
+        const APP_VERSION = "3.23 TEST PWA TDF 2026";
 
         // --- Clé API pour la source de données météo ---
         const CHECKWX_API_KEY = "b8071d79ae4a482491114af48c9c0246";
@@ -1800,6 +1800,7 @@ const tdfStages = [
         // --- DISPO CNCASC VIA NAS : ABE + ABEL + PELICANDROMES ---
         const CNCASC_DISPO_API_URL = 'https://grisonb.synology.me/briefing-api/dispo-cncasc.php';
         const CNCASC_AUTH_API_URL = 'https://grisonb.synology.me/briefing-api/auth-cncasc.php';
+        const NOTAMS_AUTO_API_URL = 'https://grisonb.synology.me/briefing-api/get-notams.php';
         const CNCASC_TOKEN_STORAGE_KEY = 'bfg_cncasc_token_v1';
         const CNCASC_TOKEN_EXP_STORAGE_KEY = 'bfg_cncasc_token_exp_v1';
 
@@ -1880,6 +1881,147 @@ const tdfStages = [
         function clearCncascToken_() {
             localStorage.removeItem(CNCASC_TOKEN_STORAGE_KEY);
             localStorage.removeItem(CNCASC_TOKEN_EXP_STORAGE_KEY);
+        }
+
+        function getAutoNotamAirportName_(icao) {
+            const map = {
+                'LFTW':'LFTW - NIMES GARONS', 'LFML':'LFML - MARSEILLE PROVENCE', 'LFTH':'LFTH - TOULON HYERES',
+                'LFMD':'LFMD - CANNES MANDELIEU', 'LFHO':'LFHO - AUBENAS ARDECHE MERIDIONALE', 'LFLU':'LFLU - VALENCE CHABEUIL',
+                'LFMH':'LFMH - ST ETIENNE BOUTHEON', 'LFMU':'LFMU - BEZIERS VIAS', 'LFMP':'LFMP - PERPIGNAN RIVESALTES',
+                'LFMK':'LFMK - CARCASSONNE SALVAZA', 'LFCR':'LFCR - RODEZ', 'LFCC':'LFCC - CAHORS LALBENQUE', 'LFBD':'LFBD - BORDEAUX MERIGNAC',
+                'LFBL':'LFBL - LIMOGES BELLEGARDE', 'LFBM':'LFBM - MONT DE MARSAN', 'LFBP':'LFBP - PAU PYRENEES',
+                'LFKC':'LFKC - CALVI STE CATHERINE', 'LFKB':'LFKB - BASTIA PORETTA', 'LFKJ':'LFKJ - AJACCIO NAPOLEON BONAPARTE',
+                'LFKF':'LFKF - FIGARI SUD CORSE', 'LFBN':'LFBN - NIORT', 'LFJR':'LFJR - ANGERS LOIRE',
+                'LFAQ':'LFAQ - ALBERT BRAY', 'LFLX':'LFLX - CHATEAUROUX DEOLS', 'LFSG':'LFSG - EPINAL MIRECOURT', 'LFRV':'LFRV - VANNES GOLFE DU MORBIHAN'
+            };
+            return map[icao] || `${icao} - INCONNU`;
+        }
+
+        function getAutoNotamTextFromPayload_(responsePayload) {
+            const payload = responsePayload && responsePayload.payload ? responsePayload.payload : responsePayload;
+
+            const directText = payload && (
+                payload.notamsText ||
+                payload.notamText ||
+                payload.rawText ||
+                payload.text
+            );
+
+            if (directText && String(directText).trim()) {
+                return String(directText).trim();
+            }
+
+            const notams = Array.isArray(payload && payload.notams) ? payload.notams : [];
+            if (!notams.length) return '';
+
+            const now = new Date();
+            const yy = String(now.getUTCFullYear()).slice(-2);
+            const mm = String(now.getUTCMonth() + 1).padStart(2, '0');
+            const dd = String(now.getUTCDate()).padStart(2, '0');
+            const hh = String(now.getUTCHours()).padStart(2, '0');
+            const min = String(now.getUTCMinutes()).padStart(2, '0');
+            const start = `${yy}${mm}${dd}${hh}${min}`;
+
+            const grouped = {};
+            notams.forEach((notam, index) => {
+                const icao = String(notam.icao || notam.aerodrome || '').trim().toUpperCase();
+                if (!/^LF[A-Z]{2}$/.test(icao)) return;
+
+                const raw = String(notam.raw || notam.rawText || '').trim();
+                const text = String(notam.text || notam.message || '').trim();
+                const type = String(notam.type || 'AUTO').trim().toUpperCase();
+                const number = String(notam.number || `Z${String(index + 1).padStart(4, '0')}/${yy}`).trim();
+
+                let block = raw;
+                if (!block) {
+                    block = [
+                        `Q) ${icao}/QXXXX/IV/NBO/A/000/999/0000N00000E005 ${number}`,
+                        `A) ${icao}`,
+                        `B) ${start}`,
+                        `C) PERM`,
+                        `E) ${type}${text ? ' - ' + text : ''}`
+                    ].join('\n');
+                }
+
+                if (!grouped[icao]) grouped[icao] = [];
+                grouped[icao].push(block);
+            });
+
+            return Object.entries(grouped).map(([icao, blocks]) => {
+                return `${getAutoNotamAirportName_(icao)}\n${blocks.join('\n')}`;
+            }).join('\n\n');
+        }
+
+        async function importAutomaticNotamsFromNas_() {
+            const status = document.getElementById('notam-auto-import-status');
+            const button = document.getElementById('notam-auto-import-btn');
+            const info = document.getElementById('pdf-info-notam');
+            const notamInput = document.getElementById('notam-input');
+
+            const tokenInfo = getStoredCncascToken_();
+
+            if (!tokenInfo) {
+                if (status) {
+                    status.textContent = "Accès NOTAMs verrouillé : déverrouiller d'abord l'accès CNCASC.";
+                    status.classList.add('warning');
+                }
+                return;
+            }
+
+            try {
+                if (button) button.disabled = true;
+                if (status) {
+                    status.textContent = "Importation automatique NOTAMs en cours...";
+                    status.classList.remove('warning');
+                }
+
+                const response = await fetch(NOTAMS_AUTO_API_URL, {
+                    method: 'GET',
+                    cache: 'no-store',
+                    headers: {
+                        'Authorization': `Bearer ${tokenInfo.token}`,
+                        'Accept': 'application/json'
+                    }
+                });
+
+                const payload = await response.json().catch(() => null);
+
+                if (!response.ok || !payload || payload.ok === false) {
+                    const errorText = payload && payload.message ? payload.message : (payload && payload.error ? payload.error : `HTTP ${response.status}`);
+                    throw new Error(errorText);
+                }
+
+                const autoText = getAutoNotamTextFromPayload_(payload);
+                if (!autoText.trim()) {
+                    throw new Error("Fichier NOTAMs automatique vide ou format non reconnu.");
+                }
+
+                notamInput.value = autoText;
+                window.__notamTextFull = autoText;
+
+                if (info) {
+                    const updatedAt = payload.updatedAt ? new Date(payload.updatedAt).toLocaleString('fr-FR') : 'date inconnue';
+                    info.textContent = `NOTAMs automatiques chargés depuis le NAS (${updatedAt}).`;
+                }
+
+                if (typeof window.parseAndDisplayNotams === 'function') {
+                    window.parseAndDisplayNotams();
+                }
+
+                if (status) {
+                    const count = document.querySelectorAll('#notam-display .notam-item').length;
+                    status.textContent = `Importation automatique terminée : ${count} NOTAM(s) affiché(s).`;
+                    status.classList.remove('warning');
+                }
+            } catch (error) {
+                console.error('Erreur import auto NOTAMs:', error);
+                if (status) {
+                    status.textContent = `Importation automatique impossible : ${error.message || error}`;
+                    status.classList.add('warning');
+                }
+            } finally {
+                if (button) button.disabled = false;
+            }
         }
 
         function updateCncascAuthUi_() {
@@ -3383,12 +3525,7 @@ const tdfStages = [
             const notamAutoImportStatus = document.getElementById('notam-auto-import-status');
 
             if (notamAutoImportBtn) {
-                notamAutoImportBtn.addEventListener('click', () => {
-                    if (notamAutoImportStatus) {
-                        notamAutoImportStatus.textContent = "Importation automatique NOTAMs : module PC/NAS non encore configuré.";
-                        notamAutoImportStatus.classList.add('warning');
-                    }
-                });
+                notamAutoImportBtn.addEventListener('click', importAutomaticNotamsFromNas_);
             }
 
             document.getElementById('pdf-load-notam-btn').addEventListener('click', () => document.getElementById('pdf-input-notam').click());
