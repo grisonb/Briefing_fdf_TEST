@@ -835,6 +835,69 @@
         .abe-row-alert {
             background: #fff7e6;
         }
+        .pelic-section-title {
+            margin-top: 22px;
+            padding-top: 14px;
+            border-top: 2px solid #d0d7de;
+            text-align: center;
+            color: #2c3e50;
+        }
+        .pelic-zone-block {
+            margin-top: 16px;
+        }
+        .pelic-zone-title {
+            display: inline-block;
+            padding: 6px 12px;
+            border-radius: 6px;
+            background: #2c3e50;
+            color: #fff;
+            font-weight: 800;
+            margin-bottom: 8px;
+        }
+        .pelic-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.92em;
+        }
+        .pelic-table th,
+        .pelic-table td {
+            border: 1px solid #d0d7de;
+            padding: 7px;
+            vertical-align: top;
+        }
+        .pelic-table th {
+            background: #f1f3f5;
+            color: #2c3e50;
+            text-align: left;
+        }
+        .pelic-statut-pill {
+            display: inline-block;
+            padding: 3px 8px;
+            border-radius: 999px;
+            font-weight: 800;
+            color: #fff;
+            background: #6c757d;
+        }
+        .pelic-statut-arme {
+            background: #198754;
+        }
+        .pelic-statut-30 {
+            background: #ffc107;
+            color: #212529;
+        }
+        .pelic-statut-1h {
+            background: #6c757d;
+        }
+        .pelic-statut-eau {
+            background: #0dcaf0;
+            color: #212529;
+        }
+        .pelic-statut-indispo {
+            background: #dc3545;
+        }
+        .pelic-row-alert {
+            background: #fff7e6;
+        }
 
     </style>
 </head>
@@ -862,7 +925,7 @@
         <h1 id="main-title">Briefing Fdf TEST</h1>
         <p id="current-time-display"></p>
         <p style="position: relative; z-index: 2; text-align: center; color: #333; font-size: 1em; margin-top: -25px; margin-bottom: 30px;">
-    v<span id="app-version">3.14 TEST PWA TDF 2026</span>
+    v<span id="app-version">3.15 TEST PWA TDF 2026</span>
     <button id="force-update-btn" class="link-button" style="background-color: #34495e; padding: 4px 10px; font-size: 0.8em; margin-left: 10px; vertical-align: middle;">
         Forcer MAJ
     </button>
@@ -918,13 +981,14 @@
     </div>
 
     <div class="map-section" id="dispo-pelic-section">
-        <h2>Dispo Avions / Pélicandrome</h2>
+        <h2>Dispo Avions / ABEL / Pélicandromes</h2>
         <div class="controles" style="gap: 20px;">
-            <button id="abe-refresh-btn" class="link-button" style="background-color:#2980b9;">Actualiser dispo avions</button>
-            <a href="https://cncasc-app.fr/pages/ABE.php" target="_blank" class="link-button" style="background-color:#34495e;">Ouvrir Dispo Avions</a>
-            <a href="https://cncasc-app.fr/pages/pelicandrome.php" target="_blank" class="link-button" style="background-color:#16a085;">Pélicandromes</a>
+            <button id="abe-refresh-btn" class="link-button" style="background-color:#2980b9;">Actualiser CNCASC</button>
+            <a href="https://cncasc-app.fr/pages/ABE.php" target="_blank" class="link-button" style="background-color:#34495e;">Ouvrir ABE</a>
+            <a href="https://cncasc-app.fr/pages/ABEL.php" target="_blank" class="link-button" style="background-color:#7f8c8d;">Ouvrir ABEL</a>
+            <a href="https://cncasc-app.fr/pages/pelicandrome.php" target="_blank" class="link-button" style="background-color:#16a085;">Ouvrir Pélicandromes</a>
         </div>
-        <p id="abe-dispo-status" class="abe-dispo-status">Dispo avions non chargée.</p>
+        <p id="abe-dispo-status" class="abe-dispo-status">Données CNCASC non chargées.</p>
         <div id="abe-dispo-display" class="abe-dispo-panel" style="display: none;"></div>
     </div>
     
@@ -1143,7 +1207,7 @@
     <footer>Données : Météo-France, SIA, Windy.com, CheckWX.com. Page non commerciale, à usage personnel.</footer>
     
     <script>
-        const APP_VERSION = "3.14 TEST PWA TDF 2026";
+        const APP_VERSION = "3.15 TEST PWA TDF 2026";
 
         // --- Clé API pour la source de données météo ---
         const CHECKWX_API_KEY = "b8071d79ae4a482491114af48c9c0246";
@@ -1357,8 +1421,8 @@ const tdfStages = [
         }
 
 
-        // --- DISPO ABE CNCASC VIA NAS ---
-        const ABE_DISPO_API_URL = 'https://grisonb.synology.me/briefing-api/dispo-abe.php';
+        // --- DISPO CNCASC VIA NAS : ABE + ABEL + PELICANDROMES ---
+        const CNCASC_DISPO_API_URL = 'https://grisonb.synology.me/briefing-api/dispo-cncasc.php';
 
         function escapeHtml_(value) {
             return String(value ?? '').replace(/[&<>"']/g, (char) => ({
@@ -1378,6 +1442,16 @@ const tdfStages = [
             return 'abe-status-other';
         }
 
+        function pelicStatusClass_(statut) {
+            const normalized = String(statut || '').toLowerCase();
+            if (normalized === 'arme') return 'pelic-statut-arme';
+            if (normalized === 'activable_30min') return 'pelic-statut-30';
+            if (normalized === 'activable_1h') return 'pelic-statut-1h';
+            if (normalized === 'actif_eau') return 'pelic-statut-eau';
+            if (normalized === 'indispo') return 'pelic-statut-indispo';
+            return '';
+        }
+
         function formatAbeDate_(isoDate) {
             if (!isoDate) return '';
             const date = new Date(isoDate);
@@ -1391,25 +1465,15 @@ const tdfStages = [
             });
         }
 
-        function renderAbeDispo_(data) {
-            const display = document.getElementById('abe-dispo-display');
-            const status = document.getElementById('abe-dispo-status');
-            if (!display || !status) return;
-
-            if (!data || !data.ok || !Array.isArray(data.fleets)) {
-                status.textContent = 'Données dispo avions invalides.';
-                display.style.display = 'none';
-                return;
-            }
-
-            const summaryHtml = data.fleets.map((fleet) => `
+        function renderAircraftFleets_(fleets) {
+            const summaryHtml = fleets.map((fleet) => `
                 <div class="abe-fleet-card">
                     <strong>${escapeHtml_(fleet.name)}</strong>
                     <span>${escapeHtml_(fleet.available)} / ${escapeHtml_(fleet.total)}</span>
                 </div>
             `).join('');
 
-            const fleetsHtml = data.fleets.map((fleet) => {
+            const fleetsHtml = fleets.map((fleet) => {
                 const rows = (fleet.aircraft || []).map((aircraft) => {
                     const st = String(aircraft.status || '').toUpperCase();
                     const hasObs = String(aircraft.obs || '').trim() !== '';
@@ -1440,13 +1504,95 @@ const tdfStages = [
                 `;
             }).join('');
 
-            display.innerHTML = `
+            return `
+                <h3 style="text-align:center; color:#2c3e50;">Disponibilité avions</h3>
                 <div class="abe-dispo-summary">${summaryHtml}</div>
                 ${fleetsHtml}
             `;
+        }
+
+        function renderPelicandromes_(pelicandromes) {
+            if (!pelicandromes || !Array.isArray(pelicandromes.zones)) {
+                return '';
+            }
+
+            const conso = pelicandromes.conso && pelicandromes.conso.label
+                ? `<p style="text-align:center; font-weight:700;">${escapeHtml_(pelicandromes.conso.label)}</p>`
+                : '';
+
+            const counts = pelicandromes.counts || {};
+            const countsHtml = Object.keys(counts).map((label) => `
+                <div class="abe-fleet-card">
+                    <strong>${escapeHtml_(label)}</strong>
+                    <span>${escapeHtml_(counts[label])}</span>
+                </div>
+            `).join('');
+
+            const zonesHtml = pelicandromes.zones.map((zone) => {
+                const rows = (zone.items || []).map((item) => {
+                    const hasObs = String(item.observation || '').trim() !== '';
+                    const alertRow = item.commande || hasObs || String(item.statut || '').toLowerCase() === 'indispo' ? ' pelic-row-alert' : '';
+                    const niveau = item.capacite === null || item.capacite === undefined || item.capacite === ''
+                        ? `${escapeHtml_(item.niveau ?? '')} t`
+                        : `${escapeHtml_(item.niveau ?? '')} / ${escapeHtml_(item.capacite)} t`;
+                    return `
+                        <tr class="${alertRow.trim()}">
+                            <td><strong>${escapeHtml_(item.name)}</strong></td>
+                            <td>${escapeHtml_(item.oaci)}</td>
+                            <td><span class="pelic-statut-pill ${pelicStatusClass_(item.statut)}">${escapeHtml_(item.statutLabel || item.statut)}</span></td>
+                            <td>${niveau}</td>
+                            <td>${item.commande ? 'Oui' : ''}</td>
+                            <td>${escapeHtml_(item.observation || '')}</td>
+                        </tr>
+                    `;
+                }).join('');
+
+                return `
+                    <div class="pelic-zone-block">
+                        <div class="pelic-zone-title">${escapeHtml_(zone.name)}</div>
+                        <table class="pelic-table">
+                            <thead>
+                                <tr>
+                                    <th>Nom</th>
+                                    <th>OACI</th>
+                                    <th>Statut</th>
+                                    <th>Niveau</th>
+                                    <th>Commande</th>
+                                    <th>Observation</th>
+                                </tr>
+                            </thead>
+                            <tbody>${rows}</tbody>
+                        </table>
+                    </div>
+                `;
+            }).join('');
+
+            return `
+                <h3 class="pelic-section-title">Pélicandromes</h3>
+                ${conso}
+                <div class="abe-dispo-summary">${countsHtml}</div>
+                ${zonesHtml}
+            `;
+        }
+
+        function renderAbeDispo_(data) {
+            const display = document.getElementById('abe-dispo-display');
+            const status = document.getElementById('abe-dispo-status');
+            if (!display || !status) return;
+
+            if (!data || !data.ok || !Array.isArray(data.fleets)) {
+                status.textContent = 'Données CNCASC invalides.';
+                display.style.display = 'none';
+                return;
+            }
+
+            display.innerHTML = `
+                ${renderAircraftFleets_(data.fleets)}
+                ${renderPelicandromes_(data.pelicandromes)}
+            `;
 
             display.style.display = 'block';
-            status.textContent = `Dispo avions actualisée : ${formatAbeDate_(data.updatedAt)}`;
+            status.textContent = `Données CNCASC actualisées : ${formatAbeDate_(data.updatedAt)}`;
         }
 
         async function fetchAbeDispo_() {
@@ -1455,9 +1601,9 @@ const tdfStages = [
 
             try {
                 if (refreshBtn) refreshBtn.disabled = true;
-                if (status) status.textContent = 'Chargement dispo avions CNCASC...';
+                if (status) status.textContent = 'Chargement données CNCASC...';
 
-                const response = await fetch(ABE_DISPO_API_URL, { cache: 'no-store' });
+                const response = await fetch(CNCASC_DISPO_API_URL, { cache: 'no-store' });
                 const payload = await response.json().catch(() => null);
 
                 if (!response.ok || !payload || payload.ok === false) {
@@ -1468,7 +1614,7 @@ const tdfStages = [
                 renderAbeDispo_(payload);
             } catch (error) {
                 console.error(error);
-                if (status) status.textContent = `Erreur chargement dispo avions : ${error.message}`;
+                if (status) status.textContent = `Erreur chargement CNCASC : ${error.message}`;
             } finally {
                 if (refreshBtn) refreshBtn.disabled = false;
             }
@@ -1484,7 +1630,7 @@ const tdfStages = [
             fetchAbeDispo_();
         }
 
-
+        
         // --- CORE INITIALIZATION ---
         let pdfJsWaitAttempts = 0;
         function waitForPdfJsAndInitialize() {
