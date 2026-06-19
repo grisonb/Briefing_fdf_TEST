@@ -1,4 +1,4 @@
-const CACHE_NAME = 'briefing-fdf-test-v3.23-import-auto-notams-nas';
+const CACHE_NAME = 'briefing-fdf-test-v3.24-import-auto-notams-pdf';
 
 const LOCAL_ASSETS = [
   './manifest.json',
