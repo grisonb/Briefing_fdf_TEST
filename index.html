@@ -6,8 +6,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0">
     <title>Briefing Fdf TEST</title>
-    <link rel="manifest" href="./manifest.json?v=3.29">
-    <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png?v=3.29">
+    <link rel="manifest" href="./manifest.json?v=3.30">
+    <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png?v=3.30">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-title" content="Briefing TEST">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
@@ -302,9 +302,16 @@
         }
         
         .carte-container iframe { width: 100%; height: 100%; border: none; }
+        .carte-container .temsi-image-offline {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            display: block;
+            background: #fff;
+        }
         
-        #temsi-frame {
-            transform: scale(1.25) translate(8%, 8%);
+        #temsi-image {
+            transform: scale(1.12);
             transform-origin: center;
         }
 
@@ -1276,7 +1283,7 @@
         <h1 id="main-title">Briefing Fdf TEST</h1>
         <p id="current-time-display"></p>
         <p style="position: relative; z-index: 2; text-align: center; color: #333; font-size: 1em; margin-top: -25px; margin-bottom: 30px;">
-    v<span id="app-version">3.29 TEST PWA TDF 2026 NOTAM AUTO COMPLET</span>
+    v<span id="app-version">3.30 TEST PWA TDF 2026 NOTAM AUTO COMPLET</span>
     <button id="force-update-btn" class="link-button" style="background-color: #34495e; padding: 4px 10px; font-size: 0.8em; margin-left: 10px; vertical-align: middle;">
         Forcer MAJ
     </button>
@@ -1306,7 +1313,7 @@
     <div id="session-help-tooltip" class="help-tooltip" style="display: none;">
         <h4>Aide : sauvegarde et partage du briefing</h4>
         <ol>
-            <li><strong>Sauvegarder :</strong> crée une sauvegarde locale du briefing sur l'iPad.</li>
+            <li><strong>Sauvegarder :</strong> crée une sauvegarde locale du briefing sur l'iPad, avec les dernières données CNCASC/Pélicandromes et la TEMSI affichée si disponibles.</li>
             <li><strong>Restaurer :</strong> recharge la sauvegarde locale en cas de problème d'affichage ou de chargement automatique.</li>
             <li><strong>Partager :</strong> génère un code permettant d'ouvrir ce briefing sur un autre appareil.</li>
             <li><strong>Effacer :</strong> efface le briefing affiché ainsi que la sauvegarde locale.</li>
@@ -1401,7 +1408,7 @@
         </div>
     </div>
     
-    <div class="map-section" id="temsi-section"><h2>Carte TEMSI France</h2><div class="controles"><label for="temsi-select">Choisir une échéance :</label><select id="temsi-select"></select></div><p class="info-carte" id="temsi-info-carte">Chargement...</p><div class="carte-container"><iframe id="temsi-frame" title="Carte SIGWX France"></iframe></div></div>
+    <div class="map-section" id="temsi-section"><h2>Carte TEMSI France</h2><div class="controles"><label for="temsi-select">Choisir une échéance :</label><select id="temsi-select"></select></div><p class="info-carte" id="temsi-info-carte">Chargement...</p><div class="carte-container"><img id="temsi-image" class="temsi-image-offline" alt="Carte SIGWX France"></div></div>
     
     <div class="map-section" id="windy-section">
         <h2>WINDY</h2>
@@ -1581,7 +1588,7 @@
     <footer>Données : Météo-France, SIA, Windy.com, CheckWX.com. Page non commerciale, à usage personnel.</footer>
     
     <script>
-        const APP_VERSION = "3.29 TEST PWA TDF 2026 NOTAM AUTO COMPLET";
+        const APP_VERSION = "3.30 TEST PWA TDF 2026 NOTAM AUTO COMPLET";
 
         // --- Clé API pour la source de données météo ---
         const CHECKWX_API_KEY = "b8071d79ae4a482491114af48c9c0246";
@@ -2639,6 +2646,25 @@ const tdfStages = [
             pelicDisplay.innerHTML = `${buildPelicMap_(data.pelicandromes)}${renderPelicandromes_(data.pelicandromes)}`;
             pelicDisplay.style.display = 'block';
             pelicStatus.textContent = `Données pélicandromes actualisées : ${formatAbeDate_(data.updatedAt)}`;
+
+            try {
+                window.__lastCncascDispoPayload = JSON.parse(JSON.stringify(data));
+                window.__lastCncascDispoPayload.savedForOfflineAt = new Date().toISOString();
+            } catch (_) {
+                window.__lastCncascDispoPayload = data;
+            }
+        }
+
+        function restoreCncascOfflineData_(data, localSavedAt) {
+            if (!data || !data.ok) return false;
+            renderAbeDispo_(data);
+            const status = document.getElementById('abe-dispo-status');
+            const pelicStatus = document.getElementById('pelic-dispo-status');
+            const sourceDate = data.updatedAt || data.savedForOfflineAt || localSavedAt;
+            const suffix = sourceDate ? ` — dernière actualisation : ${formatAbeDate_(sourceDate)}` : '';
+            if (status) status.textContent = `Données CNCASC hors ligne restaurées${suffix}`;
+            if (pelicStatus) pelicStatus.textContent = `Données pélicandromes hors ligne restaurées${suffix}`;
+            return true;
         }
 
         async function fetchAbeDispo_() {
@@ -3265,8 +3291,10 @@ const tdfStages = [
         function initializeTemsi() {
              function populateTemsi() {
                 const select = document.getElementById('temsi-select');
-                const frame = document.getElementById('temsi-frame');
+                const image = document.getElementById('temsi-image');
                 const info = document.getElementById('temsi-info-carte');
+                if (!select || !image || !info) return;
+
                 select.innerHTML = '';
                 const echeances = [6, 9, 12, 15, 18, 21];
                 const now = new Date();
@@ -3298,11 +3326,83 @@ const tdfStages = [
                     select.appendChild(option);
                 }
                 const baseURL = 'https://aviation.meteo.fr/FR/aviation/affiche_image.php?login=fampsLSMuYmAdrAK4GqcZWRol2hoZHHd1uE%3D&layer=sigwx/fr/france&echeance=';
-                const update = e => { frame.src = baseURL + e; info.textContent = `Carte valide pour le ${e.substring(6,8)}/${e.substring(4,6)}/${e.substring(0,4)} à ${e.substring(8,10)}h00 UTC`; };
+                const update = e => {
+                    const src = baseURL + e;
+                    image.src = src;
+                    const label = `Carte valide pour le ${e.substring(6,8)}/${e.substring(4,6)}/${e.substring(0,4)} à ${e.substring(8,10)}h00 UTC`;
+                    info.textContent = label;
+                    window.__lastTemsiState = {
+                        src,
+                        echeance: e,
+                        label,
+                        selectedLabel: select.selectedOptions && select.selectedOptions[0] ? select.selectedOptions[0].textContent : '',
+                        updatedAt: new Date().toISOString()
+                    };
+                };
                 select.addEventListener('change', e => update(e.target.value));
                 update(initialEcheance);
             }
             populateTemsi();
+        }
+
+        function collectTemsiOfflineState_() {
+            const select = document.getElementById('temsi-select');
+            const image = document.getElementById('temsi-image');
+            const info = document.getElementById('temsi-info-carte');
+            const src = image ? image.src : '';
+            const echeance = select ? select.value : '';
+            if (!src) return null;
+            return {
+                src,
+                echeance,
+                label: info ? info.textContent : '',
+                selectedLabel: select && select.selectedOptions && select.selectedOptions[0] ? select.selectedOptions[0].textContent : '',
+                savedAt: new Date().toISOString()
+            };
+        }
+
+        async function cacheTemsiForOffline_() {
+            const state = collectTemsiOfflineState_();
+            if (!state || !state.src) return state;
+
+            if (!('caches' in window)) {
+                return { ...state, cached: false, cacheError: 'CacheStorage indisponible' };
+            }
+
+            try {
+                const cache = await caches.open('briefing-fdf-temsi-offline-v1');
+                const request = new Request(state.src, { mode: 'no-cors', cache: 'reload' });
+                const response = await fetch(request);
+                await cache.put(state.src, response.clone());
+                return { ...state, cached: true, cachedAt: new Date().toISOString() };
+            } catch (error) {
+                console.warn('TEMSI non mise en cache hors ligne :', error);
+                return { ...state, cached: false, cacheError: error.message || String(error) };
+            }
+        }
+
+        function restoreTemsiOfflineState_(state) {
+            if (!state || !state.src) return;
+            const select = document.getElementById('temsi-select');
+            const image = document.getElementById('temsi-image');
+            const info = document.getElementById('temsi-info-carte');
+            if (!image || !info) return;
+
+            if (select && state.echeance) {
+                let option = Array.from(select.options).find(opt => opt.value === state.echeance);
+                if (!option) {
+                    option = document.createElement('option');
+                    option.value = state.echeance;
+                    option.textContent = state.selectedLabel || `TEMSI sauvegardée ${state.echeance}`;
+                    select.appendChild(option);
+                }
+                select.value = state.echeance;
+            }
+
+            image.src = state.src;
+            const savedText = state.savedAt ? ` — sauvegardée le ${formatAbeDate_(state.savedAt)}` : '';
+            info.textContent = `TEMSI hors ligne restaurée${savedText}. ${state.label || ''}`.trim();
+            window.__lastTemsiState = { ...state, restoredAt: new Date().toISOString() };
         }
 
         function createInteractivePdfHandler(viewerContainer, file, callback, initialScale = 1.5) {
@@ -4233,7 +4333,12 @@ let activeShareApiBase = SHARE_API_BASE;
                 notamText: portableSnapshot.notamTextFull || portableSnapshot.notamText || document.getElementById('notam-input')?.value || "",
                 notamState: portableSnapshot.notamState || window.__lastNotamState || null,
 
-                weatherData: window.collectWeatherData ? window.collectWeatherData() : null
+                weatherData: window.collectWeatherData ? window.collectWeatherData() : null,
+
+                // v3.30 : données hors ligne locales uniquement.
+                // Non inclus dans le partage distant volontairement.
+                cncascDispo: window.__lastCncascDispoPayload || null,
+                temsiState: await cacheTemsiForOffline_()
             };
 
             const tx = localDb.transaction([storeName], 'readwrite');
@@ -4584,6 +4689,14 @@ let activeShareApiBase = SHARE_API_BASE;
                 container.dataset.loaded = 'true';
             });
             checkWeatherValidity();
+        }
+
+        if (data.cncascDispo) {
+            restoreCncascOfflineData_(data.cncascDispo, data.savedAt);
+        }
+
+        if (data.temsiState) {
+            restoreTemsiOfflineState_(data.temsiState);
         }
 
         sessionStatus.textContent = `Session restaurée (du ${new Date(data.savedAt).toLocaleString('fr-FR')})`;
