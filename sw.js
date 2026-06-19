@@ -1,4 +1,4 @@
-const CACHE_NAME = 'briefing-fdf-test-v3.30-hors-ligne-cncasc-temsi';
+const CACHE_NAME = 'briefing-fdf-test-v3.31-reconnexion-verrouiller-rouge';
 
 const LOCAL_ASSETS = [
   './manifest.json',
