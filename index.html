@@ -6,8 +6,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0">
     <title>Briefing Fdf TEST</title>
-    <link rel="manifest" href="./manifest.json?v=3.28">
-    <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png?v=3.28">
+    <link rel="manifest" href="./manifest.json?v=3.29">
+    <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png?v=3.29">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-title" content="Briefing TEST">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
@@ -1276,7 +1276,7 @@
         <h1 id="main-title">Briefing Fdf TEST</h1>
         <p id="current-time-display"></p>
         <p style="position: relative; z-index: 2; text-align: center; color: #333; font-size: 1em; margin-top: -25px; margin-bottom: 30px;">
-    v<span id="app-version">3.28 TEST PWA TDF 2026 NOTAM AUTO COMPLET</span>
+    v<span id="app-version">3.29 TEST PWA TDF 2026 NOTAM AUTO COMPLET</span>
     <button id="force-update-btn" class="link-button" style="background-color: #34495e; padding: 4px 10px; font-size: 0.8em; margin-left: 10px; vertical-align: middle;">
         Forcer MAJ
     </button>
@@ -1308,21 +1308,12 @@
         <ol>
             <li><strong>Sauvegarder :</strong> crée une sauvegarde locale du briefing sur l'iPad.</li>
             <li><strong>Restaurer :</strong> recharge la sauvegarde locale en cas de problème d'affichage ou de chargement automatique.</li>
-            <li><strong>Partager :</strong> ouvre une fenêtre permettant de partager le lien du briefing ou un QR code avec les autres utilisateurs.</li>
+            <li><strong>Partager :</strong> génère un code permettant d'ouvrir ce briefing sur un autre appareil.</li>
             <li><strong>Effacer :</strong> efface le briefing affiché ainsi que la sauvegarde locale.</li>
             <li><strong>CNCASC :</strong> permet de se connecter au site CNCASC afin d'ouvrir ensuite Dispo Avions, Pélicandromes, etc. La session reste active environ 20 minutes.</li>
         </ol>
     </div>
-    <div id="share-result">
-        <label for="share-link-input" style="font-weight: bold; display: block; margin-bottom: 6px;">Code de partage</label>
-        <input id="share-link-input" type="text" readonly style="text-align: center; font-weight: bold; letter-spacing: 1px;">
-        <button id="copy-share-link-btn" class="link-button" style="background-color: #16a085; margin-top: 10px;">Copier le code</button>
-        <div>
-            <img id="share-qr-image" alt="QR code du code de partage">
-        </div>
-    </div>
-
-    <div id="shared-code-loader" style="margin-top: 14px; padding-top: 12px; border-top: 1px solid #ddd;">
+    <div id="shared-code-loader" style="margin-top: 10px; padding-top: 0;">
         <label for="shared-code-input" style="font-weight: bold; display: block; margin-bottom: 6px;">Ouvrir un briefing partagé</label>
         <input id="shared-code-input" type="text" placeholder="BFG-JJMM-01" inputmode="numeric" autocomplete="off" autocapitalize="characters" style="text-align: center; font-weight: bold; letter-spacing: 1px; max-width: 180px;">
         <button id="open-shared-code-btn" class="link-button" style="background-color: #34495e; margin-top: 10px;">Ouvrir</button>
@@ -1590,7 +1581,7 @@
     <footer>Données : Météo-France, SIA, Windy.com, CheckWX.com. Page non commerciale, à usage personnel.</footer>
     
     <script>
-        const APP_VERSION = "3.28 TEST PWA TDF 2026 NOTAM AUTO COMPLET";
+        const APP_VERSION = "3.29 TEST PWA TDF 2026 NOTAM AUTO COMPLET";
 
         // --- Clé API pour la source de données météo ---
         const CHECKWX_API_KEY = "b8071d79ae4a482491114af48c9c0246";
