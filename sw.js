@@ -1,4 +1,4 @@
-const CACHE_NAME = 'briefing-fdf-test-v3.28-sauvegarde-supprimee';
+const CACHE_NAME = 'briefing-fdf-test-v3.29-partage-sans-qr';
 
 const LOCAL_ASSETS = [
   './manifest.json',
