@@ -1,4 +1,4 @@
-const CACHE_NAME = 'briefing-fdf-test-v3.18-dispo-pelic-carte-tableaux';
+const CACHE_NAME = 'briefing-fdf-test-v3.19-carte-france-obs-clignote';
 
 const LOCAL_ASSETS = [
   './manifest.json',
