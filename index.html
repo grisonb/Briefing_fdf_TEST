@@ -1241,6 +1241,13 @@
         #notam-auto-import-status.warning {
             color: #856404;
         }
+        .notam-auto-import-timestamp {
+            display: block;
+            margin-top: 4px;
+            font-size: 0.95em;
+            font-weight: 800;
+            color: #1f618d;
+        }
 
     </style>
 </head>
@@ -1269,7 +1276,7 @@
         <h1 id="main-title">Briefing Fdf TEST</h1>
         <p id="current-time-display"></p>
         <p style="position: relative; z-index: 2; text-align: center; color: #333; font-size: 1em; margin-top: -25px; margin-bottom: 30px;">
-    v<span id="app-version">3.25 TEST PWA TDF 2026 NOTAM AUTO COMPLET</span>
+    v<span id="app-version">3.26 TEST PWA TDF 2026 NOTAM AUTO COMPLET</span>
     <button id="force-update-btn" class="link-button" style="background-color: #34495e; padding: 4px 10px; font-size: 0.8em; margin-left: 10px; vertical-align: middle;">
         Forcer MAJ
     </button>
@@ -1442,7 +1449,7 @@
         <h2>Importation NOTAMs</h2>
         <div class="pdf-controls">
             <span id="nats-help-icon" class="help-icon" title="Comment utiliser NATS ?">?</span>
-            <button id="notam-auto-import-btn" class="link-button" style="background-color: #16a085;">Importation Auto</button>
+            <button id="notam-auto-import-btn" type="button" class="link-button" style="background-color: #16a085;">Importation Auto</button>
             <a href="https://nats-uk.ead-it.com/fwf-nats/restricted/user/ino/brief_aerodrome.faces?menuId=C920E9BB76441A9AE05341741DC25BDD" target="_blank" class="link-button" style="background-color: #8e44ad;">Accéder au Briefing NATS</a>
             <button id="pdf-load-notam-btn" class="link-button" style="background-color: #2c3e50;">Importation manuelle</button>
             <input type="file" id="pdf-input-notam" accept="application/pdf">
@@ -1583,7 +1590,7 @@
     <footer>Données : Météo-France, SIA, Windy.com, CheckWX.com. Page non commerciale, à usage personnel.</footer>
     
     <script>
-        const APP_VERSION = "3.25 TEST PWA TDF 2026 NOTAM AUTO COMPLET";
+        const APP_VERSION = "3.26 TEST PWA TDF 2026 NOTAM AUTO COMPLET";
 
         // --- Clé API pour la source de données météo ---
         const CHECKWX_API_KEY = "b8071d79ae4a482491114af48c9c0246";
@@ -1958,6 +1965,78 @@ const tdfStages = [
             return new Promise(resolve => setTimeout(resolve, ms));
         }
 
+        function restoreNotamAutoScroll_(scrollTop) {
+            if (!Number.isFinite(scrollTop)) return;
+
+            const restore = () => {
+                try {
+                    window.scrollTo({ top: scrollTop, left: 0, behavior: 'auto' });
+                } catch (error) {
+                    window.scrollTo(0, scrollTop);
+                }
+            };
+
+            restore();
+            setTimeout(restore, 0);
+            setTimeout(restore, 250);
+        }
+
+        function extractNotamsPdfTimestampIso_(generationStatusPayload) {
+            const outputTail = String((generationStatusPayload && generationStatusPayload.outputTail) || '');
+            const fileMatch = outputTail.match(/PDF horodat[ée] cr[ée][ée]\s*:\s*nats-pib-auto-(\d{8})-(\d{6})\.pdf/i);
+
+            if (fileMatch) {
+                const datePart = fileMatch[1];
+                const timePart = fileMatch[2];
+                const year = Number(datePart.slice(0, 4));
+                const month = Number(datePart.slice(4, 6));
+                const day = Number(datePart.slice(6, 8));
+                const hour = Number(timePart.slice(0, 2));
+                const minute = Number(timePart.slice(2, 4));
+                const second = Number(timePart.slice(4, 6));
+
+                if ([year, month, day, hour, minute, second].every(Number.isFinite)) {
+                    return new Date(Date.UTC(year, month - 1, day, hour, minute, second)).toISOString();
+                }
+            }
+
+            return (generationStatusPayload && (
+                generationStatusPayload.pdfUpdatedAt ||
+                generationStatusPayload.finishedAt ||
+                generationStatusPayload.updatedAt ||
+                generationStatusPayload.startedAt
+            )) || '';
+        }
+
+        function formatNotamsAutoPdfTimestamp_(generationStatusPayload) {
+            const iso = extractNotamsPdfTimestampIso_(generationStatusPayload);
+            if (!iso) return '';
+
+            const date = new Date(iso);
+            if (Number.isNaN(date.getTime())) return '';
+
+            return `PDF créé le ${date.toLocaleDateString('fr-FR')} à ${date.toLocaleTimeString('fr-FR', {
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit'
+            })}`;
+        }
+
+        function setNotamsAutoStatus_(statusElement, message, options = {}) {
+            if (!statusElement) return;
+
+            const timestampText = options.timestampText || '';
+            const warning = Boolean(options.warning);
+
+            if (timestampText) {
+                statusElement.innerHTML = `${escapeHtml_(message)}<span class="notam-auto-import-timestamp">${escapeHtml_(timestampText)}</span>`;
+            } else {
+                statusElement.textContent = message;
+            }
+
+            statusElement.classList.toggle('warning', warning);
+        }
+
         async function readJsonResponse_(response, fallbackMessage) {
             const contentType = response.headers.get('content-type') || '';
             const rawText = await response.text();
@@ -2109,7 +2188,15 @@ const tdfStages = [
             });
         }
 
-        async function importAutomaticNotamsFromNas_() {
+        async function importAutomaticNotamsFromNas_(event) {
+            if (event) {
+                event.preventDefault();
+                event.stopPropagation();
+            }
+
+            const scrollTopBeforeAutoImport = window.pageYOffset || document.documentElement.scrollTop || document.body.scrollTop || 0;
+            restoreNotamAutoScroll_(scrollTopBeforeAutoImport);
+
             const status = document.getElementById('notam-auto-import-status');
             const button = document.getElementById('notam-auto-import-btn');
             const info = document.getElementById('pdf-info-notam');
@@ -2118,29 +2205,24 @@ const tdfStages = [
             const tokenInfo = getStoredCncascToken_();
 
             if (!tokenInfo) {
-                if (status) {
-                    status.textContent = "Accès NOTAMs verrouillé : déverrouiller d'abord l'accès CNCASC.";
-                    status.classList.add('warning');
-                }
+                setNotamsAutoStatus_(status, "Accès NOTAMs verrouillé : déverrouiller d'abord l'accès CNCASC.", { warning: true });
                 return;
             }
 
             try {
                 if (button) button.disabled = true;
 
-                if (status) {
-                    status.textContent = 'Demande de génération NOTAM envoyée au NAS...';
-                    status.classList.remove('warning');
-                }
+                setNotamsAutoStatus_(status, 'Demande de génération NOTAM envoyée au NAS...');
+                restoreNotamAutoScroll_(scrollTopBeforeAutoImport);
 
                 const requestPayload = await requestNotamsGeneration_(tokenInfo.token);
 
-                if (status) {
-                    status.textContent = `Demande ${requestPayload.requestId} enregistrée. Attente du PC worker...`;
-                    status.classList.remove('warning');
-                }
+                setNotamsAutoStatus_(status, `Demande ${requestPayload.requestId} enregistrée. Attente du PC worker...`);
+                restoreNotamAutoScroll_(scrollTopBeforeAutoImport);
 
-                await waitForNotamsGeneration_(requestPayload.requestId, tokenInfo.token, status);
+                const generationStatusPayload = await waitForNotamsGeneration_(requestPayload.requestId, tokenInfo.token, status);
+                const pdfTimestampText = formatNotamsAutoPdfTimestamp_(generationStatusPayload);
+                restoreNotamAutoScroll_(scrollTopBeforeAutoImport);
 
                 const pdfFile = await fetchLatestNotamsPdfFromNas_(tokenInfo.token);
 
@@ -2150,26 +2232,25 @@ const tdfStages = [
 
                 const pdfInfoElement = info || document.createElement('p');
 
-                if (status) {
-                    status.textContent = 'Nouveau PDF NOTAM reçu. Extraction du texte en cours...';
-                    status.classList.remove('warning');
-                }
+                setNotamsAutoStatus_(status, 'Nouveau PDF NOTAM reçu. Extraction du texte en cours...', { timestampText: pdfTimestampText });
+                restoreNotamAutoScroll_(scrollTopBeforeAutoImport);
 
                 await extractTextFromPdf(pdfFile, pdfInfoElement);
 
                 if (status) {
                     const count = document.querySelectorAll('#notam-display .notam-item').length;
-                    status.textContent = `Importation automatique terminée : ${count} NOTAM(s) affiché(s).`;
-                    status.classList.remove('warning');
+                    setNotamsAutoStatus_(status, `Importation automatique terminée : ${count} NOTAM(s) affiché(s).`, {
+                        timestampText: pdfTimestampText
+                    });
                 }
+
+                restoreNotamAutoScroll_(scrollTopBeforeAutoImport);
             } catch (error) {
                 console.error('Erreur import auto NOTAMs:', error);
 
-                if (status) {
-                    status.textContent = `Importation automatique impossible : ${error.message || error}`;
-                    status.classList.add('warning');
-                }
+                setNotamsAutoStatus_(status, `Importation automatique impossible : ${error.message || error}`, { warning: true });
             } finally {
+                restoreNotamAutoScroll_(scrollTopBeforeAutoImport);
                 if (button) button.disabled = false;
             }
         }
@@ -3675,7 +3756,7 @@ const tdfStages = [
             const notamAutoImportStatus = document.getElementById('notam-auto-import-status');
 
             if (notamAutoImportBtn) {
-                notamAutoImportBtn.addEventListener('click', importAutomaticNotamsFromNas_);
+                notamAutoImportBtn.addEventListener('click', (event) => importAutomaticNotamsFromNas_(event));
             }
 
             document.getElementById('pdf-load-notam-btn').addEventListener('click', () => document.getElementById('pdf-input-notam').click());
