@@ -6,8 +6,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0">
     <title>Briefing Fdf TEST</title>
-    <link rel="manifest" href="./manifest.json?v=3.38">
-    <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png?v=3.38">
+    <link rel="manifest" href="./manifest.json?v=3.39">
+    <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png?v=3.39">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-title" content="Briefing TEST">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
@@ -328,18 +328,21 @@
             background: #ffffff;
             -webkit-overflow-scrolling: touch;
         }
-        .risk-map-zoom-inner {
-            width: 150%;
-            height: 117vh;
-            min-height: 117vh;
+        .risk-map-pages {
+            padding: 12px;
+            min-width: max-content;
         }
-        .risk-map-frame {
-            width: 100%;
-            height: 100%;
-            min-height: 117vh;
-            border: 0;
+        .risk-map-pages canvas {
             display: block;
+            margin: 0 auto 14px auto;
             background: #ffffff;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.18);
+        }
+        .risk-map-loading {
+            padding: 24px;
+            text-align: center;
+            font-weight: 700;
+            color: #555;
         }
         .risk-map-status {
             text-align: center;
@@ -1338,7 +1341,7 @@
         <h1 id="main-title">Briefing Fdf TEST</h1>
         <p id="current-time-display"></p>
         <p style="position: relative; z-index: 2; text-align: center; color: #333; font-size: 1em; margin-top: -25px; margin-bottom: 30px;">
-    v<span id="app-version">3.38 TEST cartes risques NAS zoom 150 réel</span>
+    v<span id="app-version">3.39 TEST cartes risques PDF.js zoom 150</span>
     <button id="force-update-btn" class="link-button" style="background-color: #34495e; padding: 4px 10px; font-size: 0.8em; margin-left: 10px; vertical-align: middle;">
         Forcer MAJ
     </button>
@@ -1469,16 +1472,16 @@
             <div class="risk-map-card">
                 <h3>National</h3>
                 <div class="risk-map-viewport">
-                    <div class="risk-map-zoom-inner">
-                        <iframe id="risk-map-national-frame" class="risk-map-frame" title="Carte des risques National"></iframe>
+                    <div id="risk-map-national-pages" class="risk-map-pages">
+                        <p class="risk-map-loading">Chargement carte National...</p>
                     </div>
                 </div>
             </div>
             <div class="risk-map-card">
                 <h3>Zone Sud</h3>
                 <div class="risk-map-viewport">
-                    <div class="risk-map-zoom-inner">
-                        <iframe id="risk-map-zonesud-frame" class="risk-map-frame" title="Carte des risques Zone Sud"></iframe>
+                    <div id="risk-map-zonesud-pages" class="risk-map-pages">
+                        <p class="risk-map-loading">Chargement carte Zone Sud...</p>
                     </div>
                 </div>
             </div>
@@ -1665,7 +1668,7 @@
     <footer>Données : Météo-France, SIA, Windy.com, CheckWX.com. Page non commerciale, à usage personnel.</footer>
     
     <script>
-        const APP_VERSION = "3.38 TEST cartes risques NAS zoom 150 réel";
+        const APP_VERSION = "3.39 TEST cartes risques PDF.js zoom 150";
 
         // --- Clé API pour la source de données météo ---
         const CHECKWX_API_KEY = "b8071d79ae4a482491114af48c9c0246";
@@ -2919,17 +2922,21 @@ const tdfStages = [
         setInterval(reloadBfgAfterOnlineReturn_, 5000);
 
 
+        const BFG_RISK_MAP_SCALE = 1.5;
+
         const BFG_RISK_MAPS = {
             national: {
                 label: 'National',
-                url: 'https://grisonb.synology.me/briefing-data/risk-maps/latest-risk-national.pdf',
-                frameId: 'risk-map-national-frame',
+                pdfUrl: 'https://grisonb.synology.me/briefing-api/get-risk-map-pdf.php?map=national',
+                openUrl: 'https://grisonb.synology.me/briefing-data/risk-maps/latest-risk-national.pdf',
+                pagesId: 'risk-map-national-pages',
                 openId: 'risk-map-national-open'
             },
             zonesud: {
                 label: 'Zone Sud',
-                url: 'https://grisonb.synology.me/briefing-data/risk-maps/latest-risk-zonesud.pdf',
-                frameId: 'risk-map-zonesud-frame',
+                pdfUrl: 'https://grisonb.synology.me/briefing-api/get-risk-map-pdf.php?map=zonesud',
+                openUrl: 'https://grisonb.synology.me/briefing-data/risk-maps/latest-risk-zonesud.pdf',
+                pagesId: 'risk-map-zonesud-pages',
                 openId: 'risk-map-zonesud-open'
             }
         };
@@ -2939,28 +2946,58 @@ const tdfStages = [
             if (status) status.textContent = message;
         }
 
-        function loadRiskMaps_() {
+        async function renderRiskMapPdf_(cfg, cacheBuster) {
+            const pagesContainer = document.getElementById(cfg.pagesId);
+            const openLink = document.getElementById(cfg.openId);
+            const pdfUrl = `${cfg.pdfUrl}&v=${cacheBuster}`;
+            const openUrl = `${cfg.openUrl}?v=${cacheBuster}#zoom=150`;
+
+            if (openLink) openLink.href = openUrl;
+
+            if (!pagesContainer) return;
+
+            pagesContainer.innerHTML = `<p class="risk-map-loading">Chargement ${cfg.label} à 150 %...</p>`;
+
+            if (!window.pdfjsLib) {
+                pagesContainer.innerHTML = `<p class="risk-map-loading">PDF.js indisponible. Utilisez le bouton Ouvrir ${cfg.label}.</p>`;
+                return;
+            }
+
+            const pdf = await pdfjsLib.getDocument({ url: pdfUrl }).promise;
+            pagesContainer.innerHTML = '';
+
+            for (let pageNumber = 1; pageNumber <= pdf.numPages; pageNumber++) {
+                const page = await pdf.getPage(pageNumber);
+                const viewport = page.getViewport({ scale: BFG_RISK_MAP_SCALE });
+                const canvas = document.createElement('canvas');
+                const context = canvas.getContext('2d');
+
+                canvas.width = Math.floor(viewport.width);
+                canvas.height = Math.floor(viewport.height);
+                canvas.style.width = `${Math.floor(viewport.width)}px`;
+                canvas.style.height = `${Math.floor(viewport.height)}px`;
+
+                pagesContainer.appendChild(canvas);
+                await page.render({ canvasContext: context, viewport }).promise;
+            }
+        }
+
+        async function loadRiskMaps_() {
             const loadedAt = new Date();
-            const cacheBuster = `v=${Date.now()}`;
+            const cacheBuster = Date.now();
 
-            Object.values(BFG_RISK_MAPS).forEach((cfg) => {
-                const frame = document.getElementById(cfg.frameId);
-                const openLink = document.getElementById(cfg.openId);
-                const fileUrl = `${cfg.url}?${cacheBuster}`;
+            setRiskMapsStatus_('Chargement des cartes des risques à 150 %...');
 
-                // Le lien externe garde l'indication de zoom pour les navigateurs qui la respectent.
-                if (openLink) openLink.href = `${fileUrl}#zoom=150`;
-
-                if (frame) {
-                    // Zoom réel dans BFG : l'iframe est placée dans un conteneur 150 % avec scroll.
-                    frame.src = 'about:blank';
-                    setTimeout(() => {
-                        frame.src = fileUrl;
-                    }, 80);
+            try {
+                for (const cfg of Object.values(BFG_RISK_MAPS)) {
+                    await renderRiskMapPdf_(cfg, cacheBuster);
                 }
-            });
 
-            setRiskMapsStatus_(`Cartes des risques chargées depuis le NAS — zoom affichage 150 % — ${loadedAt.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}`);
+                setRiskMapsStatus_(`Cartes des risques chargées depuis le NAS — rendu PDF.js 150 % — ${loadedAt.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}`);
+            } catch (error) {
+                console.error(error);
+                setRiskMapsStatus_('Erreur de chargement des cartes des risques. Utilisez les boutons Ouvrir.');
+            }
         }
 
         function initializeRiskMaps() {
