@@ -1,4 +1,4 @@
-const CACHE_NAME = 'briefing-fdf-test-v3.41-risk-maps-reader-height';
+const CACHE_NAME = 'briefing-fdf-test-v3.42-notams-worker-timeout90';
 
 const LOCAL_ASSETS = [
   './manifest.json',
