@@ -6,8 +6,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0">
     <title>Briefing Fdf TEST</title>
-    <link rel="manifest" href="./manifest.json?v=3.32">
-    <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png?v=3.32">
+    <link rel="manifest" href="./manifest.json?v=3.33">
+    <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png?v=3.33">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-title" content="Briefing TEST">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
@@ -1193,6 +1193,16 @@
             text-align: center;
             box-sizing: border-box;
         }
+        .cncasc-auth-panel.cncasc-connected {
+            background: #e9f8ef;
+            border-color: #b7e4c7;
+            border-left-color: #2ecc71;
+        }
+        .cncasc-auth-panel.cncasc-disconnected {
+            background: #fdecec;
+            border-color: #f5b7b1;
+            border-left-color: #e74c3c;
+        }
         .cncasc-auth-panel h3 {
             margin: 0 0 10px 0;
             color: #0a2c5a;
@@ -1283,7 +1293,7 @@
         <h1 id="main-title">Briefing Fdf TEST</h1>
         <p id="current-time-display"></p>
         <p style="position: relative; z-index: 2; text-align: center; color: #333; font-size: 1em; margin-top: -25px; margin-bottom: 30px;">
-    v<span id="app-version">3.32 TEST PWA TDF 2026 NOTAM AUTO COMPLET</span>
+    v<span id="app-version">3.33 TEST PWA TDF 2026 NOTAM AUTO COMPLET</span>
     <button id="force-update-btn" class="link-button" style="background-color: #34495e; padding: 4px 10px; font-size: 0.8em; margin-left: 10px; vertical-align: middle;">
         Forcer MAJ
     </button>
@@ -1291,7 +1301,7 @@
     </div>
 
 
-    <div class="cncasc-auth-panel" id="cncasc-auth-panel">
+    <div class="cncasc-auth-panel cncasc-disconnected" id="cncasc-auth-panel">
         <h3>Accès données CNCASC</h3>
         <div class="cncasc-auth-row">
             <input id="cncasc-password-input" type="password" placeholder="Mot de passe CNCASC" autocomplete="current-password">
@@ -1356,6 +1366,7 @@
     <div class="map-section" id="pelicandromes-section">
         <h2>Pélicandromes</h2>
         <div class="controles" style="gap: 20px;">
+            <button id="pelic-refresh-btn" class="link-button" style="background-color:#2980b9;">Actualiser</button>
             <a href="https://cncasc-app.fr/pages/pelicandrome.php" target="_blank" class="link-button" style="background-color:#16a085;">Ouvrir CNCASC Pélicandromes</a>
         </div>
         <p id="pelic-dispo-status" class="abe-dispo-status">Données pélicandromes non chargées.</p>
@@ -1589,7 +1600,7 @@
     <footer>Données : Météo-France, SIA, Windy.com, CheckWX.com. Page non commerciale, à usage personnel.</footer>
     
     <script>
-        const APP_VERSION = "3.32 TEST PWA TDF 2026 NOTAM AUTO COMPLET";
+        const APP_VERSION = "3.33 TEST PWA TDF 2026 NOTAM AUTO COMPLET";
 
         // --- Clé API pour la source de données météo ---
         const CHECKWX_API_KEY = "b8071d79ae4a482491114af48c9c0246";
@@ -2268,8 +2279,14 @@ const tdfStages = [
         }
 
         function updateCncascAuthUi_() {
+            const panel = document.getElementById('cncasc-auth-panel');
             const status = document.getElementById('cncasc-auth-status');
             const tokenInfo = getStoredCncascToken_();
+
+            if (panel) {
+                panel.classList.toggle('cncasc-connected', !!tokenInfo);
+                panel.classList.toggle('cncasc-disconnected', !tokenInfo);
+            }
 
             if (!status) return;
 
@@ -2673,6 +2690,7 @@ const tdfStages = [
             const status = document.getElementById('abe-dispo-status');
             const pelicStatus = document.getElementById('pelic-dispo-status');
             const refreshBtn = document.getElementById('abe-refresh-btn');
+            const pelicRefreshBtn = document.getElementById('pelic-refresh-btn');
             const globalRefreshBtn = document.getElementById('cncasc-global-refresh-btn');
             const tokenInfo = getStoredCncascToken_();
 
@@ -2686,6 +2704,7 @@ const tdfStages = [
 
             try {
                 if (refreshBtn) refreshBtn.disabled = true;
+                if (pelicRefreshBtn) pelicRefreshBtn.disabled = true;
                 if (globalRefreshBtn) globalRefreshBtn.disabled = true;
                 if (status) status.textContent = 'Chargement données CNCASC...';
                 if (pelicStatus) pelicStatus.textContent = 'Chargement pélicandromes...';
@@ -2721,18 +2740,21 @@ const tdfStages = [
                 setCncascWarning_(message);
             } finally {
                 if (refreshBtn) refreshBtn.disabled = false;
+                if (pelicRefreshBtn) pelicRefreshBtn.disabled = false;
                 if (globalRefreshBtn) globalRefreshBtn.disabled = false;
             }
         }
 
         function initializeAbeDispo() {
             const refreshBtn = document.getElementById('abe-refresh-btn');
+            const pelicRefreshBtn = document.getElementById('pelic-refresh-btn');
             const globalRefreshBtn = document.getElementById('cncasc-global-refresh-btn');
             const unlockBtn = document.getElementById('cncasc-unlock-btn');
             const lockBtn = document.getElementById('cncasc-lock-btn');
             const passwordInput = document.getElementById('cncasc-password-input');
 
             if (refreshBtn) refreshBtn.addEventListener('click', fetchAbeDispo_);
+            if (pelicRefreshBtn) pelicRefreshBtn.addEventListener('click', fetchAbeDispo_);
             if (globalRefreshBtn) globalRefreshBtn.addEventListener('click', fetchAbeDispo_);
             if (unlockBtn) unlockBtn.addEventListener('click', unlockCncascAndSync_);
             if (lockBtn) {
