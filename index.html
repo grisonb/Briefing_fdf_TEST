@@ -6,8 +6,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0">
     <title>Briefing Fdf TEST</title>
-    <link rel="manifest" href="./manifest.json?v=3.37">
-    <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png?v=3.37">
+    <link rel="manifest" href="./manifest.json?v=3.38">
+    <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png?v=3.38">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-title" content="Briefing TEST">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
@@ -321,9 +321,22 @@
             border-bottom: 1px solid var(--border-color);
             text-align: center;
         }
-        .risk-map-frame {
+        .risk-map-viewport {
             width: 100%;
             height: 78vh;
+            overflow: auto;
+            background: #ffffff;
+            -webkit-overflow-scrolling: touch;
+        }
+        .risk-map-zoom-inner {
+            width: 150%;
+            height: 117vh;
+            min-height: 117vh;
+        }
+        .risk-map-frame {
+            width: 100%;
+            height: 100%;
+            min-height: 117vh;
             border: 0;
             display: block;
             background: #ffffff;
@@ -1325,7 +1338,7 @@
         <h1 id="main-title">Briefing Fdf TEST</h1>
         <p id="current-time-display"></p>
         <p style="position: relative; z-index: 2; text-align: center; color: #333; font-size: 1em; margin-top: -25px; margin-bottom: 30px;">
-    v<span id="app-version">3.37 TEST cartes risques NAS zoom 150</span>
+    v<span id="app-version">3.38 TEST cartes risques NAS zoom 150 réel</span>
     <button id="force-update-btn" class="link-button" style="background-color: #34495e; padding: 4px 10px; font-size: 0.8em; margin-left: 10px; vertical-align: middle;">
         Forcer MAJ
     </button>
@@ -1455,11 +1468,19 @@
         <div class="risk-maps-grid">
             <div class="risk-map-card">
                 <h3>National</h3>
-                <iframe id="risk-map-national-frame" class="risk-map-frame" title="Carte des risques National"></iframe>
+                <div class="risk-map-viewport">
+                    <div class="risk-map-zoom-inner">
+                        <iframe id="risk-map-national-frame" class="risk-map-frame" title="Carte des risques National"></iframe>
+                    </div>
+                </div>
             </div>
             <div class="risk-map-card">
                 <h3>Zone Sud</h3>
-                <iframe id="risk-map-zonesud-frame" class="risk-map-frame" title="Carte des risques Zone Sud"></iframe>
+                <div class="risk-map-viewport">
+                    <div class="risk-map-zoom-inner">
+                        <iframe id="risk-map-zonesud-frame" class="risk-map-frame" title="Carte des risques Zone Sud"></iframe>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -1644,7 +1665,7 @@
     <footer>Données : Météo-France, SIA, Windy.com, CheckWX.com. Page non commerciale, à usage personnel.</footer>
     
     <script>
-        const APP_VERSION = "3.37 TEST cartes risques NAS zoom 150";
+        const APP_VERSION = "3.38 TEST cartes risques NAS zoom 150 réel";
 
         // --- Clé API pour la source de données météo ---
         const CHECKWX_API_KEY = "b8071d79ae4a482491114af48c9c0246";
@@ -2921,25 +2942,25 @@ const tdfStages = [
         function loadRiskMaps_() {
             const loadedAt = new Date();
             const cacheBuster = `v=${Date.now()}`;
-            const zoomFragment = 'zoom=150';
 
             Object.values(BFG_RISK_MAPS).forEach((cfg) => {
                 const frame = document.getElementById(cfg.frameId);
                 const openLink = document.getElementById(cfg.openId);
-                const displayUrl = `${cfg.url}?${cacheBuster}#${zoomFragment}`;
+                const fileUrl = `${cfg.url}?${cacheBuster}`;
 
-                if (openLink) openLink.href = displayUrl;
+                // Le lien externe garde l'indication de zoom pour les navigateurs qui la respectent.
+                if (openLink) openLink.href = `${fileUrl}#zoom=150`;
 
                 if (frame) {
-                    // On vide l'iframe avant de remettre l'URL NAS avec anti-cache + zoom PDF 150%.
+                    // Zoom réel dans BFG : l'iframe est placée dans un conteneur 150 % avec scroll.
                     frame.src = 'about:blank';
                     setTimeout(() => {
-                        frame.src = displayUrl;
+                        frame.src = fileUrl;
                     }, 80);
                 }
             });
 
-            setRiskMapsStatus_(`Cartes des risques chargées depuis le NAS — zoom 150 % — ${loadedAt.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}`);
+            setRiskMapsStatus_(`Cartes des risques chargées depuis le NAS — zoom affichage 150 % — ${loadedAt.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}`);
         }
 
         function initializeRiskMaps() {
