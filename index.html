@@ -6,8 +6,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0">
     <title>Briefing Fdf TEST</title>
-    <link rel="manifest" href="./manifest.json?v=3.39">
-    <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png?v=3.39">
+    <link rel="manifest" href="./manifest.json?v=3.40">
+    <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png?v=3.40">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-title" content="Briefing TEST">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
@@ -1341,7 +1341,7 @@
         <h1 id="main-title">Briefing Fdf TEST</h1>
         <p id="current-time-display"></p>
         <p style="position: relative; z-index: 2; text-align: center; color: #333; font-size: 1em; margin-top: -25px; margin-bottom: 30px;">
-    v<span id="app-version">3.39 TEST cartes risques PDF.js zoom 150</span>
+    v<span id="app-version">3.40 TEST cartes risques boutons renommés</span>
     <button id="force-update-btn" class="link-button" style="background-color: #34495e; padding: 4px 10px; font-size: 0.8em; margin-left: 10px; vertical-align: middle;">
         Forcer MAJ
     </button>
@@ -1464,8 +1464,8 @@
         <h2>Carte des risques</h2>
         <div class="controles" style="gap: 20px;">
             <button id="risk-maps-refresh-btn" class="link-button" style="background-color: #f39c12;">Recharger cartes des risques</button>
-            <a id="risk-map-national-open" href="https://grisonb.synology.me/briefing-data/risk-maps/latest-risk-national.pdf" target="_blank" class="link-button" style="background-color: #7f8c8d;">Ouvrir National (150 %)</a>
-            <a id="risk-map-zonesud-open" href="https://grisonb.synology.me/briefing-data/risk-maps/latest-risk-zonesud.pdf" target="_blank" class="link-button" style="background-color: #7f8c8d;">Ouvrir Zone Sud (150 %)</a>
+            <a id="risk-map-national-open" href="https://grisonb.synology.me/briefing-data/risk-maps/latest-risk-national.pdf" target="_blank" class="link-button" style="background-color: #7f8c8d;">Carte des Risques / National</a>
+            <a id="risk-map-zonesud-open" href="https://grisonb.synology.me/briefing-data/risk-maps/latest-risk-zonesud.pdf" target="_blank" class="link-button" style="background-color: #7f8c8d;">Cartes des Risques / Zone Sud</a>
         </div>
         <p id="risk-maps-status" class="risk-map-status">Chargement des cartes depuis le NAS...</p>
         <div class="risk-maps-grid">
@@ -1668,7 +1668,7 @@
     <footer>Données : Météo-France, SIA, Windy.com, CheckWX.com. Page non commerciale, à usage personnel.</footer>
     
     <script>
-        const APP_VERSION = "3.39 TEST cartes risques PDF.js zoom 150";
+        const APP_VERSION = "3.40 TEST cartes risques boutons renommés";
 
         // --- Clé API pour la source de données météo ---
         const CHECKWX_API_KEY = "b8071d79ae4a482491114af48c9c0246";
