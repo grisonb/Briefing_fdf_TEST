@@ -6,8 +6,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0">
     <title>Briefing Fdf TEST</title>
-    <link rel="manifest" href="./manifest.json?v=3.41">
-    <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png?v=3.41">
+    <link rel="manifest" href="./manifest.json?v=3.42">
+    <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png?v=3.42">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-title" content="Briefing TEST">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
@@ -1341,7 +1341,7 @@
         <h1 id="main-title">Briefing Fdf TEST</h1>
         <p id="current-time-display"></p>
         <p style="position: relative; z-index: 2; text-align: center; color: #333; font-size: 1em; margin-top: -25px; margin-bottom: 30px;">
-    v<span id="app-version">3.41 TEST cartes risques liseuse agrandie</span>
+    v<span id="app-version">3.42 TEST NOTAM timeout worker 90s</span>
     <button id="force-update-btn" class="link-button" style="background-color: #34495e; padding: 4px 10px; font-size: 0.8em; margin-left: 10px; vertical-align: middle;">
         Forcer MAJ
     </button>
@@ -1668,7 +1668,7 @@
     <footer>Données : Météo-France, SIA, Windy.com, CheckWX.com. Page non commerciale, à usage personnel.</footer>
     
     <script>
-        const APP_VERSION = "3.41 TEST cartes risques liseuse agrandie";
+        const APP_VERSION = "3.42 TEST NOTAM timeout worker 90s";
 
         // --- Clé API pour la source de données météo ---
         const CHECKWX_API_KEY = "b8071d79ae4a482491114af48c9c0246";
@@ -2179,7 +2179,7 @@ const tdfStages = [
         async function waitForNotamsGeneration_(requestId, token, statusElement) {
             const startedAt = Date.now();
             const timeoutMs = 240000;
-            const workerPickupTimeoutMs = 30000;
+            const workerPickupTimeoutMs = 90000;
             const pollMs = 5000;
             let workerHasStarted = false;
 
@@ -2218,10 +2218,10 @@ const tdfStages = [
                     }
 
                     if (!workerHasStarted && elapsedMs >= workerPickupTimeoutMs) {
-                        throw new Error('Service NOTAM PC inaccessible : aucune prise en charge de la demande depuis plus de 30 secondes. Vérifier que le PC est allumé, non en veille, et que le worker BFG NOTAM est lancé.');
+                        throw new Error('Service NOTAM PC inaccessible : aucune prise en charge de la demande depuis plus de 90 secondes. Vérifier que le PC est allumé, non en veille, et que le worker BFG NOTAM est lancé.');
                     }
                 } else if (!workerHasStarted && elapsedMs >= workerPickupTimeoutMs) {
-                    throw new Error('Service NOTAM PC inaccessible : aucun statut de génération reçu pour cette demande depuis plus de 30 secondes. Vérifier que le PC est allumé, non en veille, et que le worker BFG NOTAM est lancé.');
+                    throw new Error('Service NOTAM PC inaccessible : aucun statut de génération reçu pour cette demande depuis plus de 90 secondes. Vérifier que le PC est allumé, non en veille, et que le worker BFG NOTAM est lancé.');
                 }
 
                 await sleepNotamsAuto_(pollMs);
