@@ -1,4 +1,4 @@
-const CACHE_NAME = 'briefing-fdf-test-v3.31-reconnexion-verrouiller-rouge';
+const CACHE_NAME = 'briefing-fdf-test-v3.32-cncasc-boutons-lfgj';
 
 const LOCAL_ASSETS = [
   './manifest.json',
