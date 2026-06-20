@@ -1,4 +1,4 @@
-const CACHE_NAME = 'briefing-fdf-test-v3.36-risk-maps-nas-zoom150';
+const CACHE_NAME = 'briefing-fdf-test-v3.37-risk-maps-nas-zoom150';
 
 const LOCAL_ASSETS = [
   './manifest.json',
