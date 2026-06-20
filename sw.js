@@ -1,4 +1,4 @@
-const CACHE_NAME = 'briefing-fdf-test-v3.40-risk-maps-buttons';
+const CACHE_NAME = 'briefing-fdf-test-v3.41-risk-maps-reader-height';
 
 const LOCAL_ASSETS = [
   './manifest.json',
