@@ -6,8 +6,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0">
     <title>Briefing Fdf TEST</title>
-    <link rel="manifest" href="./manifest.json?v=3.40">
-    <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png?v=3.40">
+    <link rel="manifest" href="./manifest.json?v=3.41">
+    <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png?v=3.41">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-title" content="Briefing TEST">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
@@ -323,7 +323,7 @@
         }
         .risk-map-viewport {
             width: 100%;
-            height: 78vh;
+            height: 90vh;
             overflow: auto;
             background: #ffffff;
             -webkit-overflow-scrolling: touch;
@@ -1341,7 +1341,7 @@
         <h1 id="main-title">Briefing Fdf TEST</h1>
         <p id="current-time-display"></p>
         <p style="position: relative; z-index: 2; text-align: center; color: #333; font-size: 1em; margin-top: -25px; margin-bottom: 30px;">
-    v<span id="app-version">3.40 TEST cartes risques boutons renommés</span>
+    v<span id="app-version">3.41 TEST cartes risques liseuse agrandie</span>
     <button id="force-update-btn" class="link-button" style="background-color: #34495e; padding: 4px 10px; font-size: 0.8em; margin-left: 10px; vertical-align: middle;">
         Forcer MAJ
     </button>
@@ -1668,7 +1668,7 @@
     <footer>Données : Météo-France, SIA, Windy.com, CheckWX.com. Page non commerciale, à usage personnel.</footer>
     
     <script>
-        const APP_VERSION = "3.40 TEST cartes risques boutons renommés";
+        const APP_VERSION = "3.41 TEST cartes risques liseuse agrandie";
 
         // --- Clé API pour la source de données météo ---
         const CHECKWX_API_KEY = "b8071d79ae4a482491114af48c9c0246";
@@ -2993,7 +2993,7 @@ const tdfStages = [
                     await renderRiskMapPdf_(cfg, cacheBuster);
                 }
 
-                setRiskMapsStatus_(`Cartes des risques chargées depuis le NAS — rendu PDF.js 150 % — ${loadedAt.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}`);
+                setRiskMapsStatus_(`Cartes des risques chargées depuis le NAS — rendu PDF.js 150 % — liseuse agrandie — ${loadedAt.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}`);
             } catch (error) {
                 console.error(error);
                 setRiskMapsStatus_('Erreur de chargement des cartes des risques. Utilisez les boutons Ouvrir.');
