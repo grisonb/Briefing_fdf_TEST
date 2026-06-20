@@ -6,8 +6,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0">
     <title>Briefing Fdf TEST</title>
-    <link rel="manifest" href="./manifest.json?v=3.31">
-    <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png?v=3.31">
+    <link rel="manifest" href="./manifest.json?v=3.32">
+    <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png?v=3.32">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-title" content="Briefing TEST">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
@@ -1283,7 +1283,7 @@
         <h1 id="main-title">Briefing Fdf TEST</h1>
         <p id="current-time-display"></p>
         <p style="position: relative; z-index: 2; text-align: center; color: #333; font-size: 1em; margin-top: -25px; margin-bottom: 30px;">
-    v<span id="app-version">3.31 TEST PWA TDF 2026 NOTAM AUTO COMPLET</span>
+    v<span id="app-version">3.32 TEST PWA TDF 2026 NOTAM AUTO COMPLET</span>
     <button id="force-update-btn" class="link-button" style="background-color: #34495e; padding: 4px 10px; font-size: 0.8em; margin-left: 10px; vertical-align: middle;">
         Forcer MAJ
     </button>
@@ -1295,8 +1295,9 @@
         <h3>Accès données CNCASC</h3>
         <div class="cncasc-auth-row">
             <input id="cncasc-password-input" type="password" placeholder="Mot de passe CNCASC" autocomplete="current-password">
-            <button id="cncasc-unlock-btn" class="link-button" style="background-color:#2980b9;">Déverrouiller / Actualiser</button>
-            <button id="cncasc-lock-btn" class="link-button" style="background-color:var(--sc-red);">Verrouiller</button>
+            <button id="cncasc-unlock-btn" class="link-button" style="background-color:#2980b9;">Connexion</button>
+            <button id="cncasc-global-refresh-btn" class="link-button" style="background-color:#1abc9c;">Actualiser</button>
+            <button id="cncasc-lock-btn" class="link-button" style="background-color:var(--sc-red);">Déconnexion</button>
         </div>
         <p id="cncasc-auth-status">Accès CNCASC verrouillé.</p>
         <p id="cncasc-warning" class="cncasc-warning"></p>
@@ -1308,16 +1309,16 @@
     <button id="restore-session-btn" class="link-button" style="background-color: #1abc9c;">Restaurer</button>
     <button id="export-session-btn" class="link-button" style="background-color: #8e44ad;">Partager</button>
     <button id="clear-session-btn" class="link-button" style="background-color: var(--sc-red);">Effacer</button>
-    <a href="https://cncasc-app.fr/" target="_blank" class="link-button" style="background-color: #3498db;">CNCASC</a>
     <p id="session-status"></p>
     <div id="session-help-tooltip" class="help-tooltip" style="display: none;">
         <h4>Aide : sauvegarde et partage du briefing</h4>
         <ol>
-            <li><strong>Sauvegarder :</strong> crée une sauvegarde locale du briefing sur l'iPad, avec les dernières données CNCASC/Pélicandromes et la TEMSI affichée si disponibles.</li>
-            <li><strong>Restaurer :</strong> recharge la sauvegarde locale en cas de problème d'affichage ou de chargement automatique.</li>
-            <li><strong>Partager :</strong> génère un code permettant d'ouvrir ce briefing sur un autre appareil.</li>
-            <li><strong>Effacer :</strong> efface le briefing affiché ainsi que la sauvegarde locale.</li>
-            <li><strong>CNCASC :</strong> permet de se connecter au site CNCASC afin d'ouvrir ensuite Dispo Avions, Pélicandromes, etc. La session reste active environ 20 minutes.</li>
+            <li><strong>Sauvegarder :</strong> enregistre localement le briefing affiché sur cet iPad/navigateur, avec les derniers PDF, NOTAMs, données CNCASC/Pélicandromes et TEMSI disponibles.</li>
+            <li><strong>Restaurer :</strong> recharge la dernière sauvegarde locale, utile en cas de perte réseau ou de rechargement incomplet.</li>
+            <li><strong>Partager :</strong> crée une session de briefing partagée sur le NAS et fournit un code à ouvrir depuis un autre appareil.</li>
+            <li><strong>Effacer :</strong> vide le briefing affiché et supprime la sauvegarde locale de cet appareil. Les briefings partagés déjà créés sur le NAS ne sont pas supprimés.</li>
+            <li><strong>Ouvrir un briefing partagé :</strong> permet de saisir un code du type BFG-JJMM-01 pour récupérer un briefing déjà partagé.</li>
+            <li><strong>Accès données CNCASC :</strong> utiliser Connexion une fois avec le mot de passe, puis Actualiser pour resynchroniser les données sans ressaisir le mot de passe tant que la session reste valide. Déconnexion ferme l'accès CNCASC sur cet appareil.</li>
         </ol>
     </div>
     <div id="shared-code-loader" style="margin-top: 10px; padding-top: 0;">
@@ -1344,9 +1345,9 @@
     <div class="map-section" id="dispo-avions-section">
         <h2>Dispo Avions / ABE / ABEL</h2>
         <div class="controles" style="gap: 20px;">
-            <button id="abe-refresh-btn" class="link-button" style="background-color:#2980b9;">Actualiser CNCASC</button>
-            <a href="https://cncasc-app.fr/pages/ABE.php" target="_blank" class="link-button" style="background-color:#34495e;">Ouvrir ABE</a>
-            <a href="https://cncasc-app.fr/pages/ABEL.php" target="_blank" class="link-button" style="background-color:#7f8c8d;">Ouvrir ABEL</a>
+            <button id="abe-refresh-btn" class="link-button" style="background-color:#2980b9;">Actualiser</button>
+            <a href="https://cncasc-app.fr/pages/ABE.php" target="_blank" class="link-button" style="background-color:#34495e;">Ouvrir CNCASC ABE</a>
+            <a href="https://cncasc-app.fr/pages/ABEL.php" target="_blank" class="link-button" style="background-color:#7f8c8d;">Ouvrir CNCASC ABEL</a>
         </div>
         <p id="abe-dispo-status" class="abe-dispo-status">Données CNCASC non chargées.</p>
         <div id="abe-dispo-display" class="abe-dispo-panel" style="display: none;"></div>
@@ -1355,7 +1356,7 @@
     <div class="map-section" id="pelicandromes-section">
         <h2>Pélicandromes</h2>
         <div class="controles" style="gap: 20px;">
-            <a href="https://cncasc-app.fr/pages/pelicandrome.php" target="_blank" class="link-button" style="background-color:#16a085;">Ouvrir Pélicandromes</a>
+            <a href="https://cncasc-app.fr/pages/pelicandrome.php" target="_blank" class="link-button" style="background-color:#16a085;">Ouvrir CNCASC Pélicandromes</a>
         </div>
         <p id="pelic-dispo-status" class="abe-dispo-status">Données pélicandromes non chargées.</p>
         <div id="pelic-dispo-display" class="abe-dispo-panel" style="display: none;"></div>
@@ -1588,7 +1589,7 @@
     <footer>Données : Météo-France, SIA, Windy.com, CheckWX.com. Page non commerciale, à usage personnel.</footer>
     
     <script>
-        const APP_VERSION = "3.31 TEST PWA TDF 2026 NOTAM AUTO COMPLET";
+        const APP_VERSION = "3.32 TEST PWA TDF 2026 NOTAM AUTO COMPLET";
 
         // --- Clé API pour la source de données météo ---
         const CHECKWX_API_KEY = "b8071d79ae4a482491114af48c9c0246";
@@ -1899,7 +1900,7 @@ const tdfStages = [
                 'LFBL':'LFBL - LIMOGES BELLEGARDE', 'LFBM':'LFBM - MONT DE MARSAN', 'LFBP':'LFBP - PAU PYRENEES',
                 'LFKC':'LFKC - CALVI STE CATHERINE', 'LFKB':'LFKB - BASTIA PORETTA', 'LFKJ':'LFKJ - AJACCIO NAPOLEON BONAPARTE',
                 'LFKF':'LFKF - FIGARI SUD CORSE', 'LFBN':'LFBN - NIORT', 'LFJR':'LFJR - ANGERS LOIRE',
-                'LFAQ':'LFAQ - ALBERT BRAY', 'LFLX':'LFLX - CHATEAUROUX DEOLS', 'LFSG':'LFSG - EPINAL MIRECOURT', 'LFRV':'LFRV - VANNES GOLFE DU MORBIHAN'
+                'LFAQ':'LFAQ - ALBERT BRAY', 'LFLX':'LFLX - CHATEAUROUX DEOLS', 'LFGJ':'LFGJ - DOLE', 'LFSG':'LFSG - EPINAL MIRECOURT', 'LFRV':'LFRV - VANNES GOLFE DU MORBIHAN'
             };
             return map[icao] || `${icao} - INCONNU`;
         }
@@ -2273,9 +2274,9 @@ const tdfStages = [
             if (!status) return;
 
             if (tokenInfo) {
-                status.textContent = `Accès CNCASC autorisé jusqu'à ${new Date(tokenInfo.exp).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}.`;
+                status.textContent = `Accès CNCASC connecté jusqu'à ${new Date(tokenInfo.exp).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}.`;
             } else {
-                status.textContent = 'Accès CNCASC verrouillé : saisir le mot de passe pour synchroniser.';
+                status.textContent = 'Accès CNCASC déconnecté : saisir le mot de passe puis cliquer sur Connexion.';
             }
         }
 
@@ -2285,7 +2286,7 @@ const tdfStages = [
             const password = input ? input.value : '';
 
             if (!password) {
-                setCncascWarning_('⚠️ Saisir le mot de passe CNCASC avant synchronisation.');
+                setCncascWarning_('⚠️ Saisir le mot de passe CNCASC avant connexion.');
                 if (input) input.focus();
                 return;
             }
@@ -2315,6 +2316,7 @@ const tdfStages = [
                 if (input) input.value = '';
                 clearCncascWarning_();
                 updateCncascAuthUi_();
+                setCncascWarning_('Connexion CNCASC réussie. Actualisation des données...');
 
                 // Dès que le mot de passe est accepté, toutes les données CNCASC sont actualisées.
                 await fetchAbeDispo_();
@@ -2671,18 +2673,20 @@ const tdfStages = [
             const status = document.getElementById('abe-dispo-status');
             const pelicStatus = document.getElementById('pelic-dispo-status');
             const refreshBtn = document.getElementById('abe-refresh-btn');
+            const globalRefreshBtn = document.getElementById('cncasc-global-refresh-btn');
             const tokenInfo = getStoredCncascToken_();
 
             if (!tokenInfo) {
-                if (status) status.textContent = 'Données CNCASC verrouillées : mot de passe requis.';
-                if (pelicStatus) pelicStatus.textContent = 'Données pélicandromes verrouillées : mot de passe requis.';
+                if (status) status.textContent = 'Données CNCASC non actualisées : connexion CNCASC requise.';
+                if (pelicStatus) pelicStatus.textContent = 'Données pélicandromes non actualisées : connexion CNCASC requise.';
                 updateCncascAuthUi_();
-                setCncascWarning_('⚠️ Synchronisation CNCASC impossible : accès verrouillé ou session expirée.');
+                setCncascWarning_('⚠️ Actualisation CNCASC impossible : cliquer sur Connexion si la session a expiré.');
                 return;
             }
 
             try {
                 if (refreshBtn) refreshBtn.disabled = true;
+                if (globalRefreshBtn) globalRefreshBtn.disabled = true;
                 if (status) status.textContent = 'Chargement données CNCASC...';
                 if (pelicStatus) pelicStatus.textContent = 'Chargement pélicandromes...';
                 clearCncascWarning_();
@@ -2717,22 +2721,25 @@ const tdfStages = [
                 setCncascWarning_(message);
             } finally {
                 if (refreshBtn) refreshBtn.disabled = false;
+                if (globalRefreshBtn) globalRefreshBtn.disabled = false;
             }
         }
 
         function initializeAbeDispo() {
             const refreshBtn = document.getElementById('abe-refresh-btn');
+            const globalRefreshBtn = document.getElementById('cncasc-global-refresh-btn');
             const unlockBtn = document.getElementById('cncasc-unlock-btn');
             const lockBtn = document.getElementById('cncasc-lock-btn');
             const passwordInput = document.getElementById('cncasc-password-input');
 
             if (refreshBtn) refreshBtn.addEventListener('click', fetchAbeDispo_);
+            if (globalRefreshBtn) globalRefreshBtn.addEventListener('click', fetchAbeDispo_);
             if (unlockBtn) unlockBtn.addEventListener('click', unlockCncascAndSync_);
             if (lockBtn) {
                 lockBtn.addEventListener('click', () => {
                     clearCncascToken_();
                     updateCncascAuthUi_();
-                    setCncascWarning_('Accès CNCASC verrouillé sur cet iPad.');
+                    setCncascWarning_('Accès CNCASC déconnecté sur cet appareil.');
                 });
             }
             if (passwordInput) {
@@ -5003,7 +5010,7 @@ window.__notamTextFull = notamInput.value;
         function initializeNotamParser() { 
             const notamInput = document.getElementById('notam-input'), notamDisplay = document.getElementById('notam-display'), notamSection = document.querySelector('.notam-section');
             const filterButtons = document.querySelectorAll('.filter-action'), showAllButtons = document.querySelectorAll('.show-all-action'), savePdfButtons = document.querySelectorAll('.save-pdf-action');
-            const predefinedIcaoOrder = ['LFTW', 'LFML', 'LFTH', 'LFMD', 'LFHO', 'LFLU', 'LFMH', 'LFMU', 'LFMP', 'LFMK', 'LFCR', 'LFCC', 'LFBD', 'LFBL', 'LFBM', 'LFBP', 'LFKC', 'LFKB', 'LFKJ', 'LFKF', 'LFBN', 'LFJR', 'LFAQ', 'LFLX', 'LFSG', 'LFRV'];
+            const predefinedIcaoOrder = ['LFTW', 'LFML', 'LFTH', 'LFMD', 'LFHO', 'LFLU', 'LFMH', 'LFMU', 'LFMP', 'LFMK', 'LFCR', 'LFCC', 'LFBD', 'LFBL', 'LFBM', 'LFBP', 'LFKC', 'LFKB', 'LFKJ', 'LFKF', 'LFBN', 'LFJR', 'LFAQ', 'LFLX', 'LFGJ', 'LFSG', 'LFRV'];
             const icaoToFullName = {
                 'LFTW':'LFTW - NIMES GARONS', 'LFML':'LFML - MARSEILLE PROVENCE', 'LFTH':'LFTH - TOULON HYERES', 
                 'LFMD':'LFMD - CANNES MANDELIEU', 'LFHO':'LFHO - AUBENAS ARDECHE MERIDIONALE', 'LFLU':'LFLU - VALENCE CHABEUIL', 
@@ -5014,7 +5021,7 @@ window.__notamTextFull = notamInput.value;
                 'LFKF':'LFKF - FIGARI SUD CORSE',
             'LFBN': 'LFBN - NIORT', 'LFJR':'LFJR - ANGERS LOIRE', 
                 'LFAQ':'LFAQ - ALBERT BRAY', 
-                'LFLX':'LFLX - CHATEAUROUX DEOLS', 'LFSG':'LFSG - EPINAL MIRECOURT', 'LFRV':'LFRV - VANNES GOLFE DU MORBIHAN'
+                'LFLX':'LFLX - CHATEAUROUX DEOLS', 'LFGJ':'LFGJ - DOLE', 'LFSG':'LFSG - EPINAL MIRECOURT', 'LFRV':'LFRV - VANNES GOLFE DU MORBIHAN'
             };
             const keywordsToFilter = [
                 'aerodrome administration', 'animal', 'avgas 100ll', 'crane', 'dme', 'drill', 
