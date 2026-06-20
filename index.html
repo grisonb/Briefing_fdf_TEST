@@ -6,8 +6,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0">
     <title>Briefing Fdf TEST</title>
-    <link rel="manifest" href="./manifest.json?v=3.33">
-    <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png?v=3.33">
+    <link rel="manifest" href="./manifest.json?v=3.34">
+    <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png?v=3.34">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-title" content="Briefing TEST">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
@@ -302,6 +302,38 @@
         }
         
         .carte-container iframe { width: 100%; height: 100%; border: none; }
+        .risk-maps-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 18px;
+        }
+        .risk-map-card {
+            border: 1px solid var(--border-color);
+            border-radius: 10px;
+            overflow: hidden;
+            background: #f8f9fa;
+        }
+        .risk-map-card h3 {
+            margin: 0;
+            padding: 10px 14px;
+            color: var(--sc-blue);
+            background: #eef3f8;
+            border-bottom: 1px solid var(--border-color);
+            text-align: center;
+        }
+        .risk-map-frame {
+            width: 100%;
+            height: 78vh;
+            border: 0;
+            display: block;
+            background: #ffffff;
+        }
+        .risk-map-status {
+            text-align: center;
+            color: #555;
+            margin: 8px 0 16px;
+            font-size: 0.95em;
+        }
         .carte-container .temsi-image-offline {
             width: 100%;
             height: 100%;
@@ -1293,7 +1325,7 @@
         <h1 id="main-title">Briefing Fdf TEST</h1>
         <p id="current-time-display"></p>
         <p style="position: relative; z-index: 2; text-align: center; color: #333; font-size: 1em; margin-top: -25px; margin-bottom: 30px;">
-    v<span id="app-version">3.33 TEST PWA TDF 2026 NOTAM AUTO COMPLET</span>
+    v<span id="app-version">3.34 TEST PWA TDF 2026 NOTAM AUTO COMPLET</span>
     <button id="force-update-btn" class="link-button" style="background-color: #34495e; padding: 4px 10px; font-size: 0.8em; margin-left: 10px; vertical-align: middle;">
         Forcer MAJ
     </button>
@@ -1415,8 +1447,20 @@
     <div class="map-section" id="risk-maps-section">
         <h2>Carte des risques</h2>
         <div class="controles" style="gap: 20px;">
-            <a href="http://www.meteo.fr/extranets/proxy/index/affiche/id/298186" target="_blank" class="link-button" style="background-color: #f39c12;">Carte des Risques / National</a>
-            <a href="http://www.meteo.fr/extranets/proxy/index/affiche/id/305344" target="_blank" class="link-button" style="background-color: #e67e22;">Carte des Risques / Zone Sud</a>
+            <button id="risk-maps-refresh-btn" class="link-button" style="background-color: #f39c12;">Actualiser cartes des risques</button>
+            <a id="risk-map-national-open" href="https://grisonb.synology.me/briefing-api/get-risk-map.php?map=national" target="_blank" class="link-button" style="background-color: #7f8c8d;">Ouvrir National</a>
+            <a id="risk-map-zonesud-open" href="https://grisonb.synology.me/briefing-api/get-risk-map.php?map=zonesud" target="_blank" class="link-button" style="background-color: #7f8c8d;">Ouvrir Zone Sud</a>
+        </div>
+        <p id="risk-maps-status" class="risk-map-status">Chargement automatique des cartes...</p>
+        <div class="risk-maps-grid">
+            <div class="risk-map-card">
+                <h3>National</h3>
+                <iframe id="risk-map-national-frame" class="risk-map-frame" title="Carte des risques National"></iframe>
+            </div>
+            <div class="risk-map-card">
+                <h3>Zone Sud</h3>
+                <iframe id="risk-map-zonesud-frame" class="risk-map-frame" title="Carte des risques Zone Sud"></iframe>
+            </div>
         </div>
     </div>
     
@@ -1600,7 +1644,7 @@
     <footer>Données : Météo-France, SIA, Windy.com, CheckWX.com. Page non commerciale, à usage personnel.</footer>
     
     <script>
-        const APP_VERSION = "3.33 TEST PWA TDF 2026 NOTAM AUTO COMPLET";
+        const APP_VERSION = "3.34 TEST PWA TDF 2026 NOTAM AUTO COMPLET";
 
         // --- Clé API pour la source de données météo ---
         const CHECKWX_API_KEY = "b8071d79ae4a482491114af48c9c0246";
@@ -2853,6 +2897,61 @@ const tdfStages = [
 
         setInterval(reloadBfgAfterOnlineReturn_, 5000);
 
+
+        const BFG_RISK_MAPS = {
+            national: {
+                label: 'National',
+                url: 'https://grisonb.synology.me/briefing-api/get-risk-map.php?map=national',
+                frameId: 'risk-map-national-frame',
+                openId: 'risk-map-national-open'
+            },
+            zonesud: {
+                label: 'Zone Sud',
+                url: 'https://grisonb.synology.me/briefing-api/get-risk-map.php?map=zonesud',
+                frameId: 'risk-map-zonesud-frame',
+                openId: 'risk-map-zonesud-open'
+            }
+        };
+
+        function setRiskMapsStatus_(message) {
+            const status = document.getElementById('risk-maps-status');
+            if (status) status.textContent = message;
+        }
+
+        function loadRiskMaps_() {
+            const loadedAt = new Date();
+
+            Object.values(BFG_RISK_MAPS).forEach((cfg) => {
+                const frame = document.getElementById(cfg.frameId);
+                const openLink = document.getElementById(cfg.openId);
+
+                if (openLink) openLink.href = cfg.url;
+
+                if (frame) {
+                    // On vide l'iframe avant de remettre l'URL stable pour forcer une nouvelle requête.
+                    frame.src = 'about:blank';
+                    setTimeout(() => {
+                        frame.src = cfg.url;
+                    }, 80);
+                }
+            });
+
+            setRiskMapsStatus_(`Cartes des risques chargées automatiquement — ${loadedAt.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}`);
+        }
+
+        function initializeRiskMaps() {
+            const refreshBtn = document.getElementById('risk-maps-refresh-btn');
+            if (refreshBtn) {
+                refreshBtn.addEventListener('click', () => {
+                    setRiskMapsStatus_('Actualisation des cartes des risques...');
+                    loadRiskMaps_();
+                });
+            }
+
+            loadRiskMaps_();
+        }
+
+
         function forceBriefingStartAtTop() {
     // iPad/PWA : certains rendus PDF/iframes ou la restauration NOTAM
     // peuvent provoquer un scroll automatique vers TEMSI/NOTAM.
@@ -2874,6 +2973,7 @@ const tdfStages = [
     initializeNavigation(); 
     initializePageTitle();
     initializeTemsi();
+    initializeRiskMaps();
     initializeWindy();
     if (window.pdfjsLib) {
         initializeInteractivePdfViewers();
