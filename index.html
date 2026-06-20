@@ -1447,11 +1447,11 @@
     <div class="map-section" id="risk-maps-section">
         <h2>Carte des risques</h2>
         <div class="controles" style="gap: 20px;">
-            <button id="risk-maps-refresh-btn" class="link-button" style="background-color: #f39c12;">Actualiser cartes des risques</button>
-            <a id="risk-map-national-open" href="https://grisonb.synology.me/briefing-api/get-risk-map.php?map=national" target="_blank" class="link-button" style="background-color: #7f8c8d;">Ouvrir National</a>
-            <a id="risk-map-zonesud-open" href="https://grisonb.synology.me/briefing-api/get-risk-map.php?map=zonesud" target="_blank" class="link-button" style="background-color: #7f8c8d;">Ouvrir Zone Sud</a>
+            <button id="risk-maps-refresh-btn" class="link-button" style="background-color: #f39c12;">Recharger cartes des risques</button>
+            <a id="risk-map-national-open" href="https://grisonb.synology.me/briefing-data/risk-maps/latest-risk-national.pdf" target="_blank" class="link-button" style="background-color: #7f8c8d;">Ouvrir National</a>
+            <a id="risk-map-zonesud-open" href="https://grisonb.synology.me/briefing-data/risk-maps/latest-risk-zonesud.pdf" target="_blank" class="link-button" style="background-color: #7f8c8d;">Ouvrir Zone Sud</a>
         </div>
-        <p id="risk-maps-status" class="risk-map-status">Chargement automatique des cartes...</p>
+        <p id="risk-maps-status" class="risk-map-status">Chargement des cartes depuis le NAS...</p>
         <div class="risk-maps-grid">
             <div class="risk-map-card">
                 <h3>National</h3>
@@ -2901,13 +2901,13 @@ const tdfStages = [
         const BFG_RISK_MAPS = {
             national: {
                 label: 'National',
-                url: 'https://grisonb.synology.me/briefing-api/get-risk-map.php?map=national',
+                url: 'https://grisonb.synology.me/briefing-data/risk-maps/latest-risk-national.pdf',
                 frameId: 'risk-map-national-frame',
                 openId: 'risk-map-national-open'
             },
             zonesud: {
                 label: 'Zone Sud',
-                url: 'https://grisonb.synology.me/briefing-api/get-risk-map.php?map=zonesud',
+                url: 'https://grisonb.synology.me/briefing-data/risk-maps/latest-risk-zonesud.pdf',
                 frameId: 'risk-map-zonesud-frame',
                 openId: 'risk-map-zonesud-open'
             }
@@ -2920,23 +2920,25 @@ const tdfStages = [
 
         function loadRiskMaps_() {
             const loadedAt = new Date();
+            const cacheBuster = `v=${Date.now()}`;
 
             Object.values(BFG_RISK_MAPS).forEach((cfg) => {
                 const frame = document.getElementById(cfg.frameId);
                 const openLink = document.getElementById(cfg.openId);
+                const displayUrl = `${cfg.url}?${cacheBuster}`;
 
-                if (openLink) openLink.href = cfg.url;
+                if (openLink) openLink.href = displayUrl;
 
                 if (frame) {
-                    // On vide l'iframe avant de remettre l'URL stable pour forcer une nouvelle requête.
+                    // On vide l'iframe avant de remettre l'URL NAS avec anti-cache.
                     frame.src = 'about:blank';
                     setTimeout(() => {
-                        frame.src = cfg.url;
+                        frame.src = displayUrl;
                     }, 80);
                 }
             });
 
-            setRiskMapsStatus_(`Cartes des risques chargées automatiquement — ${loadedAt.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}`);
+            setRiskMapsStatus_(`Cartes des risques chargées depuis le NAS — ${loadedAt.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}`);
         }
 
         function initializeRiskMaps() {
