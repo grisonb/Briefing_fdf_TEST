@@ -1,4 +1,4 @@
-const CACHE_NAME = 'briefing-fdf-test-v3.32-cncasc-boutons-lfgj';
+const CACHE_NAME = 'briefing-fdf-test-v3.33-pelic-refresh-cncasc-colors';
 
 const LOCAL_ASSETS = [
   './manifest.json',
