@@ -1,4 +1,4 @@
-const CACHE_NAME = 'briefing-fdf-test-v3.38-risk-maps-nas-zoom150-real';
+const CACHE_NAME = 'briefing-fdf-test-v3.39-risk-maps-pdfjs-zoom150';
 
 const LOCAL_ASSETS = [
   './manifest.json',
@@ -97,7 +97,10 @@ self.addEventListener('fetch', (event) => {
   const sameOrigin = url.origin === self.location.origin;
 
   // Ressource externe spéciale : cartes des risques stockées sur le NAS BFG.
-  if (!sameOrigin && url.hostname === 'grisonb.synology.me' && url.pathname.includes('/briefing-data/risk-maps/')) {
+  if (!sameOrigin && url.hostname === 'grisonb.synology.me' && (
+      url.pathname.includes('/briefing-data/risk-maps/') ||
+      url.pathname.includes('/briefing-api/get-risk-map-pdf.php')
+    )) {
     event.respondWith((async () => {
       try {
         const networkRes = await fetch(event.request, { cache: 'no-store' });
