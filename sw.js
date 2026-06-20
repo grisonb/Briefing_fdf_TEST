@@ -1,4 +1,4 @@
-const CACHE_NAME = 'briefing-fdf-test-v3.39-risk-maps-pdfjs-zoom150';
+const CACHE_NAME = 'briefing-fdf-test-v3.40-risk-maps-buttons';
 
 const LOCAL_ASSETS = [
   './manifest.json',
