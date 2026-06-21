@@ -1,7 +1,7 @@
 {
   "name": "Briefing FDF TEST",
   "short_name": "Briefing TEST",
-  "description": "Briefing FDF TEST v3.46 avec feuille de service Gmail, autofill désactivé et sauvegarde NOTAM auto",
+  "description": "Briefing FDF TEST v3.47 avec feuille de service Gmail, clavier iPad corrigé et sauvegarde NOTAM auto",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
