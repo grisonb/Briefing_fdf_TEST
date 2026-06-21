@@ -1,7 +1,7 @@
 {
   "name": "Briefing FDF TEST",
   "short_name": "Briefing TEST",
-  "description": "Briefing FDF TEST avec Tour de France 2026",
+  "description": "Briefing FDF TEST avec feuille de service Gmail",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
