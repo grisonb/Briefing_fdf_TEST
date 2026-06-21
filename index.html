@@ -1341,7 +1341,7 @@
         <h1 id="main-title">Briefing Fdf TEST</h1>
         <p id="current-time-display"></p>
         <p style="position: relative; z-index: 2; text-align: center; color: #333; font-size: 1em; margin-top: -25px; margin-bottom: 30px;">
-    v<span id="app-version">3.44 TEST cartes risques vérif serveur</span>
+    v<span id="app-version">3.45 TEST feuille service Gmail</span>
     <button id="force-update-btn" class="link-button" style="background-color: #34495e; padding: 4px 10px; font-size: 0.8em; margin-left: 10px; vertical-align: middle;">
         Forcer MAJ
     </button>
@@ -1390,8 +1390,11 @@
     <div id="fds-section" class="pdf-section dropzone">
         <h2>Feuille de Service</h2>
         <div class="pdf-controls">
-            <button id="pdf-load-fds-btn" class="link-button" style="background-color: #2980b9;">Charger la Feuille de Service</button>
+            <button id="fds-auto-refresh-btn" type="button" class="link-button" style="background-color: #16a085;">Actualiser feuille de service</button>
+            <a id="fds-nas-open-btn" href="https://grisonb.synology.me/briefing-data/feuille-service/latest-feuille-service.pdf" target="_blank" class="link-button" style="background-color: #7f8c8d;">Ouvrir feuille NAS</a>
+            <button id="pdf-load-fds-btn" class="link-button" style="background-color: #2980b9;">Importation manuelle</button>
             <input type="file" id="pdf-input-fds" accept="application/pdf">
+            <p id="fds-auto-status" class="pdf-info" style="width: 100%; margin-top: 8px;"></p>
         </div>
         <div id="pdf-interactive-container-fds" class="interactive-pdf-viewer" style="display: none;">
             <div class="interactive-pdf-controls"><button class="pdf-nav-btn" data-action="prev">Page Préc.</button><span>Page <span class="page-num">1</span> / <span class="page-count">1</span></span><button class="pdf-nav-btn" data-action="next">Page Suiv.</button><div class="zoom-controls"><button class="pdf-nav-btn" data-action="zoom-out">-</button><span>Zoom</span><button class="pdf-nav-btn" data-action="zoom-in">+</button></div></div>
@@ -1668,7 +1671,7 @@
     <footer>Données : Météo-France, SIA, Windy.com, CheckWX.com. Page non commerciale, à usage personnel.</footer>
     
     <script>
-        const APP_VERSION = "3.44 TEST cartes risques vérif serveur";
+        const APP_VERSION = "3.45 TEST feuille service Gmail";
 
         // --- Clé API pour la source de données météo ---
         const CHECKWX_API_KEY = "b8071d79ae4a482491114af48c9c0246";
@@ -1888,6 +1891,10 @@ const tdfStages = [
         const NOTAMS_AUTO_PDF_API_URL = 'https://grisonb.synology.me/briefing-api/get-notams-pdf.php';
         const NOTAMS_GENERATION_REQUEST_API_URL = 'https://grisonb.synology.me/briefing-api/request-notams-generation.php';
         const NOTAMS_GENERATION_STATUS_API_URL = 'https://grisonb.synology.me/briefing-api/get-notams-generation-status.php';
+        const FDS_GMAIL_REFRESH_URL = 'https://script.google.com/macros/s/AKfycbwjw2i5AcY9UT31sRvz1sTessKF4k1EUHMo0KW4Tga-mLTeBhup0IN98dXnAJSoqq_LDQ/exec';
+        const FDS_STATUS_API_URL = 'https://grisonb.synology.me/briefing-api/get-feuille-service-status.php';
+        const FDS_PDF_API_URL = 'https://grisonb.synology.me/briefing-api/get-feuille-service-pdf.php';
+        const FDS_PUBLIC_PDF_URL = 'https://grisonb.synology.me/briefing-data/feuille-service/latest-feuille-service.pdf';
         const CNCASC_TOKEN_STORAGE_KEY = 'bfg_cncasc_token_v1';
         const CNCASC_TOKEN_EXP_STORAGE_KEY = 'bfg_cncasc_token_exp_v1';
 
@@ -2922,6 +2929,146 @@ const tdfStages = [
         setInterval(reloadBfgAfterOnlineReturn_, 5000);
 
 
+        function setFdsAutoStatus_(message, options = {}) {
+            const status = document.getElementById('fds-auto-status');
+            if (!status) return;
+            status.textContent = message || '';
+            status.style.color = options.error ? '#c0392b' : (options.warning ? '#d35400' : '#2c3e50');
+        }
+
+        function formatFdsMetaDate_(value) {
+            if (!value) return 'date inconnue';
+            const date = new Date(value);
+            if (Number.isNaN(date.getTime())) return value;
+            return date.toLocaleString('fr-FR', {
+                day: '2-digit',
+                month: '2-digit',
+                year: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+        }
+
+        async function fetchFdsStatus_(cacheBuster = Date.now()) {
+            const url = `${FDS_STATUS_API_URL}?t=${encodeURIComponent(cacheBuster)}`;
+            const response = await fetch(url, { cache: 'no-store' });
+            const payload = await response.json();
+            if (!response.ok || !payload.ok) {
+                throw new Error(payload && payload.message ? payload.message : 'Statut feuille de service indisponible');
+            }
+            if (!payload.file || !payload.file.exists) {
+                throw new Error('Aucune feuille de service disponible sur le NAS');
+            }
+            return payload;
+        }
+
+        async function loadFdsPdfFromNas_(statusPayload, cacheBuster = Date.now()) {
+            const pdfUrl = `${FDS_PDF_API_URL}?t=${encodeURIComponent(cacheBuster)}`;
+            const response = await fetch(pdfUrl, { cache: 'no-store' });
+            if (!response.ok) {
+                throw new Error(`PDF feuille de service indisponible (${response.status})`);
+            }
+            const blob = await response.blob();
+            if (!blob || blob.size < 1000) {
+                throw new Error('PDF feuille de service vide ou incomplet');
+            }
+
+            const meta = statusPayload && statusPayload.file ? statusPayload.file : {};
+            const filename = meta.originalFilename || 'latest-feuille-service.pdf';
+            const file = new File([blob], filename, { type: 'application/pdf', lastModified: Date.now() });
+
+            window.fdsFileObject = file;
+            createInteractivePdfHandler(document.getElementById('pdf-interactive-container-fds'), file, null, 1.65);
+
+            const subjectText = meta.mailSubject ? ` — ${meta.mailSubject}` : '';
+            const dateText = meta.updatedAt ? ` — MAJ NAS ${formatFdsMetaDate_(meta.updatedAt)}` : '';
+            document.getElementById('pdf-info-fds').textContent = `Document chargé : ${filename}${subjectText}${dateText}`;
+
+            const openBtn = document.getElementById('fds-nas-open-btn');
+            if (openBtn) openBtn.href = `${FDS_PUBLIC_PDF_URL}?t=${encodeURIComponent(cacheBuster)}`;
+
+            return file;
+        }
+
+        function waitFds_(ms) {
+            return new Promise(resolve => setTimeout(resolve, ms));
+        }
+
+        async function waitForUpdatedFdsStatus_(previousUpdatedAt) {
+            let lastPayload = null;
+            for (let attempt = 0; attempt < 14; attempt += 1) {
+                await waitFds_(attempt === 0 ? 2500 : 1500);
+                lastPayload = await fetchFdsStatus_(Date.now());
+                const currentUpdatedAt = lastPayload && lastPayload.file ? lastPayload.file.updatedAt : '';
+                if (!previousUpdatedAt || !currentUpdatedAt || currentUpdatedAt !== previousUpdatedAt) {
+                    return lastPayload;
+                }
+            }
+            return lastPayload;
+        }
+
+        async function actualiserFeuilleServiceDepuisGmail_() {
+            const btn = document.getElementById('fds-auto-refresh-btn');
+            const originalText = btn ? btn.textContent : '';
+            let previousUpdatedAt = '';
+
+            try {
+                if (btn) {
+                    btn.disabled = true;
+                    btn.textContent = 'Actualisation...';
+                }
+
+                setFdsAutoStatus_('Lecture du statut feuille de service sur le NAS...');
+                try {
+                    const currentStatus = await fetchFdsStatus_(Date.now());
+                    previousUpdatedAt = currentStatus && currentStatus.file ? currentStatus.file.updatedAt : '';
+                } catch (statusError) {
+                    previousUpdatedAt = '';
+                }
+
+                setFdsAutoStatus_('Demande envoyée à Gmail via Apps Script...');
+                await fetch(`${FDS_GMAIL_REFRESH_URL}?t=${encodeURIComponent(Date.now())}`, {
+                    method: 'GET',
+                    mode: 'no-cors',
+                    cache: 'no-store'
+                });
+
+                setFdsAutoStatus_('Gmail appelé. Attente du nouveau PDF sur le NAS...');
+                const newStatus = await waitForUpdatedFdsStatus_(previousUpdatedAt);
+                await loadFdsPdfFromNas_(newStatus, Date.now());
+
+                const meta = newStatus && newStatus.file ? newStatus.file : {};
+                setFdsAutoStatus_(`Feuille de service actualisée : ${meta.originalFilename || 'PDF'} — ${formatFdsMetaDate_(meta.updatedAt)}.`);
+            } catch (error) {
+                console.error('Erreur actualisation feuille de service:', error);
+                setFdsAutoStatus_(`Erreur actualisation feuille de service : ${error.message || error}`, { error: true });
+            } finally {
+                if (btn) {
+                    btn.disabled = false;
+                    btn.textContent = originalText || 'Actualiser feuille de service';
+                }
+            }
+        }
+
+        async function chargerDerniereFeuilleServiceAuDemarrage_() {
+            try {
+                const statusPayload = await fetchFdsStatus_(Date.now());
+                await loadFdsPdfFromNas_(statusPayload, Date.now());
+                const meta = statusPayload && statusPayload.file ? statusPayload.file : {};
+                setFdsAutoStatus_(`Dernière feuille NAS chargée : ${meta.originalFilename || 'PDF'} — ${formatFdsMetaDate_(meta.updatedAt)}.`);
+            } catch (error) {
+                setFdsAutoStatus_('Aucune feuille de service NAS chargée automatiquement. Utiliser Actualiser ou Importation manuelle.', { warning: true });
+            }
+        }
+
+        function initializeFeuilleServiceAuto() {
+            const btn = document.getElementById('fds-auto-refresh-btn');
+            if (btn) {
+                btn.addEventListener('click', actualiserFeuilleServiceDepuisGmail_);
+            }
+            chargerDerniereFeuilleServiceAuDemarrage_();
+        }
+
         const BFG_RISK_MAP_SCALE = 1.5;
         const BFG_RISK_MAP_STATUS_URL = 'https://grisonb.synology.me/briefing-api/get-risk-map-status.php';
 
@@ -3087,6 +3234,7 @@ const tdfStages = [
     initializeWindy();
     if (window.pdfjsLib) {
         initializeInteractivePdfViewers();
+        initializeFeuilleServiceAuto();
     } else {
         console.warn("Visionneuse PDF désactivée (pdf.js introuvable).");
     }
