@@ -1270,6 +1270,8 @@
             border-radius: 8px;
             font-size: 1em;
             text-align: center;
+            -webkit-text-security: disc;
+            text-security: disc;
         }
         #cncasc-auth-status {
             margin: 10px 0 0 0;
@@ -1341,7 +1343,7 @@
         <h1 id="main-title">Briefing Fdf TEST</h1>
         <p id="current-time-display"></p>
         <p style="position: relative; z-index: 2; text-align: center; color: #333; font-size: 1em; margin-top: -25px; margin-bottom: 30px;">
-    v<span id="app-version">3.46 TEST autofill + sauvegarde NOTAM auto</span>
+    v<span id="app-version">3.47 TEST clavier iPad + sauvegarde NOTAM auto</span>
     <button id="force-update-btn" class="link-button" style="background-color: #34495e; padding: 4px 10px; font-size: 0.8em; margin-left: 10px; vertical-align: middle;">
         Forcer MAJ
     </button>
@@ -1352,7 +1354,7 @@
     <div class="cncasc-auth-panel cncasc-disconnected" id="cncasc-auth-panel">
         <h3>Accès données CNCASC</h3>
         <div class="cncasc-auth-row">
-            <input id="cncasc-password-input" type="password" placeholder="Mot de passe CNCASC" name="bfg-cncasc-access-code" autocomplete="new-password" autocorrect="off" autocapitalize="none" spellcheck="false" data-lpignore="true" data-1p-ignore="true">
+            <input id="cncasc-password-input" type="text" inputmode="text" placeholder="Code accès CNCASC" aria-label="Code accès CNCASC" name="bfg-cncasc-code" autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false" data-lpignore="true" data-1p-ignore="true" data-form-type="other">
             <button id="cncasc-unlock-btn" class="link-button" style="background-color:#2980b9;">Connexion</button>
             <button id="cncasc-global-refresh-btn" class="link-button" style="background-color:#1abc9c;">Actualiser</button>
             <button id="cncasc-lock-btn" class="link-button" style="background-color:var(--sc-red);">Déconnexion</button>
@@ -1671,7 +1673,7 @@
     <footer>Données : Météo-France, SIA, Windy.com, CheckWX.com. Page non commerciale, à usage personnel.</footer>
     
     <script>
-        const APP_VERSION = "3.46 TEST autofill + sauvegarde NOTAM auto";
+        const APP_VERSION = "3.47 TEST clavier iPad + sauvegarde NOTAM auto";
 
         // --- Clé API pour la source de données météo ---
         const CHECKWX_API_KEY = "b8071d79ae4a482491114af48c9c0246";
@@ -1906,12 +1908,13 @@ const tdfStages = [
             ].filter(Boolean);
 
             sensitiveInputs.forEach((input) => {
-                input.setAttribute('autocomplete', input.type === 'password' ? 'new-password' : 'off');
+                input.setAttribute('autocomplete', 'off');
                 input.setAttribute('autocorrect', 'off');
                 input.setAttribute('autocapitalize', input.id === 'shared-code-input' ? 'characters' : 'none');
                 input.setAttribute('spellcheck', 'false');
                 input.setAttribute('data-lpignore', 'true');
                 input.setAttribute('data-1p-ignore', 'true');
+                input.setAttribute('data-form-type', 'other');
             });
         }
 
@@ -2357,12 +2360,12 @@ const tdfStages = [
 
                 const count = document.querySelectorAll('#notam-display .notam-item').length;
 
-                if (typeof performSave === 'function') {
+                if (typeof window.performBfgLocalSave_ === 'function') {
                     setNotamsAutoStatus_(status, `Importation automatique terminée : ${count} NOTAM(s) affiché(s). Sauvegarde locale en cours...`, {
                         timestampText: pdfTimestampText
                     });
 
-                    await performSave();
+                    await window.performBfgLocalSave_();
 
                     setNotamsAutoStatus_(status, `Importation automatique terminée : ${count} NOTAM(s) affiché(s) et sauvegardé(s) localement.`, {
                         timestampText: pdfTimestampText
@@ -2409,10 +2412,12 @@ const tdfStages = [
             const password = input ? input.value : '';
 
             if (!password) {
-                setCncascWarning_('⚠️ Saisir le mot de passe CNCASC avant connexion.');
+                setCncascWarning_('⚠️ Saisir le code accès CNCASC avant connexion.');
                 if (input) input.focus();
                 return;
             }
+
+            if (input) input.blur();
 
             try {
                 if (unlockBtn) unlockBtn.disabled = true;
@@ -4827,6 +4832,10 @@ let activeShareApiBase = SHARE_API_BASE;
             saveBtnBottom && (saveBtnBottom.disabled = false);
         }
     }
+
+    // Rend la sauvegarde locale disponible pour les modules déclarés hors de initializeSessionManagement(),
+    // notamment l'importation automatique NOTAM.
+    window.performBfgLocalSave_ = performSave;
 
     // ===== fileToSavable / savableToFile (IndexedDB) =====
     async function fileToSavable(file) {
