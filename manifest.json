@@ -1,7 +1,7 @@
 {
   "name": "Briefing FDF TEST",
   "short_name": "Briefing TEST",
-  "description": "Briefing FDF TEST v3.49 sans bouton Ouvrir feuille NAS, import FDS manuel conservé",
+  "description": "Briefing FDF TEST v3.50 mode FDS auto/manuel et purge sauvegarde J+2 matin",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
