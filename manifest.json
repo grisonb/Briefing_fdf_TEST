@@ -1,7 +1,7 @@
 {
   "name": "Briefing FDF TEST",
   "short_name": "Briefing TEST",
-  "description": "Briefing FDF TEST v3.50 mode FDS auto/manuel et purge sauvegarde J+2 matin",
+  "description": "Briefing FDF TEST v3.51 couleurs boutons FDS et cartes des risques",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
