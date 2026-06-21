@@ -1343,7 +1343,7 @@
         <h1 id="main-title">Briefing Fdf TEST</h1>
         <p id="current-time-display"></p>
         <p style="position: relative; z-index: 2; text-align: center; color: #333; font-size: 1em; margin-top: -25px; margin-bottom: 30px;">
-    v<span id="app-version">3.47 TEST clavier iPad + sauvegarde NOTAM auto</span>
+    v<span id="app-version">3.48 TEST anti-clavier iPad démarrage</span>
     <button id="force-update-btn" class="link-button" style="background-color: #34495e; padding: 4px 10px; font-size: 0.8em; margin-left: 10px; vertical-align: middle;">
         Forcer MAJ
     </button>
@@ -1354,7 +1354,7 @@
     <div class="cncasc-auth-panel cncasc-disconnected" id="cncasc-auth-panel">
         <h3>Accès données CNCASC</h3>
         <div class="cncasc-auth-row">
-            <input id="cncasc-password-input" type="text" inputmode="text" placeholder="Code accès CNCASC" aria-label="Code accès CNCASC" name="bfg-cncasc-code" autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false" data-lpignore="true" data-1p-ignore="true" data-form-type="other">
+            <input id="cncasc-password-input" type="text" inputmode="text" placeholder="Code accès CNCASC" aria-label="Code accès CNCASC" name="bfg-cncasc-code" autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false" data-lpignore="true" data-1p-ignore="true" data-form-type="other" readonly>
             <button id="cncasc-unlock-btn" class="link-button" style="background-color:#2980b9;">Connexion</button>
             <button id="cncasc-global-refresh-btn" class="link-button" style="background-color:#1abc9c;">Actualiser</button>
             <button id="cncasc-lock-btn" class="link-button" style="background-color:var(--sc-red);">Déconnexion</button>
@@ -1378,7 +1378,7 @@
             <li><strong>Partager :</strong> crée une session de briefing partagée sur le NAS et fournit un code à ouvrir depuis un autre appareil.</li>
             <li><strong>Effacer :</strong> vide le briefing affiché et supprime la sauvegarde locale de cet appareil. Les briefings partagés déjà créés sur le NAS ne sont pas supprimés.</li>
             <li><strong>Ouvrir un briefing partagé :</strong> permet de saisir un code du type BFG-JJMM-01 pour récupérer un briefing déjà partagé.</li>
-            <li><strong>Accès données CNCASC :</strong> utiliser Connexion une fois avec le mot de passe, puis Actualiser pour resynchroniser les données sans ressaisir le mot de passe tant que la session reste valide. Déconnexion ferme l'accès CNCASC sur cet appareil.</li>
+            <li><strong>Accès données CNCASC :</strong> utiliser Connexion une fois avec le code accès, puis Actualiser pour resynchroniser les données sans ressaisir le code tant que la session reste valide. Déconnexion ferme l'accès CNCASC sur cet appareil.</li>
         </ol>
     </div>
     <div id="shared-code-loader" style="margin-top: 10px; padding-top: 0;">
@@ -1673,7 +1673,7 @@
     <footer>Données : Météo-France, SIA, Windy.com, CheckWX.com. Page non commerciale, à usage personnel.</footer>
     
     <script>
-        const APP_VERSION = "3.47 TEST clavier iPad + sauvegarde NOTAM auto";
+        const APP_VERSION = "3.48 TEST anti-clavier iPad démarrage";
 
         // --- Clé API pour la source de données météo ---
         const CHECKWX_API_KEY = "b8071d79ae4a482491114af48c9c0246";
@@ -1918,7 +1918,38 @@ const tdfStages = [
             });
         }
 
+        function preventIpadKeyboardOnStartup_() {
+            const input = document.getElementById('cncasc-password-input');
+            if (!input) return;
+
+            input.setAttribute('readonly', 'readonly');
+
+            const forceBlur = () => {
+                if (document.activeElement === input) {
+                    input.blur();
+                }
+            };
+
+            forceBlur();
+            window.setTimeout(forceBlur, 50);
+            window.setTimeout(forceBlur, 300);
+            window.setTimeout(forceBlur, 1000);
+
+            const enableForUserTyping = () => {
+                input.removeAttribute('readonly');
+            };
+
+            input.addEventListener('pointerdown', enableForUserTyping, { once: true });
+            input.addEventListener('touchstart', enableForUserTyping, { once: true, passive: true });
+            input.addEventListener('mousedown', enableForUserTyping, { once: true });
+
+            window.addEventListener('pageshow', () => {
+                window.setTimeout(forceBlur, 50);
+            });
+        }
+
         hardenSensitiveInputsAgainstAutofill_();
+        preventIpadKeyboardOnStartup_();
 
 
         function escapeHtml_(value) {
@@ -2402,7 +2433,7 @@ const tdfStages = [
             if (tokenInfo) {
                 status.textContent = `Accès CNCASC connecté jusqu'à ${new Date(tokenInfo.exp).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}.`;
             } else {
-                status.textContent = 'Accès CNCASC déconnecté : saisir le mot de passe puis cliquer sur Connexion.';
+                status.textContent = 'Accès CNCASC déconnecté : saisir le code accès puis cliquer sur Connexion.';
             }
         }
 
@@ -2413,7 +2444,7 @@ const tdfStages = [
 
             if (!password) {
                 setCncascWarning_('⚠️ Saisir le code accès CNCASC avant connexion.');
-                if (input) input.focus();
+                if (input) input.blur();
                 return;
             }
 
@@ -2446,7 +2477,7 @@ const tdfStages = [
                 updateCncascAuthUi_();
                 setCncascWarning_('Connexion CNCASC réussie. Actualisation des données...');
 
-                // Dès que le mot de passe est accepté, toutes les données CNCASC sont actualisées.
+                // Dès que le code accès est accepté, toutes les données CNCASC sont actualisées.
                 await fetchAbeDispo_();
             } catch (error) {
                 clearCncascToken_();
