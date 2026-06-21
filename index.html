@@ -1343,7 +1343,7 @@
         <h1 id="main-title">Briefing Fdf TEST</h1>
         <p id="current-time-display"></p>
         <p style="position: relative; z-index: 2; text-align: center; color: #333; font-size: 1em; margin-top: -25px; margin-bottom: 30px;">
-    v<span id="app-version">3.48 TEST anti-clavier iPad démarrage</span>
+    v<span id="app-version">3.49 TEST FDS sans bouton NAS</span>
     <button id="force-update-btn" class="link-button" style="background-color: #34495e; padding: 4px 10px; font-size: 0.8em; margin-left: 10px; vertical-align: middle;">
         Forcer MAJ
     </button>
@@ -1393,7 +1393,6 @@
         <h2>Feuille de Service</h2>
         <div class="pdf-controls">
             <button id="fds-auto-refresh-btn" type="button" class="link-button" style="background-color: #16a085;">Actualiser feuille de service</button>
-            <a id="fds-nas-open-btn" href="https://grisonb.synology.me/briefing-data/feuille-service/latest-feuille-service.pdf" target="_blank" class="link-button" style="background-color: #7f8c8d;">Ouvrir feuille NAS</a>
             <button id="pdf-load-fds-btn" class="link-button" style="background-color: #2980b9;">Importation manuelle</button>
             <input type="file" id="pdf-input-fds" accept="application/pdf">
             <p id="fds-auto-status" class="pdf-info" style="width: 100%; margin-top: 8px;"></p>
@@ -1673,7 +1672,7 @@
     <footer>Données : Météo-France, SIA, Windy.com, CheckWX.com. Page non commerciale, à usage personnel.</footer>
     
     <script>
-        const APP_VERSION = "3.48 TEST anti-clavier iPad démarrage";
+        const APP_VERSION = "3.49 TEST FDS sans bouton NAS";
 
         // --- Clé API pour la source de données météo ---
         const CHECKWX_API_KEY = "b8071d79ae4a482491114af48c9c0246";
@@ -3051,8 +3050,6 @@ const tdfStages = [
             const dateText = meta.updatedAt ? ` — MAJ NAS ${formatFdsMetaDate_(meta.updatedAt)}` : '';
             document.getElementById('pdf-info-fds').textContent = `Document chargé : ${filename}${subjectText}${dateText}`;
 
-            const openBtn = document.getElementById('fds-nas-open-btn');
-            if (openBtn) openBtn.href = `${FDS_PUBLIC_PDF_URL}?t=${encodeURIComponent(cacheBuster)}`;
 
             return file;
         }
