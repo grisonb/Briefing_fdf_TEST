@@ -1,4 +1,4 @@
-const CACHE_NAME = 'briefing-fdf-test-v3.46-autofill-notams-save';
+const CACHE_NAME = 'briefing-fdf-test-v3.47-ipad-password-notams-save';
 
 const LOCAL_ASSETS = [
   './manifest.json',
@@ -155,3 +155,4 @@ self.addEventListener('fetch', (event) => {
 
   event.respondWith(cacheFirst(event.request));
 });
+
