@@ -1,4 +1,4 @@
-const CACHE_NAME = 'briefing-fdf-test-v3.42-notams-worker-timeout90';
+const CACHE_NAME = 'briefing-fdf-test-v3.43-risk-map-buttons-mf-direct';
 
 const LOCAL_ASSETS = [
   './manifest.json',
