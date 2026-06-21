@@ -1,4 +1,4 @@
-const CACHE_NAME = 'briefing-fdf-test-v3.48-ipad-keyboard-startup';
+const CACHE_NAME = 'briefing-fdf-test-v3.49-fds-sans-bouton-nas';
 
 const LOCAL_ASSETS = [
   './manifest.json',
