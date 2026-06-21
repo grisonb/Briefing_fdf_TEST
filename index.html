@@ -6,8 +6,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0">
     <title>Briefing Fdf TEST</title>
-    <link rel="manifest" href="./manifest.json?v=3.43">
-    <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png?v=3.43">
+    <link rel="manifest" href="./manifest.json?v=3.44">
+    <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png?v=3.44">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-title" content="Briefing TEST">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
@@ -1341,7 +1341,7 @@
         <h1 id="main-title">Briefing Fdf TEST</h1>
         <p id="current-time-display"></p>
         <p style="position: relative; z-index: 2; text-align: center; color: #333; font-size: 1em; margin-top: -25px; margin-bottom: 30px;">
-    v<span id="app-version">3.43 TEST cartes risques boutons MF direct</span>
+    v<span id="app-version">3.44 TEST cartes risques vérif serveur</span>
     <button id="force-update-btn" class="link-button" style="background-color: #34495e; padding: 4px 10px; font-size: 0.8em; margin-left: 10px; vertical-align: middle;">
         Forcer MAJ
     </button>
@@ -1668,7 +1668,7 @@
     <footer>Données : Météo-France, SIA, Windy.com, CheckWX.com. Page non commerciale, à usage personnel.</footer>
     
     <script>
-        const APP_VERSION = "3.43 TEST cartes risques boutons MF direct";
+        const APP_VERSION = "3.44 TEST cartes risques vérif serveur";
 
         // --- Clé API pour la source de données météo ---
         const CHECKWX_API_KEY = "b8071d79ae4a482491114af48c9c0246";
@@ -2923,6 +2923,7 @@ const tdfStages = [
 
 
         const BFG_RISK_MAP_SCALE = 1.5;
+        const BFG_RISK_MAP_STATUS_URL = 'https://grisonb.synology.me/briefing-api/get-risk-map-status.php';
 
         const BFG_RISK_MAPS = {
             national: {
@@ -2930,20 +2931,54 @@ const tdfStages = [
                 pdfUrl: 'https://grisonb.synology.me/briefing-api/get-risk-map-pdf.php?map=national',
                 openUrl: 'http://www.meteo.fr/extranets/proxy/index/affiche/id/298186',
                 pagesId: 'risk-map-national-pages',
-                openId: 'risk-map-national-open'
+                openId: 'risk-map-national-open',
+                metaKey: 'national'
             },
             zonesud: {
                 label: 'Zone Sud',
                 pdfUrl: 'https://grisonb.synology.me/briefing-api/get-risk-map-pdf.php?map=zonesud',
                 openUrl: 'http://www.meteo.fr/extranets/proxy/index/affiche/id/305344',
                 pagesId: 'risk-map-zonesud-pages',
-                openId: 'risk-map-zonesud-open'
+                openId: 'risk-map-zonesud-open',
+                metaKey: 'zonesud'
             }
         };
 
         function setRiskMapsStatus_(message) {
             const status = document.getElementById('risk-maps-status');
             if (status) status.textContent = message;
+        }
+
+        function formatRiskMapMeta_(meta) {
+            if (!meta || !meta.updatedAt) return 'date inconnue';
+
+            const d = new Date(meta.updatedAt);
+            if (Number.isNaN(d.getTime())) return meta.updatedAt;
+
+            return d.toLocaleString('fr-FR', {
+                day: '2-digit',
+                month: '2-digit',
+                year: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+        }
+
+        async function fetchRiskMapsStatus_(cacheBuster) {
+            const response = await fetch(`${BFG_RISK_MAP_STATUS_URL}?v=${cacheBuster}`, {
+                cache: 'no-store',
+                headers: {
+                    'Accept': 'application/json'
+                }
+            });
+
+            const payload = await response.json();
+
+            if (!response.ok || !payload.ok) {
+                throw new Error(payload && payload.message ? payload.message : 'Statut cartes risques indisponible');
+            }
+
+            return payload;
         }
 
         async function renderRiskMapPdf_(cfg, cacheBuster) {
@@ -2988,17 +3023,29 @@ const tdfStages = [
             const loadedAt = new Date();
             const cacheBuster = Date.now();
 
-            setRiskMapsStatus_('Chargement des cartes des risques à 150 %...');
+            setRiskMapsStatus_('Vérification serveur des dernières cartes disponibles...');
 
             try {
+                const status = await fetchRiskMapsStatus_(cacheBuster);
+                const mapsStatus = status.maps || {};
+
                 for (const cfg of Object.values(BFG_RISK_MAPS)) {
+                    const meta = mapsStatus[cfg.metaKey];
+
+                    if (!meta || !meta.exists) {
+                        throw new Error(`Carte ${cfg.label} indisponible sur le serveur`);
+                    }
+
                     await renderRiskMapPdf_(cfg, cacheBuster);
                 }
 
-                setRiskMapsStatus_(`Cartes des risques chargées depuis le NAS — rendu PDF.js 150 % — boutons MF direct — ${loadedAt.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}`);
+                const nationalAt = formatRiskMapMeta_(mapsStatus.national);
+                const zoneSudAt = formatRiskMapMeta_(mapsStatus.zonesud);
+
+                setRiskMapsStatus_(`Serveur vérifié — National : ${nationalAt} — Zone Sud : ${zoneSudAt} — affichage 150 % rechargé à ${loadedAt.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}`);
             } catch (error) {
                 console.error(error);
-                setRiskMapsStatus_('Erreur de chargement des cartes des risques. Utilisez les boutons Ouvrir.');
+                setRiskMapsStatus_(`Erreur vérification cartes serveur : ${error.message}. Utilisez les boutons Météo-France direct.`);
             }
         }
 
@@ -3006,7 +3053,7 @@ const tdfStages = [
             const refreshBtn = document.getElementById('risk-maps-refresh-btn');
             if (refreshBtn) {
                 refreshBtn.addEventListener('click', () => {
-                    setRiskMapsStatus_('Actualisation des cartes des risques...');
+                    setRiskMapsStatus_('Requête serveur en cours pour vérifier les dernières cartes...');
                     loadRiskMaps_();
                 });
             }
