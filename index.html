@@ -1343,7 +1343,7 @@
         <h1 id="main-title">Briefing Fdf TEST</h1>
         <p id="current-time-display"></p>
         <p style="position: relative; z-index: 2; text-align: center; color: #333; font-size: 1em; margin-top: -25px; margin-bottom: 30px;">
-    v<span id="app-version">3.50 TEST FDS auto manuel session J+2</span>
+    v<span id="app-version">3.51 TEST couleurs FDS risques</span>
     <button id="force-update-btn" class="link-button" style="background-color: #34495e; padding: 4px 10px; font-size: 0.8em; margin-left: 10px; vertical-align: middle;">
         Forcer MAJ
     </button>
@@ -1392,8 +1392,8 @@
     <div id="fds-section" class="pdf-section dropzone">
         <h2>Feuille de Service</h2>
         <div class="pdf-controls">
-            <button id="fds-auto-refresh-btn" type="button" class="link-button" style="background-color: #16a085;">Actualiser feuille de service</button>
-            <button id="fds-mode-toggle-btn" type="button" class="link-button" style="background-color: #7f8c8d;">Mode FDS : Auto</button>
+            <button id="fds-auto-refresh-btn" type="button" class="link-button" style="background-color: #cfeecf; color:#145a32;">Actualiser feuille de service</button>
+            <button id="fds-mode-toggle-btn" type="button" class="link-button" style="background-color: #d8e8ff; color:#1f4e79;">Mode FDS : Auto</button>
             <button id="pdf-load-fds-btn" class="link-button" style="background-color: #2980b9;">Importation manuelle</button>
             <input type="file" id="pdf-input-fds" accept="application/pdf">
             <p id="fds-auto-status" class="pdf-info" style="width: 100%; margin-top: 8px;"></p>
@@ -1468,9 +1468,9 @@
     <div class="map-section" id="risk-maps-section">
         <h2>Carte des risques</h2>
         <div class="controles" style="gap: 20px;">
-            <button id="risk-maps-refresh-btn" class="link-button" style="background-color: #f39c12;">Recharger affichage cartes</button>
-            <a id="risk-map-national-open" href="https://grisonb.synology.me/briefing-data/risk-maps/latest-risk-national.pdf" target="_blank" class="link-button" style="background-color: #7f8c8d;">Carte des Risques / National</a>
-            <a id="risk-map-zonesud-open" href="https://grisonb.synology.me/briefing-data/risk-maps/latest-risk-zonesud.pdf" target="_blank" class="link-button" style="background-color: #7f8c8d;">Cartes des Risques / Zone Sud</a>
+            <button id="risk-maps-refresh-btn" class="link-button" style="background-color: #cfeecf; color:#145a32;">Recharger affichage cartes</button>
+            <a id="risk-map-national-open" href="https://grisonb.synology.me/briefing-data/risk-maps/latest-risk-national.pdf" target="_blank" class="link-button" style="background-color: #f6d1dc; color:#7b1f3a;">Carte des Risques / National</a>
+            <a id="risk-map-zonesud-open" href="https://grisonb.synology.me/briefing-data/risk-maps/latest-risk-zonesud.pdf" target="_blank" class="link-button" style="background-color: #f4c2b8; color:#8a2a1d;">Cartes des Risques / Zone Sud</a>
         </div>
         <p id="risk-maps-status" class="risk-map-status">Chargement des cartes depuis le NAS...</p>
         <div class="risk-maps-grid">
@@ -1673,7 +1673,7 @@
     <footer>Données : Météo-France, SIA, Windy.com, CheckWX.com. Page non commerciale, à usage personnel.</footer>
     
     <script>
-        const APP_VERSION = "3.50 TEST FDS auto/manuel + purge J+2 matin";
+        const APP_VERSION = "3.51 TEST couleurs boutons FDS / risques";
 
         // --- Clé API pour la source de données météo ---
         const CHECKWX_API_KEY = "b8071d79ae4a482491114af48c9c0246";
@@ -1910,7 +1910,8 @@ const tdfStages = [
             if (!btn) return;
             const manual = getFdsMode_() === FDS_MODE_MANUAL;
             btn.textContent = manual ? 'Mode FDS : Manuel' : 'Mode FDS : Auto';
-            btn.style.backgroundColor = manual ? '#c0392b' : '#16a085';
+            btn.style.backgroundColor = manual ? '#f7dfbf' : '#d8e8ff';
+            btn.style.color = manual ? '#7a4a00' : '#1f4e79';
             btn.title = manual
                 ? 'Mode manuel : BFG ne recharge pas la feuille NAS au démarrage.'
                 : 'Mode auto : BFG charge la dernière feuille de service NAS au démarrage.';
