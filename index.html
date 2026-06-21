@@ -6,8 +6,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0">
     <title>Briefing Fdf TEST</title>
-    <link rel="manifest" href="./manifest.json?v=3.42">
-    <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png?v=3.42">
+    <link rel="manifest" href="./manifest.json?v=3.43">
+    <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png?v=3.43">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-title" content="Briefing TEST">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
@@ -1341,7 +1341,7 @@
         <h1 id="main-title">Briefing Fdf TEST</h1>
         <p id="current-time-display"></p>
         <p style="position: relative; z-index: 2; text-align: center; color: #333; font-size: 1em; margin-top: -25px; margin-bottom: 30px;">
-    v<span id="app-version">3.42 TEST NOTAM timeout worker 90s</span>
+    v<span id="app-version">3.43 TEST cartes risques boutons MF direct</span>
     <button id="force-update-btn" class="link-button" style="background-color: #34495e; padding: 4px 10px; font-size: 0.8em; margin-left: 10px; vertical-align: middle;">
         Forcer MAJ
     </button>
@@ -1463,7 +1463,7 @@
     <div class="map-section" id="risk-maps-section">
         <h2>Carte des risques</h2>
         <div class="controles" style="gap: 20px;">
-            <button id="risk-maps-refresh-btn" class="link-button" style="background-color: #f39c12;">Recharger cartes des risques</button>
+            <button id="risk-maps-refresh-btn" class="link-button" style="background-color: #f39c12;">Recharger affichage cartes</button>
             <a id="risk-map-national-open" href="https://grisonb.synology.me/briefing-data/risk-maps/latest-risk-national.pdf" target="_blank" class="link-button" style="background-color: #7f8c8d;">Carte des Risques / National</a>
             <a id="risk-map-zonesud-open" href="https://grisonb.synology.me/briefing-data/risk-maps/latest-risk-zonesud.pdf" target="_blank" class="link-button" style="background-color: #7f8c8d;">Cartes des Risques / Zone Sud</a>
         </div>
@@ -1668,7 +1668,7 @@
     <footer>Données : Météo-France, SIA, Windy.com, CheckWX.com. Page non commerciale, à usage personnel.</footer>
     
     <script>
-        const APP_VERSION = "3.42 TEST NOTAM timeout worker 90s";
+        const APP_VERSION = "3.43 TEST cartes risques boutons MF direct";
 
         // --- Clé API pour la source de données météo ---
         const CHECKWX_API_KEY = "b8071d79ae4a482491114af48c9c0246";
@@ -2928,14 +2928,14 @@ const tdfStages = [
             national: {
                 label: 'National',
                 pdfUrl: 'https://grisonb.synology.me/briefing-api/get-risk-map-pdf.php?map=national',
-                openUrl: 'https://grisonb.synology.me/briefing-data/risk-maps/latest-risk-national.pdf',
+                openUrl: 'http://www.meteo.fr/extranets/proxy/index/affiche/id/298186',
                 pagesId: 'risk-map-national-pages',
                 openId: 'risk-map-national-open'
             },
             zonesud: {
                 label: 'Zone Sud',
                 pdfUrl: 'https://grisonb.synology.me/briefing-api/get-risk-map-pdf.php?map=zonesud',
-                openUrl: 'https://grisonb.synology.me/briefing-data/risk-maps/latest-risk-zonesud.pdf',
+                openUrl: 'http://www.meteo.fr/extranets/proxy/index/affiche/id/305344',
                 pagesId: 'risk-map-zonesud-pages',
                 openId: 'risk-map-zonesud-open'
             }
@@ -2950,7 +2950,9 @@ const tdfStages = [
             const pagesContainer = document.getElementById(cfg.pagesId);
             const openLink = document.getElementById(cfg.openId);
             const pdfUrl = `${cfg.pdfUrl}&v=${cacheBuster}`;
-            const openUrl = `${cfg.openUrl}?v=${cacheBuster}#zoom=150`;
+            const openUrl = cfg.openUrl.includes('meteo.fr')
+                ? cfg.openUrl
+                : `${cfg.openUrl}?v=${cacheBuster}#zoom=150`;
 
             if (openLink) openLink.href = openUrl;
 
@@ -2993,7 +2995,7 @@ const tdfStages = [
                     await renderRiskMapPdf_(cfg, cacheBuster);
                 }
 
-                setRiskMapsStatus_(`Cartes des risques chargées depuis le NAS — rendu PDF.js 150 % — liseuse agrandie — ${loadedAt.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}`);
+                setRiskMapsStatus_(`Cartes des risques chargées depuis le NAS — rendu PDF.js 150 % — boutons MF direct — ${loadedAt.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}`);
             } catch (error) {
                 console.error(error);
                 setRiskMapsStatus_('Erreur de chargement des cartes des risques. Utilisez les boutons Ouvrir.');
