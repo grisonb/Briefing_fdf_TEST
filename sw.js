@@ -1,4 +1,4 @@
-const CACHE_NAME = 'briefing-fdf-test-v3.44-risk-map-server-status';
+const CACHE_NAME = 'briefing-fdf-test-v3.45-feuille-service-gmail';
 
 const LOCAL_ASSETS = [
   './manifest.json',
