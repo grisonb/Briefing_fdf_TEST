@@ -1,4 +1,4 @@
-const CACHE_NAME = 'briefing-fdf-test-v3.43-risk-map-buttons-mf-direct';
+const CACHE_NAME = 'briefing-fdf-test-v3.44-risk-map-server-status';
 
 const LOCAL_ASSETS = [
   './manifest.json',
@@ -99,7 +99,8 @@ self.addEventListener('fetch', (event) => {
   // Ressource externe spéciale : cartes des risques stockées sur le NAS BFG.
   if (!sameOrigin && url.hostname === 'grisonb.synology.me' && (
       url.pathname.includes('/briefing-data/risk-maps/') ||
-      url.pathname.includes('/briefing-api/get-risk-map-pdf.php')
+      url.pathname.includes('/briefing-api/get-risk-map-pdf.php') ||
+      url.pathname.includes('/briefing-api/get-risk-map-status.php')
     )) {
     event.respondWith((async () => {
       try {
