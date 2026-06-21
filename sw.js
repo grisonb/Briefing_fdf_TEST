@@ -1,4 +1,4 @@
-const CACHE_NAME = 'briefing-fdf-test-v3.45-feuille-service-gmail';
+const CACHE_NAME = 'briefing-fdf-test-v3.46-autofill-notams-save';
 
 const LOCAL_ASSETS = [
   './manifest.json',
