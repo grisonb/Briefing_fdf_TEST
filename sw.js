@@ -1,4 +1,4 @@
-const CACHE_NAME = 'briefing-fdf-test-v3.50-fds-mode-purge-session';
+const CACHE_NAME = 'briefing-fdf-test-v3.51-couleurs-fds-risques';
 
 const LOCAL_ASSETS = [
   './manifest.json',
