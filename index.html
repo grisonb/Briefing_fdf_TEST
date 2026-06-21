@@ -1341,7 +1341,7 @@
         <h1 id="main-title">Briefing Fdf TEST</h1>
         <p id="current-time-display"></p>
         <p style="position: relative; z-index: 2; text-align: center; color: #333; font-size: 1em; margin-top: -25px; margin-bottom: 30px;">
-    v<span id="app-version">3.45 TEST feuille service Gmail</span>
+    v<span id="app-version">3.46 TEST autofill + sauvegarde NOTAM auto</span>
     <button id="force-update-btn" class="link-button" style="background-color: #34495e; padding: 4px 10px; font-size: 0.8em; margin-left: 10px; vertical-align: middle;">
         Forcer MAJ
     </button>
@@ -1352,7 +1352,7 @@
     <div class="cncasc-auth-panel cncasc-disconnected" id="cncasc-auth-panel">
         <h3>Accès données CNCASC</h3>
         <div class="cncasc-auth-row">
-            <input id="cncasc-password-input" type="password" placeholder="Mot de passe CNCASC" autocomplete="current-password">
+            <input id="cncasc-password-input" type="password" placeholder="Mot de passe CNCASC" name="bfg-cncasc-access-code" autocomplete="new-password" autocorrect="off" autocapitalize="none" spellcheck="false" data-lpignore="true" data-1p-ignore="true">
             <button id="cncasc-unlock-btn" class="link-button" style="background-color:#2980b9;">Connexion</button>
             <button id="cncasc-global-refresh-btn" class="link-button" style="background-color:#1abc9c;">Actualiser</button>
             <button id="cncasc-lock-btn" class="link-button" style="background-color:var(--sc-red);">Déconnexion</button>
@@ -1671,7 +1671,7 @@
     <footer>Données : Météo-France, SIA, Windy.com, CheckWX.com. Page non commerciale, à usage personnel.</footer>
     
     <script>
-        const APP_VERSION = "3.45 TEST feuille service Gmail";
+        const APP_VERSION = "3.46 TEST autofill + sauvegarde NOTAM auto";
 
         // --- Clé API pour la source de données météo ---
         const CHECKWX_API_KEY = "b8071d79ae4a482491114af48c9c0246";
@@ -1897,6 +1897,26 @@ const tdfStages = [
         const FDS_PUBLIC_PDF_URL = 'https://grisonb.synology.me/briefing-data/feuille-service/latest-feuille-service.pdf';
         const CNCASC_TOKEN_STORAGE_KEY = 'bfg_cncasc_token_v1';
         const CNCASC_TOKEN_EXP_STORAGE_KEY = 'bfg_cncasc_token_exp_v1';
+
+        function hardenSensitiveInputsAgainstAutofill_() {
+            const sensitiveInputs = [
+                document.getElementById('cncasc-password-input'),
+                document.getElementById('shared-code-input'),
+                document.getElementById('manual-icao-input')
+            ].filter(Boolean);
+
+            sensitiveInputs.forEach((input) => {
+                input.setAttribute('autocomplete', input.type === 'password' ? 'new-password' : 'off');
+                input.setAttribute('autocorrect', 'off');
+                input.setAttribute('autocapitalize', input.id === 'shared-code-input' ? 'characters' : 'none');
+                input.setAttribute('spellcheck', 'false');
+                input.setAttribute('data-lpignore', 'true');
+                input.setAttribute('data-1p-ignore', 'true');
+            });
+        }
+
+        hardenSensitiveInputsAgainstAutofill_();
+
 
         function escapeHtml_(value) {
             return String(value ?? '').replace(/[&<>"']/g, (char) => ({
@@ -2335,8 +2355,19 @@ const tdfStages = [
 
                 await extractTextFromPdf(pdfFile, pdfInfoElement);
 
-                if (status) {
-                    const count = document.querySelectorAll('#notam-display .notam-item').length;
+                const count = document.querySelectorAll('#notam-display .notam-item').length;
+
+                if (typeof performSave === 'function') {
+                    setNotamsAutoStatus_(status, `Importation automatique terminée : ${count} NOTAM(s) affiché(s). Sauvegarde locale en cours...`, {
+                        timestampText: pdfTimestampText
+                    });
+
+                    await performSave();
+
+                    setNotamsAutoStatus_(status, `Importation automatique terminée : ${count} NOTAM(s) affiché(s) et sauvegardé(s) localement.`, {
+                        timestampText: pdfTimestampText
+                    });
+                } else if (status) {
                     setNotamsAutoStatus_(status, `Importation automatique terminée : ${count} NOTAM(s) affiché(s).`, {
                         timestampText: pdfTimestampText
                     });
