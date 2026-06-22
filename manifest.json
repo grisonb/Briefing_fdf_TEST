@@ -1,7 +1,7 @@
 {
   "name": "Briefing FDF TEST",
   "short_name": "Briefing TEST",
-  "description": "Briefing FDF TEST v3.59 messages VPS",
+  "description": "Briefing FDF TEST v3.60 sauvegarde simplifiée",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
