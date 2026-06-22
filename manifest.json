@@ -1,7 +1,7 @@
 {
   "name": "Briefing FDF TEST",
   "short_name": "Briefing TEST",
-  "description": "Briefing FDF TEST v3.60 sauvegarde simplifiée",
+  "description": "Briefing FDF TEST v3.61 aide sauvegarde partage",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
