@@ -1382,7 +1382,7 @@
         <h1 id="main-title">Briefing Fdf TEST</h1>
         <p id="current-time-display"></p>
         <p style="position: relative; z-index: 2; text-align: center; color: #333; font-size: 1em; margin-top: -25px; margin-bottom: 30px;">
-    v<span id="app-version">3.58 TEST AZBA NOTAM visuel</span>
+    v<span id="app-version">3.59 TEST messages VPS</span>
     <button id="force-update-btn" class="link-button" style="background-color: #34495e; padding: 4px 10px; font-size: 0.8em; margin-left: 10px; vertical-align: middle;">
         Forcer MAJ
     </button>
@@ -1714,7 +1714,7 @@
     <footer>Données : Météo-France, SIA, Windy.com, CheckWX.com. Page non commerciale, à usage personnel.</footer>
     
     <script>
-        const APP_VERSION = "3.58 TEST AZBA NOTAM visuel";
+        const APP_VERSION = "3.59 TEST messages VPS";
 
         // --- Clé API pour la source de données météo ---
         const CHECKWX_API_KEY = "b8071d79ae4a482491114af48c9c0246";
@@ -2332,7 +2332,7 @@ const tdfStages = [
 
                     if (statusElement) {
                         if (currentStatus === 'pending') {
-                            statusElement.textContent = 'Demande enregistrée sur le NAS. En attente du PC worker...';
+                            statusElement.textContent = 'Demande enregistrée sur le NAS. En attente du service NOTAM VPS...';
                         } else if (currentStatus === 'running') {
                             statusElement.textContent = `Génération NATS en cours sur le PC${message}`;
                         } else if (currentStatus === 'success') {
@@ -2349,7 +2349,7 @@ const tdfStages = [
                     }
 
                     if (currentStatus === 'error') {
-                        throw new Error(payload.message || payload.error || 'Génération NOTAM en erreur côté PC worker.');
+                        throw new Error(payload.message || payload.error || 'Génération NOTAM en erreur côté service NOTAM VPS.');
                     }
 
                     if (!workerHasStarted && elapsedMs >= workerPickupTimeoutMs) {
@@ -2362,7 +2362,7 @@ const tdfStages = [
                 await sleepNotamsAuto_(pollMs);
             }
 
-            throw new Error('Délai dépassé : le PC worker n’a pas terminé la génération NOTAM.');
+            throw new Error('Délai dépassé : le service NOTAM VPS n’a pas terminé la génération NOTAM.');
         }
 
         async function fetchLatestNotamsPdfFromNas_(token) {
@@ -2443,7 +2443,7 @@ const tdfStages = [
 
                 const requestPayload = await requestNotamsGeneration_(tokenInfo.token);
 
-                setNotamsAutoStatus_(status, `Demande ${requestPayload.requestId} enregistrée. Attente du PC worker...`);
+                setNotamsAutoStatus_(status, `Demande ${requestPayload.requestId} enregistrée. Attente du service NOTAM VPS...`);
                 restoreNotamAutoScroll_(scrollTopBeforeAutoImport);
 
                 const generationStatusPayload = await waitForNotamsGeneration_(requestPayload.requestId, tokenInfo.token, status);
