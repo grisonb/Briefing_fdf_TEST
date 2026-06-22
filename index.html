@@ -1412,7 +1412,7 @@
         <h1 id="main-title">Briefing Fdf TEST</h1>
         <p id="current-time-display"></p>
         <p style="position: relative; z-index: 2; text-align: center; color: #333; font-size: 1em; margin-top: -25px; margin-bottom: 30px;">
-    v<span id="app-version">3.61 TEST sauvegarde simplifiée</span>
+    v<span id="app-version">3.62 TEST messages NOTAM VPS</span>
     <button id="force-update-btn" class="link-button" style="background-color: #34495e; padding: 4px 10px; font-size: 0.8em; margin-left: 10px; vertical-align: middle;">
         Forcer MAJ
     </button>
@@ -1744,7 +1744,7 @@
     <footer>Données : Météo-France, SIA, Windy.com, CheckWX.com. Page non commerciale, à usage personnel.</footer>
     
     <script>
-        const APP_VERSION = "3.61 TEST sauvegarde simplifiée";
+        const APP_VERSION = "3.62 TEST messages NOTAM VPS";
 
         // --- Clé API pour la source de données météo ---
         const CHECKWX_API_KEY = "b8071d79ae4a482491114af48c9c0246";
@@ -2341,6 +2341,16 @@ const tdfStages = [
             return payload;
         }
 
+        function normalizeNotamsGenerationMessage_(message) {
+            return String(message || '')
+                .replace(/PC\s*worker/gi, 'service NOTAM VPS')
+                .replace(/sur le PC/gi, 'sur le service NOTAM VPS')
+                .replace(/PC\s+est\s+allum[eé]/gi, 'serveur VPS est actif')
+                .replace(/worker BFG NOTAM/gi, 'service NOTAM VPS')
+                .replace(/\s+/g, ' ')
+                .trim();
+        }
+
         async function waitForNotamsGeneration_(requestId, token, statusElement) {
             const startedAt = Date.now();
             const timeoutMs = 240000;
@@ -2354,7 +2364,8 @@ const tdfStages = [
 
                 if (payload.requestId === requestId) {
                     const currentStatus = String(payload.status || '').toLowerCase();
-                    const message = payload.message ? ` — ${payload.message}` : '';
+                    const normalizedMessage = normalizeNotamsGenerationMessage_(payload.message || payload.error || '');
+                    const message = normalizedMessage ? ` — ${normalizedMessage}` : '';
 
                     if (currentStatus === 'running' || currentStatus === 'success') {
                         workerHasStarted = true;
@@ -2364,7 +2375,7 @@ const tdfStages = [
                         if (currentStatus === 'pending') {
                             statusElement.textContent = 'Demande enregistrée sur le NAS. En attente du service NOTAM VPS...';
                         } else if (currentStatus === 'running') {
-                            statusElement.textContent = `Génération NATS en cours sur le PC${message}`;
+                            statusElement.textContent = `Génération NATS en cours sur le service NOTAM VPS${message}`;
                         } else if (currentStatus === 'success') {
                             statusElement.textContent = 'Génération NATS terminée. Téléchargement du nouveau PDF...';
                         } else if (currentStatus === 'error') {
@@ -2379,14 +2390,14 @@ const tdfStages = [
                     }
 
                     if (currentStatus === 'error') {
-                        throw new Error(payload.message || payload.error || 'Génération NOTAM en erreur côté service NOTAM VPS.');
+                        throw new Error(normalizeNotamsGenerationMessage_(payload.message || payload.error) || 'Génération NOTAM en erreur côté service NOTAM VPS.');
                     }
 
                     if (!workerHasStarted && elapsedMs >= workerPickupTimeoutMs) {
-                        throw new Error('Service NOTAM PC inaccessible : aucune prise en charge de la demande depuis plus de 90 secondes. Vérifier que le PC est allumé, non en veille, et que le worker BFG NOTAM est lancé.');
+                        throw new Error('Service NOTAM VPS inaccessible : aucune prise en charge de la demande depuis plus de 90 secondes. Vérifier que le service bfg-notams-worker est actif sur le VPS.');
                     }
                 } else if (!workerHasStarted && elapsedMs >= workerPickupTimeoutMs) {
-                    throw new Error('Service NOTAM PC inaccessible : aucun statut de génération reçu pour cette demande depuis plus de 90 secondes. Vérifier que le PC est allumé, non en veille, et que le worker BFG NOTAM est lancé.');
+                    throw new Error('Service NOTAM VPS inaccessible : aucun statut de génération reçu pour cette demande depuis plus de 90 secondes. Vérifier que le service bfg-notams-worker est actif sur le VPS.');
                 }
 
                 await sleepNotamsAuto_(pollMs);
