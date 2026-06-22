@@ -446,6 +446,9 @@
         .fds-meta-title { font-size: 1.05em; font-weight: 800; margin-bottom: 4px; color: #145a32; }
         .fds-meta-date { font-size: 1.25em; font-weight: 900; color: #145a32; }
         .fds-meta-subject { font-size: 0.95em; margin-top: 4px; color: #216b3a; }
+        .fds-next-day-panel { display: none; max-width: 860px; margin: 0 auto 14px auto; padding: 10px 14px; border: 1px solid #c7d7f7; border-left: 6px solid #5dade2; border-radius: 10px; background: #eef5ff; color: #26384d; text-align: center; box-shadow: 0 2px 6px rgba(0,0,0,0.08); }
+        .fds-next-day-panel.visible { display: block; }
+        .fds-next-day-panel .link-button { margin: 4px 0 0 0; background-color: #5dade2; }
         #pdf-input-fds, #pdf-input-gaar, #pdf-input-notam, #pdf-input-sup-aip { display: none; }
         
         .link-button { display: inline-block; color: white; padding: 12px 25px; text-decoration: none; border-radius: 5px; font-size: 1.1em; transition: all 0.2s; cursor: pointer; border: none; box-shadow: 0 2px 5px rgba(0,0,0,0.2); }
@@ -1354,7 +1357,7 @@
         <h1 id="main-title">Briefing Fdf TEST</h1>
         <p id="current-time-display"></p>
         <p style="position: relative; z-index: 2; text-align: center; color: #333; font-size: 1em; margin-top: -25px; margin-bottom: 30px;">
-    v<span id="app-version">3.54 TEST intégration AZBA</span>
+    v<span id="app-version">3.56 TEST FDS J/J+1 NOTAM ordre</span>
     <button id="force-update-btn" class="link-button" style="background-color: #34495e; padding: 4px 10px; font-size: 0.8em; margin-left: 10px; vertical-align: middle;">
         Forcer MAJ
     </button>
@@ -1409,6 +1412,7 @@
             <input type="file" id="pdf-input-fds" accept="application/pdf">
             <p id="fds-auto-status" class="pdf-info" style="width: 100%; margin-top: 8px;"></p>
             <div id="fds-meta-panel" class="fds-meta-panel" aria-live="polite"></div>
+            <div id="fds-next-day-panel" class="fds-next-day-panel" aria-live="polite"></div>
         </div>
         <div id="pdf-interactive-container-fds" class="interactive-pdf-viewer" style="display: none;">
             <div class="interactive-pdf-controls"><button class="pdf-nav-btn" data-action="prev">Page Préc.</button><span>Page <span class="page-num">1</span> / <span class="page-count">1</span></span><button class="pdf-nav-btn" data-action="next">Page Suiv.</button><div class="zoom-controls"><button class="pdf-nav-btn" data-action="zoom-out">-</button><span>Zoom</span><button class="pdf-nav-btn" data-action="zoom-in">+</button></div></div>
@@ -1648,14 +1652,10 @@
     <div class="map-section" id="azba-section">
         <h2>Carte AZBA</h2>
         <div class="controles" style="justify-content:center;">
-            <button id="azba-load-btn" class="link-button" style="background-color:#3498db;">Afficher AZBA dans le briefing</button>
             <a href="https://www.sia.aviation-civile.gouv.fr/schedules" target="_blank" rel="noopener" class="link-button" style="background-color:#2c3e50;">Ouvrir AZBA</a>
         </div>
-        <div id="azba-embedded-status" style="display:none; margin:12px auto; max-width:1100px; padding:12px; border-radius:10px; background:#d8e8ff; border:1px solid #9fc3f5; font-weight:700; text-align:center; color:#234;">
-            Chargement AZBA dans le briefing. Si le site SIA refuse l'affichage intégré, utiliser le bouton « Ouvrir AZBA ».
-        </div>
-        <div id="azba-embedded-container" style="display:none; margin-top:14px; border:1px solid #bdc3c7; border-radius:10px; overflow:hidden; background:#f8f9fa;">
-            <iframe id="azba-iframe" title="Carte AZBA SIA" src="about:blank" style="width:100%; height:78vh; min-height:620px; border:0; background:#fff;"></iframe>
+        <div style="margin:12px auto; max-width:1100px; padding:12px; border-radius:10px; background:#fff7d6; border:1px solid #e5c96d; font-weight:700; text-align:center; color:#5a4300;">
+            Le site SIA refuse l'affichage intégré dans le briefing. Utiliser le bouton « Ouvrir AZBA ».
         </div>
     </div>
     
@@ -1692,7 +1692,7 @@
     <footer>Données : Météo-France, SIA, Windy.com, CheckWX.com. Page non commerciale, à usage personnel.</footer>
     
     <script>
-        const APP_VERSION = "3.54 TEST intégration AZBA";
+        const APP_VERSION = "3.56 TEST FDS J/J+1 NOTAM ordre";
 
         // --- Clé API pour la source de données météo ---
         const CHECKWX_API_KEY = "b8071d79ae4a482491114af48c9c0246";
@@ -3077,7 +3077,7 @@ const tdfStages = [
             const mailDate = meta.mailDate || meta.emailDate || meta.updatedAt || meta.lastModified || '';
             const dateLabel = mailDate ? formatFdsMetaDate_(mailDate) : 'date inconnue';
             const subject = meta.mailSubject || meta.subject || '';
-            const sourceLabel = mode === FDS_MODE_MANUAL ? 'FDS manuelle affichée' : 'FDS automatique chargée';
+            const sourceLabel = options.sourceLabel || (mode === FDS_MODE_MANUAL ? 'FDS manuelle affichée' : 'FDS automatique chargée');
 
             panel.innerHTML = `
                 <div class="fds-meta-title">${escapeHtml_(sourceLabel)} — ${escapeHtml_(filename)}</div>
@@ -3085,6 +3085,76 @@ const tdfStages = [
                 ${subject ? `<div class="fds-meta-subject">${escapeHtml_(subject)}</div>` : ''}
             `;
             panel.classList.add('visible');
+        }
+
+        function fdsParisDateKey_(offsetDays = 0) {
+            const now = new Date();
+            const paris = new Date(now.toLocaleString('en-US', { timeZone: 'Europe/Paris' }));
+            paris.setDate(paris.getDate() + offsetDays);
+            const yyyy = paris.getFullYear();
+            const mm = String(paris.getMonth() + 1).padStart(2, '0');
+            const dd = String(paris.getDate()).padStart(2, '0');
+            return `${yyyy}${mm}${dd}`;
+        }
+
+        function formatFdsDateKey_(dateKey) {
+            const key = String(dateKey || '').replace(/\D/g, '');
+            if (key.length !== 8) return String(dateKey || '');
+            return `${key.slice(6, 8)}/${key.slice(4, 6)}/${key.slice(0, 4)}`;
+        }
+
+        function getFdsTodayEntry_(payload) {
+            if (payload && payload.today && payload.today.exists) return payload.today;
+            if (payload && payload.file && payload.file.exists) return payload.file;
+            return null;
+        }
+
+        function getFdsTomorrowEntry_(payload) {
+            return payload && payload.tomorrow && payload.tomorrow.exists ? payload.tomorrow : null;
+        }
+
+        function getFdsStatusSignature_(payload) {
+            const today = payload && payload.today ? payload.today : (payload && payload.file ? payload.file : null);
+            const tomorrow = payload && payload.tomorrow ? payload.tomorrow : null;
+            return [
+                today && today.updatedAt ? today.updatedAt : '',
+                today && today.originalFilename ? today.originalFilename : '',
+                tomorrow && tomorrow.updatedAt ? tomorrow.updatedAt : '',
+                tomorrow && tomorrow.originalFilename ? tomorrow.originalFilename : ''
+            ].join('|');
+        }
+
+        function updateFdsTomorrowButton_(statusPayload) {
+            const panel = document.getElementById('fds-next-day-panel');
+            if (!panel) return;
+            const tomorrow = getFdsTomorrowEntry_(statusPayload);
+            if (!tomorrow || getFdsMode_() === FDS_MODE_MANUAL) {
+                panel.classList.remove('visible');
+                panel.innerHTML = '';
+                return;
+            }
+            const dateKey = tomorrow.dateKey || tomorrow.fileDate || fdsParisDateKey_(1);
+            const dateLabel = formatFdsDateKey_(dateKey);
+            panel.innerHTML = `
+                <div style="font-weight:800; margin-bottom:4px;">FDS du lendemain disponible sur le serveur.</div>
+                <button id="fds-load-tomorrow-btn" type="button" class="link-button">Charger FDS du ${escapeHtml_(dateLabel)}</button>
+            `;
+            panel.classList.add('visible');
+            const btn = document.getElementById('fds-load-tomorrow-btn');
+            if (btn) {
+                btn.addEventListener('click', async () => {
+                    try {
+                        btn.disabled = true;
+                        btn.textContent = `Chargement FDS du ${dateLabel}...`;
+                        await loadFdsPdfFromNas_(statusPayload, Date.now(), dateKey, tomorrow, { sourceLabel: `FDS du ${dateLabel} chargée à la demande` });
+                        setFdsAutoStatus_(`FDS du ${dateLabel} chargée à la demande. La FDS du jour reste le chargement automatique par défaut.`);
+                    } catch (error) {
+                        setFdsAutoStatus_(`Erreur chargement FDS du ${dateLabel} : ${error.message || error}`, { error: true });
+                    } finally {
+                        updateFdsTomorrowButton_(statusPayload);
+                    }
+                });
+            }
         }
 
         function fetchWithTimeout_(url, options = {}, timeoutMs = 10000) {
@@ -3101,14 +3171,19 @@ const tdfStages = [
             if (!response.ok || !payload.ok) {
                 throw new Error(payload && payload.message ? payload.message : 'Statut feuille de service indisponible');
             }
-            if (!payload.file || !payload.file.exists) {
-                throw new Error('Aucune feuille de service disponible sur le NAS');
-            }
             return payload;
         }
 
-        async function loadFdsPdfFromNas_(statusPayload, cacheBuster = Date.now()) {
-            const pdfUrl = `${FDS_PDF_API_URL}?t=${encodeURIComponent(cacheBuster)}`;
+        async function loadFdsPdfFromNas_(statusPayload, cacheBuster = Date.now(), dateKey = null, entryOverride = null, displayOptions = {}) {
+            const entry = entryOverride || getFdsTodayEntry_(statusPayload);
+            if (!entry || !entry.exists) {
+                throw new Error('Aucune feuille de service du jour disponible sur le NAS');
+            }
+            const wantedDateKey = dateKey || entry.dateKey || entry.fileDate || '';
+            const query = new URLSearchParams();
+            query.set('t', String(cacheBuster));
+            if (wantedDateKey) query.set('date', wantedDateKey);
+            const pdfUrl = `${FDS_PDF_API_URL}?${query.toString()}`;
             const response = await fetchWithTimeout_(pdfUrl, { cache: 'no-store' }, 15000);
             if (!response.ok) {
                 throw new Error(`PDF feuille de service indisponible (${response.status})`);
@@ -3118,8 +3193,8 @@ const tdfStages = [
                 throw new Error('PDF feuille de service vide ou incomplet');
             }
 
-            const meta = statusPayload && statusPayload.file ? statusPayload.file : {};
-            const filename = meta.originalFilename || 'latest-feuille-service.pdf';
+            const meta = entry || {};
+            const filename = meta.originalFilename || meta.file || 'feuille-service.pdf';
             const file = new File([blob], filename, { type: 'application/pdf', lastModified: Date.now() });
 
             window.fdsFileObject = file;
@@ -3129,7 +3204,8 @@ const tdfStages = [
             const emailDateText = meta.mailDate ? ` — email du ${formatFdsMetaDate_(meta.mailDate)}` : '';
             const updatedText = meta.updatedAt ? ` — MAJ NAS ${formatFdsMetaDate_(meta.updatedAt)}` : '';
             document.getElementById('pdf-info-fds').textContent = `Document chargé : ${filename}${emailDateText}${updatedText}`;
-            setFdsMetaPanel_(meta, { mode: FDS_MODE_AUTO });
+            setFdsMetaPanel_(meta, { mode: FDS_MODE_AUTO, sourceLabel: displayOptions.sourceLabel });
+            updateFdsTomorrowButton_(statusPayload);
 
             return file;
         }
@@ -3145,8 +3221,8 @@ const tdfStages = [
                 await waitFds_(attempt === 0 ? 2500 : 1500);
                 try {
                     lastPayload = await fetchFdsStatus_(Date.now());
-                    const currentUpdatedAt = lastPayload && lastPayload.file ? lastPayload.file.updatedAt : '';
-                    if (!previousUpdatedAt || !currentUpdatedAt || currentUpdatedAt !== previousUpdatedAt) {
+                    const currentSignature = getFdsStatusSignature_(lastPayload);
+                    if (!previousUpdatedAt || !currentSignature || currentSignature !== previousUpdatedAt) {
                         return lastPayload;
                     }
                     setFdsAutoStatus_(`Attente du PDF Gmail sur le NAS... essai ${attempt + 1}/14`);
@@ -3174,7 +3250,7 @@ const tdfStages = [
                 setFdsAutoStatus_('Lecture du statut feuille de service sur le NAS...');
                 try {
                     const currentStatus = await fetchFdsStatus_(Date.now());
-                    previousUpdatedAt = currentStatus && currentStatus.file ? currentStatus.file.updatedAt : '';
+                    previousUpdatedAt = getFdsStatusSignature_(currentStatus);
                 } catch (statusError) {
                     previousUpdatedAt = '';
                 }
@@ -3188,11 +3264,20 @@ const tdfStages = [
 
                 setFdsAutoStatus_('Gmail appelé. Attente du nouveau PDF sur le NAS...');
                 const newStatus = await waitForUpdatedFdsStatus_(previousUpdatedAt);
-                await loadFdsPdfFromNas_(newStatus, Date.now());
-
-                const meta = newStatus && newStatus.file ? newStatus.file : {};
-                const emailDate = meta.mailDate ? formatFdsMetaDate_(meta.mailDate) : formatFdsMetaDate_(meta.updatedAt);
-                setFdsAutoStatus_(`Feuille de service actualisée : ${meta.originalFilename || 'PDF'} — email du ${emailDate}.`);
+                const todayEntry = getFdsTodayEntry_(newStatus);
+                const tomorrowEntry = getFdsTomorrowEntry_(newStatus);
+                if (todayEntry) {
+                    await loadFdsPdfFromNas_(newStatus, Date.now(), todayEntry.dateKey || todayEntry.fileDate, todayEntry);
+                    const emailDate = todayEntry.mailDate ? formatFdsMetaDate_(todayEntry.mailDate) : formatFdsMetaDate_(todayEntry.updatedAt);
+                    setFdsAutoStatus_(`Feuille de service du jour actualisée : ${todayEntry.originalFilename || 'PDF'} — email du ${emailDate}.`);
+                } else {
+                    updateFdsTomorrowButton_(newStatus);
+                    if (tomorrowEntry) {
+                        setFdsAutoStatus_('Aucune FDS du jour disponible. Une FDS du lendemain est disponible mais non affichée automatiquement.', { warning: true });
+                    } else {
+                        setFdsAutoStatus_('Aucune FDS du jour disponible sur le NAS.', { warning: true });
+                    }
+                }
             } catch (error) {
                 console.error('Erreur actualisation feuille de service:', error);
                 setFdsAutoStatus_(`Erreur actualisation feuille de service : ${error.message || error}`, { error: true });
@@ -3212,10 +3297,20 @@ const tdfStages = [
 
             try {
                 const statusPayload = await fetchFdsStatus_(Date.now());
-                await loadFdsPdfFromNas_(statusPayload, Date.now());
-                const meta = statusPayload && statusPayload.file ? statusPayload.file : {};
-                const emailDate = meta.mailDate ? formatFdsMetaDate_(meta.mailDate) : formatFdsMetaDate_(meta.updatedAt);
-                setFdsAutoStatus_(`Dernière feuille NAS chargée : ${meta.originalFilename || 'PDF'} — email du ${emailDate}.`);
+                const todayEntry = getFdsTodayEntry_(statusPayload);
+                const tomorrowEntry = getFdsTomorrowEntry_(statusPayload);
+                if (todayEntry) {
+                    await loadFdsPdfFromNas_(statusPayload, Date.now(), todayEntry.dateKey || todayEntry.fileDate, todayEntry);
+                    const emailDate = todayEntry.mailDate ? formatFdsMetaDate_(todayEntry.mailDate) : formatFdsMetaDate_(todayEntry.updatedAt);
+                    setFdsAutoStatus_(`FDS du jour chargée : ${todayEntry.originalFilename || 'PDF'} — email du ${emailDate}.`);
+                } else {
+                    updateFdsTomorrowButton_(statusPayload);
+                    if (tomorrowEntry) {
+                        setFdsAutoStatus_('Aucune FDS du jour disponible. Une FDS du lendemain est disponible mais non affichée automatiquement.', { warning: true });
+                    } else {
+                        setFdsAutoStatus_('Aucune feuille de service NAS chargée automatiquement. Utiliser Actualiser ou Importation manuelle.', { warning: true });
+                    }
+                }
             } catch (error) {
                 setFdsAutoStatus_('Aucune feuille de service NAS chargée automatiquement. Utiliser Actualiser ou Importation manuelle.', { warning: true });
             }
@@ -3384,23 +3479,6 @@ const tdfStages = [
 
 
 
-        function initializeAzbaEmbeddedViewer() {
-            const loadBtn = document.getElementById('azba-load-btn');
-            const status = document.getElementById('azba-embedded-status');
-            const container = document.getElementById('azba-embedded-container');
-            const iframe = document.getElementById('azba-iframe');
-            if (!loadBtn || !status || !container || !iframe) return;
-
-            loadBtn.addEventListener('click', () => {
-                status.style.display = 'block';
-                container.style.display = 'block';
-                if (iframe.getAttribute('src') === 'about:blank') {
-                    iframe.setAttribute('src', 'https://www.sia.aviation-civile.gouv.fr/schedules');
-                }
-                loadBtn.blur();
-            });
-        }
-
         function forceBriefingStartAtTop() {
     // iPad/PWA : certains rendus PDF/iframes ou la restauration NOTAM
     // peuvent provoquer un scroll automatique vers TEMSI/NOTAM.
@@ -3439,7 +3517,6 @@ const tdfStages = [
     initializeHelpTooltips();
     initializeGaarMapControls();
     initializeTdfViewer();
-    initializeAzbaEmbeddedViewer();
 
     // Forçage accueil : au chargement initial, on revient toujours au début.
     setTimeout(forceBriefingStartAtTop, 0);
@@ -4457,6 +4534,7 @@ const tdfStages = [
                         originalFilename: window.fdsFileObject.name,
                         lastModified: window.fdsFileObject.lastModified
                     }, { mode: FDS_MODE_MANUAL });
+                    updateFdsTomorrowButton_(null);
                     setFdsAutoStatus_(`Mode FDS manuel activé : ${window.fdsFileObject.name} affichée. Elle ne sera pas remplacée automatiquement par la feuille NAS au démarrage.`, { warning: true });
 
                     if (typeof window.performBfgLocalSave_ === 'function') {
@@ -5650,7 +5728,7 @@ window.__notamTextFull = notamInput.value;
         function initializeNotamParser() { 
             const notamInput = document.getElementById('notam-input'), notamDisplay = document.getElementById('notam-display'), notamSection = document.querySelector('.notam-section');
             const filterButtons = document.querySelectorAll('.filter-action'), showAllButtons = document.querySelectorAll('.show-all-action'), savePdfButtons = document.querySelectorAll('.save-pdf-action');
-            const predefinedIcaoOrder = ['LFTW', 'LFML', 'LFTH', 'LFMD', 'LFHO', 'LFLU', 'LFMH', 'LFMU', 'LFMP', 'LFMK', 'LFCR', 'LFCC', 'LFBD', 'LFBL', 'LFBM', 'LFBP', 'LFKC', 'LFKB', 'LFKJ', 'LFKF', 'LFBN', 'LFJR', 'LFAQ', 'LFLX', 'LFGJ', 'LFSG', 'LFRV'];
+            const predefinedIcaoOrder = ['LFTW', 'LFMU', 'LFMP', 'LFMK', 'LFML', 'LFTH', 'LFMD', 'LFKB', 'LFKC', 'LFKJ', 'LFKF', 'LFBP', 'LFBM', 'LFBD', 'LFBL', 'LFBN', 'LFLX', 'LFJR', 'LFRV', 'LFGJ', 'LFSG', 'LFAQ'];
             const icaoToFullName = {
                 'LFTW':'LFTW - NIMES GARONS', 'LFML':'LFML - MARSEILLE PROVENCE', 'LFTH':'LFTH - TOULON HYERES', 
                 'LFMD':'LFMD - CANNES MANDELIEU', 'LFHO':'LFHO - AUBENAS ARDECHE MERIDIONALE', 'LFLU':'LFLU - VALENCE CHABEUIL', 
