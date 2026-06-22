@@ -1,4 +1,4 @@
-const CACHE_NAME = 'briefing-fdf-test-v3.59-notams-messages-vps';
+const CACHE_NAME = 'briefing-fdf-test-v3.60-sans-restaurer-status-haut';
 
 const LOCAL_ASSETS = [
   './manifest.json',
