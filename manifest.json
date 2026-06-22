@@ -1,7 +1,7 @@
 {
   "name": "Briefing FDF TEST",
   "short_name": "Briefing TEST",
-  "description": "Briefing FDF TEST v3.61 aide sauvegarde partage",
+  "description": "Briefing FDF TEST v3.62 messages NOTAM VPS corrigés",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
