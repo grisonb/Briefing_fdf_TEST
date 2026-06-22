@@ -245,6 +245,36 @@
             vertical-align: middle;
             background-color: var(--sc-yellow);
             color: var(--sc-blue);
+            flex: 0 0 auto;
+        }
+        .session-actions-row {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-bottom: 14px;
+        }
+        .session-actions-row .link-button {
+            margin: 5px 6px;
+        }
+        .shared-briefing-panel {
+            margin: 14px auto 0 auto;
+            max-width: 420px;
+            padding: 12px 14px;
+            background: rgba(255, 255, 255, 0.92);
+            color: #1f3b57;
+            border: 1px solid rgba(52, 73, 94, 0.25);
+            border-radius: 10px;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.12);
+        }
+        .shared-briefing-panel h4 {
+            margin: 0 0 8px 0;
+            color: #1f3b57;
+            font-size: 1em;
+        }
+        .shared-briefing-panel input {
+            background: #ffffff;
         }
 
         #session-help-tooltip {
@@ -1382,7 +1412,7 @@
         <h1 id="main-title">Briefing Fdf TEST</h1>
         <p id="current-time-display"></p>
         <p style="position: relative; z-index: 2; text-align: center; color: #333; font-size: 1em; margin-top: -25px; margin-bottom: 30px;">
-    v<span id="app-version">3.60 TEST sauvegarde simplifiée</span>
+    v<span id="app-version">3.61 TEST sauvegarde simplifiée</span>
     <button id="force-update-btn" class="link-button" style="background-color: #34495e; padding: 4px 10px; font-size: 0.8em; margin-left: 10px; vertical-align: middle;">
         Forcer MAJ
     </button>
@@ -1403,24 +1433,25 @@
     </div>
 
     <div class="session-management" id="session-section">
-    <span id="session-help-icon" class="help-icon" title="Aide sauvegarde / partage">?</span>
     <p id="session-status"></p>
-    <button id="save-session-btn" class="link-button" style="background-color: #28a745;">Sauvegarder</button>
-    <button id="export-session-btn" class="link-button" style="background-color: #8e44ad;">Partager</button>
-    <button id="clear-session-btn" class="link-button" style="background-color: var(--sc-red);">Effacer</button>
+    <div class="session-actions-row">
+        <span id="session-help-icon" class="help-icon" title="Aide sauvegarde / partage">?</span>
+        <button id="save-session-btn" class="link-button" style="background-color: #28a745;">Sauvegarder</button>
+        <button id="export-session-btn" class="link-button" style="background-color: #8e44ad;">Partager</button>
+        <button id="clear-session-btn" class="link-button" style="background-color: var(--sc-red);">Effacer</button>
+    </div>
     <div id="session-help-tooltip" class="help-tooltip" style="display: none;">
         <h4>Aide : sauvegarde et partage du briefing</h4>
         <ol>
-            <li><strong>Sauvegarder :</strong> enregistre localement le briefing affiché sur cet iPad/navigateur, avec les derniers PDF, NOTAMs, données CNCASC/Pélicandromes et TEMSI disponibles.</li>
-            <li><strong>Restauration automatique :</strong> à l’ouverture du briefing, la dernière sauvegarde locale de cet iPad/navigateur est rechargée automatiquement, sauf si elle a été effacée ou supprimée automatiquement le matin du 3e jour.</li>
-            <li><strong>Partager :</strong> crée une session de briefing partagée sur le NAS et fournit un code à ouvrir depuis un autre appareil.</li>
+            <li><strong>Sauvegarder :</strong> enregistre localement le briefing affiché sur cet iPad/navigateur, avec les derniers PDF, NOTAMs, pélicandromes, cartes et données disponibles.</li>
+            <li><strong>Chargement automatique :</strong> à l’ouverture du briefing, la dernière sauvegarde locale de cet iPad/navigateur est chargée automatiquement si elle existe.</li>
+            <li><strong>Partager :</strong> crée un briefing partagé sur le NAS et fournit un code à ouvrir depuis un autre appareil.</li>
             <li><strong>Effacer :</strong> vide le briefing affiché et supprime la sauvegarde locale de cet appareil. Les briefings partagés déjà créés sur le NAS ne sont pas supprimés.</li>
             <li><strong>Ouvrir un briefing partagé :</strong> permet de saisir un code du type BFG-JJMM-01 pour récupérer un briefing déjà partagé.</li>
-            <li><strong>Accès données CNCASC :</strong> utiliser Connexion une fois avec le code accès, puis Actualiser pour resynchroniser les données sans ressaisir le code tant que la session reste valide. Déconnexion ferme l'accès CNCASC sur cet appareil.</li>
         </ol>
     </div>
-    <div id="shared-code-loader" style="margin-top: 10px; padding-top: 0;">
-        <label for="shared-code-input" style="font-weight: bold; display: block; margin-bottom: 6px;">Ouvrir un briefing partagé</label>
+    <div id="shared-code-loader" class="shared-briefing-panel">
+        <h4>Ouvrir un briefing partagé</h4>
         <input id="shared-code-input" type="text" placeholder="BFG-JJMM-01" inputmode="numeric" autocomplete="off" autocapitalize="characters" style="text-align: center; font-weight: bold; letter-spacing: 1px; max-width: 180px;">
         <button id="open-shared-code-btn" class="link-button" style="background-color: #34495e; margin-top: 10px;">Ouvrir</button>
     </div>
@@ -1713,7 +1744,7 @@
     <footer>Données : Météo-France, SIA, Windy.com, CheckWX.com. Page non commerciale, à usage personnel.</footer>
     
     <script>
-        const APP_VERSION = "3.60 TEST sauvegarde simplifiée";
+        const APP_VERSION = "3.61 TEST sauvegarde simplifiée";
 
         // --- Clé API pour la source de données météo ---
         const CHECKWX_API_KEY = "b8071d79ae4a482491114af48c9c0246";
@@ -5493,8 +5524,7 @@ let activeShareApiBase = SHARE_API_BASE;
         if (Number.isNaN(savedAt.getTime())) return false;
 
         // Règle opérationnelle : une sauvegarde du jour J reste utilisable J et J+1.
-        // Elle est supprimée automatiquement à partir de 06h00 le matin de J+2,
-        // c'est-à-dire le matin du 3e jour calendaire.
+        // Elle est supprimée automatiquement à partir de 06h00 le matin de J+2.
         const deletionDate = new Date(savedAt.getFullYear(), savedAt.getMonth(), savedAt.getDate());
         deletionDate.setDate(deletionDate.getDate() + 2);
         deletionDate.setHours(6, 0, 0, 0);
@@ -5556,7 +5586,7 @@ let activeShareApiBase = SHARE_API_BASE;
 
             const expiredSessionDeleted = await deleteLocalSessionIfThirdMorning_();
             if (expiredSessionDeleted) {
-                sessionStatus.textContent = "Sauvegarde locale supprimée automatiquement : matin du 3e jour.";
+                sessionStatus.textContent = "Aucune sauvegarde locale chargée.";
                 return;
             }
 
