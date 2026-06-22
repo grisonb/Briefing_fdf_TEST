@@ -1,7 +1,7 @@
 {
   "name": "Briefing FDF TEST",
   "short_name": "Briefing TEST",
-  "description": "Briefing FDF TEST v3.56 FDS jour/demain",
+  "description": "Briefing FDF TEST v3.57 FDS sans blocage",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
