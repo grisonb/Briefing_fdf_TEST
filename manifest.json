@@ -1,7 +1,7 @@
 {
   "name": "Briefing FDF TEST",
   "short_name": "Briefing TEST",
-  "description": "Briefing FDF TEST v3.51 couleurs boutons FDS et cartes des risques",
+  "description": "Briefing FDF TEST v3.52 couleurs boutons FDS et cartes des risques",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
