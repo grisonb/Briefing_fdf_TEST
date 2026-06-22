@@ -1357,7 +1357,7 @@
         <h1 id="main-title">Briefing Fdf TEST</h1>
         <p id="current-time-display"></p>
         <p style="position: relative; z-index: 2; text-align: center; color: #333; font-size: 1em; margin-top: -25px; margin-bottom: 30px;">
-    v<span id="app-version">3.56 TEST FDS J/J+1 NOTAM ordre</span>
+    v<span id="app-version">3.57 TEST FDS sans blocage</span>
     <button id="force-update-btn" class="link-button" style="background-color: #34495e; padding: 4px 10px; font-size: 0.8em; margin-left: 10px; vertical-align: middle;">
         Forcer MAJ
     </button>
@@ -1692,7 +1692,7 @@
     <footer>Données : Météo-France, SIA, Windy.com, CheckWX.com. Page non commerciale, à usage personnel.</footer>
     
     <script>
-        const APP_VERSION = "3.56 TEST FDS J/J+1 NOTAM ordre";
+        const APP_VERSION = "3.57 TEST FDS sans blocage";
 
         // --- Clé API pour la source de données météo ---
         const CHECKWX_API_KEY = "b8071d79ae4a482491114af48c9c0246";
@@ -3164,6 +3164,27 @@ const tdfStages = [
                 .finally(() => clearTimeout(timer));
         }
 
+        function callFdsGmailRefreshWithoutBlocking_() {
+            return new Promise((resolve) => {
+                const iframe = document.createElement('iframe');
+                iframe.style.position = 'absolute';
+                iframe.style.width = '1px';
+                iframe.style.height = '1px';
+                iframe.style.border = '0';
+                iframe.style.opacity = '0';
+                iframe.style.pointerEvents = 'none';
+                iframe.setAttribute('aria-hidden', 'true');
+                iframe.src = `${FDS_GMAIL_REFRESH_URL}?t=${encodeURIComponent(Date.now())}`;
+                document.body.appendChild(iframe);
+                setTimeout(() => {
+                    resolve();
+                    setTimeout(() => {
+                        try { iframe.remove(); } catch (e) {}
+                    }, 120000);
+                }, 1000);
+            });
+        }
+
         async function fetchFdsStatus_(cacheBuster = Date.now()) {
             const url = `${FDS_STATUS_API_URL}?t=${encodeURIComponent(cacheBuster)}`;
             const response = await fetchWithTimeout_(url, { cache: 'no-store' }, 10000);
@@ -3256,11 +3277,7 @@ const tdfStages = [
                 }
 
                 setFdsAutoStatus_('Demande envoyée à Gmail via Apps Script...');
-                await fetchWithTimeout_(`${FDS_GMAIL_REFRESH_URL}?t=${encodeURIComponent(Date.now())}`, {
-                    method: 'GET',
-                    mode: 'no-cors',
-                    cache: 'no-store'
-                }, 20000);
+                await callFdsGmailRefreshWithoutBlocking_();
 
                 setFdsAutoStatus_('Gmail appelé. Attente du nouveau PDF sur le NAS...');
                 const newStatus = await waitForUpdatedFdsStatus_(previousUpdatedAt);
