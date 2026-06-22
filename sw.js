@@ -1,4 +1,4 @@
-const CACHE_NAME = 'briefing-fdf-test-v3.52-couleurs-fds-risques';
+const CACHE_NAME = 'briefing-fdf-test-v3.53-ui-fds-risques-azba';
 
 const LOCAL_ASSETS = [
   './manifest.json',
