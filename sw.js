@@ -1,4 +1,4 @@
-const CACHE_NAME = 'briefing-fdf-test-v3.54-azba-integre-site';
+const CACHE_NAME = 'briefing-fdf-test-v3.56-fds-jour-demain';
 
 const LOCAL_ASSETS = [
   './manifest.json',
