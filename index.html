@@ -90,9 +90,15 @@
             background: rgba(255,255,255,0.10);
             box-shadow: inset 0 1px 0 rgba(255,255,255,0.14), 0 1px 2px rgba(0,0,0,0.14);
         }
-.nav-links li a:hover {
-            background: rgba(255,255,255,0.22);
-            border-color: rgba(255,255,255,0.65);
+.nav-links li a:hover,
+        .nav-links li a:focus,
+        .nav-links li a:active,
+        .nav-links li a:visited {
+            color: white;
+            background: rgba(255,255,255,0.10);
+            border-color: rgba(255,255,255,0.32);
+            box-shadow: inset 0 1px 0 rgba(255,255,255,0.14), 0 1px 2px rgba(0,0,0,0.14);
+            outline: none;
         }
         
         #gaar-map-nav-link {
@@ -435,11 +441,11 @@
         textarea { width: 100%; min-height: 200px; box-sizing: border-box; font-family: monospace; }
         .info-carte, .pdf-info { margin-bottom: 20px; font-size: 1.1em; font-weight: bold; text-align: center; }
         .pdf-info { font-size: 1em; margin-top: 10px; margin-bottom: 0; }
-        .fds-meta-panel { display: none; max-width: 860px; margin: 12px auto 14px auto; padding: 12px 16px; border: 2px solid #f4c2b8; border-radius: 10px; background: #fff5f1; color: #26384d; text-align: center; box-shadow: 0 2px 6px rgba(0,0,0,0.10); }
+        .fds-meta-panel { display: none; max-width: 860px; margin: 12px auto 14px auto; padding: 12px 16px; border: 1px solid #b7e4c7; border-left: 6px solid #2ecc71; border-radius: 10px; background: #e9f8ef; color: #26384d; text-align: center; box-shadow: 0 2px 6px rgba(0,0,0,0.10); }
         .fds-meta-panel.visible { display: block; }
-        .fds-meta-title { font-size: 1.05em; font-weight: 800; margin-bottom: 4px; }
-        .fds-meta-date { font-size: 1.25em; font-weight: 900; color: #8a2a1d; }
-        .fds-meta-subject { font-size: 0.95em; margin-top: 4px; color: #34495e; }
+        .fds-meta-title { font-size: 1.05em; font-weight: 800; margin-bottom: 4px; color: #145a32; }
+        .fds-meta-date { font-size: 1.25em; font-weight: 900; color: #145a32; }
+        .fds-meta-subject { font-size: 0.95em; margin-top: 4px; color: #216b3a; }
         #pdf-input-fds, #pdf-input-gaar, #pdf-input-notam, #pdf-input-sup-aip { display: none; }
         
         .link-button { display: inline-block; color: white; padding: 12px 25px; text-decoration: none; border-radius: 5px; font-size: 1.1em; transition: all 0.2s; cursor: pointer; border: none; box-shadow: 0 2px 5px rgba(0,0,0,0.2); }
@@ -1348,7 +1354,7 @@
         <h1 id="main-title">Briefing Fdf TEST</h1>
         <p id="current-time-display"></p>
         <p style="position: relative; z-index: 2; text-align: center; color: #333; font-size: 1em; margin-top: -25px; margin-bottom: 30px;">
-    v<span id="app-version">3.51 TEST couleurs FDS risques</span>
+    v<span id="app-version">3.53 TEST ajustements UI FDS / risques</span>
     <button id="force-update-btn" class="link-button" style="background-color: #34495e; padding: 4px 10px; font-size: 0.8em; margin-left: 10px; vertical-align: middle;">
         Forcer MAJ
     </button>
@@ -1474,7 +1480,7 @@
     <div class="map-section" id="risk-maps-section">
         <h2>Carte des risques</h2>
         <div class="controles" style="gap: 20px;">
-            <button id="risk-maps-refresh-btn" class="link-button" style="background-color: #cfeecf; color:#145a32;">Recharger affichage cartes</button>
+            <button id="risk-maps-refresh-btn" class="link-button" style="background-color: #2980b9; color:white;">Actualiser</button>
             <a id="risk-map-national-open" href="https://grisonb.synology.me/briefing-data/risk-maps/latest-risk-national.pdf" target="_blank" class="link-button" style="background-color: #f6d1dc; color:#7b1f3a;">Carte des Risques / National</a>
             <a id="risk-map-zonesud-open" href="https://grisonb.synology.me/briefing-data/risk-maps/latest-risk-zonesud.pdf" target="_blank" class="link-button" style="background-color: #f4c2b8; color:#8a2a1d;">Cartes des Risques / Zone Sud</a>
         </div>
@@ -1679,7 +1685,7 @@
     <footer>Données : Météo-France, SIA, Windy.com, CheckWX.com. Page non commerciale, à usage personnel.</footer>
     
     <script>
-        const APP_VERSION = "3.51 TEST couleurs boutons FDS / risques";
+        const APP_VERSION = "3.53 TEST ajustements UI FDS / risques";
 
         // --- Clé API pour la source de données météo ---
         const CHECKWX_API_KEY = "b8071d79ae4a482491114af48c9c0246";
