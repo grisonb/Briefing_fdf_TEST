@@ -1,4 +1,4 @@
-const CACHE_NAME = 'briefing-fdf-test-v3.60-sans-restaurer-status-haut';
+const CACHE_NAME = 'briefing-fdf-test-v3.61-sans-restaurer-status-haut';
 
 const LOCAL_ASSETS = [
   './manifest.json',
