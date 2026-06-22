@@ -1,4 +1,4 @@
-const CACHE_NAME = 'briefing-fdf-test-v3.57-fds-appscript';
+const CACHE_NAME = 'briefing-fdf-test-v3.58-azba-notams-visibilite';
 
 const LOCAL_ASSETS = [
   './manifest.json',
