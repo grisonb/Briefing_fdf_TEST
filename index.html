@@ -239,7 +239,7 @@
         .session-management h3 { margin-top: 0; color: white; }
         .session-management .link-button { margin: 5px 10px; font-size: 1em; padding: 10px 20px; }
         .session-management .link-button:disabled { background-color: #95a5a6; cursor: not-allowed; opacity: 0.7; }
-        #session-status { font-style: italic; color: white; opacity: 0.9; margin-top: 15px; font-weight: bold; }
+        #session-status { font-style: italic; color: white; opacity: 0.95; margin: 0 0 12px 0; font-weight: bold; min-height: 1.2em; }
         #session-help-icon {
             margin-right: 6px;
             vertical-align: middle;
@@ -1382,7 +1382,7 @@
         <h1 id="main-title">Briefing Fdf TEST</h1>
         <p id="current-time-display"></p>
         <p style="position: relative; z-index: 2; text-align: center; color: #333; font-size: 1em; margin-top: -25px; margin-bottom: 30px;">
-    v<span id="app-version">3.59 TEST messages VPS</span>
+    v<span id="app-version">3.60 TEST sauvegarde simplifiée</span>
     <button id="force-update-btn" class="link-button" style="background-color: #34495e; padding: 4px 10px; font-size: 0.8em; margin-left: 10px; vertical-align: middle;">
         Forcer MAJ
     </button>
@@ -1404,16 +1404,15 @@
 
     <div class="session-management" id="session-section">
     <span id="session-help-icon" class="help-icon" title="Aide sauvegarde / partage">?</span>
+    <p id="session-status"></p>
     <button id="save-session-btn" class="link-button" style="background-color: #28a745;">Sauvegarder</button>
-    <button id="restore-session-btn" class="link-button" style="background-color: #1abc9c;">Restaurer</button>
     <button id="export-session-btn" class="link-button" style="background-color: #8e44ad;">Partager</button>
     <button id="clear-session-btn" class="link-button" style="background-color: var(--sc-red);">Effacer</button>
-    <p id="session-status"></p>
     <div id="session-help-tooltip" class="help-tooltip" style="display: none;">
         <h4>Aide : sauvegarde et partage du briefing</h4>
         <ol>
             <li><strong>Sauvegarder :</strong> enregistre localement le briefing affiché sur cet iPad/navigateur, avec les derniers PDF, NOTAMs, données CNCASC/Pélicandromes et TEMSI disponibles.</li>
-            <li><strong>Restaurer :</strong> recharge la dernière sauvegarde locale, utile en cas de perte réseau ou de rechargement incomplet.</li>
+            <li><strong>Restauration automatique :</strong> à l’ouverture du briefing, la dernière sauvegarde locale de cet iPad/navigateur est rechargée automatiquement, sauf si elle a été effacée ou supprimée automatiquement le matin du 3e jour.</li>
             <li><strong>Partager :</strong> crée une session de briefing partagée sur le NAS et fournit un code à ouvrir depuis un autre appareil.</li>
             <li><strong>Effacer :</strong> vide le briefing affiché et supprime la sauvegarde locale de cet appareil. Les briefings partagés déjà créés sur le NAS ne sont pas supprimés.</li>
             <li><strong>Ouvrir un briefing partagé :</strong> permet de saisir un code du type BFG-JJMM-01 pour récupérer un briefing déjà partagé.</li>
@@ -1714,7 +1713,7 @@
     <footer>Données : Météo-France, SIA, Windy.com, CheckWX.com. Page non commerciale, à usage personnel.</footer>
     
     <script>
-        const APP_VERSION = "3.59 TEST messages VPS";
+        const APP_VERSION = "3.60 TEST sauvegarde simplifiée";
 
         // --- Clé API pour la source de données météo ---
         const CHECKWX_API_KEY = "b8071d79ae4a482491114af48c9c0246";
@@ -4691,18 +4690,6 @@ const tdfStages = [
     let lastShareUrl = "";
     let lastShareCode = ""; 
 
-   // Sécurité anti-merge/caching: ne garder qu'un seul bouton Restaurer visible
-// et le laisser juste après "Sauvegarder".
-const restoreButtons = Array.from(document.querySelectorAll('#restore-session-btn'));
-restoreButtons.forEach((btn, idx) => { if (idx > 0) btn.remove(); });
-
-const saveBtnPrimary = document.querySelector('#save-session-btn');
-const restoreBtnPrimary = document.querySelector('#restore-session-btn');
-
-if (saveBtnPrimary && restoreBtnPrimary) {
-    saveBtnPrimary.insertAdjacentElement('afterend', restoreBtnPrimary);
-}
-
     let isSavingSession = false;
     const LEGACY_SHARE_API_BASE = 'https://grisonb.synology.me/briefing-api';
 const SHARE_API_BASE = LEGACY_SHARE_API_BASE;
@@ -5146,12 +5133,6 @@ let activeShareApiBase = SHARE_API_BASE;
     // ===== Wire buttons =====
     saveBtnTop && saveBtnTop.addEventListener('click', performSave);
     saveBtnBottom && saveBtnBottom.addEventListener('click', performSave);
-    document.querySelectorAll('#restore-session-btn').forEach((btn) => {
-        btn.addEventListener('click', async () => {
-            await restoreLocalSession_();
-        });
-    });
-
     if (exportBtn) {
         exportBtn.addEventListener('click', async () => {
             let portable;
