@@ -526,6 +526,31 @@
         }
         
         #notam-display h3, #manual-metar-display h3 { border-bottom: 2px solid var(--sc-yellow); padding-bottom: 5px; margin-top: 30px; color: var(--sc-blue);}
+        #notam-display .airport-section-container > h3 {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin: 32px 0 14px;
+            padding: 12px 16px;
+            border: 1px solid #9db7d7;
+            border-left: 10px solid var(--sc-blue);
+            border-radius: 10px;
+            background: linear-gradient(90deg, #dbeafe 0%, #eef6ff 100%);
+            color: var(--sc-blue);
+            font-size: 1.18em;
+            font-weight: 800;
+            box-shadow: 0 3px 8px rgba(10, 44, 90, 0.14);
+        }
+        #notam-display .airport-section-container > h3 .taf-toggle-btn {
+            margin-left: 6px;
+            box-shadow: none;
+        }
+        #notam-display .airport-section-container:nth-of-type(even) > h3 {
+            background: linear-gradient(90deg, #e8f3ea 0%, #f4fbf5 100%);
+            border-color: #a9c7ac;
+            border-left-color: #4c8d57;
+        }
         
         .notam-item { 
             display: flex;
@@ -1357,7 +1382,7 @@
         <h1 id="main-title">Briefing Fdf TEST</h1>
         <p id="current-time-display"></p>
         <p style="position: relative; z-index: 2; text-align: center; color: #333; font-size: 1em; margin-top: -25px; margin-bottom: 30px;">
-    v<span id="app-version">3.57 TEST FDS sans blocage</span>
+    v<span id="app-version">3.58 TEST AZBA NOTAM visuel</span>
     <button id="force-update-btn" class="link-button" style="background-color: #34495e; padding: 4px 10px; font-size: 0.8em; margin-left: 10px; vertical-align: middle;">
         Forcer MAJ
     </button>
@@ -1654,9 +1679,6 @@
         <div class="controles" style="justify-content:center;">
             <a href="https://www.sia.aviation-civile.gouv.fr/schedules" target="_blank" rel="noopener" class="link-button" style="background-color:#2c3e50;">Ouvrir AZBA</a>
         </div>
-        <div style="margin:12px auto; max-width:1100px; padding:12px; border-radius:10px; background:#fff7d6; border:1px solid #e5c96d; font-weight:700; text-align:center; color:#5a4300;">
-            Le site SIA refuse l'affichage intégré dans le briefing. Utiliser le bouton « Ouvrir AZBA ».
-        </div>
     </div>
     
     <div id="sup-aip-section" class="pdf-section dropzone">
@@ -1692,7 +1714,7 @@
     <footer>Données : Météo-France, SIA, Windy.com, CheckWX.com. Page non commerciale, à usage personnel.</footer>
     
     <script>
-        const APP_VERSION = "3.57 TEST FDS sans blocage";
+        const APP_VERSION = "3.58 TEST AZBA NOTAM visuel";
 
         // --- Clé API pour la source de données météo ---
         const CHECKWX_API_KEY = "b8071d79ae4a482491114af48c9c0246";
