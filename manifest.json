@@ -1,7 +1,7 @@
 {
   "name": "Briefing FDF TEST",
   "short_name": "Briefing TEST",
-  "description": "Briefing FDF TEST v3.63 FDS ordre lignes",
+  "description": "Briefing FDF TEST v3.64 FDS police corrigée",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
