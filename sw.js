@@ -1,4 +1,4 @@
-const CACHE_NAME = 'briefing-fdf-test-v3.62-messages-notams-vps-corrige';
+const CACHE_NAME = 'briefing-fdf-test-v3.63-fds-inversion-lignes';
 
 const LOCAL_ASSETS = [
   './manifest.json',
