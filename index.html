@@ -1412,7 +1412,7 @@
         <h1 id="main-title">Briefing Fdf TEST</h1>
         <p id="current-time-display"></p>
         <p style="position: relative; z-index: 2; text-align: center; color: #333; font-size: 1em; margin-top: -25px; margin-bottom: 30px;">
-    v<span id="app-version">3.63 TEST FDS ordre lignes</span>
+    v<span id="app-version">3.64 TEST FDS police corrigée</span>
     <button id="force-update-btn" class="link-button" style="background-color: #34495e; padding: 4px 10px; font-size: 0.8em; margin-left: 10px; vertical-align: middle;">
         Forcer MAJ
     </button>
@@ -1744,7 +1744,7 @@
     <footer>Données : Météo-France, SIA, Windy.com, CheckWX.com. Page non commerciale, à usage personnel.</footer>
     
     <script>
-        const APP_VERSION = "3.63 TEST FDS ordre lignes";
+        const APP_VERSION = "3.64 TEST FDS police corrigée";
 
         // --- Clé API pour la source de données météo ---
         const CHECKWX_API_KEY = "b8071d79ae4a482491114af48c9c0246";
@@ -3143,9 +3143,9 @@ const tdfStages = [
             const sourceLabel = options.sourceLabel || (mode === FDS_MODE_MANUAL ? 'FDS manuelle affichée' : 'FDS automatique chargée');
 
             panel.innerHTML = `
-                ${subject ? `<div class="fds-meta-subject">${escapeHtml_(subject)}</div>` : ''}
+                ${subject ? `<div class="fds-meta-title">${escapeHtml_(subject)}</div>` : ''}
                 <div class="fds-meta-date">Email / document du : ${escapeHtml_(dateLabel)}</div>
-                <div class="fds-meta-title">${escapeHtml_(sourceLabel)} — ${escapeHtml_(filename)}</div>
+                <div class="fds-meta-subject">${escapeHtml_(sourceLabel)} — ${escapeHtml_(filename)}</div>
             `;
             panel.classList.add('visible');
         }
