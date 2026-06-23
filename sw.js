@@ -1,4 +1,4 @@
-const CACHE_NAME = 'briefing-fdf-test-v3.63-fds-inversion-lignes';
+const CACHE_NAME = 'briefing-fdf-test-v3.64-fds-police-corrigee';
 
 const LOCAL_ASSETS = [
   './manifest.json',
