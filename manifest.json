@@ -1,7 +1,7 @@
 {
   "name": "Briefing FDF TEST",
   "short_name": "Briefing TEST",
-  "description": "Briefing FDF TEST v3.62 messages NOTAM VPS corrigés",
+  "description": "Briefing FDF TEST v3.63 FDS ordre lignes",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
