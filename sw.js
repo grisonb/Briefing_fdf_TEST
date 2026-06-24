@@ -1,4 +1,4 @@
-const CACHE_NAME = 'briefing-fdf-test-v3.65-gaar-auto';
+const CACHE_NAME = 'briefing-fdf-test-v3.66-gaar-carte-integree';
 
 const LOCAL_ASSETS = [
   './manifest.json',
