@@ -1748,7 +1748,7 @@
     <footer>Données : Météo-France, SIA, Windy.com, CheckWX.com. Page non commerciale, à usage personnel.</footer>
     
     <script>
-        const APP_VERSION = "3.66 TEST GAAR carte intégrée";
+        const APP_VERSION = "3.67 TEST TEMSI active";
 
         // --- Clé API pour la source de données météo ---
         const CHECKWX_API_KEY = "b8071d79ae4a482491114af48c9c0246";
@@ -4453,11 +4453,13 @@ const tdfStages = [
                 if (!select || !image || !info) return;
 
                 select.innerHTML = '';
-                const echeances = [6, 9, 12, 15, 18, 21];
+                // TEMSI : ne jamais afficher automatiquement une échéance future.
+                // Une carte devient active uniquement à partir de son heure de validité UTC.
+                const echeances = [0, 6, 9, 12, 15, 18, 21];
                 const now = new Date();
                 const currentHour = now.getUTCHours();
                 const date = new Date(now);
-                let activeEcheance = [...echeances].reverse().find(e => currentHour >= e - 1);
+                let activeEcheance = [...echeances].reverse().find(e => currentHour >= e);
                 if (activeEcheance === undefined) {
                     activeEcheance = 21;
                     date.setUTCDate(date.getUTCDate() - 1);
@@ -4484,16 +4486,19 @@ const tdfStages = [
                 }
                 const baseURL = 'https://aviation.meteo.fr/FR/aviation/affiche_image.php?login=fampsLSMuYmAdrAK4GqcZWRol2hoZHHd1uE%3D&layer=sigwx/fr/france&echeance=';
                 const update = e => {
-                    const src = baseURL + e;
+                    const cleanSrc = baseURL + e;
+                    const src = cleanSrc + '&bfgCacheBust=' + Date.now();
                     image.src = src;
                     const label = `Carte valide pour le ${e.substring(6,8)}/${e.substring(4,6)}/${e.substring(0,4)} à ${e.substring(8,10)}h00 UTC`;
                     info.textContent = label;
                     window.__lastTemsiState = {
                         src,
+                        cleanSrc,
                         echeance: e,
                         label,
                         selectedLabel: select.selectedOptions && select.selectedOptions[0] ? select.selectedOptions[0].textContent : '',
-                        updatedAt: new Date().toISOString()
+                        updatedAt: new Date().toISOString(),
+                        source: 'online'
                     };
                 };
                 select.addEventListener('change', e => update(e.target.value));
@@ -4502,17 +4507,26 @@ const tdfStages = [
             populateTemsi();
         }
 
+        function cleanTemsiInfoLabel_(text) {
+            return String(text || '')
+                .replace(/TEMSI hors ligne restaurée[^.]*\.\s*/g, '')
+                .replace(/\s+/g, ' ')
+                .trim();
+        }
+
         function collectTemsiOfflineState_() {
             const select = document.getElementById('temsi-select');
             const image = document.getElementById('temsi-image');
             const info = document.getElementById('temsi-info-carte');
-            const src = image ? image.src : '';
-            const echeance = select ? select.value : '';
+            const currentState = window.__lastTemsiState || {};
+            const src = currentState.cleanSrc || currentState.src || (image ? image.src : '');
+            const echeance = select ? select.value : (currentState.echeance || '');
             if (!src) return null;
             return {
                 src,
+                cleanSrc: currentState.cleanSrc || src,
                 echeance,
-                label: info ? info.textContent : '',
+                label: cleanTemsiInfoLabel_(currentState.label || (info ? info.textContent : '')),
                 selectedLabel: select && select.selectedOptions && select.selectedOptions[0] ? select.selectedOptions[0].textContent : '',
                 savedAt: new Date().toISOString()
             };
@@ -4540,6 +4554,12 @@ const tdfStages = [
 
         function restoreTemsiOfflineState_(state) {
             if (!state || !state.src) return;
+            // Si BFG est en ligne, la TEMSI active vient d'être recalculée et chargée.
+            // On ne doit pas la remplacer par une ancienne sauvegarde locale.
+            if (navigator.onLine && window.__lastTemsiState && window.__lastTemsiState.source === 'online') {
+                return;
+            }
+
             const select = document.getElementById('temsi-select');
             const image = document.getElementById('temsi-image');
             const info = document.getElementById('temsi-info-carte');
@@ -4556,10 +4576,10 @@ const tdfStages = [
                 select.value = state.echeance;
             }
 
-            image.src = state.src;
-            const savedText = state.savedAt ? ` — sauvegardée le ${formatAbeDate_(state.savedAt)}` : '';
-            info.textContent = `TEMSI hors ligne restaurée${savedText}. ${state.label || ''}`.trim();
-            window.__lastTemsiState = { ...state, restoredAt: new Date().toISOString() };
+            image.src = state.cleanSrc || state.src;
+            const cleanLabel = cleanTemsiInfoLabel_(state.label || '');
+            info.textContent = cleanLabel || 'TEMSI sauvegardée hors ligne.';
+            window.__lastTemsiState = { ...state, label: cleanLabel, restoredAt: new Date().toISOString(), source: 'offline' };
         }
 
         function createInteractivePdfHandler(viewerContainer, file, callback, initialScale = 1.5) {
