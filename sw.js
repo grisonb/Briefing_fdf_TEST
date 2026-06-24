@@ -1,4 +1,4 @@
-const CACHE_NAME = 'briefing-fdf-test-v3.68-nettoyage-local-ipad';
+const CACHE_NAME = 'briefing-fdf-test-v3.70-temsi-jour-sans-futur';
 
 const LOCAL_ASSETS = [
   './manifest.json',
