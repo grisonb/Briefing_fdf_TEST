@@ -1412,7 +1412,7 @@
         <h1 id="main-title">Briefing Fdf TEST</h1>
         <p id="current-time-display"></p>
         <p style="position: relative; z-index: 2; text-align: center; color: #333; font-size: 1em; margin-top: -25px; margin-bottom: 30px;">
-    v<span id="app-version">3.65 TEST GAAR auto</span>
+    v<span id="app-version">3.66 TEST GAAR carte intégrée</span>
     <button id="force-update-btn" class="link-button" style="background-color: #34495e; padding: 4px 10px; font-size: 0.8em; margin-left: 10px; vertical-align: middle;">
         Forcer MAJ
     </button>
@@ -1513,7 +1513,6 @@
             <button id="gaar-auto-refresh-btn" type="button" class="link-button" style="background-color: #cfeecf; color:#145a32;">Actualiser feuille GAAR</button>
             <button id="gaar-mode-toggle-btn" type="button" class="link-button" style="background-color: #d8e8ff; color:#1f4e79;">Mode GAAR : Auto</button>
             <button id="pdf-load-gaar-btn" class="link-button" style="background-color: #2980b9;">Importation manuelle</button>
-            <button id="show-gaar-map-btn" class="link-button" style="background-color: #27ae60;">Carte GAAR</button>
             <button id="pdf-reset-gaar-btn" class="link-button" style="background-color: var(--sc-red); display: none;">Supprimer diagramme GAAR</button>
             <input type="file" id="pdf-input-gaar" accept="application/pdf">
             <p id="gaar-auto-status" class="pdf-info" style="width: 100%; margin-top: 8px;"></p>
@@ -1527,16 +1526,16 @@
         <p id="pdf-info-gaar" class="pdf-info"></p>
     </div>
     
-    <div class="map-section" id="gaar-map-section" style="display: none;">
-        <h2>Carte des Circuits GAAR</h2>
+    <div class="map-section" id="gaar-map-section">
+        <h2>Carte des circuits GAAR</h2>
         <div id="gaar-map-container">
             <div id="gaar-map-controls">
-                <button id="add-manual-circuit-btn" class="link-button" style="background-color: #27ae60;">Ajout circuit(s) GAAR</button>
+                <button id="show-gaar-map-btn" class="link-button" style="background-color: #f39c12; color:#ffffff;">Afficher carte</button>
+                <button id="add-manual-circuit-btn" class="link-button" style="background-color: #27ae60; display: none;">Ajout circuit(s) GAAR</button>
                 <button id="delete-circuits-btn" class="link-button" style="background-color: var(--sc-red); display: none;">Supprimer circuit(s) GAAR</button>
-                <button id="hide-gaar-map-btn" class="link-button" style="background-color: #7f8c8d;">Masquer carte</button>
             </div>
-            <div id="gaar-map-display"></div>
-            <div id="gaar-status">Préparez vos circuits sur la carte</div>
+            <div id="gaar-map-display" style="display: none;"></div>
+            <div id="gaar-status" style="display: none;">Préparez vos circuits sur la carte</div>
         </div>
     </div>
 
@@ -1749,7 +1748,7 @@
     <footer>Données : Météo-France, SIA, Windy.com, CheckWX.com. Page non commerciale, à usage personnel.</footer>
     
     <script>
-        const APP_VERSION = "3.65 TEST GAAR auto";
+        const APP_VERSION = "3.66 TEST GAAR carte intégrée";
 
         // --- Clé API pour la source de données météo ---
         const CHECKWX_API_KEY = "b8071d79ae4a482491114af48c9c0246";
@@ -3970,6 +3969,45 @@ const tdfStages = [
         }
     }
 }
+        function setGaarMapVisibility(visible, options = {}) {
+            const mapSection = document.getElementById('gaar-map-section');
+            const mapDisplay = document.getElementById('gaar-map-display');
+            const mapStatus = document.getElementById('gaar-status');
+            const toggleBtn = document.getElementById('show-gaar-map-btn');
+            const addBtn = document.getElementById('add-manual-circuit-btn');
+            const deleteBtn = document.getElementById('delete-circuits-btn');
+            const mapNavLink = document.getElementById('gaar-map-nav-link');
+
+            if (mapSection) mapSection.style.display = 'block';
+            if (mapDisplay) mapDisplay.style.display = visible ? 'block' : 'none';
+            if (mapStatus) mapStatus.style.display = visible ? 'block' : 'none';
+            if (addBtn) addBtn.style.display = visible ? 'inline-block' : 'none';
+
+            if (toggleBtn) {
+                toggleBtn.textContent = visible ? 'Masquer carte' : 'Afficher carte';
+                toggleBtn.style.backgroundColor = visible ? '#7f8c8d' : '#f39c12';
+                toggleBtn.style.color = '#ffffff';
+            }
+
+            if (!visible) {
+                if (isAddingManualCircuit) {
+                    isAddingManualCircuit = false;
+                    if (addBtn) {
+                        addBtn.classList.remove('active');
+                        addBtn.textContent = 'Ajout circuit(s) GAAR';
+                    }
+                    if (mapDisplay) mapDisplay.classList.remove('crosshair-cursor');
+                }
+                if (deleteBtn) deleteBtn.style.display = 'none';
+                if (mapNavLink) mapNavLink.style.display = 'none';
+                return;
+            }
+
+            if (mapNavLink) mapNavLink.style.display = 'block';
+            updateCircuitControlsVisibility();
+            if (options.refresh !== false) forceGaarMapRefresh();
+        }
+
         function forceGaarMapRefresh() {
             const mapSection = document.getElementById('gaar-map-section');
             const mapDisplay = document.getElementById('gaar-map-display');
@@ -3977,6 +4015,18 @@ const tdfStages = [
             if (!mapSection || !mapDisplay) return;
 
             mapSection.style.display = 'block';
+            mapDisplay.style.display = 'block';
+
+            const mapStatus = document.getElementById('gaar-status');
+            const addBtn = document.getElementById('add-manual-circuit-btn');
+            const toggleBtn = document.getElementById('show-gaar-map-btn');
+            if (mapStatus) mapStatus.style.display = 'block';
+            if (addBtn) addBtn.style.display = 'inline-block';
+            if (toggleBtn) {
+                toggleBtn.textContent = 'Masquer carte';
+                toggleBtn.style.backgroundColor = '#7f8c8d';
+                toggleBtn.style.color = '#ffffff';
+            }
 
             // Sécurité iPad/Safari : Leaflet doit connaître une hauteur réelle.
             if (!mapDisplay.style.height) {
@@ -4009,16 +4059,16 @@ const tdfStages = [
         // Correctif iPad/PWA : quand l'app revient au premier plan,
         // Leaflet peut perdre la taille réelle de son conteneur.
         window.addEventListener('pageshow', () => {
-            const mapSection = document.getElementById('gaar-map-section');
-            if (mapSection && mapSection.style.display !== 'none') {
+            const mapDisplay = document.getElementById('gaar-map-display');
+            if (mapDisplay && mapDisplay.style.display !== 'none') {
                 setTimeout(forceGaarMapRefresh, 250);
                 setTimeout(forceGaarMapRefresh, 1000);
             }
         });
 
         document.addEventListener('visibilitychange', () => {
-            const mapSection = document.getElementById('gaar-map-section');
-            if (!document.hidden && mapSection && mapSection.style.display !== 'none') {
+            const mapDisplay = document.getElementById('gaar-map-display');
+            if (!document.hidden && mapDisplay && mapDisplay.style.display !== 'none') {
                 setTimeout(forceGaarMapRefresh, 250);
                 setTimeout(forceGaarMapRefresh, 1000);
             }
@@ -4985,27 +5035,23 @@ const tdfStages = [
             
             document.getElementById('show-gaar-map-btn').addEventListener('click', () => {
                 const mapSection = document.getElementById('gaar-map-section');
+                const mapDisplay = document.getElementById('gaar-map-display');
+                const isVisible = mapDisplay && mapDisplay.style.display !== 'none';
 
-                forceGaarMapRefresh();
+                if (isVisible) {
+                    setGaarMapVisibility(false);
+                    if (mapSection) mapSection.scrollIntoView({ behavior: 'smooth' });
+                    return;
+                }
 
+                setGaarMapVisibility(true);
                 document.getElementById('gaar-status').textContent = 'Prêt pour l\'ajout manuel de circuits.';
-                document.getElementById('gaar-map-nav-link').style.display = 'block';
 
-                mapSection.scrollIntoView({ behavior: 'smooth' });
+                if (mapSection) mapSection.scrollIntoView({ behavior: 'smooth' });
 
                 // Deuxième salve après le scroll : utile sur iPad/Safari.
                 setTimeout(forceGaarMapRefresh, 600);
                 setTimeout(forceGaarMapRefresh, 1500);
-            });
-
-            document.getElementById('hide-gaar-map-btn').addEventListener('click', () => {
-                const mapSection = document.getElementById('gaar-map-section');
-                const mapNavLink = document.getElementById('gaar-map-nav-link');
-
-                if (mapSection) mapSection.style.display = 'none';
-                if (mapNavLink) mapNavLink.style.display = 'none';
-
-                document.getElementById('gaar-section').scrollIntoView({ behavior: 'smooth' });
             });
 
 
@@ -5221,7 +5267,7 @@ let activeShareApiBase = SHARE_API_BASE;
         const hasGaarMapState = portable.gaarMapState && portable.gaarMapState.length > 0;
 
         if (hasGaarPdf || hasGaarMapState) {
-            document.getElementById('gaar-map-section').style.display = 'block';
+            setGaarMapVisibility(true, { refresh: false });
             initGaarMap();
             if (hasGaarPdf) document.getElementById('pdf-load-gaar-btn').style.display = 'none';
             document.getElementById('pdf-reset-gaar-btn').style.display = hasGaarPdf ? 'inline-block' : 'none';
@@ -5785,7 +5831,7 @@ let activeShareApiBase = SHARE_API_BASE;
         const hasGaarMapState = data.gaarMapState && data.gaarMapState.length > 0;
 
         if (hasGaarPdf || hasGaarMapState) {
-            document.getElementById('gaar-map-section').style.display = 'block';
+            setGaarMapVisibility(true, { refresh: false });
             initGaarMap();
             if (hasGaarPdf) document.getElementById('pdf-load-gaar-btn').style.display = 'none';
             document.getElementById('pdf-reset-gaar-btn').style.display = hasGaarPdf ? 'inline-block' : 'none';
