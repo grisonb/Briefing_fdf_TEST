@@ -1412,7 +1412,7 @@
         <h1 id="main-title">Briefing Fdf TEST</h1>
         <p id="current-time-display"></p>
         <p style="position: relative; z-index: 2; text-align: center; color: #333; font-size: 1em; margin-top: -25px; margin-bottom: 30px;">
-    v<span id="app-version">3.66 TEST GAAR carte intégrée</span>
+    v<span id="app-version">3.68 TEST nettoyage local iPad</span>
     <button id="force-update-btn" class="link-button" style="background-color: #34495e; padding: 4px 10px; font-size: 0.8em; margin-left: 10px; vertical-align: middle;">
         Forcer MAJ
     </button>
@@ -1446,7 +1446,7 @@
             <li><strong>Sauvegarder :</strong> enregistre localement le briefing affiché sur cet iPad/navigateur, avec les derniers PDF, NOTAMs, pélicandromes, cartes et données disponibles.</li>
             <li><strong>Chargement automatique :</strong> à l’ouverture du briefing, la dernière sauvegarde locale de cet iPad/navigateur est chargée automatiquement si elle existe.</li>
             <li><strong>Partager :</strong> crée un briefing partagé sur le NAS et fournit un code à ouvrir depuis un autre appareil.</li>
-            <li><strong>Effacer :</strong> vide le briefing affiché et supprime la sauvegarde locale de cet appareil. Les briefings partagés déjà créés sur le NAS ne sont pas supprimés.</li>
+            <li><strong>Effacer :</strong> réinitialise le stockage local de cet iPad pour BFG : sauvegarde locale, anciens PDF/NOTAM/TEMSI/SUP AIP, modes FDS/GAAR et caches PWA BFG. Les fichiers NAS et les briefings partagés déjà créés ne sont pas supprimés.</li>
             <li><strong>Ouvrir un briefing partagé :</strong> permet de saisir un code du type BFG-JJMM-01 pour récupérer un briefing déjà partagé.</li>
         </ol>
     </div>
@@ -1748,7 +1748,7 @@
     <footer>Données : Météo-France, SIA, Windy.com, CheckWX.com. Page non commerciale, à usage personnel.</footer>
     
     <script>
-        const APP_VERSION = "3.67 TEST TEMSI active";
+        const APP_VERSION = "3.68 TEST nettoyage local iPad";
 
         // --- Clé API pour la source de données météo ---
         const CHECKWX_API_KEY = "b8071d79ae4a482491114af48c9c0246";
@@ -4541,6 +4541,7 @@ const tdfStages = [
             }
 
             try {
+                await caches.delete('briefing-fdf-temsi-offline-v1');
                 const cache = await caches.open('briefing-fdf-temsi-offline-v1');
                 const request = new Request(state.src, { mode: 'no-cors', cache: 'reload' });
                 const response = await fetch(request);
@@ -5804,29 +5805,19 @@ let activeShareApiBase = SHARE_API_BASE;
         btn.addEventListener('click', async () => {
             const confirmed = window.confirm(
                 "Confirmer l'effacement ?\n\n" +
-                "La sauvegarde locale du briefing sera supprimée et ne sera pas rechargée à la prochaine ouverture."
+                "La sauvegarde locale, les anciens fichiers/PDF locaux, les anciennes TEMSI locales, les modes FDS/GAAR et les caches BFG de cet iPad seront supprimés. Les fichiers NAS ne seront pas supprimés."
             );
             if (!confirmed) return;
 
-            sessionStatus.textContent = "Effacement en cours...";
+            sessionStatus.textContent = "Effacement complet du stockage local BFG en cours...";
             try {
-                // Efface réellement la sauvegarde IndexedDB, pas seulement l'affichage courant.
-                await clearLocalSession_();
+                await resetBfgLocalStorage_();
 
-                // Empêche aussi toute restauration automatique au redémarrage suivant.
-                localStorage.setItem('briefingFdfDoNotAutoRestore', 'true');
+                // Évite une restauration pendant ce rechargement précis ; les modes Auto seront ensuite actifs.
                 sessionStorage.setItem('skipAutoRestoreOnce', '1');
 
-                // Nettoyage visuel immédiat de l'application.
-                window.fdsFileObject = null;
-                window.gaarFileObject = null;
-                window.supAipFileObjects = [];
-                window.gaarDrawnCircuits = [];
-                window.__lastNotamState = null;
-                window.__notamTextFull = "";
-
-                const cleanUrl = `${window.location.origin}${window.location.pathname}`;
-                window.location.assign(cleanUrl);
+                const cleanUrl = `${window.location.origin}${window.location.pathname}?v=3.68-reset-local`;
+                window.location.replace(cleanUrl);
             } catch (error) {
                 sessionStatus.textContent = `Erreur lors de l'effacement: ${error.message || error}`;
                 console.error("Erreur effacement :", error);
@@ -5942,6 +5933,39 @@ let activeShareApiBase = SHARE_API_BASE;
         }
     }
 
+    async function clearBfgLocalCaches_() {
+        if (!('caches' in window)) return;
+        const names = await caches.keys();
+        await Promise.all(
+            names
+                .filter(name => name.startsWith('briefing-fdf'))
+                .map(name => caches.delete(name).catch(() => false))
+        );
+    }
+
+    async function resetBfgLocalStorage_() {
+        await clearLocalSession_();
+        await clearBfgLocalCaches_();
+
+        // Remise à zéro des préférences qui peuvent forcer un ancien état local.
+        localStorage.removeItem('briefingFdfDoNotAutoRestore');
+        localStorage.removeItem(FDS_MODE_STORAGE_KEY);
+        localStorage.removeItem(GAAR_MODE_STORAGE_KEY);
+        sessionStorage.removeItem('skipAutoRestoreOnce');
+
+        // Nettoyage immédiat des objets lourds en mémoire avant rechargement.
+        window.fdsFileObject = null;
+        window.gaarFileObject = null;
+        window.supAipFileObjects = [];
+        window.gaarDrawnCircuits = [];
+        window.__lastNotamState = null;
+        window.__notamTextFull = '';
+        window.__lastTemsiState = null;
+
+        updateFdsModeUi_();
+        updateGaarModeUi_();
+    }
+
     function shouldDeleteSessionOnThirdMorning_(savedAtValue) {
         if (!savedAtValue) return false;
         const savedAt = new Date(savedAtValue);
@@ -5974,7 +5998,10 @@ let activeShareApiBase = SHARE_API_BASE;
         await clearLocalSession_();
         localStorage.removeItem('briefingFdfDoNotAutoRestore');
         localStorage.removeItem(FDS_MODE_STORAGE_KEY);
+        localStorage.removeItem(GAAR_MODE_STORAGE_KEY);
+        await caches.delete('briefing-fdf-temsi-offline-v1').catch(() => false);
         updateFdsModeUi_();
+        updateGaarModeUi_();
         return true;
     }
 
