@@ -1412,7 +1412,7 @@
         <h1 id="main-title">Briefing Fdf TEST</h1>
         <p id="current-time-display"></p>
         <p style="position: relative; z-index: 2; text-align: center; color: #333; font-size: 1em; margin-top: -25px; margin-bottom: 30px;">
-    v<span id="app-version">3.68 TEST nettoyage local iPad</span>
+    v<span id="app-version">3.70 TEST TEMSI jour sans futur</span>
     <button id="force-update-btn" class="link-button" style="background-color: #34495e; padding: 4px 10px; font-size: 0.8em; margin-left: 10px; vertical-align: middle;">
         Forcer MAJ
     </button>
@@ -1748,7 +1748,7 @@
     <footer>Données : Météo-France, SIA, Windy.com, CheckWX.com. Page non commerciale, à usage personnel.</footer>
     
     <script>
-        const APP_VERSION = "3.68 TEST nettoyage local iPad";
+        const APP_VERSION = "3.70 TEST TEMSI jour sans futur";
 
         // --- Clé API pour la source de données météo ---
         const CHECKWX_API_KEY = "b8071d79ae4a482491114af48c9c0246";
@@ -4453,42 +4453,74 @@ const tdfStages = [
                 if (!select || !image || !info) return;
 
                 select.innerHTML = '';
-                // TEMSI : ne jamais afficher automatiquement une échéance future.
-                // Une carte devient active uniquement à partir de son heure de validité UTC.
-                const echeances = [0, 6, 9, 12, 15, 18, 21];
+
+                // TEMSI France : échéances du jour uniquement.
+                // Pas de 00 UTC, pas de carte de demain, pas d'affichage d'une carte future.
+                const echeances = [6, 9, 12, 15, 18, 21];
                 const now = new Date();
-                const currentHour = now.getUTCHours();
-                const date = new Date(now);
-                let activeEcheance = [...echeances].reverse().find(e => currentHour >= e);
-                if (activeEcheance === undefined) {
-                    activeEcheance = 21;
-                    date.setUTCDate(date.getUTCDate() - 1);
-                }
-                date.setUTCHours(activeEcheance, 0, 0, 0);
-                let initialEcheance = '';
-                for (let i = -3; i <= 4; i++) { 
-                    let echeanceDate = new Date(date);
-                    let echeanceIndex = echeances.indexOf(activeEcheance) + i;
-                    echeanceDate.setUTCDate(echeanceDate.getUTCDate() + Math.floor(echeanceIndex / echeances.length));
-                    echeanceIndex = (echeanceIndex % echeances.length + echeances.length) % echeances.length;
-                    echeanceDate.setUTCHours(echeances[echeanceIndex], 0, 0, 0);
-                    const dateString = `${echeanceDate.getUTCFullYear()}${String(echeanceDate.getUTCMonth()+1).padStart(2, '0')}${String(echeanceDate.getUTCDate()).padStart(2, '0')}${String(echeanceDate.getUTCHours()).padStart(2, '0')}0000`;
-                    const option = document.createElement("option");
+
+                // La journée opérationnelle affichée est la date locale de l'iPad.
+                // Après minuit local, on prépare les échéances du nouveau jour,
+                // mais aucune carte n'est affichée avant 06 UTC.
+                const localYear = now.getFullYear();
+                const localMonth = now.getMonth();
+                const localDay = now.getDate();
+
+                let activeEcheance = '';
+                let activeDateString = '';
+
+                for (const h of echeances) {
+                    const candidate = new Date(Date.UTC(localYear, localMonth, localDay, h, 0, 0, 0));
+                    const dateString = `${candidate.getUTCFullYear()}${String(candidate.getUTCMonth()+1).padStart(2, '0')}${String(candidate.getUTCDate()).padStart(2, '0')}${String(h).padStart(2, '0')}0000`;
+                    const option = document.createElement('option');
                     option.value = dateString;
-                    let label = `${getLabelForDate(echeanceDate)} ${String(echeanceDate.getUTCHours()).padStart(2, '0')}h00 UTC`;
-                    if (i === 0) {
-                        label += " (Actuelle)";
-                        option.selected = true;
-                        initialEcheance = dateString;
-                    }
-                    option.textContent = label;
+                    option.dataset.validFrom = candidate.toISOString();
+                    option.textContent = `${String(h).padStart(2, '0')}h00 UTC`;
                     select.appendChild(option);
+
+                    if (candidate <= now) {
+                        activeEcheance = h;
+                        activeDateString = dateString;
+                    }
                 }
+
                 const baseURL = 'https://aviation.meteo.fr/FR/aviation/affiche_image.php?login=fampsLSMuYmAdrAK4GqcZWRol2hoZHHd1uE%3D&layer=sigwx/fr/france&echeance=';
+
+                const clearTemsi = (message) => {
+                    image.removeAttribute('src');
+                    image.alt = 'Aucune carte TEMSI France active';
+                    info.textContent = message;
+                    window.__lastTemsiState = {
+                        src: '',
+                        cleanSrc: '',
+                        echeance: '',
+                        label: message,
+                        updatedAt: new Date().toISOString(),
+                        source: 'online-empty'
+                    };
+                };
+
                 const update = e => {
+                    if (!e) {
+                        clearTemsi('Aucune TEMSI France active pour la journée en cours. Première carte prévue : 06h00 UTC.');
+                        return;
+                    }
+
+                    const y = Number(e.substring(0, 4));
+                    const m = Number(e.substring(4, 6)) - 1;
+                    const d = Number(e.substring(6, 8));
+                    const h = Number(e.substring(8, 10));
+                    const validFrom = new Date(Date.UTC(y, m, d, h, 0, 0, 0));
+
+                    if (validFrom > new Date()) {
+                        clearTemsi(`TEMSI ${String(h).padStart(2, '0')}h00 UTC non active. Aucune carte future affichée.`);
+                        return;
+                    }
+
                     const cleanSrc = baseURL + e;
                     const src = cleanSrc + '&bfgCacheBust=' + Date.now();
                     image.src = src;
+                    image.alt = 'Carte SIGWX France';
                     const label = `Carte valide pour le ${e.substring(6,8)}/${e.substring(4,6)}/${e.substring(0,4)} à ${e.substring(8,10)}h00 UTC`;
                     info.textContent = label;
                     window.__lastTemsiState = {
@@ -4501,8 +4533,16 @@ const tdfStages = [
                         source: 'online'
                     };
                 };
+
                 select.addEventListener('change', e => update(e.target.value));
-                update(initialEcheance);
+
+                if (activeDateString) {
+                    select.value = activeDateString;
+                    update(activeDateString);
+                } else {
+                    select.selectedIndex = 0;
+                    clearTemsi('Aucune TEMSI France active pour la journée en cours. Première carte prévue : 06h00 UTC.');
+                }
             }
             populateTemsi();
         }
@@ -5816,7 +5856,7 @@ let activeShareApiBase = SHARE_API_BASE;
                 // Évite une restauration pendant ce rechargement précis ; les modes Auto seront ensuite actifs.
                 sessionStorage.setItem('skipAutoRestoreOnce', '1');
 
-                const cleanUrl = `${window.location.origin}${window.location.pathname}?v=3.68-reset-local`;
+                const cleanUrl = `${window.location.origin}${window.location.pathname}?v=3.69-reset-local`;
                 window.location.replace(cleanUrl);
             } catch (error) {
                 sessionStatus.textContent = `Erreur lors de l'effacement: ${error.message || error}`;
