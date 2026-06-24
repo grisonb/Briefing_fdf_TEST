@@ -1,7 +1,7 @@
 {
   "name": "Briefing FDF TEST",
   "short_name": "Briefing TEST",
-  "description": "Briefing FDF TEST v3.70 TEMSI sans 00 UTC",
+  "description": "Briefing FDF TEST v3.71 TEMSI sans 00 UTC",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
