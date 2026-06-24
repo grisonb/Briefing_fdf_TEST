@@ -1,4 +1,4 @@
-const CACHE_NAME = 'briefing-fdf-test-v3.64-fds-police-corrigee';
+const CACHE_NAME = 'briefing-fdf-test-v3.65-gaar-auto';
 
 const LOCAL_ASSETS = [
   './manifest.json',
@@ -99,8 +99,11 @@ self.addEventListener('fetch', (event) => {
   // Ressource externe spéciale : cartes des risques stockées sur le NAS BFG.
   if (!sameOrigin && url.hostname === 'grisonb.synology.me' && (
       url.pathname.includes('/briefing-data/risk-maps/') ||
+      url.pathname.includes('/briefing-data/gaar/') ||
       url.pathname.includes('/briefing-api/get-risk-map-pdf.php') ||
-      url.pathname.includes('/briefing-api/get-risk-map-status.php')
+      url.pathname.includes('/briefing-api/get-risk-map-status.php') ||
+      url.pathname.includes('/briefing-api/get-gaar-pdf.php') ||
+      url.pathname.includes('/briefing-api/get-gaar-status.php')
     )) {
     event.respondWith((async () => {
       try {
