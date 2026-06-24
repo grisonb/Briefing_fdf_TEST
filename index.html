@@ -1412,7 +1412,7 @@
         <h1 id="main-title">Briefing Fdf TEST</h1>
         <p id="current-time-display"></p>
         <p style="position: relative; z-index: 2; text-align: center; color: #333; font-size: 1em; margin-top: -25px; margin-bottom: 30px;">
-    v<span id="app-version">3.64 TEST FDS police corrigée</span>
+    v<span id="app-version">3.65 TEST GAAR auto</span>
     <button id="force-update-btn" class="link-button" style="background-color: #34495e; padding: 4px 10px; font-size: 0.8em; margin-left: 10px; vertical-align: middle;">
         Forcer MAJ
     </button>
@@ -1510,10 +1510,15 @@
     <div id="gaar-section" class="pdf-section dropzone">
         <h2>Diagramme GAAR</h2>
         <div class="pdf-controls">
-            <button id="pdf-load-gaar-btn" class="link-button" style="background-color: #16a085;">Charger le Diagramme GAAR</button>
+            <button id="gaar-auto-refresh-btn" type="button" class="link-button" style="background-color: #cfeecf; color:#145a32;">Actualiser feuille GAAR</button>
+            <button id="gaar-mode-toggle-btn" type="button" class="link-button" style="background-color: #d8e8ff; color:#1f4e79;">Mode GAAR : Auto</button>
+            <button id="pdf-load-gaar-btn" class="link-button" style="background-color: #2980b9;">Importation manuelle</button>
             <button id="show-gaar-map-btn" class="link-button" style="background-color: #27ae60;">Carte GAAR</button>
             <button id="pdf-reset-gaar-btn" class="link-button" style="background-color: var(--sc-red); display: none;">Supprimer diagramme GAAR</button>
             <input type="file" id="pdf-input-gaar" accept="application/pdf">
+            <p id="gaar-auto-status" class="pdf-info" style="width: 100%; margin-top: 8px;"></p>
+            <div id="gaar-meta-panel" class="fds-meta-panel" aria-live="polite"></div>
+            <div id="gaar-next-day-panel" class="fds-next-day-panel" aria-live="polite"></div>
         </div>
         <div id="pdf-interactive-container-gaar" class="interactive-pdf-viewer" style="display: none;">
             <div class="interactive-pdf-controls"><button class="pdf-nav-btn" data-action="prev">Page Préc.</button><span>Page <span class="page-num">1</span> / <span class="page-count">1</span></span><button class="pdf-nav-btn" data-action="next">Page Suiv.</button><div class="zoom-controls"><button class="pdf-nav-btn" data-action="zoom-out">-</button><span>Zoom</span><button class="pdf-nav-btn" data-action="zoom-in">+</button></div></div>
@@ -1744,7 +1749,7 @@
     <footer>Données : Météo-France, SIA, Windy.com, CheckWX.com. Page non commerciale, à usage personnel.</footer>
     
     <script>
-        const APP_VERSION = "3.64 TEST FDS police corrigée";
+        const APP_VERSION = "3.65 TEST GAAR auto";
 
         // --- Clé API pour la source de données météo ---
         const CHECKWX_API_KEY = "b8071d79ae4a482491114af48c9c0246";
@@ -1968,9 +1973,16 @@ const tdfStages = [
         const FDS_STATUS_API_URL = 'https://grisonb.synology.me/briefing-api/get-feuille-service-status.php';
         const FDS_PDF_API_URL = 'https://grisonb.synology.me/briefing-api/get-feuille-service-pdf.php';
         const FDS_PUBLIC_PDF_URL = 'https://grisonb.synology.me/briefing-data/feuille-service/latest-feuille-service.pdf';
+        const GAAR_GMAIL_REFRESH_URL = FDS_GMAIL_REFRESH_URL;
+        const GAAR_STATUS_API_URL = 'https://grisonb.synology.me/briefing-api/get-gaar-status.php';
+        const GAAR_PDF_API_URL = 'https://grisonb.synology.me/briefing-api/get-gaar-pdf.php';
+        const GAAR_PUBLIC_PDF_URL = 'https://grisonb.synology.me/briefing-data/gaar/latest-gaar.pdf';
         const FDS_MODE_STORAGE_KEY = 'briefingFdfFdsMode';
+        const GAAR_MODE_STORAGE_KEY = 'briefingFdfGaarMode';
         const FDS_MODE_AUTO = 'auto';
         const FDS_MODE_MANUAL = 'manual';
+        const GAAR_MODE_AUTO = 'auto';
+        const GAAR_MODE_MANUAL = 'manual';
 
         function getFdsMode_() {
             return localStorage.getItem(FDS_MODE_STORAGE_KEY) === FDS_MODE_MANUAL ? FDS_MODE_MANUAL : FDS_MODE_AUTO;
@@ -2001,6 +2013,37 @@ const tdfStages = [
                 }
             }
         }
+
+        function getGaarMode_() {
+            return localStorage.getItem(GAAR_MODE_STORAGE_KEY) === GAAR_MODE_MANUAL ? GAAR_MODE_MANUAL : GAAR_MODE_AUTO;
+        }
+
+        function updateGaarModeUi_() {
+            const btn = document.getElementById('gaar-mode-toggle-btn');
+            if (!btn) return;
+            const manual = getGaarMode_() === GAAR_MODE_MANUAL;
+            btn.textContent = manual ? 'Mode GAAR : Manuel' : 'Mode GAAR : Auto';
+            btn.style.backgroundColor = manual ? '#f7dfbf' : '#d8e8ff';
+            btn.style.color = manual ? '#7a4a00' : '#1f4e79';
+            btn.title = manual
+                ? 'Mode manuel : BFG ne recharge pas la feuille GAAR NAS au démarrage.'
+                : 'Mode auto : BFG charge la feuille GAAR du jour depuis le NAS au démarrage.';
+        }
+
+        function setGaarMode_(mode, options = {}) {
+            const nextMode = mode === GAAR_MODE_MANUAL ? GAAR_MODE_MANUAL : GAAR_MODE_AUTO;
+            localStorage.setItem(GAAR_MODE_STORAGE_KEY, nextMode);
+            updateGaarModeUi_();
+
+            if (options.message !== false) {
+                if (nextMode === GAAR_MODE_MANUAL) {
+                    setGaarAutoStatus_('Mode GAAR manuel activé : la feuille NAS ne sera pas rechargée automatiquement au démarrage.', { warning: true });
+                } else {
+                    setGaarAutoStatus_('Mode GAAR automatique activé : la feuille GAAR du jour sera utilisée au démarrage.');
+                }
+            }
+        }
+
         const CNCASC_TOKEN_STORAGE_KEY = 'bfg_cncasc_token_v1';
         const CNCASC_TOKEN_EXP_STORAGE_KEY = 'bfg_cncasc_token_exp_v1';
 
@@ -3418,6 +3461,284 @@ const tdfStages = [
             chargerDerniereFeuilleServiceAuDemarrage_();
         }
 
+
+        function setGaarAutoStatus_(message, options = {}) {
+            const status = document.getElementById('gaar-auto-status');
+            if (!status) return;
+            status.textContent = message || '';
+            status.style.color = options.error ? '#c0392b' : (options.warning ? '#d35400' : '#2c3e50');
+        }
+
+        function setGaarMetaPanel_(meta = {}, options = {}) {
+            const panel = document.getElementById('gaar-meta-panel');
+            if (!panel) return;
+
+            const mode = options.mode || window.__gaarSourceMode || GAAR_MODE_AUTO;
+            const filename = meta.originalFilename || meta.filename || meta.name || 'PDF GAAR';
+            const mailDate = meta.mailDate || meta.emailDate || meta.updatedAt || meta.lastModified || '';
+            const dateLabel = mailDate ? formatFdsMetaDate_(mailDate) : 'date inconnue';
+            const subject = meta.mailSubject || meta.subject || '';
+            const sourceLabel = options.sourceLabel || (mode === GAAR_MODE_MANUAL ? 'GAAR manuelle affichée' : 'GAAR automatique chargée');
+
+            panel.innerHTML = `
+                ${subject ? `<div class="fds-meta-title">${escapeHtml_(subject)}</div>` : ''}
+                <div class="fds-meta-date">Email / document du : ${escapeHtml_(dateLabel)}</div>
+                <div class="fds-meta-subject">${escapeHtml_(sourceLabel)} — ${escapeHtml_(filename)}</div>
+            `;
+            panel.classList.add('visible');
+        }
+
+        function gaarParisDateKey_(offsetDays = 0) {
+            return fdsParisDateKey_(offsetDays);
+        }
+
+        function formatGaarDateKey_(dateKey) {
+            return formatFdsDateKey_(dateKey);
+        }
+
+        function getGaarTodayEntry_(payload) {
+            if (payload && payload.today && payload.today.exists) return payload.today;
+            if (payload && payload.file && payload.file.exists) return payload.file;
+            return null;
+        }
+
+        function getGaarTomorrowEntry_(payload) {
+            return payload && payload.tomorrow && payload.tomorrow.exists ? payload.tomorrow : null;
+        }
+
+        function getGaarStatusSignature_(payload) {
+            const today = payload && payload.today ? payload.today : (payload && payload.file ? payload.file : null);
+            const tomorrow = payload && payload.tomorrow ? payload.tomorrow : null;
+            return [
+                today && today.updatedAt ? today.updatedAt : '',
+                today && today.originalFilename ? today.originalFilename : '',
+                tomorrow && tomorrow.updatedAt ? tomorrow.updatedAt : '',
+                tomorrow && tomorrow.originalFilename ? tomorrow.originalFilename : ''
+            ].join('|');
+        }
+
+        function updateGaarTomorrowButton_(statusPayload) {
+            const panel = document.getElementById('gaar-next-day-panel');
+            if (!panel) return;
+            const tomorrow = getGaarTomorrowEntry_(statusPayload);
+            if (!tomorrow || getGaarMode_() === GAAR_MODE_MANUAL) {
+                panel.classList.remove('visible');
+                panel.innerHTML = '';
+                return;
+            }
+            const dateKey = tomorrow.dateKey || tomorrow.fileDate || gaarParisDateKey_(1);
+            const dateLabel = formatGaarDateKey_(dateKey);
+            panel.innerHTML = `
+                <div style="font-weight:800; margin-bottom:4px;">GAAR du lendemain disponible sur le serveur.</div>
+                <button id="gaar-load-tomorrow-btn" type="button" class="link-button">Charger GAAR du ${escapeHtml_(dateLabel)}</button>
+            `;
+            panel.classList.add('visible');
+            const btn = document.getElementById('gaar-load-tomorrow-btn');
+            if (btn) {
+                btn.addEventListener('click', async () => {
+                    try {
+                        btn.disabled = true;
+                        btn.textContent = `Chargement GAAR du ${dateLabel}...`;
+                        await loadGaarPdfFromNas_(statusPayload, Date.now(), dateKey, tomorrow, { sourceLabel: `GAAR du ${dateLabel} chargée à la demande` });
+                        setGaarAutoStatus_(`GAAR du ${dateLabel} chargée à la demande. La GAAR du jour reste le chargement automatique par défaut.`);
+                    } catch (error) {
+                        setGaarAutoStatus_(`Erreur chargement GAAR du ${dateLabel} : ${error.message || error}`, { error: true });
+                    } finally {
+                        updateGaarTomorrowButton_(statusPayload);
+                    }
+                });
+            }
+        }
+
+        function callGaarGmailRefreshWithoutBlocking_() {
+            return new Promise((resolve) => {
+                const iframe = document.createElement('iframe');
+                iframe.style.position = 'absolute';
+                iframe.style.width = '1px';
+                iframe.style.height = '1px';
+                iframe.style.border = '0';
+                iframe.style.opacity = '0';
+                iframe.style.pointerEvents = 'none';
+                iframe.setAttribute('aria-hidden', 'true');
+                iframe.src = `${GAAR_GMAIL_REFRESH_URL}?type=gaar&t=${encodeURIComponent(Date.now())}`;
+                document.body.appendChild(iframe);
+                setTimeout(() => {
+                    resolve();
+                    setTimeout(() => {
+                        try { iframe.remove(); } catch (e) {}
+                    }, 120000);
+                }, 1000);
+            });
+        }
+
+        async function fetchGaarStatus_(cacheBuster = Date.now()) {
+            const url = `${GAAR_STATUS_API_URL}?t=${encodeURIComponent(cacheBuster)}`;
+            const response = await fetchWithTimeout_(url, { cache: 'no-store' }, 10000);
+            const payload = await response.json();
+            if (!response.ok || !payload.ok) {
+                throw new Error(payload && payload.message ? payload.message : 'Statut GAAR indisponible');
+            }
+            return payload;
+        }
+
+        async function loadGaarPdfFromNas_(statusPayload, cacheBuster = Date.now(), dateKey = null, entryOverride = null, displayOptions = {}) {
+            const entry = entryOverride || getGaarTodayEntry_(statusPayload);
+            if (!entry || !entry.exists) {
+                throw new Error('Aucune feuille GAAR du jour disponible sur le NAS');
+            }
+            const wantedDateKey = dateKey || entry.dateKey || entry.fileDate || '';
+            const query = new URLSearchParams();
+            query.set('t', String(cacheBuster));
+            if (wantedDateKey) query.set('date', wantedDateKey);
+            const pdfUrl = `${GAAR_PDF_API_URL}?${query.toString()}`;
+            const response = await fetchWithTimeout_(pdfUrl, { cache: 'no-store' }, 15000);
+            if (!response.ok) {
+                throw new Error(`PDF GAAR indisponible (${response.status})`);
+            }
+            const blob = await response.blob();
+            if (!blob || blob.size < 1000) {
+                throw new Error('PDF GAAR vide ou incomplet');
+            }
+
+            const meta = entry || {};
+            const filename = meta.originalFilename || meta.file || 'gaar.pdf';
+            const file = new File([blob], filename, { type: 'application/pdf', lastModified: Date.now() });
+
+            window.gaarFileObject = file;
+            window.__gaarSourceMode = GAAR_MODE_AUTO;
+            createInteractivePdfHandler(document.getElementById('pdf-interactive-container-gaar'), file, initializeGaarMapFromFile, 1.3);
+            document.getElementById('pdf-load-gaar-btn').style.display = 'none';
+            document.getElementById('pdf-reset-gaar-btn').style.display = 'inline-block';
+
+            const emailDateText = meta.mailDate ? ` — email du ${formatFdsMetaDate_(meta.mailDate)}` : '';
+            const updatedText = meta.updatedAt ? ` — MAJ NAS ${formatFdsMetaDate_(meta.updatedAt)}` : '';
+            document.getElementById('pdf-info-gaar').textContent = `Document chargé : ${filename}${emailDateText}${updatedText}`;
+            setGaarMetaPanel_(meta, { mode: GAAR_MODE_AUTO, sourceLabel: displayOptions.sourceLabel });
+            updateGaarTomorrowButton_(statusPayload);
+
+            return file;
+        }
+
+        async function waitForUpdatedGaarStatus_(previousUpdatedAt) {
+            let lastPayload = null;
+            let lastError = null;
+            for (let attempt = 0; attempt < 14; attempt += 1) {
+                await waitFds_(attempt === 0 ? 2500 : 1500);
+                try {
+                    lastPayload = await fetchGaarStatus_(Date.now());
+                    const currentSignature = getGaarStatusSignature_(lastPayload);
+                    if (!previousUpdatedAt || !currentSignature || currentSignature !== previousUpdatedAt) {
+                        return lastPayload;
+                    }
+                    setGaarAutoStatus_(`Attente du PDF GAAR sur le NAS... essai ${attempt + 1}/14`);
+                } catch (error) {
+                    lastError = error;
+                    setGaarAutoStatus_(`Statut NAS GAAR temporairement indisponible... essai ${attempt + 1}/14`, { warning: true });
+                }
+            }
+            if (lastPayload) return lastPayload;
+            throw lastError || new Error('Statut GAAR indisponible après attente');
+        }
+
+        async function actualiserGaarDepuisGmail_() {
+            const btn = document.getElementById('gaar-auto-refresh-btn');
+            const originalText = btn ? btn.textContent : '';
+            let previousUpdatedAt = '';
+
+            try {
+                setGaarMode_(GAAR_MODE_AUTO, { message: false });
+                if (btn) {
+                    btn.disabled = true;
+                    btn.textContent = 'Actualisation...';
+                }
+
+                setGaarAutoStatus_('Lecture du statut GAAR sur le NAS...');
+                try {
+                    const currentStatus = await fetchGaarStatus_(Date.now());
+                    previousUpdatedAt = getGaarStatusSignature_(currentStatus);
+                } catch (statusError) {
+                    previousUpdatedAt = '';
+                }
+
+                setGaarAutoStatus_('Demande envoyée à Gmail via Apps Script...');
+                await callGaarGmailRefreshWithoutBlocking_();
+
+                setGaarAutoStatus_('Gmail appelé. Attente du nouveau PDF GAAR sur le NAS...');
+                const newStatus = await waitForUpdatedGaarStatus_(previousUpdatedAt);
+                const todayEntry = getGaarTodayEntry_(newStatus);
+                const tomorrowEntry = getGaarTomorrowEntry_(newStatus);
+                if (todayEntry) {
+                    await loadGaarPdfFromNas_(newStatus, Date.now(), todayEntry.dateKey || todayEntry.fileDate, todayEntry);
+                    const emailDate = todayEntry.mailDate ? formatFdsMetaDate_(todayEntry.mailDate) : formatFdsMetaDate_(todayEntry.updatedAt);
+                    setGaarAutoStatus_(`Feuille GAAR du jour actualisée : ${todayEntry.originalFilename || 'PDF'} — email du ${emailDate}.`);
+                } else {
+                    updateGaarTomorrowButton_(newStatus);
+                    if (tomorrowEntry) {
+                        setGaarAutoStatus_('Aucune GAAR du jour disponible. Une GAAR du lendemain est disponible mais non affichée automatiquement.', { warning: true });
+                    } else {
+                        setGaarAutoStatus_('Aucune GAAR du jour disponible sur le NAS.', { warning: true });
+                    }
+                }
+            } catch (error) {
+                console.error('Erreur actualisation GAAR:', error);
+                setGaarAutoStatus_(`Erreur actualisation GAAR : ${error.message || error}`, { error: true });
+            } finally {
+                if (btn) {
+                    btn.disabled = false;
+                    btn.textContent = originalText || 'Actualiser feuille GAAR';
+                }
+            }
+        }
+
+        async function chargerDerniereGaarAuDemarrage_() {
+            if (getGaarMode_() === GAAR_MODE_MANUAL) {
+                setGaarAutoStatus_('Mode GAAR manuel : aucune feuille NAS chargée automatiquement. Utiliser Importation manuelle ou repasser en Auto.', { warning: true });
+                return;
+            }
+
+            try {
+                const statusPayload = await fetchGaarStatus_(Date.now());
+                const todayEntry = getGaarTodayEntry_(statusPayload);
+                const tomorrowEntry = getGaarTomorrowEntry_(statusPayload);
+                if (todayEntry) {
+                    await loadGaarPdfFromNas_(statusPayload, Date.now(), todayEntry.dateKey || todayEntry.fileDate, todayEntry);
+                    const emailDate = todayEntry.mailDate ? formatFdsMetaDate_(todayEntry.mailDate) : formatFdsMetaDate_(todayEntry.updatedAt);
+                    setGaarAutoStatus_(`GAAR du jour chargée : ${todayEntry.originalFilename || 'PDF'} — email du ${emailDate}.`);
+                } else {
+                    updateGaarTomorrowButton_(statusPayload);
+                    if (tomorrowEntry) {
+                        setGaarAutoStatus_('Aucune GAAR du jour disponible. Une GAAR du lendemain est disponible mais non affichée automatiquement.', { warning: true });
+                    } else {
+                        setGaarAutoStatus_('Aucune feuille GAAR NAS chargée automatiquement. Utiliser Actualiser ou Importation manuelle.', { warning: true });
+                    }
+                }
+            } catch (error) {
+                setGaarAutoStatus_('Aucune feuille GAAR NAS chargée automatiquement. Utiliser Actualiser ou Importation manuelle.', { warning: true });
+            }
+        }
+
+        function initializeGaarAuto() {
+            updateGaarModeUi_();
+
+            const modeBtn = document.getElementById('gaar-mode-toggle-btn');
+            if (modeBtn) {
+                modeBtn.addEventListener('click', () => {
+                    const nextMode = getGaarMode_() === GAAR_MODE_MANUAL ? GAAR_MODE_AUTO : GAAR_MODE_MANUAL;
+                    setGaarMode_(nextMode);
+
+                    if (nextMode === GAAR_MODE_AUTO) {
+                        chargerDerniereGaarAuDemarrage_();
+                    }
+                });
+            }
+
+            const btn = document.getElementById('gaar-auto-refresh-btn');
+            if (btn) {
+                btn.addEventListener('click', actualiserGaarDepuisGmail_);
+            }
+            chargerDerniereGaarAuDemarrage_();
+        }
+
         const BFG_RISK_MAP_SCALE = 1.5;
         const BFG_RISK_MAP_STATUS_URL = 'https://grisonb.synology.me/briefing-api/get-risk-map-status.php';
 
@@ -3585,6 +3906,7 @@ const tdfStages = [
     if (window.pdfjsLib) {
         initializeInteractivePdfViewers();
         initializeFeuilleServiceAuto();
+        initializeGaarAuto();
     } else {
         console.warn("Visionneuse PDF désactivée (pdf.js introuvable).");
     }
@@ -4557,6 +4879,10 @@ const tdfStages = [
             window.gaarFileObject = null;
             document.getElementById('pdf-input-gaar').value = null;
             document.getElementById('pdf-info-gaar').textContent = '';
+            const gaarMetaPanel = document.getElementById('gaar-meta-panel');
+            if (gaarMetaPanel) { gaarMetaPanel.classList.remove('visible'); gaarMetaPanel.innerHTML = ''; }
+            const gaarNextPanel = document.getElementById('gaar-next-day-panel');
+            if (gaarNextPanel) { gaarNextPanel.classList.remove('visible'); gaarNextPanel.innerHTML = ''; }
             document.getElementById('pdf-interactive-container-gaar').style.display = 'none';
             document.getElementById('pdf-load-gaar-btn').style.display = 'inline-block';
             document.getElementById('pdf-reset-gaar-btn').style.display = 'none';
@@ -4622,7 +4948,28 @@ const tdfStages = [
                     }
                 }
             };
-            const gaarHandler = createFileHandler(f => window.gaarFileObject = f, 'pdf-info-gaar', 'pdf-interactive-container-gaar', initializeGaarMapFromFile, 1.3);
+            const baseGaarHandler = createFileHandler(f => {
+                window.gaarFileObject = f;
+                window.__gaarSourceMode = GAAR_MODE_MANUAL;
+            }, 'pdf-info-gaar', 'pdf-interactive-container-gaar', initializeGaarMapFromFile, 1.3);
+            const gaarHandler = (files) => {
+                const previousFile = window.gaarFileObject;
+                baseGaarHandler(files);
+
+                if (window.gaarFileObject && window.gaarFileObject !== previousFile) {
+                    setGaarMode_(GAAR_MODE_MANUAL, { message: false });
+                    setGaarMetaPanel_({
+                        originalFilename: window.gaarFileObject.name,
+                        lastModified: window.gaarFileObject.lastModified
+                    }, { mode: GAAR_MODE_MANUAL });
+                    updateGaarTomorrowButton_(null);
+                    setGaarAutoStatus_(`Mode GAAR manuel activé : ${window.gaarFileObject.name} affichée. Elle ne sera pas remplacée automatiquement par la feuille NAS au démarrage.`, { warning: true });
+
+                    if (typeof window.performBfgLocalSave_ === 'function') {
+                        setTimeout(() => window.performBfgLocalSave_().catch(console.error), 0);
+                    }
+                }
+            };
             const notamHandler = (files) => {
                 const file = files[0]; if (!file || file.type !== 'application/pdf') return;
                 document.getElementById('pdf-info-notam').textContent = `Document chargé : ${file.name}`;
