@@ -6,8 +6,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0">
     <title>Briefing Fdf TEST</title>
-    <link rel="manifest" href="./manifest.json?v=3.86">
-    <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png?v=3.86">
+    <link rel="manifest" href="./manifest.json?v=3.88">
+    <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png?v=3.88">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-title" content="Briefing TEST">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
@@ -1866,7 +1866,7 @@
         <h1 id="main-title">Briefing Fdf TEST</h1>
         <p id="current-time-display"></p>
         <p style="position: relative; z-index: 2; text-align: center; color: #333; font-size: 1em; margin-top: -25px; margin-bottom: 30px;">
-    v<span id="app-version">3.86 TEST date PDF NOTAM persistante</span>
+    v<span id="app-version">3.88 TEST actualisation briefing globale</span>
     <button id="force-update-btn" class="link-button" style="background-color: #34495e; padding: 4px 10px; font-size: 0.8em; margin-left: 10px; vertical-align: middle;">
         Forcer MAJ
     </button>
@@ -2225,7 +2225,7 @@
     <footer>Données : Météo-France, SIA, Windy.com, CheckWX.com. Page non commerciale, à usage personnel.</footer>
     
     <script>
-        const APP_VERSION = "3.86 TEST date PDF NOTAM persistante";
+        const APP_VERSION = "3.88 TEST actualisation briefing globale";
 
         // --- Clé API pour la source de données météo ---
         const CHECKWX_API_KEY = "b8071d79ae4a482491114af48c9c0246";
@@ -3727,6 +3727,54 @@ const tdfStages = [
             ]);
         }
 
+        async function actualiserToutBriefing_() {
+            const globalRefreshBtn = document.getElementById('cncasc-global-refresh-btn');
+            const originalText = globalRefreshBtn ? globalRefreshBtn.textContent : 'Actualiser';
+            const tokenInfo = getStoredCncascToken_();
+
+            if (!tokenInfo) {
+                updateCncascAuthUi_();
+                setCncascWarning_('⚠️ Actualisation globale impossible : saisir le code accès Briefing puis cliquer sur Connexion.');
+                return;
+            }
+
+            try {
+                if (globalRefreshBtn) {
+                    globalRefreshBtn.disabled = true;
+                    globalRefreshBtn.textContent = 'Actualisation...';
+                }
+
+                clearCncascWarning_();
+                setCncascWarning_('Actualisation globale du briefing en cours : FDS, GAAR, avions, pélicandromes, FDF CNCASC, risques et TEMSI...');
+
+                const tasks = [
+                    fetchAbeDispo_(),
+                    fetchCncascFdf_(),
+                    actualiserFeuilleServiceDepuisGmail_(),
+                    actualiserGaarDepuisGmail_(),
+                    loadRiskMaps_()
+                ];
+
+                if (typeof window.refreshTemsiFromNas_ === 'function') {
+                    tasks.push(window.refreshTemsiFromNas_());
+                }
+
+                const results = await Promise.allSettled(tasks);
+                const failures = results.filter(result => result.status === 'rejected');
+
+                if (failures.length > 0) {
+                    setCncascWarning_(`⚠️ Actualisation globale terminée avec ${failures.length} erreur(s). Vérifier les messages de chaque rubrique.`);
+                } else {
+                    setCncascWarning_('Actualisation globale terminée. Les rubriques disponibles ont été rechargées.');
+                }
+            } finally {
+                if (globalRefreshBtn) {
+                    globalRefreshBtn.disabled = false;
+                    globalRefreshBtn.textContent = originalText || 'Actualiser';
+                }
+            }
+        }
+
         async function fetchAbeDispo_() {
             const status = document.getElementById('abe-dispo-status');
             const pelicStatus = document.getElementById('pelic-dispo-status');
@@ -3798,7 +3846,7 @@ const tdfStages = [
             if (refreshBtn) refreshBtn.addEventListener('click', fetchAbeDispo_);
             if (pelicRefreshBtn) pelicRefreshBtn.addEventListener('click', fetchAbeDispo_);
             if (fdfRefreshBtn) fdfRefreshBtn.addEventListener('click', fetchCncascFdf_);
-            if (globalRefreshBtn) globalRefreshBtn.addEventListener('click', fetchAllCncascData_);
+            if (globalRefreshBtn) globalRefreshBtn.addEventListener('click', actualiserToutBriefing_);
             if (unlockBtn) unlockBtn.addEventListener('click', unlockCncascAndSync_);
             if (lockBtn) {
                 lockBtn.addEventListener('click', () => {
@@ -4436,9 +4484,9 @@ const tdfStages = [
                     if (typeof resetGaarPdfOnly === 'function') resetGaarPdfOnly();
                     updateGaarTomorrowButton_(newStatus);
                     if (tomorrowEntry) {
-                        setGaarAutoStatus_('Aucune GAAR du jour disponible. Une GAAR du lendemain est disponible mais non affichée automatiquement.', { warning: true });
+                        setGaarAutoStatus_('Aucun diagramme GAAR du jour disponible. Un diagramme GAAR du lendemain est disponible mais non affiché automatiquement.', { warning: true });
                     } else {
-                        setGaarAutoStatus_('Aucune GAAR du jour disponible sur le NAS. Aucun diagramme GAAR n’est affiché.', { warning: true });
+                        setGaarAutoStatus_('Aucun diagramme GAAR du jour disponible sur le NAS. Aucun diagramme GAAR n’est affiché.', { warning: true });
                     }
                 }
             } catch (error) {
@@ -4471,9 +4519,9 @@ const tdfStages = [
                     if (typeof resetGaarPdfOnly === 'function') resetGaarPdfOnly();
                     updateGaarTomorrowButton_(statusPayload);
                     if (tomorrowEntry) {
-                        setGaarAutoStatus_('Aucune GAAR du jour disponible. Une GAAR du lendemain est disponible mais non affichée automatiquement.', { warning: true });
+                        setGaarAutoStatus_('Aucun diagramme GAAR du jour disponible. Un diagramme GAAR du lendemain est disponible mais non affiché automatiquement.', { warning: true });
                     } else {
-                        setGaarAutoStatus_('Aucune GAAR du jour disponible sur le NAS. Aucun diagramme GAAR n’est affiché.', { warning: true });
+                        setGaarAutoStatus_('Aucun diagramme GAAR du jour disponible sur le NAS. Aucun diagramme GAAR n’est affiché.', { warning: true });
                     }
                 }
             } catch (error) {
@@ -5349,6 +5397,7 @@ const tdfStages = [
                 }
             }
 
+            window.refreshTemsiFromNas_ = populateTemsi_;
             populateTemsi_();
         }
 
