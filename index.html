@@ -6,8 +6,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0">
     <title>Briefing Fdf TEST</title>
-    <link rel="manifest" href="./manifest.json?v=3.44">
-    <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png?v=3.44">
+    <link rel="manifest" href="./manifest.json?v=3.82">
+    <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png?v=3.82">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-title" content="Briefing TEST">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
@@ -388,9 +388,24 @@
         }
         .carte-container iframe { width: 100%; height: 100%; border: none; }
         
-        #temsi-frame {
-            transform: scale(1.25) translate(8%, 8%);
-            transform-origin: center;
+        #temsi-image {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            display: block;
+            background: #ffffff;
+        }
+
+        .temsi-refresh-btn {
+            background-color: #0a2c5a;
+        }
+
+        .temsi-status-warning {
+            color: #b45309;
+        }
+
+        .temsi-status-ok {
+            color: #14532d;
         }
 
         .controles, .pdf-controls { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; margin-bottom: 20px; gap: 15px; }
@@ -1848,7 +1863,7 @@
         <h1 id="main-title">Briefing Fdf TEST</h1>
         <p id="current-time-display"></p>
         <p style="position: relative; z-index: 2; text-align: center; color: #333; font-size: 1em; margin-top: -25px; margin-bottom: 30px;">
-    v<span id="app-version">3.81 TEST FDF CNCASC sans défilement</span>
+    v<span id="app-version">3.82 TEST TEMSI NAS</span>
     <button id="force-update-btn" class="link-button" style="background-color: #34495e; padding: 4px 10px; font-size: 0.8em; margin-left: 10px; vertical-align: middle;">
         Forcer MAJ
     </button>
@@ -2004,7 +2019,21 @@
         </div>
     </div>
     
-    <div class="map-section" id="temsi-section"><h2>Carte TEMSI France</h2><div class="controles"><label for="temsi-select">Choisir une échéance :</label><select id="temsi-select"></select></div><p class="info-carte" id="temsi-info-carte">Chargement...</p><div class="carte-container"><iframe id="temsi-frame" title="Carte SIGWX France"></iframe></div></div>
+    <div class="map-section" id="temsi-section">
+        <h2>Carte TEMSI France</h2>
+
+        <div class="controles">
+            <label for="temsi-select">Choisir une échéance :</label>
+            <select id="temsi-select"></select>
+            <button id="temsi-refresh-btn" class="link-button temsi-refresh-btn" type="button">Actualiser TEMSI</button>
+        </div>
+
+        <p class="info-carte" id="temsi-info-carte">Chargement...</p>
+
+        <div class="carte-container">
+            <img id="temsi-image" alt="Carte TEMSI France">
+        </div>
+    </div>
     
     <div class="map-section" id="windy-section">
         <h2>WINDY</h2>
@@ -2193,7 +2222,7 @@
     <footer>Données : Météo-France, SIA, Windy.com, CheckWX.com. Page non commerciale, à usage personnel.</footer>
     
     <script>
-        const APP_VERSION = "3.81 TEST FDF CNCASC sans défilement";
+        const APP_VERSION = "3.82 TEST TEMSI NAS";
 
         // --- Clé API pour la source de données météo ---
         const CHECKWX_API_KEY = "b8071d79ae4a482491114af48c9c0246";
@@ -5096,44 +5125,144 @@ const tdfStages = [
         }
         
         function initializeTemsi() {
-             function populateTemsi() {
+            const NAS_TEMSI_BASE_URL = 'https://grisonb.synology.me/briefing-data/temsi/';
+            const TEMSI_HOURS = [6, 9, 12, 15, 18, 21];
+
+            function buildTemsiEcheance_(dateUtc, hour) {
+                return `${dateUtc.getUTCFullYear()}${String(dateUtc.getUTCMonth() + 1).padStart(2, '0')}${String(dateUtc.getUTCDate()).padStart(2, '0')}${String(hour).padStart(2, '0')}0000`;
+            }
+
+            function buildTemsiCleanUrl_(echeance) {
+                return `${NAS_TEMSI_BASE_URL}temsi-france-${echeance}.png`;
+            }
+
+            function buildTemsiDisplayUrl_(echeance) {
+                return `${buildTemsiCleanUrl_(echeance)}?v=${Date.now()}`;
+            }
+
+            function formatTemsiLabel_(echeance) {
+                return `Carte valide pour le ${echeance.substring(6, 8)}/${echeance.substring(4, 6)}/${echeance.substring(0, 4)} à ${echeance.substring(8, 10)}h00 UTC`;
+            }
+
+            function checkTemsiImageAvailable_(url) {
+                return new Promise((resolve) => {
+                    const testImage = new Image();
+                    testImage.onload = () => resolve(true);
+                    testImage.onerror = () => resolve(false);
+                    testImage.src = `${url}?check=${Date.now()}`;
+                });
+            }
+
+            async function updateTemsi_(echeance) {
                 const select = document.getElementById('temsi-select');
-                const frame = document.getElementById('temsi-frame');
+                const image = document.getElementById('temsi-image');
                 const info = document.getElementById('temsi-info-carte');
+
+                if (!select || !image || !info || !echeance) return;
+
+                const cleanUrl = buildTemsiCleanUrl_(echeance);
+                const displayUrl = buildTemsiDisplayUrl_(echeance);
+
+                info.classList.remove('temsi-status-ok', 'temsi-status-warning');
+                info.textContent = `Chargement TEMSI ${echeance.substring(8, 10)}h00 UTC...`;
+
+                image.onload = () => {
+                    const label = formatTemsiLabel_(echeance);
+                    info.textContent = `${label} — source NAS`;
+                    info.classList.remove('temsi-status-warning');
+                    info.classList.add('temsi-status-ok');
+
+                    window.__lastTemsiState = {
+                        src: displayUrl,
+                        cleanSrc: cleanUrl,
+                        echeance,
+                        label,
+                        selectedLabel: select.selectedOptions && select.selectedOptions[0] ? select.selectedOptions[0].textContent : '',
+                        loadedAt: new Date().toISOString(),
+                        source: 'online'
+                    };
+                };
+
+                image.onerror = () => {
+                    info.textContent = `TEMSI ${echeance.substring(8, 10)}h00 UTC non disponible sur le NAS pour le moment.`;
+                    info.classList.remove('temsi-status-ok');
+                    info.classList.add('temsi-status-warning');
+                };
+
+                image.src = displayUrl;
+            }
+
+            async function populateTemsi_() {
+                const select = document.getElementById('temsi-select');
+                const info = document.getElementById('temsi-info-carte');
+                const refreshBtn = document.getElementById('temsi-refresh-btn');
+
+                if (!select || !info) return;
+
                 select.innerHTML = '';
 
-                // TEMSI France : échéances proposées uniquement pour la journée UTC en cours.
-                // On ne propose plus les cartes de la veille ni de demain dans le menu.
-                const echeances = [6, 9, 12, 15, 18, 21];
                 const now = new Date();
-                const currentHour = now.getUTCHours();
-                const date = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
-                let activeEcheance = [...echeances].reverse().find(e => currentHour >= e);
-                if (activeEcheance === undefined) activeEcheance = 6;
+                const dateUtc = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
 
-                let initialEcheance = '';
-                for (const hour of echeances) {
-                    const echeanceDate = new Date(date);
-                    echeanceDate.setUTCHours(hour, 0, 0, 0);
-                    const dateString = `${echeanceDate.getUTCFullYear()}${String(echeanceDate.getUTCMonth()+1).padStart(2, '0')}${String(echeanceDate.getUTCDate()).padStart(2, '0')}${String(hour).padStart(2, '0')}0000`;
-                    const option = document.createElement("option");
-                    option.value = dateString;
-                    let label = `${String(hour).padStart(2, '0')}h00 UTC`;
-                    if (hour === activeEcheance) {
-                        label += " (Actuelle)";
-                        option.selected = true;
-                        initialEcheance = dateString;
-                    }
-                    option.textContent = label;
+                const entries = TEMSI_HOURS.map((hour) => {
+                    const echeance = buildTemsiEcheance_(dateUtc, hour);
+                    return {
+                        hour,
+                        echeance,
+                        cleanUrl: buildTemsiCleanUrl_(echeance)
+                    };
+                });
+
+                for (const entry of entries) {
+                    const option = document.createElement('option');
+                    option.value = entry.echeance;
+                    option.textContent = `${String(entry.hour).padStart(2, '0')}h00 UTC`;
                     select.appendChild(option);
                 }
 
-                const baseURL = 'https://aviation.meteo.fr/FR/aviation/affiche_image.php?login=fampsLSMuYmAdrAK4GqcZWRol2hoZHHd1uE%3D&layer=sigwx/fr/france&echeance=';
-                const update = e => { frame.src = baseURL + e; info.textContent = `Carte valide pour le ${e.substring(6,8)}/${e.substring(4,6)}/${e.substring(0,4)} à ${e.substring(8,10)}h00 UTC`; };
-                select.addEventListener('change', e => update(e.target.value));
-                update(initialEcheance);
+                info.classList.remove('temsi-status-ok', 'temsi-status-warning');
+                info.textContent = 'Recherche de la dernière TEMSI disponible sur le NAS...';
+
+                const availableEntries = [];
+
+                for (const entry of [...entries].reverse()) {
+                    const available = await checkTemsiImageAvailable_(entry.cleanUrl);
+                    if (available) {
+                        availableEntries.push(entry);
+                    }
+                }
+
+                for (const option of Array.from(select.options)) {
+                    const matchingEntry = entries.find(entry => entry.echeance === option.value);
+                    const isAvailable = availableEntries.some(entry => entry.echeance === option.value);
+
+                    if (matchingEntry) {
+                        option.textContent = `${String(matchingEntry.hour).padStart(2, '0')}h00 UTC${isAvailable ? ' — disponible' : ' — en attente'}`;
+                    }
+                }
+
+                const initialEntry = availableEntries[0] || entries[0];
+
+                if (initialEntry) {
+                    select.value = initialEntry.echeance;
+                    await updateTemsi_(initialEntry.echeance);
+                } else {
+                    info.textContent = 'Aucune TEMSI NAS disponible.';
+                    info.classList.add('temsi-status-warning');
+                }
+
+                select.onchange = (event) => {
+                    updateTemsi_(event.target.value);
+                };
+
+                if (refreshBtn) {
+                    refreshBtn.onclick = () => {
+                        populateTemsi_();
+                    };
+                }
             }
-            populateTemsi();
+
+            populateTemsi_();
         }
 
         function cleanTemsiInfoLabel_(text) {
