@@ -1412,7 +1412,7 @@
         <h1 id="main-title">Briefing Fdf TEST</h1>
         <p id="current-time-display"></p>
         <p style="position: relative; z-index: 2; text-align: center; color: #333; font-size: 1em; margin-top: -25px; margin-bottom: 30px;">
-    v<span id="app-version">3.71 TEST TEMSI + purge 01h</span>
+    v<span id="app-version">3.72 TEST GAAR jour strict</span>
     <button id="force-update-btn" class="link-button" style="background-color: #34495e; padding: 4px 10px; font-size: 0.8em; margin-left: 10px; vertical-align: middle;">
         Forcer MAJ
     </button>
@@ -1748,7 +1748,7 @@
     <footer>Données : Météo-France, SIA, Windy.com, CheckWX.com. Page non commerciale, à usage personnel.</footer>
     
     <script>
-        const APP_VERSION = "3.71 TEST TEMSI + purge 01h";
+        const APP_VERSION = "3.72 TEST GAAR jour strict";
 
         // --- Clé API pour la source de données météo ---
         const CHECKWX_API_KEY = "b8071d79ae4a482491114af48c9c0246";
@@ -3496,8 +3496,9 @@ const tdfStages = [
         }
 
         function getGaarTodayEntry_(payload) {
+            // Règle stricte GAAR : on n’affiche automatiquement que la GAAR du jour.
+            // Ne pas utiliser payload.file en fallback, car latest-gaar.pdf peut être celui de la veille.
             if (payload && payload.today && payload.today.exists) return payload.today;
-            if (payload && payload.file && payload.file.exists) return payload.file;
             return null;
         }
 
@@ -3671,11 +3672,13 @@ const tdfStages = [
                     const emailDate = todayEntry.mailDate ? formatFdsMetaDate_(todayEntry.mailDate) : formatFdsMetaDate_(todayEntry.updatedAt);
                     setGaarAutoStatus_(`Feuille GAAR du jour actualisée : ${todayEntry.originalFilename || 'PDF'} — email du ${emailDate}.`);
                 } else {
+                    // Aucune GAAR du jour : on efface toute GAAR locale/ancienne affichée automatiquement.
+                    if (typeof resetGaarPdfOnly === 'function') resetGaarPdfOnly();
                     updateGaarTomorrowButton_(newStatus);
                     if (tomorrowEntry) {
                         setGaarAutoStatus_('Aucune GAAR du jour disponible. Une GAAR du lendemain est disponible mais non affichée automatiquement.', { warning: true });
                     } else {
-                        setGaarAutoStatus_('Aucune GAAR du jour disponible sur le NAS.', { warning: true });
+                        setGaarAutoStatus_('Aucune GAAR du jour disponible sur le NAS. Aucun diagramme GAAR n’est affiché.', { warning: true });
                     }
                 }
             } catch (error) {
@@ -3704,15 +3707,18 @@ const tdfStages = [
                     const emailDate = todayEntry.mailDate ? formatFdsMetaDate_(todayEntry.mailDate) : formatFdsMetaDate_(todayEntry.updatedAt);
                     setGaarAutoStatus_(`GAAR du jour chargée : ${todayEntry.originalFilename || 'PDF'} — email du ${emailDate}.`);
                 } else {
+                    // Aucune GAAR du jour : ne jamais conserver/afficher la GAAR de la veille en mode Auto.
+                    if (typeof resetGaarPdfOnly === 'function') resetGaarPdfOnly();
                     updateGaarTomorrowButton_(statusPayload);
                     if (tomorrowEntry) {
                         setGaarAutoStatus_('Aucune GAAR du jour disponible. Une GAAR du lendemain est disponible mais non affichée automatiquement.', { warning: true });
                     } else {
-                        setGaarAutoStatus_('Aucune feuille GAAR NAS chargée automatiquement. Utiliser Actualiser ou Importation manuelle.', { warning: true });
+                        setGaarAutoStatus_('Aucune GAAR du jour disponible sur le NAS. Aucun diagramme GAAR n’est affiché.', { warning: true });
                     }
                 }
             } catch (error) {
-                setGaarAutoStatus_('Aucune feuille GAAR NAS chargée automatiquement. Utiliser Actualiser ou Importation manuelle.', { warning: true });
+                if (typeof resetGaarPdfOnly === 'function') resetGaarPdfOnly();
+                setGaarAutoStatus_('Aucune feuille GAAR du jour chargée automatiquement. Aucun ancien diagramme GAAR n’est affiché.', { warning: true });
             }
         }
 
