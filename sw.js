@@ -1,4 +1,4 @@
-const CACHE_NAME = 'briefing-fdf-test-v3.82-temsi-nas';
+const CACHE_NAME = 'briefing-fdf-test-v3.83-temsi-diagnostic';
 
 const LOCAL_ASSETS = [
   './manifest.json',
