@@ -1,4 +1,4 @@
-const CACHE_NAME = 'briefing-fdf-test-v3.81-fdf-cncasc';
+const CACHE_NAME = 'briefing-fdf-test-v3.82-temsi-nas';
 
 const LOCAL_ASSETS = [
   './manifest.json',
@@ -96,10 +96,11 @@ self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url);
   const sameOrigin = url.origin === self.location.origin;
 
-  // Ressource externe spéciale : cartes des risques stockées sur le NAS BFG.
+  // Ressources externes spéciales stockées sur le NAS BFG.
   if (!sameOrigin && url.hostname === 'grisonb.synology.me' && (
       url.pathname.includes('/briefing-data/risk-maps/') ||
       url.pathname.includes('/briefing-data/gaar/') ||
+      url.pathname.includes('/briefing-data/temsi/') ||
       url.pathname.includes('/briefing-api/get-risk-map-pdf.php') ||
       url.pathname.includes('/briefing-api/get-risk-map-status.php') ||
       url.pathname.includes('/briefing-api/get-gaar-pdf.php') ||
