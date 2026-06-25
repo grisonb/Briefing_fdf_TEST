@@ -1046,6 +1046,154 @@
             margin: 0;
         }
 
+
+        /* v3.79 - FDF CNCASC : tableaux plus lisibles, sans chevauchement */
+        .cncasc-fdf-panel {
+            padding: 16px;
+            background: #f8fafc;
+        }
+        .cncasc-fdf-panel .row,
+        .cncasc-fdf-panel .bg-light {
+            background: #ffffff;
+            border: 1px solid #d9e2ec;
+            border-radius: 16px;
+            padding: 14px;
+            box-shadow: 0 2px 8px rgba(15, 23, 42, 0.08);
+        }
+        .cncasc-fdf-panel table {
+            table-layout: fixed;
+            font-size: 0.86em;
+            border: 1px solid #c8d4e3;
+            border-radius: 14px;
+        }
+        .cncasc-fdf-panel table.fdf-table-active {
+            min-width: 1080px;
+        }
+        .cncasc-fdf-panel table.fdf-table-extinct {
+            min-width: 860px;
+        }
+        .cncasc-fdf-panel th,
+        .cncasc-fdf-panel td {
+            padding: 7px 9px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            box-sizing: border-box;
+        }
+        .cncasc-fdf-panel th {
+            background: #d9eaf7;
+            color: #0b3154;
+            font-weight: 900;
+        }
+        .cncasc-fdf-panel td.fdf-zone {
+            white-space: normal;
+            overflow: visible;
+            text-overflow: clip;
+            line-height: 1.08;
+            font-size: 0.88em;
+            font-weight: 900;
+            color: #06365a;
+            text-align: center;
+        }
+        .cncasc-fdf-panel td.fdf-commune {
+            white-space: normal;
+            overflow: visible;
+            text-overflow: clip;
+            line-height: 1.15;
+            font-size: 0.94em;
+            font-weight: 900;
+            color: #071f35;
+            text-align: left;
+        }
+        .cncasc-fdf-panel td.fdf-surface,
+        .cncasc-fdf-panel td.fdf-numeric {
+            font-weight: 900;
+        }
+        .cncasc-fdf-panel .fdf-status-cell {
+            padding: 5px 6px;
+            overflow: hidden;
+        }
+        .cncasc-fdf-panel .fdf-status-cell .badge {
+            display: flex;
+            width: 100%;
+            min-width: 0;
+            max-width: 100%;
+            box-sizing: border-box;
+            align-items: center;
+            justify-content: center;
+            padding: 5px 6px;
+            border-radius: 999px;
+            font-size: 0.82em;
+            line-height: 1.05;
+            white-space: normal;
+            overflow: hidden;
+            text-overflow: clip;
+            box-shadow: none;
+        }
+        .cncasc-fdf-panel .fdf-row-active td {
+            background: #fff0f1;
+        }
+        .cncasc-fdf-panel .fdf-row-active .fdf-status-cell .badge {
+            background: #dc3545 !important;
+            color: #ffffff !important;
+        }
+        .cncasc-fdf-panel .fdf-row-maitrise td {
+            background: #fff7dc;
+        }
+        .cncasc-fdf-panel .fdf-row-maitrise .fdf-status-cell .badge {
+            background: #ffc107 !important;
+            color: #111827 !important;
+        }
+        .cncasc-fdf-panel .fdf-row-surveillance td {
+            background: #eef3f8;
+        }
+        .cncasc-fdf-panel .fdf-row-surveillance .fdf-status-cell .badge {
+            background: #5d6a76 !important;
+            color: #ffffff !important;
+        }
+        .cncasc-fdf-panel .fdf-row-extinct td {
+            background: #edf9f2;
+        }
+        .cncasc-fdf-panel .fdf-row-extinct .fdf-status-cell .badge {
+            background: #198754 !important;
+            color: #ffffff !important;
+        }
+        .cncasc-fdf-panel .fdf-row-total td {
+            background: #aeb8c4 !important;
+            color: #061f35;
+            font-size: 0.94em;
+            font-weight: 900;
+        }
+        .cncasc-fdf-panel table.fdf-table-active th:nth-child(1),
+        .cncasc-fdf-panel table.fdf-table-active td:nth-child(1) { width: 9%; }
+        .cncasc-fdf-panel table.fdf-table-active th:nth-child(2),
+        .cncasc-fdf-panel table.fdf-table-active td:nth-child(2) { width: 23%; }
+        .cncasc-fdf-panel table.fdf-table-active th:nth-child(3),
+        .cncasc-fdf-panel table.fdf-table-active td:nth-child(3) { width: 8%; }
+        .cncasc-fdf-panel table.fdf-table-active th:nth-child(4),
+        .cncasc-fdf-panel table.fdf-table-active td:nth-child(4) { width: 6%; }
+        .cncasc-fdf-panel table.fdf-table-active th:nth-child(5),
+        .cncasc-fdf-panel table.fdf-table-active td:nth-child(5) { width: 6%; }
+        .cncasc-fdf-panel table.fdf-table-active th:nth-child(6),
+        .cncasc-fdf-panel table.fdf-table-active td:nth-child(6) { width: 15%; }
+        .cncasc-fdf-panel table.fdf-table-active th:nth-child(n+7),
+        .cncasc-fdf-panel table.fdf-table-active td:nth-child(n+7) { width: 8.25%; }
+        .cncasc-fdf-panel table.fdf-table-extinct th:nth-child(1),
+        .cncasc-fdf-panel table.fdf-table-extinct td:nth-child(1) { width: 12%; }
+        .cncasc-fdf-panel table.fdf-table-extinct th:nth-child(2),
+        .cncasc-fdf-panel table.fdf-table-extinct td:nth-child(2) { width: 46%; }
+        .cncasc-fdf-panel table.fdf-table-extinct th:nth-child(3),
+        .cncasc-fdf-panel table.fdf-table-extinct td:nth-child(3) { width: 12%; }
+        .cncasc-fdf-panel table.fdf-table-extinct th:nth-child(4),
+        .cncasc-fdf-panel table.fdf-table-extinct td:nth-child(4) { width: 8%; }
+        .cncasc-fdf-panel table.fdf-table-extinct th:nth-child(5),
+        .cncasc-fdf-panel table.fdf-table-extinct td:nth-child(5) { width: 8%; }
+        .cncasc-fdf-panel table.fdf-table-extinct th:nth-child(6),
+        .cncasc-fdf-panel table.fdf-table-extinct td:nth-child(6) { width: 14%; }
+        @media (max-width: 900px) {
+            .cncasc-fdf-panel table.fdf-table-active { min-width: 1100px; }
+            .cncasc-fdf-panel table.fdf-table-extinct { min-width: 880px; }
+        }
+
         .abe-dispo-panel {
             margin-top: 18px;
             padding: 14px;
@@ -1591,7 +1739,7 @@
         <h1 id="main-title">Briefing Fdf TEST</h1>
         <p id="current-time-display"></p>
         <p style="position: relative; z-index: 2; text-align: center; color: #333; font-size: 1em; margin-top: -25px; margin-bottom: 30px;">
-    v<span id="app-version">3.78 TEST FDF CNCASC tableaux</span>
+    v<span id="app-version">3.79 TEST FDF CNCASC tableaux lisibles</span>
     <button id="force-update-btn" class="link-button" style="background-color: #34495e; padding: 4px 10px; font-size: 0.8em; margin-left: 10px; vertical-align: middle;">
         Forcer MAJ
     </button>
@@ -1936,7 +2084,7 @@
     <footer>Données : Météo-France, SIA, Windy.com, CheckWX.com. Page non commerciale, à usage personnel.</footer>
     
     <script>
-        const APP_VERSION = "3.78 TEST FDF CNCASC tableaux";
+        const APP_VERSION = "3.79 TEST FDF CNCASC tableaux lisibles";
 
         // --- Clé API pour la source de données météo ---
         const CHECKWX_API_KEY = "b8071d79ae4a482491114af48c9c0246";
