@@ -1,7 +1,7 @@
 {
   "name": "Briefing FDF TEST",
   "short_name": "Briefing TEST",
-  "description": "Briefing FDF TEST v3.80 FDF CNCASC statuts corrigés",
+  "description": "Briefing FDF TEST v3.81 FDF CNCASC sans défilement",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
