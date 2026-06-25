@@ -1,7 +1,7 @@
 {
   "name": "Briefing FDF TEST",
   "short_name": "Briefing TEST",
-  "description": "Briefing FDF TEST v3.86 date PDF NOTAM persistante",
+  "description": "Briefing FDF TEST v3.88 actualisation briefing globale",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
