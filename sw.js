@@ -1,4 +1,4 @@
-const CACHE_NAME = 'briefing-fdf-test-v3.85-acces-briefing-protege';
+const CACHE_NAME = 'briefing-fdf-test-v3.86-date-pdf-notam-protege';
 
 const LOCAL_ASSETS = [
   './manifest.json',
