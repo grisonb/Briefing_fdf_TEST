@@ -922,25 +922,61 @@
         .cncasc-fdf-panel table {
             width: 100%;
             border-collapse: collapse;
-            font-size: 0.88em;
+            table-layout: auto;
+            font-size: 0.82em;
             background: #ffffff;
+            border-radius: 8px;
+            overflow: hidden;
         }
         .cncasc-fdf-panel th,
         .cncasc-fdf-panel td {
             border: 1px solid #d0d7de;
-            padding: 6px;
+            padding: 5px 6px;
             vertical-align: middle;
             white-space: nowrap;
+            text-align: center;
+            line-height: 1.25;
         }
         .cncasc-fdf-panel th {
-            background: #eef2f5;
-            color: #2c3e50;
+            background: #eaf1f7;
+            color: #183b56;
             text-align: center;
+            font-weight: 800;
+        }
+        .cncasc-fdf-panel tbody tr:nth-child(even) {
+            background: #f8fafc;
+        }
+        .cncasc-fdf-panel tbody tr:hover {
+            background: #eef6ff;
         }
         .cncasc-fdf-panel td:nth-child(2),
         .cncasc-fdf-panel th:nth-child(2) {
             white-space: normal;
-            min-width: 160px;
+            min-width: 190px;
+            text-align: left;
+        }
+        .cncasc-fdf-panel td:nth-child(5),
+        .cncasc-fdf-panel th:nth-child(5) {
+            width: 64px;
+            min-width: 54px;
+            max-width: 76px;
+        }
+        .cncasc-fdf-panel td:nth-child(1),
+        .cncasc-fdf-panel th:nth-child(1),
+        .cncasc-fdf-panel td:nth-child(3),
+        .cncasc-fdf-panel th:nth-child(3),
+        .cncasc-fdf-panel td:nth-child(4),
+        .cncasc-fdf-panel th:nth-child(4) {
+            width: 72px;
+        }
+        .cncasc-fdf-panel td:nth-child(n+7),
+        .cncasc-fdf-panel th:nth-child(n+7) {
+            width: 58px;
+            min-width: 48px;
+        }
+        .cncasc-fdf-panel td:last-child,
+        .cncasc-fdf-panel th:last-child {
+            width: 58px;
         }
         .cncasc-fdf-panel .col-lg-3,
         .cncasc-fdf-panel .col-md-6,
@@ -1490,7 +1526,6 @@
             <li id="tdf-nav-link"><a href="#tdf-section">Tour de France</a></li>
             <li><a href="#sup-aip-section">SUP AIP</a></li>
             <li><a href="#cncasc-fdf-section">FDF CNCASC</a></li>
-            <li><a href="#synergi-section">SYNERGI</a></li>
             <li><a href="#google-earth-section">G. EARTH</a></li>
         </ul>
     </nav>
@@ -1500,7 +1535,7 @@
         <h1 id="main-title">Briefing Fdf TEST</h1>
         <p id="current-time-display"></p>
         <p style="position: relative; z-index: 2; text-align: center; color: #333; font-size: 1em; margin-top: -25px; margin-bottom: 30px;">
-    v<span id="app-version">3.76 TEST FDF CNCASC</span>
+    v<span id="app-version">3.77 TEST FDF CNCASC UI</span>
     <button id="force-update-btn" class="link-button" style="background-color: #34495e; padding: 4px 10px; font-size: 0.8em; margin-left: 10px; vertical-align: middle;">
         Forcer MAJ
     </button>
@@ -1817,18 +1852,17 @@
     <div class="map-section" id="cncasc-fdf-section">
         <h2>FDF CNCASC</h2>
         <div class="controles" style="gap: 20px;">
-            <button id="cncasc-fdf-refresh-btn" class="link-button" style="background-color:#c0392b;">Actualiser</button>
-            <a href="https://cncasc-app.fr/pages/landing.php" target="_blank" class="link-button" style="background-color:#3498db;">Ouvrir CNCASC FDF</a>
+            <button id="cncasc-fdf-refresh-btn" class="link-button" style="background-color:#2980b9;">Actualiser</button>
+            <a href="https://cncasc-app.fr/pages/landing.php" target="_blank" class="link-button" style="background-color:#34495e;">Ouvrir CNCASC FDF</a>
         </div>
         <p id="cncasc-fdf-status" class="cncasc-fdf-status">Situation FDF CNCASC non chargée.</p>
         <div id="cncasc-fdf-display" class="cncasc-fdf-panel" style="display: none;"></div>
     </div>
 
     <div class="map-section" id="synergi-section">
-        <h2>SYNERGI / CNCASC</h2>
+        <h2>SYNERGI</h2>
         <div class="controles">
             <a href="https://synergi2.dgscgc.interieur.gouv.fr/evenements?forInit=false&statusEvent=PUBLIC" target="_blank" class="link-button" style="background-color:#16a085;">Ouvrir SYNERGI</a>
-            <a href="https://cncasc-app.fr/pages/landing.php" target="_blank" class="link-button" style="background-color:#3498db;">Ouvrir CNCASC</a>
         </div>
     </div>
 
@@ -1846,7 +1880,7 @@
     <footer>Données : Météo-France, SIA, Windy.com, CheckWX.com. Page non commerciale, à usage personnel.</footer>
     
     <script>
-        const APP_VERSION = "3.76 TEST FDF CNCASC";
+        const APP_VERSION = "3.77 TEST FDF CNCASC UI";
 
         // --- Clé API pour la source de données météo ---
         const CHECKWX_API_KEY = "b8071d79ae4a482491114af48c9c0246";
