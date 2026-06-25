@@ -1196,6 +1196,113 @@
             .cncasc-fdf-panel table.fdf-table-extinct { min-width: 880px; }
         }
 
+
+        /* v3.81 - FDF CNCASC : tableau contenu dans l'écran, sans défilement latéral */
+        .cncasc-fdf-panel {
+            overflow-x: hidden !important;
+            padding-left: 10px;
+            padding-right: 10px;
+        }
+        .cncasc-fdf-panel .row,
+        .cncasc-fdf-panel .bg-light {
+            overflow-x: hidden !important;
+        }
+        .cncasc-fdf-panel table,
+        .cncasc-fdf-panel table.fdf-table-active,
+        .cncasc-fdf-panel table.fdf-table-extinct {
+            width: 100% !important;
+            min-width: 0 !important;
+            max-width: 100% !important;
+            table-layout: fixed !important;
+        }
+        .cncasc-fdf-panel th,
+        .cncasc-fdf-panel td {
+            white-space: normal !important;
+            overflow: visible !important;
+            text-overflow: clip !important;
+            padding: 7px 6px !important;
+            font-weight: 800;
+        }
+        .cncasc-fdf-panel td.fdf-zone {
+            width: auto !important;
+            font-size: 0.82em !important;
+            line-height: 1.05 !important;
+            word-break: normal;
+            overflow-wrap: anywhere;
+        }
+        .cncasc-fdf-panel td.fdf-commune {
+            width: auto !important;
+            font-size: 0.86em !important;
+            line-height: 1.12 !important;
+            overflow-wrap: anywhere;
+            word-break: normal;
+        }
+        .cncasc-fdf-panel td.fdf-surface,
+        .cncasc-fdf-panel td.fdf-numeric {
+            font-size: 0.88em;
+            font-weight: 900;
+        }
+        .cncasc-fdf-panel .fdf-status-cell {
+            padding-left: 4px !important;
+            padding-right: 4px !important;
+        }
+        .cncasc-fdf-panel .fdf-status-pill {
+            min-width: 72px !important;
+            width: 100% !important;
+            max-width: 94px !important;
+            padding: 5px 6px !important;
+            font-size: 0.78em !important;
+            white-space: normal !important;
+            line-height: 1.05 !important;
+        }
+        .cncasc-fdf-panel table.fdf-table-active th:nth-child(1),
+        .cncasc-fdf-panel table.fdf-table-active td:nth-child(1) { width: 9% !important; }
+        .cncasc-fdf-panel table.fdf-table-active th:nth-child(2),
+        .cncasc-fdf-panel table.fdf-table-active td:nth-child(2) { width: 30% !important; }
+        .cncasc-fdf-panel table.fdf-table-active th:nth-child(3),
+        .cncasc-fdf-panel table.fdf-table-active td:nth-child(3) { width: 10% !important; }
+        .cncasc-fdf-panel table.fdf-table-active th:nth-child(4),
+        .cncasc-fdf-panel table.fdf-table-active td:nth-child(4) { width: 7% !important; }
+        .cncasc-fdf-panel table.fdf-table-active th:nth-child(5),
+        .cncasc-fdf-panel table.fdf-table-active td:nth-child(5) { width: 7% !important; }
+        .cncasc-fdf-panel table.fdf-table-active th:nth-child(6),
+        .cncasc-fdf-panel table.fdf-table-active td:nth-child(6) { width: 13% !important; }
+        .cncasc-fdf-panel table.fdf-table-active th:nth-child(7),
+        .cncasc-fdf-panel table.fdf-table-active td:nth-child(7) { width: 12% !important; }
+        .cncasc-fdf-panel table.fdf-table-active th:nth-child(8),
+        .cncasc-fdf-panel table.fdf-table-active td:nth-child(8) { width: 12% !important; }
+        .cncasc-fdf-panel table.fdf-table-extinct th:nth-child(1),
+        .cncasc-fdf-panel table.fdf-table-extinct td:nth-child(1) { width: 12% !important; }
+        .cncasc-fdf-panel table.fdf-table-extinct th:nth-child(2),
+        .cncasc-fdf-panel table.fdf-table-extinct td:nth-child(2) { width: 43% !important; }
+        .cncasc-fdf-panel table.fdf-table-extinct th:nth-child(3),
+        .cncasc-fdf-panel table.fdf-table-extinct td:nth-child(3) { width: 12% !important; }
+        .cncasc-fdf-panel table.fdf-table-extinct th:nth-child(4),
+        .cncasc-fdf-panel table.fdf-table-extinct td:nth-child(4) { width: 8% !important; }
+        .cncasc-fdf-panel table.fdf-table-extinct th:nth-child(5),
+        .cncasc-fdf-panel table.fdf-table-extinct td:nth-child(5) { width: 8% !important; }
+        .cncasc-fdf-panel table.fdf-table-extinct th:nth-child(6),
+        .cncasc-fdf-panel table.fdf-table-extinct td:nth-child(6) { width: 17% !important; }
+        @media (max-width: 900px) {
+            .cncasc-fdf-panel {
+                padding-left: 6px;
+                padding-right: 6px;
+            }
+            .cncasc-fdf-panel th,
+            .cncasc-fdf-panel td {
+                padding: 6px 4px !important;
+                font-size: 0.76em !important;
+            }
+            .cncasc-fdf-panel td.fdf-commune {
+                font-size: 0.78em !important;
+            }
+            .cncasc-fdf-panel .fdf-status-pill {
+                min-width: 58px !important;
+                font-size: 0.70em !important;
+                padding: 4px 3px !important;
+            }
+        }
+
         .abe-dispo-panel {
             margin-top: 18px;
             padding: 14px;
@@ -1741,7 +1848,7 @@
         <h1 id="main-title">Briefing Fdf TEST</h1>
         <p id="current-time-display"></p>
         <p style="position: relative; z-index: 2; text-align: center; color: #333; font-size: 1em; margin-top: -25px; margin-bottom: 30px;">
-    v<span id="app-version">3.80 TEST FDF CNCASC tableaux corrigés</span>
+    v<span id="app-version">3.81 TEST FDF CNCASC sans défilement</span>
     <button id="force-update-btn" class="link-button" style="background-color: #34495e; padding: 4px 10px; font-size: 0.8em; margin-left: 10px; vertical-align: middle;">
         Forcer MAJ
     </button>
@@ -2086,7 +2193,7 @@
     <footer>Données : Météo-France, SIA, Windy.com, CheckWX.com. Page non commerciale, à usage personnel.</footer>
     
     <script>
-        const APP_VERSION = "3.80 TEST FDF CNCASC tableaux corrigés";
+        const APP_VERSION = "3.81 TEST FDF CNCASC sans défilement";
 
         // --- Clé API pour la source de données météo ---
         const CHECKWX_API_KEY = "b8071d79ae4a482491114af48c9c0246";
@@ -3326,10 +3433,61 @@ const tdfStages = [
 
         function enhanceCncascFdfTables_(root) {
             if (!root) return;
+
+            function normalizeHeader_(value) {
+                return String(value || '')
+                    .trim()
+                    .toLowerCase()
+                    .replace(/\s+/g, ' ');
+            }
+
+            function removeColumnsByHeader_(table, namesToRemove) {
+                const headerCells = Array.from(table.querySelectorAll('thead th'));
+                const removeIndexes = [];
+                headerCells.forEach((th, index) => {
+                    const label = normalizeHeader_(th.textContent);
+                    if (namesToRemove.includes(label)) removeIndexes.push(index);
+                });
+
+                if (!removeIndexes.length) return;
+
+                removeIndexes.sort((a, b) => b - a).forEach((indexToRemove) => {
+                    const rows = Array.from(table.querySelectorAll('tr'));
+                    rows.forEach((row) => {
+                        const cells = Array.from(row.children);
+                        if (!cells.length) return;
+
+                        // Cas normal : une cellule par colonne.
+                        if (cells[indexToRemove]) {
+                            cells[indexToRemove].remove();
+                            return;
+                        }
+
+                        // Cas des lignes de totaux avec colspan : on réduit le colspan si nécessaire.
+                        let cursor = 0;
+                        for (const cell of cells) {
+                            const span = Number(cell.getAttribute('colspan') || '1');
+                            if (indexToRemove >= cursor && indexToRemove < cursor + span && span > 1) {
+                                cell.setAttribute('colspan', String(span - 1));
+                                return;
+                            }
+                            cursor += span;
+                        }
+                    });
+                });
+            }
+
             const tables = root.querySelectorAll('table');
             tables.forEach((table) => {
-                const headers = Array.from(table.querySelectorAll('thead th')).map(th => (th.textContent || '').trim().toLowerCase());
+                let headers = Array.from(table.querySelectorAll('thead th')).map(th => normalizeHeader_(th.textContent));
                 const isActiveTable = headers.includes('sp dpt') || headers.includes('sp renf') || headers.includes('flotte dpt');
+
+                // FDF CNCASC : suppression demandée des colonnes SP Dpt / SP Renf.
+                if (isActiveTable) {
+                    removeColumnsByHeader_(table, ['sp dpt', 'sp renf']);
+                    headers = Array.from(table.querySelectorAll('thead th')).map(th => normalizeHeader_(th.textContent));
+                }
+
                 const isExtinctTable = !isActiveTable && headers.includes('statut') && headers.includes('surface');
 
                 table.classList.toggle('fdf-table-active', isActiveTable);
