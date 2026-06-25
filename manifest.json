@@ -1,7 +1,7 @@
 {
   "name": "Briefing FDF TEST",
   "short_name": "Briefing TEST",
-  "description": "Briefing FDF TEST v3.72 GAAR jour strict",
+  "description": "Briefing FDF TEST v3.73 TEMSI perenne + GAAR jour strict",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
