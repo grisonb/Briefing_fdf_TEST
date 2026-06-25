@@ -6,8 +6,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0">
     <title>Briefing Fdf TEST</title>
-    <link rel="manifest" href="./manifest.json?v=3.83">
-    <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png?v=3.83">
+    <link rel="manifest" href="./manifest.json?v=3.85">
+    <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png?v=3.85">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-title" content="Briefing TEST">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
@@ -1812,6 +1812,9 @@
         .cncasc-warning.visible {
             display: block;
         }
+        .briefing-sensitive-hidden {
+            display: none !important;
+        }
         .abe-fleet-block.abe-fleet-abel .abe-aircraft-table td:nth-child(1) strong {
             font-size: 1.12em;
             letter-spacing: 0;
@@ -1842,18 +1845,18 @@
     <nav class="main-nav" id="main-nav">
         <button class="nav-toggle" id="nav-toggle" aria-label="Menu">&#9776;</button>
         <ul class="nav-links" id="nav-links">
-            <li><a href="#fds-section">FDS</a></li>
-            <li><a href="#dispo-avions-section">AVIONS</a></li>
-            <li><a href="#pelicandromes-section">PELIC</a></li>
-            <li><a href="#gaar-section">GAAR</a></li>
-            <li id="gaar-map-nav-link"><a href="#gaar-map-section">Carte GAAR</a></li>
-            <li><a href="#risk-maps-section">RISQUES</a></li>
+            <li class="briefing-protected-data briefing-sensitive-hidden"><a href="#fds-section">FDS</a></li>
+            <li class="briefing-protected-data briefing-sensitive-hidden"><a href="#dispo-avions-section">AVIONS</a></li>
+            <li class="briefing-protected-data briefing-sensitive-hidden"><a href="#pelicandromes-section">PELIC</a></li>
+            <li class="briefing-protected-data briefing-sensitive-hidden"><a href="#gaar-section">GAAR</a></li>
+            <li id="gaar-map-nav-link" class="briefing-protected-data briefing-sensitive-hidden"><a href="#gaar-map-section">Carte GAAR</a></li>
+            <li class="briefing-protected-data briefing-sensitive-hidden"><a href="#risk-maps-section">RISQUES</a></li>
             <li><a href="#temsi-section">TEMSI</a></li>
             <li><a href="#windy-section">WINDY</a></li>
             <li><a href="#notam-section">NOTAM/METAR</a></li>
             <li id="tdf-nav-link"><a href="#tdf-section">Tour de France</a></li>
             <li><a href="#sup-aip-section">SUP AIP</a></li>
-            <li><a href="#cncasc-fdf-section">FDF CNCASC</a></li>
+            <li class="briefing-protected-data briefing-sensitive-hidden"><a href="#cncasc-fdf-section">FDF CNCASC</a></li>
             <li><a href="#google-earth-section">G. EARTH</a></li>
         </ul>
     </nav>
@@ -1863,7 +1866,7 @@
         <h1 id="main-title">Briefing Fdf TEST</h1>
         <p id="current-time-display"></p>
         <p style="position: relative; z-index: 2; text-align: center; color: #333; font-size: 1em; margin-top: -25px; margin-bottom: 30px;">
-    v<span id="app-version">3.82 TEST TEMSI NAS</span>
+    v<span id="app-version">3.85 TEST accès Briefing protégé</span>
     <button id="force-update-btn" class="link-button" style="background-color: #34495e; padding: 4px 10px; font-size: 0.8em; margin-left: 10px; vertical-align: middle;">
         Forcer MAJ
     </button>
@@ -1872,14 +1875,14 @@
 
 
     <div class="cncasc-auth-panel cncasc-disconnected" id="cncasc-auth-panel">
-        <h3>Accès données CNCASC</h3>
+        <h3>Accès Briefing</h3>
         <div class="cncasc-auth-row">
-            <input id="cncasc-password-input" type="text" inputmode="text" placeholder="Code accès CNCASC" aria-label="Code accès CNCASC" name="bfg-cncasc-code" autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false" data-lpignore="true" data-1p-ignore="true" data-form-type="other" readonly>
+            <input id="cncasc-password-input" type="text" inputmode="text" placeholder="Code accès Briefing" aria-label="Code accès Briefing" name="bfg-cncasc-code" autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false" data-lpignore="true" data-1p-ignore="true" data-form-type="other" readonly>
             <button id="cncasc-unlock-btn" class="link-button" style="background-color:#2980b9;">Connexion</button>
             <button id="cncasc-global-refresh-btn" class="link-button" style="background-color:#1abc9c;">Actualiser</button>
             <button id="cncasc-lock-btn" class="link-button" style="background-color:var(--sc-red);">Déconnexion</button>
         </div>
-        <p id="cncasc-auth-status">Accès CNCASC verrouillé.</p>
+        <p id="cncasc-auth-status">Accès Briefing verrouillé.</p>
         <p id="cncasc-warning" class="cncasc-warning"></p>
     </div>
 
@@ -1909,7 +1912,7 @@
 </div>
 
 
-    <div id="fds-section" class="pdf-section dropzone">
+    <div id="fds-section" class="pdf-section dropzone briefing-protected-data briefing-sensitive-hidden">
         <h2>Feuille de Service</h2>
         <div class="pdf-controls">
             <button id="fds-auto-refresh-btn" type="button" class="link-button" style="background-color: #cfeecf; color:#145a32;">Actualiser feuille de service</button>
@@ -1927,7 +1930,7 @@
         <p id="pdf-info-fds" class="pdf-info"></p>
     </div>
 
-    <div class="map-section" id="dispo-avions-section">
+    <div class="map-section briefing-protected-data briefing-sensitive-hidden" id="dispo-avions-section">
         <h2>Dispo Avions / ABE / ABEL</h2>
         <div class="controles" style="gap: 20px;">
             <button id="abe-refresh-btn" class="link-button" style="background-color:#2980b9;">Actualiser</button>
@@ -1938,7 +1941,7 @@
         <div id="abe-dispo-display" class="abe-dispo-panel" style="display: none;"></div>
     </div>
 
-    <div class="map-section" id="pelicandromes-section">
+    <div class="map-section briefing-protected-data briefing-sensitive-hidden" id="pelicandromes-section">
         <h2>Pélicandromes</h2>
         <div class="controles" style="gap: 20px;">
             <button id="pelic-refresh-btn" class="link-button" style="background-color:#2980b9;">Actualiser</button>
@@ -1948,7 +1951,7 @@
         <div id="pelic-dispo-display" class="abe-dispo-panel" style="display: none;"></div>
     </div>
 
-    <div id="pelic-map-modal" class="pelic-map-modal" aria-hidden="true">
+    <div id="pelic-map-modal" class="pelic-map-modal briefing-protected-data briefing-sensitive-hidden" aria-hidden="true">
         <div class="pelic-map-modal-card">
             <div class="pelic-map-modal-header">
                 <h4 id="pelic-map-modal-title">Pélicandrome</h4>
@@ -1958,7 +1961,7 @@
         </div>
     </div>
     
-    <div id="gaar-section" class="pdf-section dropzone">
+    <div id="gaar-section" class="pdf-section dropzone briefing-protected-data briefing-sensitive-hidden">
         <h2>Diagramme GAAR</h2>
         <div class="pdf-controls">
             <button id="gaar-auto-refresh-btn" type="button" class="link-button" style="background-color: #cfeecf; color:#145a32;">Actualiser feuille GAAR</button>
@@ -1977,7 +1980,7 @@
         <p id="pdf-info-gaar" class="pdf-info"></p>
     </div>
     
-    <div class="map-section" id="gaar-map-section">
+    <div class="map-section briefing-protected-data briefing-sensitive-hidden" id="gaar-map-section">
         <h2>Carte des circuits GAAR</h2>
         <div id="gaar-map-container">
             <div id="gaar-map-controls">
@@ -1991,7 +1994,7 @@
     </div>
 
 
-    <div class="map-section" id="risk-maps-section">
+    <div class="map-section briefing-protected-data briefing-sensitive-hidden" id="risk-maps-section">
         <h2>Carte des risques</h2>
         <div class="controles" style="gap: 20px;">
             <button id="risk-maps-refresh-btn" class="link-button" style="background-color: #2980b9; color:white;">Actualiser</button>
@@ -2191,7 +2194,7 @@
         <input type="file" id="pdf-input-sup-aip" accept="application/pdf" multiple>
     </div>
 
-    <div class="map-section" id="cncasc-fdf-section">
+    <div class="map-section briefing-protected-data briefing-sensitive-hidden" id="cncasc-fdf-section">
         <h2>FDF CNCASC</h2>
         <div class="controles" style="gap: 20px;">
             <button id="cncasc-fdf-refresh-btn" class="link-button" style="background-color:#2980b9;">Actualiser</button>
@@ -2222,7 +2225,7 @@
     <footer>Données : Météo-France, SIA, Windy.com, CheckWX.com. Page non commerciale, à usage personnel.</footer>
     
     <script>
-        const APP_VERSION = "3.82 TEST TEMSI NAS";
+        const APP_VERSION = "3.85 TEST accès Briefing protégé";
 
         // --- Clé API pour la source de données météo ---
         const CHECKWX_API_KEY = "b8071d79ae4a482491114af48c9c0246";
@@ -2989,7 +2992,7 @@ const tdfStages = [
             const tokenInfo = getStoredCncascToken_();
 
             if (!tokenInfo) {
-                setNotamsAutoStatus_(status, "Accès NOTAMs verrouillé : déverrouiller d'abord l'accès CNCASC.", { warning: true });
+                setNotamsAutoStatus_(status, "Accès NOTAMs verrouillé : déverrouiller d'abord l'accès Briefing.", { warning: true });
                 return;
             }
 
@@ -3050,10 +3053,18 @@ const tdfStages = [
             }
         }
 
+        function updateBriefingProtectedVisibility_(isUnlocked) {
+            const protectedNodes = document.querySelectorAll('.briefing-protected-data');
+            protectedNodes.forEach((node) => {
+                node.classList.toggle('briefing-sensitive-hidden', !isUnlocked);
+            });
+        }
+
         function updateCncascAuthUi_() {
             const panel = document.getElementById('cncasc-auth-panel');
             const status = document.getElementById('cncasc-auth-status');
             const tokenInfo = getStoredCncascToken_();
+            updateBriefingProtectedVisibility_(!!tokenInfo);
 
             if (panel) {
                 panel.classList.toggle('cncasc-connected', !!tokenInfo);
@@ -3063,9 +3074,9 @@ const tdfStages = [
             if (!status) return;
 
             if (tokenInfo) {
-                status.textContent = `Accès CNCASC connecté jusqu'à ${new Date(tokenInfo.exp).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}.`;
+                status.textContent = `Accès Briefing connecté jusqu'à ${new Date(tokenInfo.exp).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}.`;
             } else {
-                status.textContent = 'Accès CNCASC déconnecté : saisir le code accès puis cliquer sur Connexion.';
+                status.textContent = 'Accès Briefing déconnecté : saisir le code accès puis cliquer sur Connexion.';
             }
         }
 
@@ -3075,7 +3086,7 @@ const tdfStages = [
             const password = input ? input.value : '';
 
             if (!password) {
-                setCncascWarning_('⚠️ Saisir le code accès CNCASC avant connexion.');
+                setCncascWarning_('⚠️ Saisir le code accès Briefing avant connexion.');
                 if (input) input.blur();
                 return;
             }
@@ -3084,7 +3095,7 @@ const tdfStages = [
 
             try {
                 if (unlockBtn) unlockBtn.disabled = true;
-                setCncascWarning_('Connexion CNCASC en cours...');
+                setCncascWarning_('Connexion Briefing en cours...');
 
                 const response = await fetch(CNCASC_AUTH_API_URL, {
                     method: 'POST',
@@ -3107,14 +3118,14 @@ const tdfStages = [
                 if (input) input.value = '';
                 clearCncascWarning_();
                 updateCncascAuthUi_();
-                setCncascWarning_('Connexion CNCASC réussie. Actualisation des données...');
+                setCncascWarning_('Connexion Briefing réussie. Actualisation des données...');
 
                 // Dès que le code accès est accepté, toutes les données CNCASC sont actualisées.
                 await fetchAllCncascData_();
             } catch (error) {
                 clearCncascToken_();
                 updateCncascAuthUi_();
-                setCncascWarning_(`⚠️ Accès CNCASC impossible : ${error.message}`);
+                setCncascWarning_(`⚠️ Accès Briefing impossible : ${error.message}`);
             } finally {
                 if (unlockBtn) unlockBtn.disabled = false;
             }
@@ -3606,7 +3617,7 @@ const tdfStages = [
             if (!tokenInfo) {
                 if (status) status.textContent = 'Situation FDF CNCASC non actualisée : connexion CNCASC requise.';
                 updateCncascAuthUi_();
-                setCncascWarning_('⚠️ Actualisation CNCASC impossible : cliquer sur Connexion si la session a expiré.');
+                setCncascWarning_('⚠️ Actualisation impossible : cliquer sur Connexion si la session Briefing a expiré.');
                 return;
             }
 
@@ -3668,7 +3679,7 @@ const tdfStages = [
                 if (status) status.textContent = 'Données CNCASC non actualisées : connexion CNCASC requise.';
                 if (pelicStatus) pelicStatus.textContent = 'Données pélicandromes non actualisées : connexion CNCASC requise.';
                 updateCncascAuthUi_();
-                setCncascWarning_('⚠️ Actualisation CNCASC impossible : cliquer sur Connexion si la session a expiré.');
+                setCncascWarning_('⚠️ Actualisation impossible : cliquer sur Connexion si la session Briefing a expiré.');
                 return;
             }
 
@@ -3733,7 +3744,7 @@ const tdfStages = [
                 lockBtn.addEventListener('click', () => {
                     clearCncascToken_();
                     updateCncascAuthUi_();
-                    setCncascWarning_('Accès CNCASC déconnecté sur cet appareil.');
+                    setCncascWarning_('Accès Briefing déconnecté sur cet appareil.');
                 });
             }
             if (passwordInput) {
@@ -4014,23 +4025,39 @@ const tdfStages = [
         }
 
         async function waitForUpdatedFdsStatus_(previousUpdatedAt) {
+            // v3.84 : attente allongée.
+            // Le traitement Gmail + Apps Script + NAS peut prendre plus de 20 secondes,
+            // surtout quand la FDS du lendemain vient juste d’arriver.
+            // Avant, un premier clic pouvait déclencher la mise à jour, mais le panneau
+            // "FDS du lendemain disponible" n’apparaissait qu’au second clic.
+            const maxAttempts = 36;
             let lastPayload = null;
             let lastError = null;
-            for (let attempt = 0; attempt < 14; attempt += 1) {
-                await waitFds_(attempt === 0 ? 2500 : 1500);
+
+            for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
+                await waitFds_(attempt === 0 ? 3000 : 2000);
+
                 try {
                     lastPayload = await fetchFdsStatus_(Date.now());
+                    updateFdsTomorrowButton_(lastPayload);
+
                     const currentSignature = getFdsStatusSignature_(lastPayload);
                     if (!previousUpdatedAt || !currentSignature || currentSignature !== previousUpdatedAt) {
                         return lastPayload;
                     }
-                    setFdsAutoStatus_(`Attente du PDF Gmail sur le NAS... essai ${attempt + 1}/14`);
+
+                    setFdsAutoStatus_(`Attente du PDF Gmail sur le NAS... essai ${attempt + 1}/${maxAttempts}`);
                 } catch (error) {
                     lastError = error;
-                    setFdsAutoStatus_(`Statut NAS temporairement indisponible... essai ${attempt + 1}/14`, { warning: true });
+                    setFdsAutoStatus_(`Statut NAS temporairement indisponible... essai ${attempt + 1}/${maxAttempts}`, { warning: true });
                 }
             }
-            if (lastPayload) return lastPayload;
+
+            if (lastPayload) {
+                updateFdsTomorrowButton_(lastPayload);
+                return lastPayload;
+            }
+
             throw lastError || new Error('Statut feuille de service indisponible après attente');
         }
 
