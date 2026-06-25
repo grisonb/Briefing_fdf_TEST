@@ -6,8 +6,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0">
     <title>Briefing Fdf TEST</title>
-    <link rel="manifest" href="./manifest.json?v=3.85">
-    <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png?v=3.85">
+    <link rel="manifest" href="./manifest.json?v=3.86">
+    <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png?v=3.86">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-title" content="Briefing TEST">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
@@ -1866,7 +1866,7 @@
         <h1 id="main-title">Briefing Fdf TEST</h1>
         <p id="current-time-display"></p>
         <p style="position: relative; z-index: 2; text-align: center; color: #333; font-size: 1em; margin-top: -25px; margin-bottom: 30px;">
-    v<span id="app-version">3.85 TEST accès Briefing protégé</span>
+    v<span id="app-version">3.86 TEST date PDF NOTAM persistante</span>
     <button id="force-update-btn" class="link-button" style="background-color: #34495e; padding: 4px 10px; font-size: 0.8em; margin-left: 10px; vertical-align: middle;">
         Forcer MAJ
     </button>
@@ -2225,7 +2225,7 @@
     <footer>Données : Météo-France, SIA, Windy.com, CheckWX.com. Page non commerciale, à usage personnel.</footer>
     
     <script>
-        const APP_VERSION = "3.85 TEST accès Briefing protégé";
+        const APP_VERSION = "3.86 TEST date PDF NOTAM persistante";
 
         // --- Clé API pour la source de données météo ---
         const CHECKWX_API_KEY = "b8071d79ae4a482491114af48c9c0246";
@@ -2446,6 +2446,7 @@ const tdfStages = [
         const NOTAMS_AUTO_PDF_API_URL = 'https://grisonb.synology.me/briefing-api/get-notams-pdf.php';
         const NOTAMS_GENERATION_REQUEST_API_URL = 'https://grisonb.synology.me/briefing-api/request-notams-generation.php';
         const NOTAMS_GENERATION_STATUS_API_URL = 'https://grisonb.synology.me/briefing-api/get-notams-generation-status.php';
+        const NOTAMS_AUTO_STATUS_STORAGE_KEY = 'briefingFdfNotamsAutoPdfStatus';
         const FDS_GMAIL_REFRESH_URL = 'https://script.google.com/macros/s/AKfycbwjw2i5AcY9UT31sRvz1sTessKF4k1EUHMo0KW4Tga-mLTeBhup0IN98dXnAJSoqq_LDQ/exec';
         const FDS_STATUS_API_URL = 'https://grisonb.synology.me/briefing-api/get-feuille-service-status.php';
         const FDS_PDF_API_URL = 'https://grisonb.synology.me/briefing-api/get-feuille-service-pdf.php';
@@ -2785,6 +2786,63 @@ const tdfStages = [
             })}`;
         }
 
+        function saveNotamsAutoPdfStatus_(snapshot) {
+            if (!snapshot || !snapshot.timestampText) return;
+
+            const normalizedSnapshot = {
+                timestampText: String(snapshot.timestampText || ''),
+                timestampIso: String(snapshot.timestampIso || ''),
+                savedAt: snapshot.savedAt || new Date().toISOString()
+            };
+
+            window.__lastNotamsAutoPdfStatus = normalizedSnapshot;
+
+            try {
+                localStorage.setItem(NOTAMS_AUTO_STATUS_STORAGE_KEY, JSON.stringify(normalizedSnapshot));
+            } catch (error) {
+                console.warn('Impossible de mémoriser la date PDF NOTAM:', error);
+            }
+        }
+
+        function loadNotamsAutoPdfStatus_() {
+            if (window.__lastNotamsAutoPdfStatus && window.__lastNotamsAutoPdfStatus.timestampText) {
+                return window.__lastNotamsAutoPdfStatus;
+            }
+
+            try {
+                const raw = localStorage.getItem(NOTAMS_AUTO_STATUS_STORAGE_KEY);
+                if (!raw) return null;
+                const parsed = JSON.parse(raw);
+                if (parsed && parsed.timestampText) {
+                    window.__lastNotamsAutoPdfStatus = parsed;
+                    return parsed;
+                }
+            } catch (error) {
+                console.warn('Impossible de relire la date PDF NOTAM:', error);
+            }
+
+            return null;
+        }
+
+        function rememberNotamsAutoPdfTimestamp_(timestampText, timestampIso = '') {
+            if (!timestampText) return;
+            saveNotamsAutoPdfStatus_({
+                timestampText,
+                timestampIso,
+                savedAt: new Date().toISOString()
+            });
+        }
+
+        function restoreNotamsAutoPdfStatusDisplay_(statusElement) {
+            const snapshot = loadNotamsAutoPdfStatus_();
+            if (!snapshot || !snapshot.timestampText) return false;
+
+            setNotamsAutoStatus_(statusElement, 'Dernier PDF NOTAM source importé automatiquement.', {
+                timestampText: snapshot.timestampText
+            });
+            return true;
+        }
+
         function setNotamsAutoStatus_(statusElement, message, options = {}) {
             if (!statusElement) return;
 
@@ -3008,7 +3066,9 @@ const tdfStages = [
                 restoreNotamAutoScroll_(scrollTopBeforeAutoImport);
 
                 const generationStatusPayload = await waitForNotamsGeneration_(requestPayload.requestId, tokenInfo.token, status);
+                const pdfTimestampIso = extractNotamsPdfTimestampIso_(generationStatusPayload);
                 const pdfTimestampText = formatNotamsAutoPdfTimestamp_(generationStatusPayload);
+                rememberNotamsAutoPdfTimestamp_(pdfTimestampText, pdfTimestampIso);
                 restoreNotamAutoScroll_(scrollTopBeforeAutoImport);
 
                 const pdfFile = await fetchLatestNotamsPdfFromNas_(tokenInfo.token);
@@ -5863,6 +5923,7 @@ const tdfStages = [
 
             const notamAutoImportBtn = document.getElementById('notam-auto-import-btn');
             const notamAutoImportStatus = document.getElementById('notam-auto-import-status');
+            restoreNotamsAutoPdfStatusDisplay_(notamAutoImportStatus);
 
             if (notamAutoImportBtn) {
                 notamAutoImportBtn.addEventListener('click', (event) => importAutomaticNotamsFromNas_(event));
@@ -6325,6 +6386,7 @@ let activeShareApiBase = SHARE_API_BASE;
 
                 notamText: portableSnapshot.notamTextFull || portableSnapshot.notamText || document.getElementById('notam-input')?.value || "",
                 notamState: portableSnapshot.notamState || window.__lastNotamState || null,
+                notamsAutoPdfStatus: window.__lastNotamsAutoPdfStatus || loadNotamsAutoPdfStatus_() || null,
 
                 weatherData: window.collectWeatherData ? window.collectWeatherData() : null,
 
@@ -6694,6 +6756,13 @@ let activeShareApiBase = SHARE_API_BASE;
             }
         }
 
+        if (data.notamsAutoPdfStatus && data.notamsAutoPdfStatus.timestampText) {
+            saveNotamsAutoPdfStatus_(data.notamsAutoPdfStatus);
+            restoreNotamsAutoPdfStatusDisplay_(document.getElementById('notam-auto-import-status'));
+        } else {
+            restoreNotamsAutoPdfStatusDisplay_(document.getElementById('notam-auto-import-status'));
+        }
+
         if (data.weatherData) {
             Object.entries(data.weatherData).forEach(([icao, weather]) => {
                 let container = document.getElementById(`notam-container-${icao}`);
@@ -6775,6 +6844,7 @@ let activeShareApiBase = SHARE_API_BASE;
         localStorage.removeItem('briefingFdfDoNotAutoRestore');
         localStorage.removeItem(FDS_MODE_STORAGE_KEY);
         localStorage.removeItem(GAAR_MODE_STORAGE_KEY);
+        localStorage.removeItem(NOTAMS_AUTO_STATUS_STORAGE_KEY);
         sessionStorage.removeItem('skipAutoRestoreOnce');
 
         // Nettoyage immédiat des objets lourds en mémoire avant rechargement.
@@ -6784,6 +6854,7 @@ let activeShareApiBase = SHARE_API_BASE;
         window.gaarDrawnCircuits = [];
         window.__lastNotamState = null;
         window.__notamTextFull = '';
+        window.__lastNotamsAutoPdfStatus = null;
         window.__lastTemsiState = null;
 
         updateFdsModeUi_();
@@ -6823,6 +6894,7 @@ let activeShareApiBase = SHARE_API_BASE;
         localStorage.removeItem('briefingFdfDoNotAutoRestore');
         localStorage.removeItem(FDS_MODE_STORAGE_KEY);
         localStorage.removeItem(GAAR_MODE_STORAGE_KEY);
+        localStorage.removeItem(NOTAMS_AUTO_STATUS_STORAGE_KEY);
         await caches.delete('briefing-fdf-temsi-offline-v1').catch(() => false);
         updateFdsModeUi_();
         updateGaarModeUi_();
