@@ -861,6 +861,99 @@
         }
 
     
+        .cncasc-fdf-panel {
+            margin-top: 18px;
+            padding: 14px;
+            border: 1px solid #d0d7de;
+            border-radius: 8px;
+            background: #ffffff;
+            text-align: left;
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+        .cncasc-fdf-status {
+            text-align: center;
+            font-weight: 700;
+            margin: 10px 0;
+            color: #34495e;
+        }
+        .cncasc-fdf-panel .container {
+            max-width: none;
+            width: 100%;
+            padding: 0;
+            margin: 0 0 14px 0;
+        }
+        .cncasc-fdf-panel .row,
+        .cncasc-fdf-panel .bg-light {
+            display: block;
+            background: #f8f9fa;
+            border-radius: 8px;
+            padding: 10px;
+            margin: 0 0 14px 0;
+        }
+        .cncasc-fdf-panel h4,
+        .cncasc-fdf-panel h5 {
+            margin: 6px 0 10px 0;
+            text-align: center;
+            color: #2c3e50;
+        }
+        .cncasc-fdf-panel .badge {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 999px;
+            font-weight: 800;
+            color: #ffffff;
+        }
+        .cncasc-fdf-panel .bg-danger,
+        .cncasc-fdf-panel .text-bg-danger {
+            background: #dc3545;
+        }
+        .cncasc-fdf-panel .bg-success,
+        .cncasc-fdf-panel .text-bg-success {
+            background: #198754;
+        }
+        .cncasc-fdf-panel .text-bg-warning {
+            background: #ffc107;
+            color: #212529;
+        }
+        .cncasc-fdf-panel .text-bg-secondary {
+            background: #6c757d;
+        }
+        .cncasc-fdf-panel table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.88em;
+            background: #ffffff;
+        }
+        .cncasc-fdf-panel th,
+        .cncasc-fdf-panel td {
+            border: 1px solid #d0d7de;
+            padding: 6px;
+            vertical-align: middle;
+            white-space: nowrap;
+        }
+        .cncasc-fdf-panel th {
+            background: #eef2f5;
+            color: #2c3e50;
+            text-align: center;
+        }
+        .cncasc-fdf-panel td:nth-child(2),
+        .cncasc-fdf-panel th:nth-child(2) {
+            white-space: normal;
+            min-width: 160px;
+        }
+        .cncasc-fdf-panel .col-lg-3,
+        .cncasc-fdf-panel .col-md-6,
+        .cncasc-fdf-panel .col-auto {
+            display: inline-block;
+            margin: 4px;
+        }
+        .cncasc-fdf-panel .col-lg-3 h5,
+        .cncasc-fdf-panel .col-md-6 h5 {
+            color: inherit;
+            margin: 0;
+        }
+
         .abe-dispo-panel {
             margin-top: 18px;
             padding: 14px;
@@ -1396,6 +1489,7 @@
             <li><a href="#notam-section">NOTAM/METAR</a></li>
             <li id="tdf-nav-link"><a href="#tdf-section">Tour de France</a></li>
             <li><a href="#sup-aip-section">SUP AIP</a></li>
+            <li><a href="#cncasc-fdf-section">FDF CNCASC</a></li>
             <li><a href="#synergi-section">SYNERGI</a></li>
             <li><a href="#google-earth-section">G. EARTH</a></li>
         </ul>
@@ -1406,7 +1500,7 @@
         <h1 id="main-title">Briefing Fdf TEST</h1>
         <p id="current-time-display"></p>
         <p style="position: relative; z-index: 2; text-align: center; color: #333; font-size: 1em; margin-top: -25px; margin-bottom: 30px;">
-    v<span id="app-version">3.72 TEST GAAR jour strict</span>
+    v<span id="app-version">3.76 TEST FDF CNCASC</span>
     <button id="force-update-btn" class="link-button" style="background-color: #34495e; padding: 4px 10px; font-size: 0.8em; margin-left: 10px; vertical-align: middle;">
         Forcer MAJ
     </button>
@@ -1720,6 +1814,16 @@
         <input type="file" id="pdf-input-sup-aip" accept="application/pdf" multiple>
     </div>
 
+    <div class="map-section" id="cncasc-fdf-section">
+        <h2>FDF CNCASC</h2>
+        <div class="controles" style="gap: 20px;">
+            <button id="cncasc-fdf-refresh-btn" class="link-button" style="background-color:#c0392b;">Actualiser</button>
+            <a href="https://cncasc-app.fr/pages/landing.php" target="_blank" class="link-button" style="background-color:#3498db;">Ouvrir CNCASC FDF</a>
+        </div>
+        <p id="cncasc-fdf-status" class="cncasc-fdf-status">Situation FDF CNCASC non chargée.</p>
+        <div id="cncasc-fdf-display" class="cncasc-fdf-panel" style="display: none;"></div>
+    </div>
+
     <div class="map-section" id="synergi-section">
         <h2>SYNERGI / CNCASC</h2>
         <div class="controles">
@@ -1742,7 +1846,7 @@
     <footer>Données : Météo-France, SIA, Windy.com, CheckWX.com. Page non commerciale, à usage personnel.</footer>
     
     <script>
-        const APP_VERSION = "3.72 TEST GAAR jour strict";
+        const APP_VERSION = "3.76 TEST FDF CNCASC";
 
         // --- Clé API pour la source de données météo ---
         const CHECKWX_API_KEY = "b8071d79ae4a482491114af48c9c0246";
@@ -1958,6 +2062,7 @@ const tdfStages = [
 
         // --- DISPO CNCASC VIA NAS : ABE + ABEL + PELICANDROMES ---
         const CNCASC_DISPO_API_URL = 'https://grisonb.synology.me/briefing-api/dispo-cncasc.php';
+        const CNCASC_FDF_API_URL = 'https://grisonb.synology.me/briefing-api/get-cncasc-fdf.php';
         const CNCASC_AUTH_API_URL = 'https://grisonb.synology.me/briefing-api/auth-cncasc.php';
         const NOTAMS_AUTO_PDF_API_URL = 'https://grisonb.synology.me/briefing-api/get-notams-pdf.php';
         const NOTAMS_GENERATION_REQUEST_API_URL = 'https://grisonb.synology.me/briefing-api/request-notams-generation.php';
@@ -2629,7 +2734,7 @@ const tdfStages = [
                 setCncascWarning_('Connexion CNCASC réussie. Actualisation des données...');
 
                 // Dès que le code accès est accepté, toutes les données CNCASC sont actualisées.
-                await fetchAbeDispo_();
+                await fetchAllCncascData_();
             } catch (error) {
                 clearCncascToken_();
                 updateCncascAuthUi_();
@@ -2979,6 +3084,99 @@ const tdfStages = [
             return true;
         }
 
+        function renderCncascFdf_(data) {
+            const display = document.getElementById('cncasc-fdf-display');
+            const status = document.getElementById('cncasc-fdf-status');
+            if (!display || !status) return;
+
+            if (!data || !data.ok || typeof data.html !== 'string' || data.html.trim() === '') {
+                status.textContent = 'Situation FDF CNCASC invalide.';
+                display.style.display = 'none';
+                display.innerHTML = '';
+                return;
+            }
+
+            display.innerHTML = data.html;
+            display.style.display = 'block';
+            status.textContent = `Situation FDF CNCASC actualisée : ${formatAbeDate_(data.updatedAt)}`;
+
+            try {
+                window.__lastCncascFdfPayload = JSON.parse(JSON.stringify(data));
+                window.__lastCncascFdfPayload.savedForOfflineAt = new Date().toISOString();
+            } catch (_) {
+                window.__lastCncascFdfPayload = data;
+            }
+        }
+
+        function restoreCncascFdfOfflineData_(data, localSavedAt) {
+            if (!data || !data.ok) return false;
+            renderCncascFdf_(data);
+            const status = document.getElementById('cncasc-fdf-status');
+            const sourceDate = data.updatedAt || data.savedForOfflineAt || localSavedAt;
+            const suffix = sourceDate ? ` — dernière actualisation : ${formatAbeDate_(sourceDate)}` : '';
+            if (status) status.textContent = `Situation FDF CNCASC hors ligne restaurée${suffix}`;
+            return true;
+        }
+
+        async function fetchCncascFdf_() {
+            const status = document.getElementById('cncasc-fdf-status');
+            const refreshBtn = document.getElementById('cncasc-fdf-refresh-btn');
+            const globalRefreshBtn = document.getElementById('cncasc-global-refresh-btn');
+            const tokenInfo = getStoredCncascToken_();
+
+            if (!tokenInfo) {
+                if (status) status.textContent = 'Situation FDF CNCASC non actualisée : connexion CNCASC requise.';
+                updateCncascAuthUi_();
+                setCncascWarning_('⚠️ Actualisation CNCASC impossible : cliquer sur Connexion si la session a expiré.');
+                return;
+            }
+
+            try {
+                if (refreshBtn) refreshBtn.disabled = true;
+                if (globalRefreshBtn) globalRefreshBtn.disabled = true;
+                if (status) status.textContent = 'Chargement situation FDF CNCASC...';
+                clearCncascWarning_();
+
+                const response = await fetch(CNCASC_FDF_API_URL, {
+                    method: 'GET',
+                    cache: 'no-store',
+                    headers: {
+                        'Authorization': `Bearer ${tokenInfo.token}`
+                    }
+                });
+
+                const payload = await response.json().catch(() => null);
+
+                if (!response.ok || !payload || payload.ok === false) {
+                    if (response.status === 401) {
+                        clearCncascToken_();
+                        updateCncascAuthUi_();
+                    }
+                    const errorText = payload && payload.message ? payload.message : (payload && payload.error ? payload.error : `HTTP ${response.status}`);
+                    throw new Error(errorText);
+                }
+
+                renderCncascFdf_(payload);
+                updateCncascAuthUi_();
+                clearCncascWarning_();
+            } catch (error) {
+                console.error(error);
+                const message = `⚠️ Situation FDF CNCASC impossible : ${error.message}`;
+                if (status) status.textContent = message;
+                setCncascWarning_(message);
+            } finally {
+                if (refreshBtn) refreshBtn.disabled = false;
+                if (globalRefreshBtn) globalRefreshBtn.disabled = false;
+            }
+        }
+
+        async function fetchAllCncascData_() {
+            await Promise.allSettled([
+                fetchAbeDispo_(),
+                fetchCncascFdf_()
+            ]);
+        }
+
         async function fetchAbeDispo_() {
             const status = document.getElementById('abe-dispo-status');
             const pelicStatus = document.getElementById('pelic-dispo-status');
@@ -3042,13 +3240,15 @@ const tdfStages = [
             const refreshBtn = document.getElementById('abe-refresh-btn');
             const pelicRefreshBtn = document.getElementById('pelic-refresh-btn');
             const globalRefreshBtn = document.getElementById('cncasc-global-refresh-btn');
+            const fdfRefreshBtn = document.getElementById('cncasc-fdf-refresh-btn');
             const unlockBtn = document.getElementById('cncasc-unlock-btn');
             const lockBtn = document.getElementById('cncasc-lock-btn');
             const passwordInput = document.getElementById('cncasc-password-input');
 
             if (refreshBtn) refreshBtn.addEventListener('click', fetchAbeDispo_);
             if (pelicRefreshBtn) pelicRefreshBtn.addEventListener('click', fetchAbeDispo_);
-            if (globalRefreshBtn) globalRefreshBtn.addEventListener('click', fetchAbeDispo_);
+            if (fdfRefreshBtn) fdfRefreshBtn.addEventListener('click', fetchCncascFdf_);
+            if (globalRefreshBtn) globalRefreshBtn.addEventListener('click', fetchAllCncascData_);
             if (unlockBtn) unlockBtn.addEventListener('click', unlockCncascAndSync_);
             if (lockBtn) {
                 lockBtn.addEventListener('click', () => {
@@ -3071,7 +3271,7 @@ const tdfStages = [
 
             // Si une session 6 h est encore valide sur cet iPad, les données sont actualisées automatiquement.
             if (getStoredCncascToken_()) {
-                fetchAbeDispo_();
+                fetchAllCncascData_();
             }
         }
 
@@ -5525,6 +5725,7 @@ let activeShareApiBase = SHARE_API_BASE;
                 // v3.30 : données hors ligne locales uniquement.
                 // Non inclus dans le partage distant volontairement.
                 cncascDispo: window.__lastCncascDispoPayload || null,
+                cncascFdf: window.__lastCncascFdfPayload || null,
                 temsiState: await cacheTemsiForOffline_()
             };
 
@@ -5903,6 +6104,9 @@ let activeShareApiBase = SHARE_API_BASE;
 
         if (data.cncascDispo) {
             restoreCncascOfflineData_(data.cncascDispo, data.savedAt);
+        }
+        if (data.cncascFdf) {
+            restoreCncascFdfOfflineData_(data.cncascFdf, data.savedAt);
         }
 
         if (data.temsiState) {
