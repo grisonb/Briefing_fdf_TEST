@@ -1047,7 +1047,7 @@
         }
 
 
-        /* v3.79 - FDF CNCASC : tableaux plus lisibles, sans chevauchement */
+        /* v3.80 - FDF CNCASC : statuts réparés + tableaux lisibles */
         .cncasc-fdf-panel {
             padding: 16px;
             background: #f8fafc;
@@ -1067,7 +1067,7 @@
             border-radius: 14px;
         }
         .cncasc-fdf-panel table.fdf-table-active {
-            min-width: 1080px;
+            min-width: 1120px;
         }
         .cncasc-fdf-panel table.fdf-table-extinct {
             min-width: 860px;
@@ -1109,51 +1109,53 @@
             font-weight: 900;
         }
         .cncasc-fdf-panel .fdf-status-cell {
-            padding: 5px 6px;
-            overflow: hidden;
+            padding: 4px 6px;
+            overflow: visible;
+            text-align: center;
         }
-        .cncasc-fdf-panel .fdf-status-cell .badge {
-            display: flex;
-            width: 100%;
-            min-width: 0;
-            max-width: 100%;
-            box-sizing: border-box;
+        .cncasc-fdf-panel .fdf-status-pill {
+            display: inline-flex;
             align-items: center;
             justify-content: center;
-            padding: 5px 6px;
+            width: auto;
+            min-width: 86px;
+            max-width: 100%;
+            box-sizing: border-box;
+            padding: 5px 10px;
             border-radius: 999px;
-            font-size: 0.82em;
+            font-size: 0.86em;
+            font-weight: 900;
             line-height: 1.05;
-            white-space: normal;
-            overflow: hidden;
+            white-space: nowrap;
+            overflow: visible;
             text-overflow: clip;
-            box-shadow: none;
+            box-shadow: inset 0 -1px 0 rgba(0,0,0,0.16);
         }
         .cncasc-fdf-panel .fdf-row-active td {
             background: #fff0f1;
         }
-        .cncasc-fdf-panel .fdf-row-active .fdf-status-cell .badge {
+        .cncasc-fdf-panel .fdf-row-active .fdf-status-cell .fdf-status-pill {
             background: #dc3545 !important;
             color: #ffffff !important;
         }
         .cncasc-fdf-panel .fdf-row-maitrise td {
             background: #fff7dc;
         }
-        .cncasc-fdf-panel .fdf-row-maitrise .fdf-status-cell .badge {
+        .cncasc-fdf-panel .fdf-row-maitrise .fdf-status-cell .fdf-status-pill {
             background: #ffc107 !important;
             color: #111827 !important;
         }
         .cncasc-fdf-panel .fdf-row-surveillance td {
             background: #eef3f8;
         }
-        .cncasc-fdf-panel .fdf-row-surveillance .fdf-status-cell .badge {
+        .cncasc-fdf-panel .fdf-row-surveillance .fdf-status-cell .fdf-status-pill {
             background: #5d6a76 !important;
             color: #ffffff !important;
         }
         .cncasc-fdf-panel .fdf-row-extinct td {
             background: #edf9f2;
         }
-        .cncasc-fdf-panel .fdf-row-extinct .fdf-status-cell .badge {
+        .cncasc-fdf-panel .fdf-row-extinct .fdf-status-cell .fdf-status-pill {
             background: #198754 !important;
             color: #ffffff !important;
         }
@@ -1164,9 +1166,9 @@
             font-weight: 900;
         }
         .cncasc-fdf-panel table.fdf-table-active th:nth-child(1),
-        .cncasc-fdf-panel table.fdf-table-active td:nth-child(1) { width: 9%; }
+        .cncasc-fdf-panel table.fdf-table-active td:nth-child(1) { width: 10%; }
         .cncasc-fdf-panel table.fdf-table-active th:nth-child(2),
-        .cncasc-fdf-panel table.fdf-table-active td:nth-child(2) { width: 23%; }
+        .cncasc-fdf-panel table.fdf-table-active td:nth-child(2) { width: 25%; }
         .cncasc-fdf-panel table.fdf-table-active th:nth-child(3),
         .cncasc-fdf-panel table.fdf-table-active td:nth-child(3) { width: 8%; }
         .cncasc-fdf-panel table.fdf-table-active th:nth-child(4),
@@ -1174,9 +1176,9 @@
         .cncasc-fdf-panel table.fdf-table-active th:nth-child(5),
         .cncasc-fdf-panel table.fdf-table-active td:nth-child(5) { width: 6%; }
         .cncasc-fdf-panel table.fdf-table-active th:nth-child(6),
-        .cncasc-fdf-panel table.fdf-table-active td:nth-child(6) { width: 15%; }
+        .cncasc-fdf-panel table.fdf-table-active td:nth-child(6) { width: 13%; }
         .cncasc-fdf-panel table.fdf-table-active th:nth-child(n+7),
-        .cncasc-fdf-panel table.fdf-table-active td:nth-child(n+7) { width: 8.25%; }
+        .cncasc-fdf-panel table.fdf-table-active td:nth-child(n+7) { width: 7.75%; }
         .cncasc-fdf-panel table.fdf-table-extinct th:nth-child(1),
         .cncasc-fdf-panel table.fdf-table-extinct td:nth-child(1) { width: 12%; }
         .cncasc-fdf-panel table.fdf-table-extinct th:nth-child(2),
@@ -1739,7 +1741,7 @@
         <h1 id="main-title">Briefing Fdf TEST</h1>
         <p id="current-time-display"></p>
         <p style="position: relative; z-index: 2; text-align: center; color: #333; font-size: 1em; margin-top: -25px; margin-bottom: 30px;">
-    v<span id="app-version">3.79 TEST FDF CNCASC tableaux lisibles</span>
+    v<span id="app-version">3.80 TEST FDF CNCASC tableaux corrigés</span>
     <button id="force-update-btn" class="link-button" style="background-color: #34495e; padding: 4px 10px; font-size: 0.8em; margin-left: 10px; vertical-align: middle;">
         Forcer MAJ
     </button>
@@ -2084,7 +2086,7 @@
     <footer>Données : Météo-France, SIA, Windy.com, CheckWX.com. Page non commerciale, à usage personnel.</footer>
     
     <script>
-        const APP_VERSION = "3.79 TEST FDF CNCASC tableaux lisibles";
+        const APP_VERSION = "3.80 TEST FDF CNCASC tableaux corrigés";
 
         // --- Clé API pour la source de données météo ---
         const CHECKWX_API_KEY = "b8071d79ae4a482491114af48c9c0246";
@@ -3348,8 +3350,22 @@ const tdfStages = [
 
                     const statusCell = cells.find(td => /en cours|ma[iî]tris[eé]|surveillance|eteint|éteint/i.test(td.textContent || ''));
                     if (statusCell) {
+                        const statusRaw = (statusCell.textContent || '').trim();
+                        const statusText = statusRaw.toLowerCase();
+
                         statusCell.classList.add('fdf-status-cell');
-                        const statusText = (statusCell.textContent || '').toLowerCase();
+                        statusCell.classList.remove(
+                            'badge',
+                            'bg-danger', 'bg-success', 'bg-warning', 'bg-secondary',
+                            'text-bg-danger', 'text-bg-success', 'text-bg-warning', 'text-bg-secondary'
+                        );
+
+                        statusCell.innerHTML = '';
+                        const pill = document.createElement('span');
+                        pill.className = 'fdf-status-pill';
+                        pill.textContent = statusRaw;
+                        statusCell.appendChild(pill);
+
                         if (statusText.includes('en cours')) row.classList.add('fdf-row-active');
                         else if (statusText.includes('maitris') || statusText.includes('maîtris')) row.classList.add('fdf-row-maitrise');
                         else if (statusText.includes('surveillance')) row.classList.add('fdf-row-surveillance');
