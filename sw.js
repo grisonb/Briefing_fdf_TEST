@@ -1,4 +1,4 @@
-const CACHE_NAME = 'briefing-fdf-test-v3.72-gaar-jour-strict';
+const CACHE_NAME = 'briefing-fdf-test-v3.73-temsi-perenne';
 
 const LOCAL_ASSETS = [
   './manifest.json',
