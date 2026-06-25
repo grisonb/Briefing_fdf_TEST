@@ -4451,28 +4451,25 @@ const tdfStages = [
                 const frame = document.getElementById('temsi-frame');
                 const info = document.getElementById('temsi-info-carte');
                 select.innerHTML = '';
+
+                // TEMSI France : échéances proposées uniquement pour la journée UTC en cours.
+                // On ne propose plus les cartes de la veille ni de demain dans le menu.
                 const echeances = [6, 9, 12, 15, 18, 21];
                 const now = new Date();
                 const currentHour = now.getUTCHours();
-                const date = new Date(now);
-                let activeEcheance = [...echeances].reverse().find(e => currentHour >= e - 1);
-                if (activeEcheance === undefined) {
-                    activeEcheance = 21;
-                    date.setUTCDate(date.getUTCDate() - 1);
-                }
-                date.setUTCHours(activeEcheance, 0, 0, 0);
+                const date = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+                let activeEcheance = [...echeances].reverse().find(e => currentHour >= e);
+                if (activeEcheance === undefined) activeEcheance = 6;
+
                 let initialEcheance = '';
-                for (let i = -3; i <= 4; i++) { 
-                    let echeanceDate = new Date(date);
-                    let echeanceIndex = echeances.indexOf(activeEcheance) + i;
-                    echeanceDate.setUTCDate(echeanceDate.getUTCDate() + Math.floor(echeanceIndex / echeances.length));
-                    echeanceIndex = (echeanceIndex % echeances.length + echeances.length) % echeances.length;
-                    echeanceDate.setUTCHours(echeances[echeanceIndex], 0, 0, 0);
-                    const dateString = `${echeanceDate.getUTCFullYear()}${String(echeanceDate.getUTCMonth()+1).padStart(2, '0')}${String(echeanceDate.getUTCDate()).padStart(2, '0')}${String(echeanceDate.getUTCHours()).padStart(2, '0')}0000`;
+                for (const hour of echeances) {
+                    const echeanceDate = new Date(date);
+                    echeanceDate.setUTCHours(hour, 0, 0, 0);
+                    const dateString = `${echeanceDate.getUTCFullYear()}${String(echeanceDate.getUTCMonth()+1).padStart(2, '0')}${String(echeanceDate.getUTCDate()).padStart(2, '0')}${String(hour).padStart(2, '0')}0000`;
                     const option = document.createElement("option");
                     option.value = dateString;
-                    let label = `${getLabelForDate(echeanceDate)} ${String(echeanceDate.getUTCHours()).padStart(2, '0')}h00 UTC`;
-                    if (i === 0) {
+                    let label = `${String(hour).padStart(2, '0')}h00 UTC`;
+                    if (hour === activeEcheance) {
                         label += " (Actuelle)";
                         option.selected = true;
                         initialEcheance = dateString;
@@ -4480,6 +4477,7 @@ const tdfStages = [
                     option.textContent = label;
                     select.appendChild(option);
                 }
+
                 const baseURL = 'https://aviation.meteo.fr/FR/aviation/affiche_image.php?login=fampsLSMuYmAdrAK4GqcZWRol2hoZHHd1uE%3D&layer=sigwx/fr/france&echeance=';
                 const update = e => { frame.src = baseURL + e; info.textContent = `Carte valide pour le ${e.substring(6,8)}/${e.substring(4,6)}/${e.substring(0,4)} à ${e.substring(8,10)}h00 UTC`; };
                 select.addEventListener('change', e => update(e.target.value));
