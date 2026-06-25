@@ -1,4 +1,4 @@
-const CACHE_NAME = 'briefing-fdf-test-v3.71-temsi-jour-sans-futur';
+const CACHE_NAME = 'briefing-fdf-test-v3.72-gaar-jour-strict';
 
 const LOCAL_ASSETS = [
   './manifest.json',
