@@ -1,7 +1,7 @@
 {
   "name": "Briefing FDF TEST",
   "short_name": "Briefing TEST",
-  "description": "Briefing FDF TEST v3.91 proxy CheckWX",
+  "description": "Briefing FDF TEST v3.92 proxy CheckWX affichage brut",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
