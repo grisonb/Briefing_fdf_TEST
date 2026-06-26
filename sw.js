@@ -1,4 +1,4 @@
-const CACHE_NAME = 'briefing-fdf-test-v3.90-diagnostic-checkwx';
+const CACHE_NAME = 'briefing-fdf-test-v3.91-proxy-checkwx';
 
 const LOCAL_ASSETS = [
   './manifest.json',
@@ -104,7 +104,8 @@ self.addEventListener('fetch', (event) => {
       url.pathname.includes('/briefing-api/get-risk-map-pdf.php') ||
       url.pathname.includes('/briefing-api/get-risk-map-status.php') ||
       url.pathname.includes('/briefing-api/get-gaar-pdf.php') ||
-      url.pathname.includes('/briefing-api/get-gaar-status.php')
+      url.pathname.includes('/briefing-api/get-gaar-status.php') ||
+      url.pathname.includes('/briefing-api/get-metar-taf.php')
     )) {
     event.respondWith((async () => {
       try {
