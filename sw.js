@@ -1,4 +1,4 @@
-const CACHE_NAME = 'briefing-fdf-test-v3.91-proxy-checkwx';
+const CACHE_NAME = 'briefing-fdf-test-v3.92-proxy-checkwx-affichage-brut';
 
 const LOCAL_ASSETS = [
   './manifest.json',
