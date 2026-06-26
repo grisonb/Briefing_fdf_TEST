@@ -6,8 +6,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0">
     <title>Briefing Fdf TEST</title>
-    <link rel="manifest" href="./manifest.json?v=3.89">
-    <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png?v=3.89">
+    <link rel="manifest" href="./manifest.json?v=3.90">
+    <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png?v=3.90">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-title" content="Briefing TEST">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
@@ -1866,7 +1866,7 @@
         <h1 id="main-title">Briefing Fdf TEST</h1>
         <p id="current-time-display"></p>
         <p style="position: relative; z-index: 2; text-align: center; color: #333; font-size: 1em; margin-top: -25px; margin-bottom: 30px;">
-    v<span id="app-version">3.89 TEST notams aeroports permanents</span>
+    v<span id="app-version">3.90 TEST diagnostic CheckWX</span>
     <button id="force-update-btn" class="link-button" style="background-color: #34495e; padding: 4px 10px; font-size: 0.8em; margin-left: 10px; vertical-align: middle;">
         Forcer MAJ
     </button>
@@ -2225,7 +2225,7 @@
     <footer>Données : Météo-France, SIA, Windy.com, CheckWX.com. Page non commerciale, à usage personnel.</footer>
     
     <script>
-        const APP_VERSION = "3.89 TEST notams aeroports permanents";
+        const APP_VERSION = "3.90 TEST diagnostic CheckWX";
 
         // --- Clé API pour la source de données météo ---
         const CHECKWX_API_KEY = "b8071d79ae4a482491114af48c9c0246";
@@ -5208,40 +5208,127 @@ const tdfStages = [
             metarContainer.innerHTML = '<h4>METAR</h4><p>Chargement...</p>';
             tafContainer.innerHTML = '<h4>TAF</h4><p>Chargement...</p>';
 
+            function escapeWeatherText_(value) {
+                return String(value || '')
+                    .replace(/&/g, '&amp;')
+                    .replace(/</g, '&lt;')
+                    .replace(/>/g, '&gt;')
+                    .replace(/"/g, '&quot;')
+                    .replace(/'/g, '&#039;');
+            }
+
+            function formatCheckwxError_(type, status, details) {
+                const statusText = status ? ` HTTP ${status}` : '';
+                const detailText = details ? `<br><small>${escapeWeatherText_(details)}</small>` : '';
+
+                if (status === 429) {
+                    return `<p class="error-msg">CheckWX : limite de requêtes atteinte${statusText}. Réessayez plus tard.${detailText}</p>`;
+                }
+
+                if (status === 401 || status === 403) {
+                    return `<p class="error-msg">CheckWX : clé API refusée ou absente${statusText}.${detailText}</p>`;
+                }
+
+                if (status === 404) {
+                    return `<p class="error-msg">CheckWX : ${type} non trouvé pour ${escapeWeatherText_(icao)}${statusText}.${detailText}</p>`;
+                }
+
+                if (status && status >= 500) {
+                    return `<p class="error-msg">CheckWX : serveur temporairement indisponible${statusText}.${detailText}</p>`;
+                }
+
+                if (status) {
+                    return `<p class="error-msg">CheckWX : erreur ${type}${statusText}.${detailText}</p>`;
+                }
+
+                return `<p class="error-msg">CheckWX : erreur réseau ou blocage navigateur/CORS. Vérifier la connexion, l'accès à api.checkwx.com et réessayer.${detailText}</p>`;
+            }
+
+            async function readCheckwxPayload_(response) {
+                const text = await response.text();
+                if (!text) return { raw: '', json: null };
+
+                try {
+                    return { raw: text, json: JSON.parse(text) };
+                } catch (_) {
+                    return { raw: text, json: null };
+                }
+            }
+
+            async function fetchCheckwx_(type, icao) {
+                const response = await fetch(`https://api.checkwx.com/${type.toLowerCase()}/${icao}`, {
+                    headers: { 'X-API-Key': CHECKWX_API_KEY },
+                    cache: 'no-store'
+                });
+
+                const payload = await readCheckwxPayload_(response);
+                const details = payload.json && payload.json.error
+                    ? payload.json.error
+                    : payload.raw.slice(0, 180);
+
+                if (!response.ok) {
+                    return {
+                        ok: false,
+                        type,
+                        status: response.status,
+                        errorHtml: formatCheckwxError_(type, response.status, details)
+                    };
+                }
+
+                if (!payload.json) {
+                    return {
+                        ok: false,
+                        type,
+                        status: response.status,
+                        errorHtml: `<p class="error-msg">CheckWX : réponse ${type} illisible ou non JSON.<br><small>${escapeWeatherText_(payload.raw.slice(0, 180))}</small></p>`
+                    };
+                }
+
+                return {
+                    ok: true,
+                    type,
+                    status: response.status,
+                    json: payload.json
+                };
+            }
+
             if (!CHECKWX_API_KEY) {
-                const errorHtml = `<p class="error-msg">Erreur : Clé API non configurée.</p>`;
+                const errorHtml = `<p class="error-msg">CheckWX : clé API non configurée dans BFG.</p>`;
                 metarContainer.innerHTML = `<h4>METAR</h4>${errorHtml}`;
                 tafContainer.innerHTML = `<h4>TAF</h4>${errorHtml}`;
                 return;
             }
 
-            const headers = { 'X-API-Key': CHECKWX_API_KEY };
             try {
-                const [metarResponse, tafResponse] = await Promise.all([
-                    fetch(`https://api.checkwx.com/metar/${icao}`, { headers }),
-                    fetch(`https://api.checkwx.com/taf/${icao}`, { headers })
+                const [metarResult, tafResult] = await Promise.all([
+                    fetchCheckwx_('METAR', icao),
+                    fetchCheckwx_('TAF', icao)
                 ]);
-                
-                if (metarResponse.status === 429 || tafResponse.status === 429) {
-                    const errorHtml = `<p class="error-msg">Limite de requêtes API Météo atteinte. Réessayez plus tard.</p>`;
-                    metarContainer.innerHTML = `<h4>METAR</h4>${errorHtml}`;
-                    tafContainer.innerHTML = `<h4>TAF</h4>${errorHtml}`;
-                    return;
+
+                if (!metarResult.ok) {
+                    metarContainer.innerHTML = `<h4>METAR</h4>${metarResult.errorHtml}`;
+                } else {
+                    const metarJson = metarResult.json;
+                    const metarDisplay = (metarJson.results > 0) ? metarJson.data[0] : 'METAR non disponible.';
+                    metarContainer.innerHTML = `<h4>METAR</h4><pre>${escapeWeatherText_(metarDisplay)}</pre>`;
                 }
 
-                const metarJson = await metarResponse.json();
-                const tafJson = await tafResponse.json();
+                if (!tafResult.ok) {
+                    tafContainer.innerHTML = `<h4>TAF</h4>${tafResult.errorHtml}`;
+                } else {
+                    const tafJson = tafResult.json;
+                    const tafDisplay = (tafJson.results > 0) ? tafJson.data[0] : 'TAF non disponible.';
+                    tafContainer.innerHTML = `<h4>TAF</h4><pre>${escapeWeatherText_(tafDisplay)}</pre>`;
+                }
 
-                const metarDisplay = (metarJson.results > 0) ? metarJson.data[0] : 'METAR non disponible.';
-                const tafDisplay = (tafJson.results > 0) ? tafJson.data[0] : 'TAF non disponible.';
-
-                metarContainer.innerHTML = `<h4>METAR</h4><pre>${metarDisplay}</pre>`;
-                tafContainer.innerHTML = `<h4>TAF</h4><pre>${tafDisplay}</pre>`;
-                airportContainer.dataset.loaded = 'true';
-                checkWeatherValidity(); // Vérifier la validité immédiatement après le chargement
+                if (metarResult.ok || tafResult.ok) {
+                    airportContainer.dataset.loaded = 'true';
+                    checkWeatherValidity();
+                }
 
             } catch (error) {
-                const errorHtml = `<p class="error-msg">Une erreur de réseau est survenue.</p>`;
+                const message = error && error.message ? error.message : '';
+                const errorHtml = formatCheckwxError_('METAR/TAF', 0, message);
                 metarContainer.innerHTML = `<h4>METAR</h4>${errorHtml}`;
                 tafContainer.innerHTML = `<h4>TAF</h4>${errorHtml}`;
             }
