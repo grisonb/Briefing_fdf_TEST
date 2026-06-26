@@ -6,8 +6,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0">
     <title>Briefing Fdf TEST</title>
-    <link rel="manifest" href="./manifest.json?v=3.88">
-    <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png?v=3.88">
+    <link rel="manifest" href="./manifest.json?v=3.89">
+    <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png?v=3.89">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-title" content="Briefing TEST">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
@@ -1866,7 +1866,7 @@
         <h1 id="main-title">Briefing Fdf TEST</h1>
         <p id="current-time-display"></p>
         <p style="position: relative; z-index: 2; text-align: center; color: #333; font-size: 1em; margin-top: -25px; margin-bottom: 30px;">
-    v<span id="app-version">3.88 TEST actualisation briefing globale</span>
+    v<span id="app-version">3.89 TEST notams aeroports permanents</span>
     <button id="force-update-btn" class="link-button" style="background-color: #34495e; padding: 4px 10px; font-size: 0.8em; margin-left: 10px; vertical-align: middle;">
         Forcer MAJ
     </button>
@@ -2225,7 +2225,7 @@
     <footer>Données : Météo-France, SIA, Windy.com, CheckWX.com. Page non commerciale, à usage personnel.</footer>
     
     <script>
-        const APP_VERSION = "3.88 TEST actualisation briefing globale";
+        const APP_VERSION = "3.89 TEST notams aeroports permanents";
 
         // --- Clé API pour la source de données météo ---
         const CHECKWX_API_KEY = "b8071d79ae4a482491114af48c9c0246";
@@ -7174,7 +7174,7 @@ window.__notamTextFull = notamInput.value;
         function initializeNotamParser() { 
             const notamInput = document.getElementById('notam-input'), notamDisplay = document.getElementById('notam-display'), notamSection = document.querySelector('.notam-section');
             const filterButtons = document.querySelectorAll('.filter-action'), showAllButtons = document.querySelectorAll('.show-all-action'), savePdfButtons = document.querySelectorAll('.save-pdf-action');
-            const predefinedIcaoOrder = ['LFTW', 'LFMU', 'LFMP', 'LFMK', 'LFML', 'LFTH', 'LFMD', 'LFKB', 'LFKC', 'LFKJ', 'LFKF', 'LFBP', 'LFBM', 'LFBD', 'LFBL', 'LFBN', 'LFLX', 'LFJR', 'LFRV', 'LFGJ', 'LFSG', 'LFAQ'];
+            const predefinedIcaoOrder = ['LFTW', 'LFMU', 'LFMP', 'LFMK', 'LFML', 'LFTH', 'LFMD', 'LFKB', 'LFKC', 'LFKJ', 'LFKF', 'LFCC', 'LFCR', 'LFHO', 'LFLU', 'LFMH', 'LFBP', 'LFBM', 'LFBD', 'LFBL', 'LFBN', 'LFLX', 'LFJR', 'LFRV', 'LFGJ', 'LFSG', 'LFAQ'];
             const icaoToFullName = {
                 'LFTW':'LFTW - NIMES GARONS', 'LFML':'LFML - MARSEILLE PROVENCE', 'LFTH':'LFTH - TOULON HYERES', 
                 'LFMD':'LFMD - CANNES MANDELIEU', 'LFHO':'LFHO - AUBENAS ARDECHE MERIDIONALE', 'LFLU':'LFLU - VALENCE CHABEUIL', 
