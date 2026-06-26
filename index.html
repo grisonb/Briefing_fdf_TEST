@@ -6,8 +6,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0">
     <title>Briefing Fdf TEST</title>
-    <link rel="manifest" href="./manifest.json?v=3.91">
-    <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png?v=3.91">
+    <link rel="manifest" href="./manifest.json?v=3.92">
+    <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png?v=3.92">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-title" content="Briefing TEST">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
@@ -1866,7 +1866,7 @@
         <h1 id="main-title">Briefing Fdf TEST</h1>
         <p id="current-time-display"></p>
         <p style="position: relative; z-index: 2; text-align: center; color: #333; font-size: 1em; margin-top: -25px; margin-bottom: 30px;">
-    v<span id="app-version">3.91 TEST proxy CheckWX</span>
+    v<span id="app-version">3.92 TEST proxy CheckWX affichage brut</span>
     <button id="force-update-btn" class="link-button" style="background-color: #34495e; padding: 4px 10px; font-size: 0.8em; margin-left: 10px; vertical-align: middle;">
         Forcer MAJ
     </button>
@@ -2225,7 +2225,7 @@
     <footer>Données : Météo-France, SIA, Windy.com, CheckWX.com. Page non commerciale, à usage personnel.</footer>
     
     <script>
-        const APP_VERSION = "3.91 TEST proxy CheckWX";
+        const APP_VERSION = "3.92 TEST proxy CheckWX affichage brut";
 
         // --- Proxy NAS pour la source de données météo CheckWX ---
         const CHECKWX_PROXY_URL = "https://grisonb.synology.me/briefing-api/get-metar-taf.php";
@@ -5241,7 +5241,7 @@ const tdfStages = [
                     return `<p class="error-msg">CheckWX : erreur ${type}${statusText}.${detailText}</p>`;
                 }
 
-                return `<p class="error-msg">CheckWX : erreur réseau ou blocage navigateur/CORS. Vérifier la connexion, l'accès à api.checkwx.com et réessayer.${detailText}</p>`;
+                return `<p class="error-msg">CheckWX : erreur réseau ou blocage navigateur/CORS. Vérifier la connexion, l'accès au proxy météo NAS et réessayer.${detailText}</p>`;
             }
 
             async function readCheckwxPayload_(response) {
@@ -5310,19 +5310,38 @@ const tdfStages = [
                     fetchCheckwx_('TAF', icao)
                 ]);
 
+                function formatWeatherReportForDisplay_(weatherJson, fallbackLabel) {
+                    if (!weatherJson || !weatherJson.results || !Array.isArray(weatherJson.data) || weatherJson.data.length === 0) {
+                        return `${fallbackLabel} non disponible.`;
+                    }
+
+                    const firstReport = weatherJson.data[0];
+
+                    if (typeof firstReport === 'string') {
+                        return firstReport;
+                    }
+
+                    if (firstReport && typeof firstReport === 'object') {
+                        if (firstReport.raw_text) return firstReport.raw_text;
+                        if (firstReport.raw) return firstReport.raw;
+                        if (firstReport.text) return firstReport.text;
+                        return JSON.stringify(firstReport, null, 2);
+                    }
+
+                    return String(firstReport);
+                }
+
                 if (!metarResult.ok) {
                     metarContainer.innerHTML = `<h4>METAR</h4>${metarResult.errorHtml}`;
                 } else {
-                    const metarJson = metarResult.json;
-                    const metarDisplay = (metarJson.results > 0) ? metarJson.data[0] : 'METAR non disponible.';
+                    const metarDisplay = formatWeatherReportForDisplay_(metarResult.json, 'METAR');
                     metarContainer.innerHTML = `<h4>METAR</h4><pre>${escapeWeatherText_(metarDisplay)}</pre>`;
                 }
 
                 if (!tafResult.ok) {
                     tafContainer.innerHTML = `<h4>TAF</h4>${tafResult.errorHtml}`;
                 } else {
-                    const tafJson = tafResult.json;
-                    const tafDisplay = (tafJson.results > 0) ? tafJson.data[0] : 'TAF non disponible.';
+                    const tafDisplay = formatWeatherReportForDisplay_(tafResult.json, 'TAF');
                     tafContainer.innerHTML = `<h4>TAF</h4><pre>${escapeWeatherText_(tafDisplay)}</pre>`;
                 }
 
