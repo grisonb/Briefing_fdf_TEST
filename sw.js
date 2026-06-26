@@ -1,4 +1,4 @@
-const CACHE_NAME = 'briefing-fdf-test-v3.88-actualisation-briefing-globale';
+const CACHE_NAME = 'briefing-fdf-test-v3.89-notams-aeroports-permanents';
 
 const LOCAL_ASSETS = [
   './manifest.json',
