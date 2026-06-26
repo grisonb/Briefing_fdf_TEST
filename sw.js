@@ -1,4 +1,4 @@
-const CACHE_NAME = 'briefing-fdf-test-v3.89-notams-aeroports-permanents';
+const CACHE_NAME = 'briefing-fdf-test-v3.90-diagnostic-checkwx';
 
 const LOCAL_ASSETS = [
   './manifest.json',
