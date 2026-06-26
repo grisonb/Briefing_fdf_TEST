@@ -1,7 +1,7 @@
 {
   "name": "Briefing FDF TEST",
   "short_name": "Briefing TEST",
-  "description": "Briefing FDF TEST v3.89 NOTAMs aéroports permanents",
+  "description": "Briefing FDF TEST v3.90 diagnostic CheckWX",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
