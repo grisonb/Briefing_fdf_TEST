@@ -1,7 +1,7 @@
 {
   "name": "Briefing FDF TEST",
   "short_name": "Briefing TEST",
-  "description": "Briefing FDF TEST v3.94 FDS robuste + Forcer MAJ cartes risques",
+  "description": "Briefing FDF TEST v3.95 FDS silencieuse + Forcer MAJ cartes risques",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
