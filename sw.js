@@ -1,4 +1,4 @@
-const CACHE_NAME = 'briefing-fdf-test-v3.93-forcer-maj-risk-maps';
+const CACHE_NAME = 'briefing-fdf-test-v3.94-fds-robuste-risk-maps';
 
 const LOCAL_ASSETS = [
   './manifest.json',
