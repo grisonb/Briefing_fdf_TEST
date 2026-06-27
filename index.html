@@ -5,9 +5,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0">
-    <title>Briefing Fdf TEST v3.97</title>
-    <link rel="manifest" href="./manifest.json?v=3.96">
-    <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png?v=3.96">
+    <title>Briefing Fdf TEST v3.98</title>
+    <link rel="manifest" href="./manifest.json?v=3.98">
+    <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png?v=3.98">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-title" content="Briefing TEST">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
@@ -1853,17 +1853,18 @@
             <li class="briefing-protected-data briefing-sensitive-hidden"><a href="#risk-maps-section">RISQUES</a></li>
             <li><a href="#temsi-section">TEMSI</a></li>
             <li><a href="#windy-section">WINDY</a></li>
-            <li><a href="#notam-section">NOTAM/METAR</a></li>
+            <li><a href="#notam-section">NOTAMS</a></li>
             <li id="tdf-nav-link"><a href="#tdf-section">Tour de France</a></li>
             <li><a href="#sup-aip-section">SUP AIP</a></li>
             <li class="briefing-protected-data briefing-sensitive-hidden"><a href="#cncasc-fdf-section">FDF CNCASC</a></li>
+            <li><a href="#synergi-section">SYNERGI</a></li>
             <li><a href="#google-earth-section">G. EARTH</a></li>
         </ul>
     </nav>
 
     <div class="page-header">
         <div class="page-header-background"></div>
-        <h1 id="main-title">Briefing Fdf TEST v3.97</h1>
+        <h1 id="main-title">Briefing Fdf TEST v3.98</h1>
         <p id="current-time-display"></p>
         <p style="position: relative; z-index: 2; text-align: center; color: #333; font-size: 1em; margin-top: -25px; margin-bottom: 30px;">
     v<span id="app-version">3.92 TEST proxy CheckWX affichage brut</span>
@@ -2225,7 +2226,7 @@
     <footer>Données : Météo-France, SIA, Windy.com, CheckWX.com. Page non commerciale, à usage personnel.</footer>
     
     <script>
-        const APP_VERSION = "3.97 TEST FDS silencieuse + boutons cartes risques harmonisés";
+        const APP_VERSION = "3.98 TEST FDS silencieuse + raccourci SYNERGI";
 
         // --- Proxy NAS pour la source de données météo CheckWX ---
         const CHECKWX_PROXY_URL = "https://grisonb.synology.me/briefing-api/get-metar-taf.php";
@@ -7691,7 +7692,7 @@ window.__notamTextFull = notamInput.value;
 
         function initializePageTitle() {
             const titleElement = document.getElementById('main-title');
-            titleElement.textContent = `Briefing Fdf TEST v3.97 du ${new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}`;
+            titleElement.textContent = `Briefing Fdf TEST v3.98 du ${new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}`;
             const timeDisplay = document.getElementById('current-time-display');
             const updateTime = () => timeDisplay.textContent = new Date().toLocaleTimeString('fr-FR');
             updateTime(); setInterval(updateTime, 1000);
