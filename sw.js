@@ -1,4 +1,4 @@
-const CACHE_NAME = 'briefing-fdf-test-v3.95-fds-silencieuse-risk-maps';
+const CACHE_NAME = 'briefing-fdf-test-v3.96-fds-silencieuse-bouton-unique-risk-maps';
 
 const LOCAL_ASSETS = [
   './manifest.json',
