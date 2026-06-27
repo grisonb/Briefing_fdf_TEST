@@ -5,9 +5,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0">
-    <title>Briefing Fdf TEST v3.95</title>
-    <link rel="manifest" href="./manifest.json?v=3.95">
-    <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png?v=3.95">
+    <title>Briefing Fdf TEST v3.96</title>
+    <link rel="manifest" href="./manifest.json?v=3.96">
+    <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png?v=3.96">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-title" content="Briefing TEST">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
@@ -1863,7 +1863,7 @@
 
     <div class="page-header">
         <div class="page-header-background"></div>
-        <h1 id="main-title">Briefing Fdf TEST v3.95</h1>
+        <h1 id="main-title">Briefing Fdf TEST v3.96</h1>
         <p id="current-time-display"></p>
         <p style="position: relative; z-index: 2; text-align: center; color: #333; font-size: 1em; margin-top: -25px; margin-bottom: 30px;">
     v<span id="app-version">3.92 TEST proxy CheckWX affichage brut</span>
@@ -1997,10 +1997,9 @@
     <div class="map-section briefing-protected-data briefing-sensitive-hidden" id="risk-maps-section">
         <h2>Carte des risques</h2>
         <div class="controles" style="gap: 20px;">
-            <button id="risk-maps-refresh-btn" class="link-button" style="background-color: #2980b9; color:white;">Actualiser</button>
-            <button id="risk-maps-force-mf-btn" class="link-button" style="background-color: #c0392b; color:white;">Forcer MAJ Météo-France</button>
-            <a id="risk-map-national-open" href="https://grisonb.synology.me/briefing-data/risk-maps/latest-risk-national.pdf" target="_blank" class="link-button" style="background-color: #f6d1dc; color:#7b1f3a;">Carte des Risques / National</a>
-            <a id="risk-map-zonesud-open" href="https://grisonb.synology.me/briefing-data/risk-maps/latest-risk-zonesud.pdf" target="_blank" class="link-button" style="background-color: #f4c2b8; color:#8a2a1d;">Cartes des Risques / Zone Sud</a>
+            <button id="risk-maps-force-mf-btn" class="link-button" style="background-color: #c0392b; color:white; font-weight:800;">Forcer MAJ Météo-France</button>
+            <a id="risk-map-national-open" href="https://grisonb.synology.me/briefing-data/risk-maps/latest-risk-national.pdf" target="_blank" class="link-button" style="background-color: #0a2c5a; color:white;">Carte des Risques / National</a>
+            <a id="risk-map-zonesud-open" href="https://grisonb.synology.me/briefing-data/risk-maps/latest-risk-zonesud.pdf" target="_blank" class="link-button" style="background-color: #d97706; color:white;">Cartes des Risques / Zone Sud</a>
         </div>
         <p id="risk-maps-status" class="risk-map-status">Chargement des cartes depuis le NAS...</p>
         <div class="risk-maps-grid">
@@ -2226,7 +2225,7 @@
     <footer>Données : Météo-France, SIA, Windy.com, CheckWX.com. Page non commerciale, à usage personnel.</footer>
     
     <script>
-        const APP_VERSION = "3.95 TEST FDS silencieuse + Forcer MAJ cartes risques";
+        const APP_VERSION = "3.96 TEST FDS silencieuse + bouton unique Forcer MAJ cartes risques";
 
         // --- Proxy NAS pour la source de données météo CheckWX ---
         const CHECKWX_PROXY_URL = "https://grisonb.synology.me/briefing-api/get-metar-taf.php";
@@ -7692,7 +7691,7 @@ window.__notamTextFull = notamInput.value;
 
         function initializePageTitle() {
             const titleElement = document.getElementById('main-title');
-            titleElement.textContent = `Briefing Fdf TEST v3.95 du ${new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}`;
+            titleElement.textContent = `Briefing Fdf TEST v3.96 du ${new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}`;
             const timeDisplay = document.getElementById('current-time-display');
             const updateTime = () => timeDisplay.textContent = new Date().toLocaleTimeString('fr-FR');
             updateTime(); setInterval(updateTime, 1000);
