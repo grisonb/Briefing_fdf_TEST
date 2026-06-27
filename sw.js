@@ -1,4 +1,4 @@
-const CACHE_NAME = 'briefing-fdf-test-v3.92-proxy-checkwx-affichage-brut';
+const CACHE_NAME = 'briefing-fdf-test-v3.93-forcer-maj-risk-maps';
 
 const LOCAL_ASSETS = [
   './manifest.json',
@@ -103,6 +103,8 @@ self.addEventListener('fetch', (event) => {
       url.pathname.includes('/briefing-data/temsi/') ||
       url.pathname.includes('/briefing-api/get-risk-map-pdf.php') ||
       url.pathname.includes('/briefing-api/get-risk-map-status.php') ||
+      url.pathname.includes('/briefing-api/request-risk-map-generation.php') ||
+      url.pathname.includes('/briefing-api/get-risk-map-generation-status.php') ||
       url.pathname.includes('/briefing-api/get-gaar-pdf.php') ||
       url.pathname.includes('/briefing-api/get-gaar-status.php') ||
       url.pathname.includes('/briefing-api/get-metar-taf.php')
