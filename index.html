@@ -5,9 +5,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0">
-    <title>Briefing Fdf TEST v3.94</title>
-    <link rel="manifest" href="./manifest.json?v=3.94">
-    <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png?v=3.94">
+    <title>Briefing Fdf TEST v3.95</title>
+    <link rel="manifest" href="./manifest.json?v=3.95">
+    <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png?v=3.95">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-title" content="Briefing TEST">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
@@ -1863,7 +1863,7 @@
 
     <div class="page-header">
         <div class="page-header-background"></div>
-        <h1 id="main-title">Briefing Fdf TEST v3.94</h1>
+        <h1 id="main-title">Briefing Fdf TEST v3.95</h1>
         <p id="current-time-display"></p>
         <p style="position: relative; z-index: 2; text-align: center; color: #333; font-size: 1em; margin-top: -25px; margin-bottom: 30px;">
     v<span id="app-version">3.92 TEST proxy CheckWX affichage brut</span>
@@ -4154,12 +4154,11 @@ const tdfStages = [
         }
 
         async function waitForUpdatedFdsStatus_(previousSignature) {
-            // v3.94 : attente robuste après appel Gmail.
-            // Objectif : éviter de devoir cliquer 2 ou 3 fois quand l'Apps Script ou l'écriture NAS
-            // met plusieurs dizaines de secondes à finir.
-            // Le bouton relance aussi l'Apps Script automatiquement pendant l'attente.
+            // v3.95 : attente robuste mais affichage simplifié.
+            // Objectif : un seul clic utilisateur, sans polluer l'écran avec tous les essais internes.
             const maxAttempts = 45; // ~90 secondes
             const retryGmailAttempts = new Set([8, 20, 32]);
+            const visibleProgressAttempts = new Set([0, 5, 10, 15, 20, 30, 40]);
             let lastPayload = null;
             let lastError = null;
 
@@ -4167,7 +4166,7 @@ const tdfStages = [
                 await waitFds_(attempt === 0 ? 2500 : 2000);
 
                 if (retryGmailAttempts.has(attempt)) {
-                    setFdsAutoStatus_(`Toujours en attente du NAS — relance Gmail automatique ${attempt}/${maxAttempts}...`, { warning: true });
+                    setFdsAutoStatus_('Recherche FDS toujours en cours — relance automatique Gmail/NAS...');
                     await callFdsGmailRefreshWithoutBlocking_().catch(() => {});
                 }
 
@@ -4176,16 +4175,19 @@ const tdfStages = [
                     updateFdsTomorrowButton_(lastPayload);
 
                     const currentSignature = getFdsStatusSignature_(lastPayload);
-                    const details = describeFdsStatusForWait_(lastPayload);
 
                     if (!previousSignature || (currentSignature && currentSignature !== previousSignature)) {
                         return lastPayload;
                     }
 
-                    setFdsAutoStatus_(`Attente fin import Gmail/NAS... essai ${attempt + 1}/${maxAttempts}${details ? ' — ' + details : ''}`);
+                    if (visibleProgressAttempts.has(attempt)) {
+                        setFdsAutoStatus_('Recherche FDS en cours — attente de l’import Gmail/NAS...');
+                    }
                 } catch (error) {
                     lastError = error;
-                    setFdsAutoStatus_(`Statut NAS temporairement indisponible... essai ${attempt + 1}/${maxAttempts}`, { warning: true });
+                    if (visibleProgressAttempts.has(attempt)) {
+                        setFdsAutoStatus_('Recherche FDS en cours — statut NAS temporairement indisponible...', { warning: true });
+                    }
                 }
             }
 
@@ -4210,7 +4212,7 @@ const tdfStages = [
                     btn.textContent = 'Recherche Gmail...';
                 }
 
-                setFdsAutoStatus_('Lecture du statut feuille de service sur le NAS avant recherche Gmail...');
+                setFdsAutoStatus_('Recherche FDS en cours...');
                 try {
                     currentStatus = await fetchFdsStatus_(Date.now());
                     previousSignature = getFdsStatusSignature_(currentStatus);
@@ -4219,11 +4221,11 @@ const tdfStages = [
                     previousSignature = '';
                 }
 
-                setFdsAutoStatus_('Recherche Gmail lancée via Apps Script...');
+                setFdsAutoStatus_('Recherche FDS lancée — ne pas recliquer.');
                 await callFdsGmailRefreshWithoutBlocking_();
 
                 if (btn) btn.textContent = 'Attente NAS...';
-                setFdsAutoStatus_('Gmail appelé. Attente de la fin import + écriture NAS, sans recliquer...');
+                setFdsAutoStatus_('Recherche FDS en cours — attente de l’import Gmail/NAS...');
                 const newStatus = await waitForUpdatedFdsStatus_(previousSignature);
                 const todayEntry = getFdsTodayEntry_(newStatus);
                 const tomorrowEntry = getFdsTomorrowEntry_(newStatus);
@@ -7690,7 +7692,7 @@ window.__notamTextFull = notamInput.value;
 
         function initializePageTitle() {
             const titleElement = document.getElementById('main-title');
-            titleElement.textContent = `Briefing Fdf TEST v3.94 du ${new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}`;
+            titleElement.textContent = `Briefing Fdf TEST v3.95 du ${new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}`;
             const timeDisplay = document.getElementById('current-time-display');
             const updateTime = () => timeDisplay.textContent = new Date().toLocaleTimeString('fr-FR');
             updateTime(); setInterval(updateTime, 1000);
