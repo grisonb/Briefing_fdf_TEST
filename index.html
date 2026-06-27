@@ -5,9 +5,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0">
-    <title>Briefing Fdf TEST v3.93</title>
-    <link rel="manifest" href="./manifest.json?v=3.93">
-    <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png?v=3.93">
+    <title>Briefing Fdf TEST v3.94</title>
+    <link rel="manifest" href="./manifest.json?v=3.94">
+    <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png?v=3.94">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-title" content="Briefing TEST">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
@@ -1863,7 +1863,7 @@
 
     <div class="page-header">
         <div class="page-header-background"></div>
-        <h1 id="main-title">Briefing Fdf TEST v3.93</h1>
+        <h1 id="main-title">Briefing Fdf TEST v3.94</h1>
         <p id="current-time-display"></p>
         <p style="position: relative; z-index: 2; text-align: center; color: #333; font-size: 1em; margin-top: -25px; margin-bottom: 30px;">
     v<span id="app-version">3.92 TEST proxy CheckWX affichage brut</span>
@@ -2226,7 +2226,7 @@
     <footer>Données : Météo-France, SIA, Windy.com, CheckWX.com. Page non commerciale, à usage personnel.</footer>
     
     <script>
-        const APP_VERSION = "3.93 TEST Forcer MAJ cartes risques";
+        const APP_VERSION = "3.94 TEST FDS robuste + Forcer MAJ cartes risques";
 
         // --- Proxy NAS pour la source de données météo CheckWX ---
         const CHECKWX_PROXY_URL = "https://grisonb.synology.me/briefing-api/get-metar-taf.php";
@@ -4011,15 +4011,35 @@ const tdfStages = [
             return payload && payload.tomorrow && payload.tomorrow.exists ? payload.tomorrow : null;
         }
 
-        function getFdsStatusSignature_(payload) {
-            const today = payload && payload.today ? payload.today : (payload && payload.file ? payload.file : null);
-            const tomorrow = payload && payload.tomorrow ? payload.tomorrow : null;
+        function getFdsEntrySignature_(entry) {
+            if (!entry) return '';
             return [
-                today && today.updatedAt ? today.updatedAt : '',
-                today && today.originalFilename ? today.originalFilename : '',
-                tomorrow && tomorrow.updatedAt ? tomorrow.updatedAt : '',
-                tomorrow && tomorrow.originalFilename ? tomorrow.originalFilename : ''
+                entry.dateKey || entry.fileDate || '',
+                entry.updatedAt || '',
+                entry.mailDate || '',
+                entry.originalFilename || entry.filename || entry.file || '',
+                entry.sizeBytes || entry.size || ''
             ].join('|');
+        }
+
+        function getFdsStatusSignature_(payload) {
+            return [
+                getFdsEntrySignature_(getFdsTodayEntry_(payload)),
+                getFdsEntrySignature_(getFdsTomorrowEntry_(payload))
+            ].join('||');
+        }
+
+        function describeFdsStatusForWait_(payload) {
+            const today = getFdsTodayEntry_(payload);
+            const tomorrow = getFdsTomorrowEntry_(payload);
+            const parts = [];
+            if (today) {
+                parts.push(`jour=${today.originalFilename || today.file || today.dateKey || 'présent'} ${today.updatedAt || ''}`.trim());
+            }
+            if (tomorrow) {
+                parts.push(`lendemain=${tomorrow.originalFilename || tomorrow.file || tomorrow.dateKey || 'présent'} ${tomorrow.updatedAt || ''}`.trim());
+            }
+            return parts.join(' — ');
         }
 
         function updateFdsTomorrowButton_(statusPayload) {
@@ -4133,29 +4153,36 @@ const tdfStages = [
             return new Promise(resolve => setTimeout(resolve, ms));
         }
 
-        async function waitForUpdatedFdsStatus_(previousUpdatedAt) {
-            // v3.84 : attente allongée.
-            // Le traitement Gmail + Apps Script + NAS peut prendre plus de 20 secondes,
-            // surtout quand la FDS du lendemain vient juste d’arriver.
-            // Avant, un premier clic pouvait déclencher la mise à jour, mais le panneau
-            // "FDS du lendemain disponible" n’apparaissait qu’au second clic.
-            const maxAttempts = 36;
+        async function waitForUpdatedFdsStatus_(previousSignature) {
+            // v3.94 : attente robuste après appel Gmail.
+            // Objectif : éviter de devoir cliquer 2 ou 3 fois quand l'Apps Script ou l'écriture NAS
+            // met plusieurs dizaines de secondes à finir.
+            // Le bouton relance aussi l'Apps Script automatiquement pendant l'attente.
+            const maxAttempts = 45; // ~90 secondes
+            const retryGmailAttempts = new Set([8, 20, 32]);
             let lastPayload = null;
             let lastError = null;
 
             for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
-                await waitFds_(attempt === 0 ? 3000 : 2000);
+                await waitFds_(attempt === 0 ? 2500 : 2000);
+
+                if (retryGmailAttempts.has(attempt)) {
+                    setFdsAutoStatus_(`Toujours en attente du NAS — relance Gmail automatique ${attempt}/${maxAttempts}...`, { warning: true });
+                    await callFdsGmailRefreshWithoutBlocking_().catch(() => {});
+                }
 
                 try {
                     lastPayload = await fetchFdsStatus_(Date.now());
                     updateFdsTomorrowButton_(lastPayload);
 
                     const currentSignature = getFdsStatusSignature_(lastPayload);
-                    if (!previousUpdatedAt || !currentSignature || currentSignature !== previousUpdatedAt) {
+                    const details = describeFdsStatusForWait_(lastPayload);
+
+                    if (!previousSignature || (currentSignature && currentSignature !== previousSignature)) {
                         return lastPayload;
                     }
 
-                    setFdsAutoStatus_(`Attente du PDF Gmail sur le NAS... essai ${attempt + 1}/${maxAttempts}`);
+                    setFdsAutoStatus_(`Attente fin import Gmail/NAS... essai ${attempt + 1}/${maxAttempts}${details ? ' — ' + details : ''}`);
                 } catch (error) {
                     lastError = error;
                     setFdsAutoStatus_(`Statut NAS temporairement indisponible... essai ${attempt + 1}/${maxAttempts}`, { warning: true });
@@ -4173,31 +4200,36 @@ const tdfStages = [
         async function actualiserFeuilleServiceDepuisGmail_() {
             const btn = document.getElementById('fds-auto-refresh-btn');
             const originalText = btn ? btn.textContent : '';
-            let previousUpdatedAt = '';
+            let previousSignature = '';
+            let currentStatus = null;
 
             try {
                 setFdsMode_(FDS_MODE_AUTO, { message: false });
                 if (btn) {
                     btn.disabled = true;
-                    btn.textContent = 'Actualisation...';
+                    btn.textContent = 'Recherche Gmail...';
                 }
 
-                setFdsAutoStatus_('Lecture du statut feuille de service sur le NAS...');
+                setFdsAutoStatus_('Lecture du statut feuille de service sur le NAS avant recherche Gmail...');
                 try {
-                    const currentStatus = await fetchFdsStatus_(Date.now());
-                    previousUpdatedAt = getFdsStatusSignature_(currentStatus);
+                    currentStatus = await fetchFdsStatus_(Date.now());
+                    previousSignature = getFdsStatusSignature_(currentStatus);
+                    updateFdsTomorrowButton_(currentStatus);
                 } catch (statusError) {
-                    previousUpdatedAt = '';
+                    previousSignature = '';
                 }
 
-                setFdsAutoStatus_('Demande envoyée à Gmail via Apps Script...');
+                setFdsAutoStatus_('Recherche Gmail lancée via Apps Script...');
                 await callFdsGmailRefreshWithoutBlocking_();
 
-                setFdsAutoStatus_('Gmail appelé. Attente du nouveau PDF sur le NAS...');
-                const newStatus = await waitForUpdatedFdsStatus_(previousUpdatedAt);
+                if (btn) btn.textContent = 'Attente NAS...';
+                setFdsAutoStatus_('Gmail appelé. Attente de la fin import + écriture NAS, sans recliquer...');
+                const newStatus = await waitForUpdatedFdsStatus_(previousSignature);
                 const todayEntry = getFdsTodayEntry_(newStatus);
                 const tomorrowEntry = getFdsTomorrowEntry_(newStatus);
+
                 if (todayEntry) {
+                    if (btn) btn.textContent = 'Chargement PDF...';
                     await loadFdsPdfFromNas_(newStatus, Date.now(), todayEntry.dateKey || todayEntry.fileDate, todayEntry);
                     const emailDate = todayEntry.mailDate ? formatFdsMetaDate_(todayEntry.mailDate) : formatFdsMetaDate_(todayEntry.updatedAt);
                     setFdsAutoStatus_(`Feuille de service du jour actualisée : ${todayEntry.originalFilename || 'PDF'} — email du ${emailDate}.`);
@@ -4206,7 +4238,7 @@ const tdfStages = [
                     if (tomorrowEntry) {
                         setFdsAutoStatus_('Aucune FDS du jour disponible. Une FDS du lendemain est disponible mais non affichée automatiquement.', { warning: true });
                     } else {
-                        setFdsAutoStatus_('Aucune FDS du jour disponible sur le NAS.', { warning: true });
+                        setFdsAutoStatus_('Recherche Gmail terminée, mais aucune FDS du jour disponible sur le NAS.', { warning: true });
                     }
                 }
             } catch (error) {
@@ -7658,7 +7690,7 @@ window.__notamTextFull = notamInput.value;
 
         function initializePageTitle() {
             const titleElement = document.getElementById('main-title');
-            titleElement.textContent = `Briefing Fdf TEST v3.93 du ${new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}`;
+            titleElement.textContent = `Briefing Fdf TEST v3.94 du ${new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}`;
             const timeDisplay = document.getElementById('current-time-display');
             const updateTime = () => timeDisplay.textContent = new Date().toLocaleTimeString('fr-FR');
             updateTime(); setInterval(updateTime, 1000);
