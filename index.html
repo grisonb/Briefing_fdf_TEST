@@ -5,9 +5,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0">
-    <title>Briefing Fdf TEST</title>
-    <link rel="manifest" href="./manifest.json?v=3.92">
-    <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png?v=3.92">
+    <title>Briefing Fdf TEST v3.93</title>
+    <link rel="manifest" href="./manifest.json?v=3.93">
+    <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png?v=3.93">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-title" content="Briefing TEST">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
@@ -1863,7 +1863,7 @@
 
     <div class="page-header">
         <div class="page-header-background"></div>
-        <h1 id="main-title">Briefing Fdf TEST</h1>
+        <h1 id="main-title">Briefing Fdf TEST v3.93</h1>
         <p id="current-time-display"></p>
         <p style="position: relative; z-index: 2; text-align: center; color: #333; font-size: 1em; margin-top: -25px; margin-bottom: 30px;">
     v<span id="app-version">3.92 TEST proxy CheckWX affichage brut</span>
@@ -1998,6 +1998,7 @@
         <h2>Carte des risques</h2>
         <div class="controles" style="gap: 20px;">
             <button id="risk-maps-refresh-btn" class="link-button" style="background-color: #2980b9; color:white;">Actualiser</button>
+            <button id="risk-maps-force-mf-btn" class="link-button" style="background-color: #c0392b; color:white;">Forcer MAJ Météo-France</button>
             <a id="risk-map-national-open" href="https://grisonb.synology.me/briefing-data/risk-maps/latest-risk-national.pdf" target="_blank" class="link-button" style="background-color: #f6d1dc; color:#7b1f3a;">Carte des Risques / National</a>
             <a id="risk-map-zonesud-open" href="https://grisonb.synology.me/briefing-data/risk-maps/latest-risk-zonesud.pdf" target="_blank" class="link-button" style="background-color: #f4c2b8; color:#8a2a1d;">Cartes des Risques / Zone Sud</a>
         </div>
@@ -2225,7 +2226,7 @@
     <footer>Données : Météo-France, SIA, Windy.com, CheckWX.com. Page non commerciale, à usage personnel.</footer>
     
     <script>
-        const APP_VERSION = "3.92 TEST proxy CheckWX affichage brut";
+        const APP_VERSION = "3.93 TEST Forcer MAJ cartes risques";
 
         // --- Proxy NAS pour la source de données météo CheckWX ---
         const CHECKWX_PROXY_URL = "https://grisonb.synology.me/briefing-api/get-metar-taf.php";
@@ -4554,6 +4555,8 @@ const tdfStages = [
 
         const BFG_RISK_MAP_SCALE = 1.5;
         const BFG_RISK_MAP_STATUS_URL = 'https://grisonb.synology.me/briefing-api/get-risk-map-status.php';
+        const BFG_RISK_MAP_REQUEST_URL = 'https://grisonb.synology.me/briefing-api/request-risk-map-generation.php';
+        const BFG_RISK_MAP_GENERATION_STATUS_URL = 'https://grisonb.synology.me/briefing-api/get-risk-map-generation-status.php';
 
         const BFG_RISK_MAPS = {
             national: {
@@ -4679,6 +4682,118 @@ const tdfStages = [
             }
         }
 
+        function getRiskMapGenerationStatusValue_(payload) {
+            return payload && payload.status && payload.status.status
+                ? String(payload.status.status).toLowerCase()
+                : '';
+        }
+
+        async function requestRiskMapGeneration_() {
+            const response = await fetch(`${BFG_RISK_MAP_REQUEST_URL}?source=bfg-test&v=${Date.now()}`, {
+                cache: 'no-store',
+                headers: {
+                    'Accept': 'application/json'
+                }
+            });
+
+            const payload = await response.json().catch(() => null);
+
+            if (!response.ok || !payload || !payload.ok) {
+                const message = payload && payload.message ? payload.message : `HTTP ${response.status}`;
+                throw new Error(`Demande Météo-France refusée : ${message}`);
+            }
+
+            return payload.request || payload;
+        }
+
+        async function fetchRiskMapGenerationStatus_(cacheBuster) {
+            const response = await fetch(`${BFG_RISK_MAP_GENERATION_STATUS_URL}?v=${cacheBuster}`, {
+                cache: 'no-store',
+                headers: {
+                    'Accept': 'application/json'
+                }
+            });
+
+            const payload = await response.json().catch(() => null);
+
+            if (!response.ok || !payload || !payload.ok) {
+                const message = payload && payload.message ? payload.message : `HTTP ${response.status}`;
+                throw new Error(`Statut demande Météo-France indisponible : ${message}`);
+            }
+
+            return payload;
+        }
+
+        async function waitForRiskMapGenerationSuccess_(requestId, timeoutMs = 180000) {
+            const startedAt = Date.now();
+            let lastStatus = '';
+
+            while (Date.now() - startedAt < timeoutMs) {
+                const elapsedSeconds = Math.round((Date.now() - startedAt) / 1000);
+                setRiskMapsStatus_(`Demande Météo-France envoyée au VPS — attente résultat (${elapsedSeconds}s)...`);
+
+                const payload = await fetchRiskMapGenerationStatus_(Date.now());
+                const status = getRiskMapGenerationStatusValue_(payload);
+                const statusId = payload && payload.status && payload.status.id ? String(payload.status.id) : '';
+
+                if (statusId === requestId) {
+                    lastStatus = status || lastStatus;
+
+                    if (status === 'success' || status === 'done' || status === 'completed') {
+                        return payload.status;
+                    }
+
+                    if (status === 'error' || status === 'failed' || status === 'failure') {
+                        const message = payload.status && payload.status.message ? payload.status.message : 'échec inconnu';
+                        throw new Error(`Mise à jour Météo-France échouée : ${message}`);
+                    }
+                }
+
+                await new Promise(resolve => setTimeout(resolve, 5000));
+            }
+
+            throw new Error(`Délai dépassé en attente du VPS${lastStatus ? ` — dernier statut : ${lastStatus}` : ''}.`);
+        }
+
+        async function forceRiskMapsMeteoFrance_() {
+            const btn = document.getElementById('risk-maps-force-mf-btn');
+            const refreshBtn = document.getElementById('risk-maps-refresh-btn');
+            const originalText = btn ? btn.textContent : '';
+
+            try {
+                if (btn) {
+                    btn.disabled = true;
+                    btn.textContent = 'MAJ MF en cours...';
+                }
+                if (refreshBtn) refreshBtn.disabled = true;
+
+                setRiskMapsStatus_('Création demande de mise à jour Météo-France...');
+                const request = await requestRiskMapGeneration_();
+                const requestId = request && request.id ? String(request.id) : '';
+
+                if (!requestId) {
+                    throw new Error('Demande créée mais identifiant absent.');
+                }
+
+                setRiskMapsStatus_(`Demande ${requestId} créée — attente du VPS...`);
+                const finalStatus = await waitForRiskMapGenerationSuccess_(requestId);
+
+                const updatedAt = finalStatus && finalStatus.updatedAt ? formatRiskMapMeta_({ updatedAt: finalStatus.updatedAt }) : '';
+                setRiskMapsStatus_(`Mise à jour Météo-France terminée${updatedAt ? ` à ${updatedAt}` : ''}. Rechargement des cartes...`);
+
+                await loadRiskMaps_();
+            } catch (error) {
+                console.error(error);
+                setRiskMapsStatus_(`Erreur Forcer MAJ Météo-France : ${error.message || error}`);
+            } finally {
+                if (btn) {
+                    btn.disabled = false;
+                    btn.textContent = originalText || 'Forcer MAJ Météo-France';
+                }
+                if (refreshBtn) refreshBtn.disabled = false;
+            }
+        }
+
         function initializeRiskMaps() {
             const refreshBtn = document.getElementById('risk-maps-refresh-btn');
             if (refreshBtn) {
@@ -4686,6 +4801,11 @@ const tdfStages = [
                     setRiskMapsStatus_('Requête serveur en cours pour vérifier les dernières cartes...');
                     loadRiskMaps_();
                 });
+            }
+
+            const forceMfBtn = document.getElementById('risk-maps-force-mf-btn');
+            if (forceMfBtn) {
+                forceMfBtn.addEventListener('click', forceRiskMapsMeteoFrance_);
             }
 
             loadRiskMaps_();
@@ -7538,7 +7658,7 @@ window.__notamTextFull = notamInput.value;
 
         function initializePageTitle() {
             const titleElement = document.getElementById('main-title');
-            titleElement.textContent = `Briefing Fdf TEST du ${new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}`;
+            titleElement.textContent = `Briefing Fdf TEST v3.93 du ${new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}`;
             const timeDisplay = document.getElementById('current-time-display');
             const updateTime = () => timeDisplay.textContent = new Date().toLocaleTimeString('fr-FR');
             updateTime(); setInterval(updateTime, 1000);
