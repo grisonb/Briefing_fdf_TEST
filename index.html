@@ -5,9 +5,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0">
-    <title>Briefing Fdf TEST v3.98</title>
-    <link rel="manifest" href="./manifest.json?v=3.98">
-    <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png?v=3.98">
+    <title>Briefing Fdf TEST v3.99</title>
+    <link rel="manifest" href="./manifest.json?v=3.99">
+    <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png?v=3.99">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-title" content="Briefing TEST">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
@@ -622,6 +622,16 @@
             background-color: #ffd700;
             font-weight: bold;
             color: black;
+        }
+
+        .notam-text-content {
+            -webkit-user-select: text;
+            user-select: text;
+            -webkit-touch-callout: default;
+            touch-action: manipulation;
+        }
+        .notam-text-content.pencil-selecting {
+            cursor: text;
         }
 
         .sup-aip-item { margin-bottom: 30px; border-top: 2px solid var(--sc-blue); padding-top: 20px; }
@@ -1864,7 +1874,7 @@
 
     <div class="page-header">
         <div class="page-header-background"></div>
-        <h1 id="main-title">Briefing Fdf TEST v3.98</h1>
+        <h1 id="main-title">Briefing Fdf TEST v3.99</h1>
         <p id="current-time-display"></p>
         <p style="position: relative; z-index: 2; text-align: center; color: #333; font-size: 1em; margin-top: -25px; margin-bottom: 30px;">
     v<span id="app-version">3.92 TEST proxy CheckWX affichage brut</span>
@@ -2226,7 +2236,7 @@
     <footer>Données : Météo-France, SIA, Windy.com, CheckWX.com. Page non commerciale, à usage personnel.</footer>
     
     <script>
-        const APP_VERSION = "3.98 TEST FDS silencieuse + raccourci SYNERGI";
+        const APP_VERSION = "3.99 TEST Apple Pencil NOTAM highlight";
 
         // --- Proxy NAS pour la source de données météo CheckWX ---
         const CHECKWX_PROXY_URL = "https://grisonb.synology.me/briefing-api/get-metar-taf.php";
@@ -7655,24 +7665,203 @@ window.__notamTextFull = notamInput.value;
                 const mark = t.closest('mark.highlighted-text'); if(mark && !window.getSelection().toString()) { const p = mark.parentNode; while(mark.firstChild) p.insertBefore(mark.firstChild, mark); p.removeChild(mark); p.normalize(); }
             });
 
+            function unwrapHighlightsInContainer(container) {
+                container.querySelectorAll('mark.highlighted-text').forEach(h => {
+                    const p = h.parentNode;
+                    while (h.firstChild) p.insertBefore(h.firstChild, h);
+                    p.removeChild(h);
+                });
+                container.normalize();
+            }
+
+            function rangeFromClientPoint(clientX, clientY) {
+                if (document.caretRangeFromPoint) return document.caretRangeFromPoint(clientX, clientY);
+                if (document.caretPositionFromPoint) {
+                    const pos = document.caretPositionFromPoint(clientX, clientY);
+                    if (!pos) return null;
+                    const range = document.createRange();
+                    range.setStart(pos.offsetNode, pos.offset);
+                    range.collapse(true);
+                    return range;
+                }
+                return null;
+            }
+
+            function rangeBelongsToContainer(range, container) {
+                return !!range && container.contains(range.startContainer);
+            }
+
+            function createOrderedRange(startRange, endRange) {
+                if (!startRange || !endRange) return null;
+                const range = document.createRange();
+                try {
+                    range.setStart(startRange.startContainer, startRange.startOffset);
+                    range.setEnd(endRange.startContainer, endRange.startOffset);
+                } catch (_) {
+                    return null;
+                }
+                if (!range.collapsed) return range;
+                const reversed = document.createRange();
+                try {
+                    reversed.setStart(endRange.startContainer, endRange.startOffset);
+                    reversed.setEnd(startRange.startContainer, startRange.startOffset);
+                } catch (_) {
+                    return null;
+                }
+                return reversed.collapsed ? null : reversed;
+            }
+
+            function expandRangeToWord(range, container) {
+                if (!rangeBelongsToContainer(range, container)) return null;
+                const node = range.startContainer;
+                if (!node || node.nodeType !== Node.TEXT_NODE) return null;
+                const text = node.nodeValue || '';
+                if (!text.trim()) return null;
+
+                let start = Math.max(0, Math.min(range.startOffset, text.length));
+                let end = start;
+                if (start >= text.length) start = Math.max(0, text.length - 1);
+                if (/\s/.test(text[start] || '')) {
+                    while (start > 0 && /\s/.test(text[start] || '')) start--;
+                    if (/\s/.test(text[start] || '')) return null;
+                    end = start + 1;
+                } else {
+                    end = start + 1;
+                }
+
+                while (start > 0 && !/\s/.test(text[start - 1])) start--;
+                while (end < text.length && !/\s/.test(text[end])) end++;
+
+                const wordRange = document.createRange();
+                wordRange.setStart(node, start);
+                wordRange.setEnd(node, end);
+                return wordRange.collapsed ? null : wordRange;
+            }
+
+            function setDocumentSelection(range) {
+                const selection = window.getSelection();
+                if (!selection || !range || range.collapsed) return;
+                selection.removeAllRanges();
+                selection.addRange(range);
+            }
+
+            function wrapRangeInHighlight(range) {
+                if (!range || range.collapsed) return false;
+                const mark = document.createElement('mark');
+                mark.className = 'highlighted-text';
+                try {
+                    range.surroundContents(mark);
+                    return true;
+                } catch (e) {
+                    try {
+                        const contents = range.extractContents();
+                        mark.appendChild(contents);
+                        range.insertNode(mark);
+                        return true;
+                    } catch (fallbackError) {
+                        console.warn('Surlignage impossible.', fallbackError);
+                        return false;
+                    }
+                }
+            }
+
             function handleTextHighlight(event) {
                 const textContentDiv = event.target.closest('.notam-text-content'); if (!textContentDiv) return;
                 setTimeout(() => {
                     const selection = window.getSelection(); if (!selection || selection.isCollapsed || !textContentDiv.contains(selection.anchorNode)) return;
                     const range = selection.getRangeAt(0);
                     if (event.type !== 'touchend' && !event.ctrlKey) {
-                        textContentDiv.querySelectorAll('mark.highlighted-text').forEach(h => { const p = h.parentNode; while (h.firstChild) p.insertBefore(h.firstChild, h); p.removeChild(h); });
-                        textContentDiv.normalize();
+                        unwrapHighlightsInContainer(textContentDiv);
                     }
                     const newSelection = window.getSelection(); if (newSelection.isCollapsed) return;
                     const newRange = newSelection.getRangeAt(0);
-                    const mark = document.createElement('mark'); mark.className = 'highlighted-text';
-                    try { newRange.surroundContents(mark); } catch (e) { console.warn("Surlignage impossible.", e); }
+                    wrapRangeInHighlight(newRange);
                     newSelection.removeAllRanges();
                 }, 10);
             }
+
+            let pencilNotamSelection = null;
+
+            function startPencilNotamSelection(event) {
+                if (event.pointerType !== 'pen') return;
+                const textContentDiv = event.target.closest('.notam-text-content');
+                if (!textContentDiv) return;
+
+                const startRange = rangeFromClientPoint(event.clientX, event.clientY);
+                if (!rangeBelongsToContainer(startRange, textContentDiv)) return;
+
+                event.preventDefault();
+                if (event.target && event.target.setPointerCapture) {
+                    try { event.target.setPointerCapture(event.pointerId); } catch (_) {}
+                }
+
+                textContentDiv.classList.add('pencil-selecting');
+                pencilNotamSelection = {
+                    pointerId: event.pointerId,
+                    textContentDiv,
+                    startRange,
+                    activeStartRange: startRange,
+                    currentRange: null,
+                    startX: event.clientX,
+                    startY: event.clientY,
+                    holdTimer: null
+                };
+
+                pencilNotamSelection.holdTimer = setTimeout(() => {
+                    if (!pencilNotamSelection || pencilNotamSelection.pointerId !== event.pointerId) return;
+                    const wordRange = expandRangeToWord(startRange, textContentDiv);
+                    if (!wordRange) return;
+                    pencilNotamSelection.activeStartRange = wordRange.cloneRange();
+                    pencilNotamSelection.currentRange = wordRange.cloneRange();
+                    setDocumentSelection(wordRange);
+                }, 180);
+            }
+
+            function movePencilNotamSelection(event) {
+                if (!pencilNotamSelection || event.pointerId !== pencilNotamSelection.pointerId) return;
+                if (event.pointerType !== 'pen') return;
+
+                const movedEnough = Math.hypot(event.clientX - pencilNotamSelection.startX, event.clientY - pencilNotamSelection.startY) > 2;
+                if (!movedEnough) return;
+
+                if (pencilNotamSelection.holdTimer) {
+                    clearTimeout(pencilNotamSelection.holdTimer);
+                    pencilNotamSelection.holdTimer = null;
+                }
+
+                const endRange = rangeFromClientPoint(event.clientX, event.clientY);
+                if (!rangeBelongsToContainer(endRange, pencilNotamSelection.textContentDiv)) return;
+
+                const selectionRange = createOrderedRange(pencilNotamSelection.activeStartRange, endRange);
+                if (!selectionRange || selectionRange.collapsed) return;
+
+                event.preventDefault();
+                pencilNotamSelection.currentRange = selectionRange.cloneRange();
+                setDocumentSelection(selectionRange);
+            }
+
+            function endPencilNotamSelection(event) {
+                if (!pencilNotamSelection || event.pointerId !== pencilNotamSelection.pointerId) return;
+                if (pencilNotamSelection.holdTimer) clearTimeout(pencilNotamSelection.holdTimer);
+
+                const { textContentDiv, currentRange } = pencilNotamSelection;
+                textContentDiv.classList.remove('pencil-selecting');
+                pencilNotamSelection = null;
+
+                if (currentRange && !currentRange.collapsed) {
+                    event.preventDefault();
+                    wrapRangeInHighlight(currentRange);
+                    const selection = window.getSelection();
+                    if (selection) selection.removeAllRanges();
+                }
+            }
+
             notamSection.addEventListener('mouseup', handleTextHighlight);
             notamSection.addEventListener('touchend', handleTextHighlight);
+            notamSection.addEventListener('pointerdown', startPencilNotamSelection);
+            notamSection.addEventListener('pointermove', movePencilNotamSelection);
+            notamSection.addEventListener('pointerup', endPencilNotamSelection);
+            notamSection.addEventListener('pointercancel', endPencilNotamSelection);
         }
         
         function initializeManualMetarFetch() {
@@ -7692,7 +7881,7 @@ window.__notamTextFull = notamInput.value;
 
         function initializePageTitle() {
             const titleElement = document.getElementById('main-title');
-            titleElement.textContent = `Briefing Fdf TEST v3.98 du ${new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}`;
+            titleElement.textContent = `Briefing Fdf TEST v3.99 du ${new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}`;
             const timeDisplay = document.getElementById('current-time-display');
             const updateTime = () => timeDisplay.textContent = new Date().toLocaleTimeString('fr-FR');
             updateTime(); setInterval(updateTime, 1000);
