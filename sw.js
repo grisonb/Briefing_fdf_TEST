@@ -1,4 +1,4 @@
-const CACHE_NAME = 'briefing-fdf-test-v3.98-fds-silencieuse-raccourci-synergi';
+const CACHE_NAME = 'briefing-fdf-test-v3.99-apple-pencil-notams';
 
 const LOCAL_ASSETS = [
   './manifest.json',
