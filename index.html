@@ -6,8 +6,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0">
     <title>Briefing Fdf TEST v3.99</title>
-    <link rel="manifest" href="./manifest.json?v=3.99">
-    <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png?v=3.99">
+    <link rel="manifest" href="./manifest.json?v=4.00">
+    <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png?v=4.00">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-title" content="Briefing TEST">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
@@ -631,7 +631,18 @@
             touch-action: manipulation;
         }
         .notam-text-content.pencil-selecting {
-            cursor: text;
+            -webkit-user-select: none;
+            user-select: none;
+            -webkit-touch-callout: none;
+            touch-action: none;
+            cursor: crosshair;
+        }
+        .notam-pencil-selection-preview {
+            position: fixed;
+            pointer-events: none;
+            background: rgba(255, 215, 0, 0.42);
+            border-radius: 2px;
+            z-index: 9999;
         }
 
         .sup-aip-item { margin-bottom: 30px; border-top: 2px solid var(--sc-blue); padding-top: 20px; }
@@ -2236,7 +2247,7 @@
     <footer>Données : Météo-France, SIA, Windy.com, CheckWX.com. Page non commerciale, à usage personnel.</footer>
     
     <script>
-        const APP_VERSION = "3.99 TEST Apple Pencil NOTAM highlight";
+        const APP_VERSION = "4.00 TEST Apple Pencil NOTAM sans menu couper";
 
         // --- Proxy NAS pour la source de données météo CheckWX ---
         const CHECKWX_PROXY_URL = "https://grisonb.synology.me/briefing-api/get-metar-taf.php";
@@ -7781,6 +7792,28 @@ window.__notamTextFull = notamInput.value;
             }
 
             let pencilNotamSelection = null;
+            let pencilPreviewNodes = [];
+
+            function clearPencilNotamPreview() {
+                pencilPreviewNodes.forEach((node) => node.remove());
+                pencilPreviewNodes = [];
+            }
+
+            function renderPencilNotamPreview(range) {
+                clearPencilNotamPreview();
+                if (!range || range.collapsed) return;
+                const rects = Array.from(range.getClientRects()).filter((rect) => rect.width > 1 && rect.height > 1);
+                rects.forEach((rect) => {
+                    const preview = document.createElement('div');
+                    preview.className = 'notam-pencil-selection-preview';
+                    preview.style.left = `${rect.left}px`;
+                    preview.style.top = `${rect.top}px`;
+                    preview.style.width = `${rect.width}px`;
+                    preview.style.height = `${rect.height}px`;
+                    document.body.appendChild(preview);
+                    pencilPreviewNodes.push(preview);
+                });
+            }
 
             function startPencilNotamSelection(event) {
                 if (event.pointerType !== 'pen') return;
@@ -7795,38 +7828,29 @@ window.__notamTextFull = notamInput.value;
                     try { event.target.setPointerCapture(event.pointerId); } catch (_) {}
                 }
 
+                const nativeSelection = window.getSelection();
+                if (nativeSelection) nativeSelection.removeAllRanges();
+
+                clearPencilNotamPreview();
                 textContentDiv.classList.add('pencil-selecting');
                 pencilNotamSelection = {
                     pointerId: event.pointerId,
                     textContentDiv,
-                    startRange,
-                    activeStartRange: startRange,
+                    activeStartRange: startRange.cloneRange(),
                     currentRange: null,
                     startX: event.clientX,
-                    startY: event.clientY,
-                    holdTimer: null
+                    startY: event.clientY
                 };
-
-                pencilNotamSelection.holdTimer = setTimeout(() => {
-                    if (!pencilNotamSelection || pencilNotamSelection.pointerId !== event.pointerId) return;
-                    const wordRange = expandRangeToWord(startRange, textContentDiv);
-                    if (!wordRange) return;
-                    pencilNotamSelection.activeStartRange = wordRange.cloneRange();
-                    pencilNotamSelection.currentRange = wordRange.cloneRange();
-                    setDocumentSelection(wordRange);
-                }, 180);
             }
 
             function movePencilNotamSelection(event) {
                 if (!pencilNotamSelection || event.pointerId !== pencilNotamSelection.pointerId) return;
                 if (event.pointerType !== 'pen') return;
 
-                const movedEnough = Math.hypot(event.clientX - pencilNotamSelection.startX, event.clientY - pencilNotamSelection.startY) > 2;
-                if (!movedEnough) return;
-
-                if (pencilNotamSelection.holdTimer) {
-                    clearTimeout(pencilNotamSelection.holdTimer);
-                    pencilNotamSelection.holdTimer = null;
+                const movedEnough = Math.hypot(event.clientX - pencilNotamSelection.startX, event.clientY - pencilNotamSelection.startY) > 1;
+                if (!movedEnough) {
+                    event.preventDefault();
+                    return;
                 }
 
                 const endRange = rangeFromClientPoint(event.clientX, event.clientY);
@@ -7837,22 +7861,23 @@ window.__notamTextFull = notamInput.value;
 
                 event.preventDefault();
                 pencilNotamSelection.currentRange = selectionRange.cloneRange();
-                setDocumentSelection(selectionRange);
+                renderPencilNotamPreview(selectionRange);
             }
 
             function endPencilNotamSelection(event) {
                 if (!pencilNotamSelection || event.pointerId !== pencilNotamSelection.pointerId) return;
-                if (pencilNotamSelection.holdTimer) clearTimeout(pencilNotamSelection.holdTimer);
 
                 const { textContentDiv, currentRange } = pencilNotamSelection;
                 textContentDiv.classList.remove('pencil-selecting');
                 pencilNotamSelection = null;
+                clearPencilNotamPreview();
+
+                const selection = window.getSelection();
+                if (selection) selection.removeAllRanges();
 
                 if (currentRange && !currentRange.collapsed) {
                     event.preventDefault();
                     wrapRangeInHighlight(currentRange);
-                    const selection = window.getSelection();
-                    if (selection) selection.removeAllRanges();
                 }
             }
 
