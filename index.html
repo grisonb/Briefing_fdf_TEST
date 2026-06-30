@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0">
-    <title>Briefing Fdf TEST v4.07</title>
+    <title>Briefing Fdf TEST v4.08</title>
     <link rel="manifest" href="./manifest.json?v=4.03">
     <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png?v=4.03">
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -1888,7 +1888,7 @@
 
     <div class="page-header">
         <div class="page-header-background"></div>
-        <h1 id="main-title">Briefing Fdf TEST v4.07</h1>
+        <h1 id="main-title">Briefing Fdf TEST v4.08</h1>
         <p id="current-time-display"></p>
         <p style="position: relative; z-index: 2; text-align: center; color: #333; font-size: 1em; margin-top: -25px; margin-bottom: 30px;">
     v<span id="app-version">3.92 TEST proxy CheckWX affichage brut</span>
@@ -2252,7 +2252,7 @@
     <footer>Données : Météo-France, SIA, Windy.com, CheckWX.com. Page non commerciale, à usage personnel.</footer>
     
     <script>
-        const APP_VERSION = "4.07 TEST - Pencil NOTAM ligne verrouillée";
+        const APP_VERSION = "4.08 TEST - Pencil NOTAM ligne stricte";
 
         // --- Proxy NAS pour la source de données météo CheckWX ---
         const CHECKWX_PROXY_URL = "https://grisonb.synology.me/briefing-api/get-metar-taf.php";
@@ -7858,6 +7858,53 @@ window.__notamTextFull = notamInput.value;
                 return null;
             }
 
+            function getHighlightedMarkNearPoint_(container, x, y) {
+                const exact = getHighlightedMarkFromPoint_(x, y);
+                if (exact && (!container || container.contains(exact))) return exact;
+                if (!container) return null;
+                let best = null;
+                let bestDistance = Infinity;
+                container.querySelectorAll('mark.highlighted-text').forEach(mark => {
+                    Array.from(mark.getClientRects()).forEach(rect => {
+                        const marginX = 10;
+                        const marginY = 10;
+                        if (x < rect.left - marginX || x > rect.right + marginX || y < rect.top - marginY || y > rect.bottom + marginY) return;
+                        const dx = x < rect.left ? rect.left - x : (x > rect.right ? x - rect.right : 0);
+                        const dy = y < rect.top ? rect.top - y : (y > rect.bottom ? y - rect.bottom : 0);
+                        const distance = Math.hypot(dx, dy);
+                        if (distance < bestDistance) {
+                            best = mark;
+                            bestDistance = distance;
+                        }
+                    });
+                });
+                return best;
+            }
+
+            function getOffsetFromLineLock_(lineLock, x) {
+                const boxes = (lineLock && Array.isArray(lineLock.lineCharBoxes)) ? lineLock.lineCharBoxes : [];
+                if (!boxes.length) return lineLock ? lineLock.lineStart : null;
+                const sorted = boxes.slice().sort((a, b) => a.left - b.left || a.start - b.start);
+                const first = sorted[0];
+                const last = sorted[sorted.length - 1];
+                if (x <= first.left) return first.start;
+                if (x >= last.right) return last.end;
+                for (const box of sorted) {
+                    if (x <= box.left) return box.start;
+                    const mid = box.left + Math.max(0, box.right - box.left) / 2;
+                    if (x < mid) return box.start;
+                    if (x <= box.right) return box.end;
+                }
+                return last.end;
+            }
+
+            function getOffsetFromPencilState_(state, x) {
+                if (!state) return null;
+                const offset = getOffsetFromLineLock_(state, x);
+                if (offset === null || offset === undefined) return null;
+                return Math.max(state.lineStart, Math.min(state.lineEnd, offset));
+            }
+
             function getVisualLineLock_(container, y) {
                 const text = container.textContent || '';
                 const fullRange = document.createRange();
@@ -7878,6 +7925,7 @@ window.__notamTextFull = notamInput.value;
                 const lineBottom = targetRect.bottom + 2;
                 let lineStart = null;
                 let lineEnd = null;
+                const lineCharBoxes = [];
 
                 for (let i = 0; i < text.length; i++) {
                     const startPos = getDomPositionForTextOffset_(container, i);
@@ -7891,17 +7939,26 @@ window.__notamTextFull = notamInput.value;
                         continue;
                     }
                     const rects = Array.from(range.getClientRects()).filter(rect => rect.width >= 0 && rect.height > 0);
-                    const onLine = rects.some(rect => rect.bottom >= lineTop && rect.top <= lineBottom);
-                    if (onLine) {
+                    const matchingRect = rects.find(rect => rect.bottom >= lineTop && rect.top <= lineBottom);
+                    if (matchingRect) {
                         if (lineStart === null) lineStart = i;
                         lineEnd = i + 1;
+                        lineCharBoxes.push({
+                            start: i,
+                            end: i + 1,
+                            left: matchingRect.left,
+                            right: Math.max(matchingRect.right, matchingRect.left + 1),
+                            top: matchingRect.top,
+                            bottom: matchingRect.bottom
+                        });
                     }
                 }
 
                 return {
                     lineStart: lineStart === null ? 0 : lineStart,
                     lineEnd: lineEnd === null ? text.length : lineEnd,
-                    lineY: (targetRect.top + targetRect.bottom) / 2
+                    lineY: (targetRect.top + targetRect.bottom) / 2,
+                    lineCharBoxes
                 };
             }
 
@@ -7939,8 +7996,8 @@ window.__notamTextFull = notamInput.value;
                 event.preventDefault();
                 event.stopPropagation();
                 const lineLock = getVisualLineLock_(textContentDiv, event.clientY);
-                let startOffset = getTextOffsetFromPoint_(textContentDiv, event.clientX, lineLock.lineY);
-                if (startOffset === null) return;
+                let startOffset = getOffsetFromLineLock_(lineLock, event.clientX);
+                if (startOffset === null || startOffset === undefined) return;
                 startOffset = Math.max(lineLock.lineStart, Math.min(lineLock.lineEnd, startOffset));
                 window.getSelection()?.removeAllRanges();
                 pencilHighlightState_ = {
@@ -7954,10 +8011,12 @@ window.__notamTextFull = notamInput.value;
                     lockY: lineLock.lineY,
                     lineStart: lineLock.lineStart,
                     lineEnd: lineLock.lineEnd,
+                    lineCharBoxes: lineLock.lineCharBoxes || [],
+                    maxDistance: 0,
                     startScrollX: window.scrollX,
                     startScrollY: window.scrollY,
                     moved: false,
-                    tapMark: event.target.closest('mark.highlighted-text') || getHighlightedMarkFromPoint_(event.clientX, event.clientY)
+                    tapMark: event.target.closest('mark.highlighted-text') || getHighlightedMarkNearPoint_(textContentDiv, event.clientX, event.clientY)
                 };
                 lockPencilPageScroll_();
                 textContentDiv.classList.add('pencil-highlighter-active');
@@ -7971,10 +8030,11 @@ window.__notamTextFull = notamInput.value;
                 event.stopPropagation();
                 keepPencilPageStill_();
                 const distance = Math.hypot(event.clientX - state.startX, event.clientY - state.startY);
-                if (distance < 3) return;
-                let offset = getTextOffsetFromPoint_(state.container, event.clientX, state.lockY);
-                if (offset === null) return;
-                offset = Math.max(state.lineStart, Math.min(state.lineEnd, offset));
+                state.maxDistance = Math.max(state.maxDistance || 0, distance);
+                const horizontalDistance = Math.abs(event.clientX - state.startX);
+                if (horizontalDistance < 6) return;
+                let offset = getOffsetFromPencilState_(state, event.clientX);
+                if (offset === null || offset === undefined) return;
                 state.moved = true;
                 state.lastOffset = offset;
                 renderPencilPreview_();
@@ -7988,19 +8048,20 @@ window.__notamTextFull = notamInput.value;
                 const container = state.container;
                 const previousHtml = state.baseHtml;
                 keepPencilPageStill_();
-                let offset = getTextOffsetFromPoint_(container, event.clientX, state.lockY);
-                if (offset !== null) {
-                    offset = Math.max(state.lineStart, Math.min(state.lineEnd, offset));
+                let offset = getOffsetFromPencilState_(state, event.clientX);
+                if (offset !== null && offset !== undefined) {
                     state.lastOffset = offset;
                 }
                 container.classList.remove('pencil-highlighter-active');
                 try { container.releasePointerCapture(event.pointerId); } catch (_) {}
-                if (!state.moved) {
-                    const markToRemove = state.tapMark || getHighlightedMarkFromPoint_(event.clientX, event.clientY);
-                    if (markToRemove && container.contains(markToRemove)) {
-                        pencilHighlightUndoStack_.push({ container, previousHtml });
-                        removeHighlightedMark_(markToRemove);
-                    }
+                const markToRemove = state.tapMark || getHighlightedMarkNearPoint_(container, event.clientX, event.clientY);
+                const deleteGesture = markToRemove && container.contains(markToRemove) && (!state.moved || (state.maxDistance || 0) < 16);
+                if (deleteGesture) {
+                    pencilHighlightUndoStack_.push({ container, previousHtml });
+                    removeHighlightedMark_(markToRemove);
+                } else if (!state.moved) {
+                    // Tap Pencil hors surlignage : aucune action. Cela évite de créer une lettre parasite
+                    // sur la ligne voisine lorsque Safari renvoie un point texte ambigu en fin de ligne.
                 } else {
                     restorePencilBaseHtml_();
                     let range = clampPencilRangeToLine_(state, expandOffsetsToWord_(container.textContent || '', state.startOffset, state.lastOffset));
@@ -8056,7 +8117,7 @@ window.__notamTextFull = notamInput.value;
 
         function initializePageTitle() {
             const titleElement = document.getElementById('main-title');
-            titleElement.textContent = `Briefing Fdf TEST v4.07 du ${new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}`;
+            titleElement.textContent = `Briefing Fdf TEST v4.08 du ${new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}`;
             const timeDisplay = document.getElementById('current-time-display');
             const updateTime = () => timeDisplay.textContent = new Date().toLocaleTimeString('fr-FR');
             updateTime(); setInterval(updateTime, 1000);
