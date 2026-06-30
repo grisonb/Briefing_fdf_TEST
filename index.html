@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0">
-    <title>Briefing Fdf TEST v4.13</title>
+    <title>Briefing Fdf TEST v4.15</title>
     <link rel="manifest" href="./manifest.json?v=4.03">
     <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png?v=4.03">
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -300,6 +300,30 @@
             background: white;
             border-radius: 8px;
             padding: 6px;
+        }
+        #share-code-display, #last-share-code-display {
+            display: inline-block;
+            margin: 8px 0;
+            padding: 8px 12px;
+            border-radius: 8px;
+            background: rgba(255,255,255,0.92);
+            color: #1f2d3d;
+            font-weight: 800;
+            letter-spacing: 1px;
+            font-size: 1.15em;
+        }
+        #last-share-panel {
+            margin-top: 12px;
+            background: rgba(255,255,255,0.12);
+            border: 1px solid rgba(255,255,255,0.35);
+            border-radius: 8px;
+            padding: 12px;
+            display: none;
+        }
+        .share-panel-note {
+            margin: 6px 0 10px 0;
+            font-size: 0.95em;
+            opacity: 0.95;
         }
         
         .map-section, .pdf-section, .notam-section {
@@ -1888,10 +1912,10 @@
 
     <div class="page-header">
         <div class="page-header-background"></div>
-        <h1 id="main-title">Briefing Fdf TEST v4.13</h1>
+        <h1 id="main-title">Briefing Fdf TEST v4.15</h1>
         <p id="current-time-display"></p>
         <p style="position: relative; z-index: 2; text-align: center; color: #333; font-size: 1em; margin-top: -25px; margin-bottom: 30px;">
-    v<span id="app-version">4.13 TEST - Pencil NOTAM ligne texte verrouillée</span>
+    v<span id="app-version">4.15 TEST - Login 23h + dernier partage mémorisé</span>
     <button id="force-update-btn" class="link-button" style="background-color: #34495e; padding: 4px 10px; font-size: 0.8em; margin-left: 10px; vertical-align: middle;">
         Forcer MAJ
     </button>
@@ -1902,7 +1926,7 @@
     <div class="cncasc-auth-panel cncasc-disconnected" id="cncasc-auth-panel">
         <h3>Accès Briefing</h3>
         <div class="cncasc-auth-row">
-            <input id="cncasc-password-input" type="text" inputmode="text" placeholder="Code accès Briefing" aria-label="Code accès Briefing" name="bfg-cncasc-code" autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false" data-lpignore="true" data-1p-ignore="true" data-form-type="other" readonly>
+            <input id="cncasc-password-input" type="text" inputmode="text" placeholder="Code accès Briefing" aria-label="Code accès Briefing" name="bfg-cncasc-code" autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false" data-lpignore="true" data-1p-ignore="true" data-form-type="other">
             <button id="cncasc-unlock-btn" class="link-button" style="background-color:#2980b9;">Connexion</button>
             <button id="cncasc-global-refresh-btn" class="link-button" style="background-color:#1abc9c;">Actualiser</button>
             <button id="cncasc-lock-btn" class="link-button" style="background-color:var(--sc-red);">Déconnexion</button>
@@ -1918,6 +1942,21 @@
         <button id="save-session-btn" class="link-button" style="background-color: #28a745;">Sauvegarder</button>
         <button id="export-session-btn" class="link-button" style="background-color: #8e44ad;">Partager</button>
         <button id="clear-session-btn" class="link-button" style="background-color: var(--sc-red);">Effacer</button>
+    </div>
+    <div id="share-result" class="shared-briefing-panel" style="display: none;">
+        <h4>Partage créé</h4>
+        <p class="share-panel-note">Code à transmettre :</p>
+        <div id="share-code-display"></div><br>
+        <input id="share-link-input" type="text" readonly aria-label="Code du partage créé">
+        <button id="copy-share-link-btn" class="link-button" style="background-color: #34495e; margin-top: 8px;">Copier le code</button><br>
+        <img id="share-qr-image" alt="QR code du partage">
+    </div>
+    <div id="last-share-panel" class="shared-briefing-panel" style="display: none;">
+        <h4>Dernier partage créé</h4>
+        <p class="share-panel-note">Conservé sur cet appareil même après fermeture de BFG.</p>
+        <div id="last-share-code-display"></div><br>
+        <button id="copy-last-share-code-btn" class="link-button" style="background-color: #34495e; margin-top: 8px;">Copier</button>
+        <button id="open-last-share-code-btn" class="link-button" style="background-color: #16a085; margin-top: 8px;">Ouvrir</button>
     </div>
     <div id="session-help-tooltip" class="help-tooltip" style="display: none;">
         <h4>Aide : sauvegarde et partage du briefing</h4>
@@ -2252,7 +2291,7 @@
     <footer>Données : Météo-France, SIA, Windy.com, CheckWX.com. Page non commerciale, à usage personnel.</footer>
     
     <script>
-        const APP_VERSION = "4.13 TEST - Pencil NOTAM ligne texte verrouillée";
+        const APP_VERSION = "4.15 TEST - Login 23h + dernier partage mémorisé";
 
         // --- Proxy NAS pour la source de données météo CheckWX ---
         const CHECKWX_PROXY_URL = "https://grisonb.synology.me/briefing-api/get-metar-taf.php";
@@ -2551,6 +2590,18 @@ const tdfStages = [
 
         const CNCASC_TOKEN_STORAGE_KEY = 'bfg_cncasc_token_v1';
         const CNCASC_TOKEN_EXP_STORAGE_KEY = 'bfg_cncasc_token_exp_v1';
+        const BFG_LOGIN_END_HOUR_LOCAL = 23;
+
+        function getBfgLoginExpiryForToday_() {
+            const expiry = new Date();
+            expiry.setHours(BFG_LOGIN_END_HOUR_LOCAL, 0, 0, 0);
+            return expiry.getTime();
+        }
+
+        function getBfgLoginExpiryIsoForToday_() {
+            return new Date(getBfgLoginExpiryForToday_()).toISOString();
+        }
+
 
         function hardenSensitiveInputsAgainstAutofill_() {
             const sensitiveInputs = [
@@ -2574,29 +2625,39 @@ const tdfStages = [
             const input = document.getElementById('cncasc-password-input');
             if (!input) return;
 
-            input.setAttribute('readonly', 'readonly');
+            // v4.15 : ne plus laisser le champ en readonly.
+            // La v4.14 pouvait empêcher la saisie du code accès Briefing sur iPad
+            // selon le moment où Safari déclenchait pointerdown / focus.
+            input.removeAttribute('readonly');
+            input.disabled = false;
 
-            const forceBlur = () => {
-                if (document.activeElement === input) {
+            let userInteractionStarted = false;
+
+            const enableForUserTyping = () => {
+                userInteractionStarted = true;
+                input.removeAttribute('readonly');
+                input.disabled = false;
+            };
+
+            const forceBlurOnStartupOnly = () => {
+                if (!userInteractionStarted && document.activeElement === input) {
                     input.blur();
                 }
             };
 
-            forceBlur();
-            window.setTimeout(forceBlur, 50);
-            window.setTimeout(forceBlur, 300);
-            window.setTimeout(forceBlur, 1000);
+            window.setTimeout(forceBlurOnStartupOnly, 50);
+            window.setTimeout(forceBlurOnStartupOnly, 300);
+            window.setTimeout(forceBlurOnStartupOnly, 1000);
 
-            const enableForUserTyping = () => {
-                input.removeAttribute('readonly');
-            };
-
-            input.addEventListener('pointerdown', enableForUserTyping, { once: true });
-            input.addEventListener('touchstart', enableForUserTyping, { once: true, passive: true });
-            input.addEventListener('mousedown', enableForUserTyping, { once: true });
+            input.addEventListener('pointerdown', enableForUserTyping, { passive: true });
+            input.addEventListener('touchstart', enableForUserTyping, { passive: true });
+            input.addEventListener('mousedown', enableForUserTyping);
+            input.addEventListener('focus', enableForUserTyping);
 
             window.addEventListener('pageshow', () => {
-                window.setTimeout(forceBlur, 50);
+                input.removeAttribute('readonly');
+                input.disabled = false;
+                window.setTimeout(forceBlurOnStartupOnly, 50);
             });
         }
 
@@ -2670,8 +2731,16 @@ const tdfStages = [
         }
 
         function storeCncascToken_(token, expiresAt) {
-            const exp = Date.parse(expiresAt);
-            if (!token || Number.isNaN(exp)) return false;
+            const serverExp = Date.parse(expiresAt);
+            if (!token || Number.isNaN(serverExp)) return false;
+
+            // Règle opérationnelle BFG : la connexion reste valable localement jusqu'à 23h00
+            // du jour de connexion. Le jeton côté NAS doit aussi être émis jusqu'à 23h00.
+            const localExp = getBfgLoginExpiryForToday_();
+            // Ne jamais afficher une validité locale plus longue que celle réellement
+            // émise par le NAS. Si auth-cncasc.php n'est pas encore remplacé,
+            // l'interface montrera l'ancienne échéance, ce qui évite une fausse session active.
+            const exp = Math.min(serverExp, localExp);
 
             localStorage.setItem(CNCASC_TOKEN_STORAGE_KEY, token);
             localStorage.setItem(CNCASC_TOKEN_EXP_STORAGE_KEY, String(exp));
@@ -3188,7 +3257,11 @@ const tdfStages = [
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     cache: 'no-store',
-                    body: JSON.stringify({ password })
+                    body: JSON.stringify({
+                        password,
+                        requestedExpiresAt: getBfgLoginExpiryIsoForToday_(),
+                        requestedPolicy: 'same-day-23h'
+                    })
                 });
 
                 const payload = await response.json().catch(() => null);
@@ -3894,7 +3967,7 @@ const tdfStages = [
             initPelicModal_();
             updateCncascAuthUi_();
 
-            // Si une session 6 h est encore valide sur cet iPad, les données sont actualisées automatiquement.
+            // Si une session du jour est encore valide sur cet iPad, les données sont actualisées automatiquement.
             if (getStoredCncascToken_()) {
                 fetchAllCncascData_();
             }
@@ -6327,8 +6400,14 @@ const tdfStages = [
     const shareLinkInput = document.getElementById('share-link-input');
     const copyShareLinkBtn = document.getElementById('copy-share-link-btn');
     const shareQrImage = document.getElementById('share-qr-image');
+    const shareCodeDisplay = document.getElementById('share-code-display');
+    const lastSharePanel = document.getElementById('last-share-panel');
+    const lastShareCodeDisplay = document.getElementById('last-share-code-display');
+    const copyLastShareCodeBtn = document.getElementById('copy-last-share-code-btn');
+    const openLastShareCodeBtn = document.getElementById('open-last-share-code-btn');
     const sharedCodeInput = document.getElementById('shared-code-input');
     const openSharedCodeBtn = document.getElementById('open-shared-code-btn');
+    const LAST_SHARE_STORAGE_KEY = 'briefingFdfLastShareCodeV1';
     let lastShareUrl = "";
     let lastShareCode = ""; 
 
@@ -6540,13 +6619,38 @@ let activeShareApiBase = SHARE_API_BASE;
         return String(value || "").trim().toUpperCase();
     }
 
+    function persistLastShareCode_(shareCode) {
+        const normalized = normalizeShareCode_(shareCode);
+        if (!normalized) return;
+        localStorage.setItem(LAST_SHARE_STORAGE_KEY, normalized);
+        renderLastShareCode_();
+    }
+
+    function renderLastShareCode_() {
+        const storedCode = normalizeShareCode_(localStorage.getItem(LAST_SHARE_STORAGE_KEY));
+        if (!storedCode) {
+            if (lastSharePanel) lastSharePanel.style.display = 'none';
+            return;
+        }
+
+        lastShareCode = storedCode;
+        if (lastShareCodeDisplay) lastShareCodeDisplay.textContent = storedCode;
+        if (lastSharePanel) lastSharePanel.style.display = 'block';
+    }
+
     function showShareResult(shareCode, shareUrl) {
-        if (!shareResult || !shareLinkInput || !shareQrImage) return;
         lastShareCode = normalizeShareCode_(shareCode);
         lastShareUrl = shareUrl || "";
-        shareLinkInput.value = lastShareCode;
-        shareQrImage.src = `https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(lastShareCode)}`;
-        shareResult.style.display = 'block';
+        if (!lastShareCode) return;
+
+        persistLastShareCode_(lastShareCode);
+
+        if (shareLinkInput) shareLinkInput.value = lastShareCode;
+        if (shareCodeDisplay) shareCodeDisplay.textContent = lastShareCode;
+        if (shareQrImage) {
+            shareQrImage.src = `https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(lastShareCode)}`;
+        }
+        if (shareResult) shareResult.style.display = 'block';
     }
 
     function getShareIdFromUrl_(shareUrl) {
@@ -6827,6 +6931,39 @@ let activeShareApiBase = SHARE_API_BASE;
             }
         });
     }
+
+    if (copyLastShareCodeBtn) {
+        copyLastShareCodeBtn.addEventListener('click', async () => {
+            const codeToCopy = normalizeShareCode_(localStorage.getItem(LAST_SHARE_STORAGE_KEY) || lastShareCode);
+            if (!codeToCopy) return;
+            try {
+                await navigator.clipboard.writeText(codeToCopy);
+                sessionStatus.textContent = `Dernier code de partage copié : ${codeToCopy}`;
+            } catch {
+                const ta = document.createElement('textarea');
+                ta.value = codeToCopy;
+                document.body.appendChild(ta);
+                ta.select();
+                document.execCommand('copy');
+                document.body.removeChild(ta);
+                sessionStatus.textContent = `Dernier code de partage copié : ${codeToCopy}`;
+            }
+        });
+    }
+
+    if (openLastShareCodeBtn) {
+        openLastShareCodeBtn.addEventListener('click', () => {
+            const code = normalizeShareCode_(localStorage.getItem(LAST_SHARE_STORAGE_KEY) || lastShareCode);
+            if (!code) return;
+            if (sharedCodeInput) {
+                sharedCodeInput.value = code;
+                setCursorAtEnd_(sharedCodeInput);
+            }
+            openSharedCodeBtn && openSharedCodeBtn.click();
+        });
+    }
+
+    renderLastShareCode_();
 
     function getTodayBfgPrefix_() {
         const now = new Date();
@@ -8218,7 +8355,7 @@ window.__notamTextFull = notamInput.value;
 
         function initializePageTitle() {
             const titleElement = document.getElementById('main-title');
-            titleElement.textContent = `Briefing Fdf TEST v4.13 du ${new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}`;
+            titleElement.textContent = `Briefing Fdf TEST v4.15 du ${new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}`;
             const timeDisplay = document.getElementById('current-time-display');
             const updateTime = () => timeDisplay.textContent = new Date().toLocaleTimeString('fr-FR');
             updateTime(); setInterval(updateTime, 1000);
