@@ -1,4 +1,4 @@
-const CACHE_NAME = 'briefing-fdf-test-v4.13-pencil-notams-ligne-texte-verrouillee';
+const CACHE_NAME = 'briefing-fdf-test-v4.15-login-23h-dernier-partage-corrige';
 
 const LOCAL_ASSETS = [
   './manifest.json',
