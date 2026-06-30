@@ -1,7 +1,7 @@
 {
   "name": "Briefing FDF TEST",
   "short_name": "Briefing TEST",
-  "description": "Briefing FDF TEST v4.10 Pencil NOTAM appui long ligne verrouillée",
+  "description": "Briefing FDF TEST v4.11 Pencil NOTAM ligne logique verrouillée",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
