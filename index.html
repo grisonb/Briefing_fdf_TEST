@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0">
-    <title>Briefing Fdf TEST v4.05</title>
+    <title>Briefing Fdf TEST v4.06</title>
     <link rel="manifest" href="./manifest.json?v=4.03">
     <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png?v=4.03">
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -1881,7 +1881,7 @@
 
     <div class="page-header">
         <div class="page-header-background"></div>
-        <h1 id="main-title">Briefing Fdf TEST v4.05</h1>
+        <h1 id="main-title">Briefing Fdf TEST v4.06</h1>
         <p id="current-time-display"></p>
         <p style="position: relative; z-index: 2; text-align: center; color: #333; font-size: 1em; margin-top: -25px; margin-bottom: 30px;">
     v<span id="app-version">3.92 TEST proxy CheckWX affichage brut</span>
@@ -2245,7 +2245,7 @@
     <footer>Données : Météo-France, SIA, Windy.com, CheckWX.com. Page non commerciale, à usage personnel.</footer>
     
     <script>
-        const APP_VERSION = "4.05 TEST - Pencil NOTAM surligneur BFG stable";
+        const APP_VERSION = "4.06 TEST - Pencil NOTAM suppression fiable";
 
         // --- Proxy NAS pour la source de données météo CheckWX ---
         const CHECKWX_PROXY_URL = "https://grisonb.synology.me/briefing-api/get-metar-taf.php";
@@ -7832,6 +7832,17 @@ window.__notamTextFull = notamInput.value;
                 return event && event.pointerType === 'pen';
             }
 
+            function getHighlightedMarkFromPoint_(x, y) {
+                if (!document.elementsFromPoint) return null;
+                const elements = document.elementsFromPoint(x, y) || [];
+                for (const element of elements) {
+                    if (!element || !element.closest) continue;
+                    const mark = element.closest('mark.highlighted-text');
+                    if (mark) return mark;
+                }
+                return null;
+            }
+
             function handlePencilHighlightDown_(event) {
                 if (!isPencilEvent_(event)) return;
                 const textContentDiv = event.target.closest('.notam-text-content');
@@ -7850,7 +7861,7 @@ window.__notamTextFull = notamInput.value;
                     startX: event.clientX,
                     startY: event.clientY,
                     moved: false,
-                    tapMark: event.target.closest('mark.highlighted-text')
+                    tapMark: event.target.closest('mark.highlighted-text') || getHighlightedMarkFromPoint_(event.clientX, event.clientY)
                 };
                 textContentDiv.classList.add('pencil-highlighter-active');
                 try { textContentDiv.setPointerCapture(event.pointerId); } catch (_) {}
@@ -7881,9 +7892,13 @@ window.__notamTextFull = notamInput.value;
                 if (offset !== null) state.lastOffset = offset;
                 container.classList.remove('pencil-highlighter-active');
                 try { container.releasePointerCapture(event.pointerId); } catch (_) {}
-                if (!state.moved && state.tapMark) {
-                    pencilHighlightUndoStack_.push({ container, previousHtml });
-                    removeHighlightedMark_(state.tapMark);
+                if (!state.moved) {
+                    const markToRemove = state.tapMark || getHighlightedMarkFromPoint_(event.clientX, event.clientY);
+                    restorePencilBaseHtml_();
+                    if (markToRemove && container.contains(markToRemove)) {
+                        pencilHighlightUndoStack_.push({ container, previousHtml });
+                        removeHighlightedMark_(markToRemove);
+                    }
                 } else {
                     restorePencilBaseHtml_();
                     let { start, end } = expandOffsetsToWord_(container.textContent || '', state.startOffset, state.lastOffset);
@@ -7934,7 +7949,7 @@ window.__notamTextFull = notamInput.value;
 
         function initializePageTitle() {
             const titleElement = document.getElementById('main-title');
-            titleElement.textContent = `Briefing Fdf TEST v4.05 du ${new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}`;
+            titleElement.textContent = `Briefing Fdf TEST v4.06 du ${new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}`;
             const timeDisplay = document.getElementById('current-time-display');
             const updateTime = () => timeDisplay.textContent = new Date().toLocaleTimeString('fr-FR');
             updateTime(); setInterval(updateTime, 1000);
