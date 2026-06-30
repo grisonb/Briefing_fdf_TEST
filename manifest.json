@@ -1,7 +1,7 @@
 {
   "name": "Briefing FDF TEST",
   "short_name": "Briefing TEST",
-  "description": "Briefing FDF TEST v4.04 Pencil NOTAM surligneur BFG",
+  "description": "Briefing FDF TEST v4.05 Pencil NOTAM surligneur BFG stable",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
