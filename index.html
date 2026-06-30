@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0">
-    <title>Briefing Fdf TEST v4.11</title>
+    <title>Briefing Fdf TEST v4.12</title>
     <link rel="manifest" href="./manifest.json?v=4.03">
     <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png?v=4.03">
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -1888,10 +1888,10 @@
 
     <div class="page-header">
         <div class="page-header-background"></div>
-        <h1 id="main-title">Briefing Fdf TEST v4.11</h1>
+        <h1 id="main-title">Briefing Fdf TEST v4.12</h1>
         <p id="current-time-display"></p>
         <p style="position: relative; z-index: 2; text-align: center; color: #333; font-size: 1em; margin-top: -25px; margin-bottom: 30px;">
-    v<span id="app-version">3.92 TEST proxy CheckWX affichage brut</span>
+    v<span id="app-version">4.12 TEST - Pencil NOTAM ligne logique verrouillée corrigée</span>
     <button id="force-update-btn" class="link-button" style="background-color: #34495e; padding: 4px 10px; font-size: 0.8em; margin-left: 10px; vertical-align: middle;">
         Forcer MAJ
     </button>
@@ -2252,7 +2252,7 @@
     <footer>Données : Météo-France, SIA, Windy.com, CheckWX.com. Page non commerciale, à usage personnel.</footer>
     
     <script>
-        const APP_VERSION = "4.11 TEST - Pencil NOTAM ligne logique verrouillée";
+        const APP_VERSION = "4.12 TEST - Pencil NOTAM ligne logique verrouillée corrigée";
 
         // --- Proxy NAS pour la source de données météo CheckWX ---
         const CHECKWX_PROXY_URL = "https://grisonb.synology.me/briefing-api/get-metar-taf.php";
@@ -7867,11 +7867,8 @@ window.__notamTextFull = notamInput.value;
                 // Si Safari renvoie le caret juste après un caractère, on garde la ligne du caractère touché.
                 // Cela évite qu'un point proche d'une fin de ligne bascule sur la ligne suivante.
                 const reference = Math.max(0, Math.min(safeText.length - 1, offset >= safeText.length ? offset - 1 : offset));
-                const before = safeText.lastIndexOf('
-', reference - (safeText[reference] === '
-' ? 1 : 0));
-                let after = safeText.indexOf('
-', reference);
+                const before = safeText.lastIndexOf('\n', reference - (safeText[reference] === '\n' ? 1 : 0));
+                let after = safeText.indexOf('\n', reference);
                 if (after === -1) after = safeText.length;
                 return { lineStart: before === -1 ? 0 : before + 1, lineEnd: after };
             }
@@ -7896,8 +7893,7 @@ window.__notamTextFull = notamInput.value;
                 clampedBoxes.sort((a, b) => a.index - b.index);
                 return {
                     lineStart: Math.max(hard.lineStart, clampedBoxes[0].index),
-                    // Ligne logique stricte : on interdit explicitement de prendre le 
- et la ligne voisine.
+                    // Ligne logique stricte : on interdit explicitement de prendre le retour ligne et la ligne voisine.
                     lineEnd: Math.min(hard.lineEnd, clampedBoxes[clampedBoxes.length - 1].index + 1),
                     lineY: lineLock.lineY,
                     charBoxes: clampedBoxes
@@ -7922,9 +7918,7 @@ window.__notamTextFull = notamInput.value;
                 const charBoxes = [];
 
                 for (let i = 0; i < text.length; i++) {
-                    if (text[i] === '
-' || text[i] === '
-') continue;
+                    if (text[i] === '\n' || text[i] === '\r') continue;
                     const startPos = getDomPositionForTextOffset_(container, i);
                     const endPos = getDomPositionForTextOffset_(container, i + 1);
                     if (!startPos || !endPos) continue;
@@ -8235,7 +8229,7 @@ window.__notamTextFull = notamInput.value;
 
         function initializePageTitle() {
             const titleElement = document.getElementById('main-title');
-            titleElement.textContent = `Briefing Fdf TEST v4.11 du ${new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}`;
+            titleElement.textContent = `Briefing Fdf TEST v4.12 du ${new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}`;
             const timeDisplay = document.getElementById('current-time-display');
             const updateTime = () => timeDisplay.textContent = new Date().toLocaleTimeString('fr-FR');
             updateTime(); setInterval(updateTime, 1000);
