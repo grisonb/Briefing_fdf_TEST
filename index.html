@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0">
-    <title>Briefing Fdf TEST v4.17</title>
+    <title>Briefing Fdf TEST v4.18</title>
     <link rel="manifest" href="./manifest.json?v=4.03">
     <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png?v=4.03">
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -1912,10 +1912,10 @@
 
     <div class="page-header">
         <div class="page-header-background"></div>
-        <h1 id="main-title">Briefing Fdf TEST v4.17</h1>
+        <h1 id="main-title">Briefing Fdf TEST v4.18</h1>
         <p id="current-time-display"></p>
         <p style="position: relative; z-index: 2; text-align: center; color: #333; font-size: 1em; margin-top: -25px; margin-bottom: 30px;">
-    v<span id="app-version">4.17 TEST - Login 23h + dernier partage mémorisé - auth sans préflight</span>
+    v<span id="app-version">4.18 TEST - Login 23h + dernier partage mémorisé - auth text/plain sans préflight</span>
     <button id="force-update-btn" class="link-button" style="background-color: #34495e; padding: 4px 10px; font-size: 0.8em; margin-left: 10px; vertical-align: middle;">
         Forcer MAJ
     </button>
@@ -2291,7 +2291,7 @@
     <footer>Données : Météo-France, SIA, Windy.com, CheckWX.com. Page non commerciale, à usage personnel.</footer>
     
     <script>
-        const APP_VERSION = "4.17 TEST - Login 23h + dernier partage mémorisé - auth sans préflight";
+        const APP_VERSION = "4.18 TEST - Login 23h + dernier partage mémorisé - auth text/plain sans préflight";
 
         // --- Proxy NAS pour la source de données météo CheckWX ---
         const CHECKWX_PROXY_URL = "https://grisonb.synology.me/briefing-api/get-metar-taf.php";
@@ -3253,17 +3253,12 @@ const tdfStages = [
                 if (unlockBtn) unlockBtn.disabled = true;
                 setCncascWarning_('Connexion Briefing en cours...');
 
-                // POST simple CORS : x-www-form-urlencoded évite la pré-requête OPTIONS.
-                // Le GET direct peut fonctionner alors que le POST JSON échoue avec "Failed to fetch"
-                // si le NAS/proxy bloque OPTIONS. Cette forme est volontairement sans header personnalisé.
-                const formBody = new URLSearchParams();
-                formBody.set('password', password);
-
-                const response = await fetch(CNCASC_AUTH_API_URL, {
+                // v4.18 : POST CORS minimal.
+                // Aucun header ajouté, pas de cache:no-store, body texte simple.
+                // Objectif : éviter toute pré-requête OPTIONS Safari/iPadOS vers le NAS.
+                const response = await fetch(`${CNCASC_AUTH_API_URL}?v=5&t=${Date.now()}`, {
                     method: 'POST',
-                    headers: { 'Accept': 'application/json' },
-                    cache: 'no-store',
-                    body: formBody
+                    body: password
                 });
 
                 const payload = await response.json().catch(() => null);
@@ -8357,7 +8352,7 @@ window.__notamTextFull = notamInput.value;
 
         function initializePageTitle() {
             const titleElement = document.getElementById('main-title');
-            titleElement.textContent = `Briefing Fdf TEST v4.17 du ${new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}`;
+            titleElement.textContent = `Briefing Fdf TEST v4.18 du ${new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}`;
             const timeDisplay = document.getElementById('current-time-display');
             const updateTime = () => timeDisplay.textContent = new Date().toLocaleTimeString('fr-FR');
             updateTime(); setInterval(updateTime, 1000);
