@@ -1,4 +1,4 @@
-const CACHE_NAME = 'briefing-fdf-test-v4.10-pencil-notams-appui-long-ligne-verrouillee';
+const CACHE_NAME = 'briefing-fdf-test-v4.11-pencil-notams-ligne-logique-verrouillee';
 
 const LOCAL_ASSETS = [
   './manifest.json',
