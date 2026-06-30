@@ -1,7 +1,7 @@
 {
   "name": "Briefing FDF TEST",
   "short_name": "Briefing TEST",
-  "description": "Briefing FDF TEST v4.08 Pencil NOTAM ligne stricte",
+  "description": "Briefing FDF TEST v4.09 Pencil NOTAM ligne unique stricte",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
