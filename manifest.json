@@ -1,7 +1,7 @@
 {
   "name": "Briefing FDF TEST",
   "short_name": "Briefing TEST",
-  "description": "Briefing FDF TEST v4.17 Login 23h et dernier partage mémorisé auth sans préflight",
+  "description": "Briefing FDF TEST v4.19 Login 23h et dernier partage mémorisé auth GET sans POST NAS",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
