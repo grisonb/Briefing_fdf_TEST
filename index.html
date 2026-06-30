@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0">
-    <title>Briefing Fdf TEST v4.21</title>
+    <title>Briefing Fdf TEST v4.22</title>
     <link rel="manifest" href="./manifest.json?v=4.03">
     <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png?v=4.03">
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -1917,10 +1917,10 @@
 
     <div class="page-header">
         <div class="page-header-background"></div>
-        <h1 id="main-title">Briefing Fdf TEST v4.21</h1>
+        <h1 id="main-title">Briefing Fdf TEST v4.22</h1>
         <p id="current-time-display"></p>
         <p style="position: relative; z-index: 2; text-align: center; color: #333; font-size: 1em; margin-top: -25px; margin-bottom: 30px;">
-    v<span id="app-version">4.21 TEST - partage compact + login 23h + Pencil NOTAMs</span>
+    v<span id="app-version">4.22 TEST - sauvegarde + partage compact + login 23h + Pencil NOTAMs</span>
     <button id="force-update-btn" class="link-button" style="background-color: #34495e; padding: 4px 10px; font-size: 0.8em; margin-left: 10px; vertical-align: middle;">
         Forcer MAJ
     </button>
@@ -2296,7 +2296,7 @@
     <footer>Données : Météo-France, SIA, Windy.com, CheckWX.com. Page non commerciale, à usage personnel.</footer>
     
     <script>
-        const APP_VERSION = "4.21 TEST - partage compact + login 23h + Pencil NOTAMs";
+        const APP_VERSION = "4.22 TEST - sauvegarde + partage compact + login 23h + Pencil NOTAMs";
 
         // --- Proxy NAS pour la source de données météo CheckWX ---
         const CHECKWX_PROXY_URL = "https://grisonb.synology.me/briefing-api/get-metar-taf.php";
@@ -2627,42 +2627,63 @@ const tdfStages = [
         }
 
         function preventIpadKeyboardOnStartup_() {
-            const input = document.getElementById('cncasc-password-input');
-            if (!input) return;
+            const guardedInputs = [
+                document.getElementById('cncasc-password-input'),
+                document.getElementById('shared-code-input')
+            ].filter(Boolean);
 
-            // v4.20 : champ saisissable et authentification NAS par GET CORS simple.
-            // La v4.14 pouvait empêcher la saisie du code accès Briefing sur iPad
-            // selon le moment où Safari déclenchait pointerdown / focus.
-            input.removeAttribute('readonly');
-            input.disabled = false;
+            if (guardedInputs.length === 0) return;
 
-            let userInteractionStarted = false;
+            guardedInputs.forEach((input) => {
+                input.removeAttribute('autofocus');
+                input.autofocus = false;
 
-            const enableForUserTyping = () => {
-                userInteractionStarted = true;
-                input.removeAttribute('readonly');
-                input.disabled = false;
-            };
-
-            const forceBlurOnStartupOnly = () => {
-                if (!userInteractionStarted && document.activeElement === input) {
-                    input.blur();
+                if (input.id === 'cncasc-password-input') {
+                    input.removeAttribute('readonly');
+                    input.disabled = false;
                 }
-            };
 
-            window.setTimeout(forceBlurOnStartupOnly, 50);
-            window.setTimeout(forceBlurOnStartupOnly, 300);
-            window.setTimeout(forceBlurOnStartupOnly, 1000);
+                let allowFocusUntil = 0;
 
-            input.addEventListener('pointerdown', enableForUserTyping, { passive: true });
-            input.addEventListener('touchstart', enableForUserTyping, { passive: true });
-            input.addEventListener('mousedown', enableForUserTyping);
-            input.addEventListener('focus', enableForUserTyping);
+                const markUserTypingIntent = () => {
+                    allowFocusUntil = Date.now() + 1600;
+                    if (input.id === 'cncasc-password-input') {
+                        input.removeAttribute('readonly');
+                        input.disabled = false;
+                    }
+                };
 
-            window.addEventListener('pageshow', () => {
-                input.removeAttribute('readonly');
-                input.disabled = false;
-                window.setTimeout(forceBlurOnStartupOnly, 50);
+                const blurIfAutomaticStartupFocus = () => {
+                    if (Date.now() > allowFocusUntil && document.activeElement === input) {
+                        input.blur();
+                    }
+                };
+
+                input.addEventListener('pointerdown', markUserTypingIntent, { passive: true });
+                input.addEventListener('touchstart', markUserTypingIntent, { passive: true });
+                input.addEventListener('mousedown', markUserTypingIntent);
+                input.addEventListener('focus', () => {
+                    // Ne pas considérer un focus automatique Safari/PWA comme une intention de saisie.
+                    // Seul un pointerdown/touchstart/mousedown préalable autorise le clavier.
+                    if (Date.now() > allowFocusUntil) {
+                        window.setTimeout(blurIfAutomaticStartupFocus, 0);
+                        window.setTimeout(blurIfAutomaticStartupFocus, 80);
+                    }
+                });
+
+                window.setTimeout(blurIfAutomaticStartupFocus, 0);
+                window.setTimeout(blurIfAutomaticStartupFocus, 50);
+                window.setTimeout(blurIfAutomaticStartupFocus, 300);
+                window.setTimeout(blurIfAutomaticStartupFocus, 1000);
+
+                window.addEventListener('pageshow', () => {
+                    if (input.id === 'cncasc-password-input') {
+                        input.removeAttribute('readonly');
+                        input.disabled = false;
+                    }
+                    window.setTimeout(blurIfAutomaticStartupFocus, 50);
+                    window.setTimeout(blurIfAutomaticStartupFocus, 300);
+                });
             });
         }
 
@@ -6412,6 +6433,30 @@ const tdfStages = [
     const LAST_SHARE_STORAGE_KEY = 'briefingFdfLastShareCodeV1';
     let lastShareUrl = "";
     let lastShareCode = ""; 
+    const LAST_SAVE_STATUS_STORAGE_KEY = 'briefingFdfLastSaveStatusV1';
+
+    function getLastSaveStatus_() {
+        return String(localStorage.getItem(LAST_SAVE_STATUS_STORAGE_KEY) || '').trim();
+    }
+
+    function setLastSaveStatus_(message) {
+        const normalized = String(message || '').trim();
+        if (normalized) localStorage.setItem(LAST_SAVE_STATUS_STORAGE_KEY, normalized);
+        else localStorage.removeItem(LAST_SAVE_STATUS_STORAGE_KEY);
+    }
+
+    function setSessionStatusWithMemory_(fallbackMessage = '') {
+        if (!sessionStatus) return;
+
+        const parts = [];
+        const saveMessage = getLastSaveStatus_();
+        const storedShareCode = normalizeShareCode_(localStorage.getItem(LAST_SHARE_STORAGE_KEY));
+
+        if (saveMessage) parts.push(saveMessage);
+        if (storedShareCode) parts.push(`Code de partage généré : ${storedShareCode}`);
+
+        sessionStatus.textContent = parts.length > 0 ? parts.join(' — ') : fallbackMessage;
+    }
 
     let isSavingSession = false;
     const LEGACY_SHARE_API_BASE = 'https://grisonb.synology.me/briefing-api';
@@ -6645,7 +6690,7 @@ let activeShareApiBase = SHARE_API_BASE;
         if (shareCodeDisplay) shareCodeDisplay.textContent = storedCode;
 
         if (options.updateStatus !== false && sessionStatus) {
-            sessionStatus.textContent = `Code de partage généré : ${storedCode}`;
+            setSessionStatusWithMemory_();
         }
     }
 
@@ -6659,7 +6704,7 @@ let activeShareApiBase = SHARE_API_BASE;
         // v4.21 : affichage compact uniquement.
         if (shareResult) shareResult.style.display = 'none';
         if (lastSharePanel) lastSharePanel.style.display = 'none';
-        if (sessionStatus) sessionStatus.textContent = `Code de partage généré : ${lastShareCode}`;
+        if (sessionStatus) setSessionStatusWithMemory_();
     }
 
     function getShareIdFromUrl_(shareUrl) {
@@ -6859,7 +6904,9 @@ let activeShareApiBase = SHARE_API_BASE;
                 tx.onerror = () => reject(tx.error);
             });
 
-            sessionStatus.textContent = `Sauvegarde locale effectuée (${new Date(savable.savedAt).toLocaleString('fr-FR')})`;
+            const saveMessage = `Sauvegarde locale effectuée (${new Date(savable.savedAt).toLocaleString('fr-FR')})`;
+            setLastSaveStatus_(saveMessage);
+            setSessionStatusWithMemory_(saveMessage);
         } catch (error) {
             sessionStatus.textContent = `Erreur lors de la sauvegarde: ${error.message || error}`;
             console.error("Erreur de sauvegarde :", error);
@@ -6901,7 +6948,7 @@ let activeShareApiBase = SHARE_API_BASE;
                     const shareCode = normalizeShareCode_(remoteShare.shareCode || remoteShare.shareId);
                     const shareUrl = remoteShare.shareUrl || buildShareUrl(shareCode);
                     showShareResult(shareCode, shareUrl);
-                    sessionStatus.textContent = `Code de partage généré : ${shareCode}`;
+                    setSessionStatusWithMemory_();
                 } else {
                     const filename = downloadPortableJson_(portable);
                     shareResult && (shareResult.style.display = 'none');
@@ -7186,8 +7233,7 @@ let activeShareApiBase = SHARE_API_BASE;
 
     function applySavedSessionData_(data) {
         if (!data) {
-            const storedShareCode = normalizeShareCode_(localStorage.getItem(LAST_SHARE_STORAGE_KEY));
-            sessionStatus.textContent = storedShareCode ? `Code de partage généré : ${storedShareCode}` : "Aucune session sauvegardée.";
+            setSessionStatusWithMemory_("Aucune session sauvegardée.");
             return;
         }
 
@@ -7275,10 +7321,7 @@ let activeShareApiBase = SHARE_API_BASE;
             restoreTemsiOfflineState_(data.temsiState);
         }
 
-        const storedShareCode = normalizeShareCode_(localStorage.getItem(LAST_SHARE_STORAGE_KEY));
-        sessionStatus.textContent = storedShareCode
-            ? `Code de partage généré : ${storedShareCode}`
-            : `Session restaurée (du ${new Date(data.savedAt).toLocaleString('fr-FR')})`;
+        setSessionStatusWithMemory_(`Session restaurée (du ${new Date(data.savedAt).toLocaleString('fr-FR')})`);
     }
 
     async function restoreLocalSession_() {
@@ -8368,7 +8411,7 @@ window.__notamTextFull = notamInput.value;
 
         function initializePageTitle() {
             const titleElement = document.getElementById('main-title');
-            titleElement.textContent = `Briefing Fdf TEST v4.21 du ${new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}`;
+            titleElement.textContent = `Briefing Fdf TEST v4.22 du ${new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}`;
             const timeDisplay = document.getElementById('current-time-display');
             const updateTime = () => timeDisplay.textContent = new Date().toLocaleTimeString('fr-FR');
             updateTime(); setInterval(updateTime, 1000);
