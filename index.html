@@ -624,6 +624,23 @@
             color: black;
         }
 
+        mark.highlighted-text.pencil-highlight-preview {
+            background-color: rgba(255, 215, 0, 0.55);
+            font-weight: normal;
+            outline: 1px dashed rgba(120, 90, 0, 0.55);
+        }
+
+        .notam-text-content.pencil-highlighter-active {
+            cursor: crosshair;
+            touch-action: none;
+            -webkit-user-select: none;
+            user-select: none;
+        }
+
+        .pencil-undo-highlight-action {
+            background-color: #c0392b !important;
+        }
+
         .sup-aip-item { margin-bottom: 30px; border-top: 2px solid var(--sc-blue); padding-top: 20px; }
         
         .dropzone.drag-over { background-color: #fff8e1; border-color: var(--sc-yellow); border-style: dashed; }
@@ -2134,12 +2151,14 @@
             <button class="link-button confirm-action filter-action">Garder la sélection</button>
             <button class="link-button reset show-all-action" style="display: none;">Tout afficher</button>
             <button class="link-button save-pdf-action" style="display: none;">Sauvegarder en PDF</button>
+            <button class="link-button pencil-undo-highlight-action" type="button">Annuler surlignage</button>
         </div>
         <div id="notam-display"></div>
         <div id="notam-controls-bottom" class="notam-controls">
             <button class="link-button confirm-action filter-action">Garder la sélection</button>
             <button class="link-button reset show-all-action" style="display: none;">Tout afficher</button>
             <button class="link-button save-pdf-action" style="display: none;">Sauvegarder en PDF</button>
+            <button class="link-button pencil-undo-highlight-action" type="button">Annuler surlignage</button>
         </div>
 
         <div id="manual-metar-section">
@@ -7655,7 +7674,12 @@ window.__notamTextFull = notamInput.value;
                 const mark = t.closest('mark.highlighted-text'); if(mark && !window.getSelection().toString()) { const p = mark.parentNode; while(mark.firstChild) p.insertBefore(mark.firstChild, mark); p.removeChild(mark); p.normalize(); }
             });
 
+            let lastPencilHighlightEndAt_ = 0;
+            const pencilHighlightUndoStack_ = [];
+            let pencilHighlightState_ = null;
+
             function handleTextHighlight(event) {
+                if (Date.now() - lastPencilHighlightEndAt_ < 700) return;
                 const textContentDiv = event.target.closest('.notam-text-content'); if (!textContentDiv) return;
                 setTimeout(() => {
                     const selection = window.getSelection(); if (!selection || selection.isCollapsed || !textContentDiv.contains(selection.anchorNode)) return;
@@ -7671,8 +7695,223 @@ window.__notamTextFull = notamInput.value;
                     newSelection.removeAllRanges();
                 }, 10);
             }
+
+            function getCaretRangeFromPoint_(x, y) {
+                if (document.caretRangeFromPoint) return document.caretRangeFromPoint(x, y);
+                if (document.caretPositionFromPoint) {
+                    const pos = document.caretPositionFromPoint(x, y);
+                    if (!pos) return null;
+                    const range = document.createRange();
+                    range.setStart(pos.offsetNode, pos.offset);
+                    range.collapse(true);
+                    return range;
+                }
+                return null;
+            }
+
+            function getTextOffsetFromRange_(container, range) {
+                if (!range || !container) return null;
+                if (range.startContainer !== container && !container.contains(range.startContainer)) return null;
+                try {
+                    const before = document.createRange();
+                    before.selectNodeContents(container);
+                    before.setEnd(range.startContainer, range.startOffset);
+                    return before.toString().length;
+                } catch (error) {
+                    return null;
+                }
+            }
+
+            function getTextOffsetFromPoint_(container, x, y) {
+                const range = getCaretRangeFromPoint_(x, y);
+                const offset = getTextOffsetFromRange_(container, range);
+                if (offset !== null) return offset;
+                const rect = container.getBoundingClientRect();
+                if (x >= rect.right) return container.textContent.length;
+                if (x <= rect.left) return 0;
+                return null;
+            }
+
+            function getDomPositionForTextOffset_(container, targetOffset) {
+                const walker = document.createTreeWalker(container, NodeFilter.SHOW_TEXT, null);
+                let current = 0;
+                let lastTextNode = null;
+                while (walker.nextNode()) {
+                    const node = walker.currentNode;
+                    const length = node.nodeValue.length;
+                    lastTextNode = node;
+                    if (targetOffset <= current + length) {
+                        return { node, offset: Math.max(0, Math.min(length, targetOffset - current)) };
+                    }
+                    current += length;
+                }
+                if (lastTextNode) return { node: lastTextNode, offset: lastTextNode.nodeValue.length };
+                return null;
+            }
+
+            function expandOffsetsToWord_(text, start, end) {
+                if (start > end) [start, end] = [end, start];
+                const len = text.length;
+                start = Math.max(0, Math.min(len, start));
+                end = Math.max(0, Math.min(len, end));
+                if (Math.abs(end - start) > 1) return { start, end };
+                let i = start;
+                if (i >= len) i = len - 1;
+                if (i < 0) i = 0;
+                const isWord = (ch) => /[A-Za-zÀ-ÿ0-9_/-]/.test(ch || '');
+                while (i > 0 && !isWord(text[i]) && isWord(text[i - 1])) i--;
+                while (i < len && !isWord(text[i])) i++;
+                if (i >= len) return { start, end };
+                let s = i;
+                let e = i;
+                while (s > 0 && isWord(text[s - 1])) s--;
+                while (e < len && isWord(text[e])) e++;
+                return { start: s, end: e };
+            }
+
+            function applyMarkByTextOffsets_(container, start, end, className) {
+                const text = container.textContent || '';
+                if (start > end) [start, end] = [end, start];
+                start = Math.max(0, Math.min(text.length, start));
+                end = Math.max(0, Math.min(text.length, end));
+                if (end <= start) return false;
+                const startPos = getDomPositionForTextOffset_(container, start);
+                const endPos = getDomPositionForTextOffset_(container, end);
+                if (!startPos || !endPos) return false;
+                const range = document.createRange();
+                range.setStart(startPos.node, startPos.offset);
+                range.setEnd(endPos.node, endPos.offset);
+                if (range.collapsed) return false;
+                const mark = document.createElement('mark');
+                mark.className = className;
+                try {
+                    const fragment = range.extractContents();
+                    mark.appendChild(fragment);
+                    range.insertNode(mark);
+                    container.normalize();
+                    return true;
+                } catch (error) {
+                    console.warn('Surlignage Pencil impossible.', error);
+                    return false;
+                }
+            }
+
+            function restorePencilBaseHtml_() {
+                if (pencilHighlightState_ && pencilHighlightState_.container) {
+                    pencilHighlightState_.container.innerHTML = pencilHighlightState_.baseHtml;
+                }
+            }
+
+            function renderPencilPreview_() {
+                const state = pencilHighlightState_;
+                if (!state || !state.container || state.lastOffset === null) return;
+                state.container.innerHTML = state.baseHtml;
+                const range = expandOffsetsToWord_(state.container.textContent || '', state.startOffset, state.lastOffset);
+                applyMarkByTextOffsets_(state.container, range.start, range.end, 'highlighted-text pencil-highlight-preview');
+            }
+
+            function removeHighlightedMark_(mark) {
+                if (!mark || !mark.parentNode) return false;
+                const parent = mark.parentNode;
+                while (mark.firstChild) parent.insertBefore(mark.firstChild, mark);
+                parent.removeChild(mark);
+                parent.normalize();
+                return true;
+            }
+
+            function undoLastPencilHighlight_() {
+                const last = pencilHighlightUndoStack_.pop();
+                if (!last || !last.container || !document.body.contains(last.container)) return;
+                last.container.innerHTML = last.previousHtml;
+            }
+
+            function isPencilEvent_(event) {
+                return event && event.pointerType === 'pen';
+            }
+
+            function handlePencilHighlightDown_(event) {
+                if (!isPencilEvent_(event)) return;
+                const textContentDiv = event.target.closest('.notam-text-content');
+                if (!textContentDiv) return;
+                event.preventDefault();
+                event.stopPropagation();
+                const startOffset = getTextOffsetFromPoint_(textContentDiv, event.clientX, event.clientY);
+                if (startOffset === null) return;
+                window.getSelection()?.removeAllRanges();
+                pencilHighlightState_ = {
+                    pointerId: event.pointerId,
+                    container: textContentDiv,
+                    baseHtml: textContentDiv.innerHTML,
+                    startOffset,
+                    lastOffset: startOffset,
+                    startX: event.clientX,
+                    startY: event.clientY,
+                    moved: false,
+                    tapMark: event.target.closest('mark.highlighted-text')
+                };
+                textContentDiv.classList.add('pencil-highlighter-active');
+                try { textContentDiv.setPointerCapture(event.pointerId); } catch (_) {}
+            }
+
+            function handlePencilHighlightMove_(event) {
+                const state = pencilHighlightState_;
+                if (!state || !isPencilEvent_(event) || event.pointerId !== state.pointerId) return;
+                event.preventDefault();
+                event.stopPropagation();
+                const distance = Math.hypot(event.clientX - state.startX, event.clientY - state.startY);
+                if (distance < 3) return;
+                const offset = getTextOffsetFromPoint_(state.container, event.clientX, event.clientY);
+                if (offset === null) return;
+                state.moved = true;
+                state.lastOffset = offset;
+                renderPencilPreview_();
+            }
+
+            function handlePencilHighlightUp_(event) {
+                const state = pencilHighlightState_;
+                if (!state || !isPencilEvent_(event) || event.pointerId !== state.pointerId) return;
+                event.preventDefault();
+                event.stopPropagation();
+                const container = state.container;
+                const previousHtml = state.baseHtml;
+                const offset = getTextOffsetFromPoint_(container, event.clientX, event.clientY);
+                if (offset !== null) state.lastOffset = offset;
+                container.classList.remove('pencil-highlighter-active');
+                try { container.releasePointerCapture(event.pointerId); } catch (_) {}
+                if (!state.moved && state.tapMark) {
+                    pencilHighlightUndoStack_.push({ container, previousHtml });
+                    removeHighlightedMark_(state.tapMark);
+                } else {
+                    restorePencilBaseHtml_();
+                    let { start, end } = expandOffsetsToWord_(container.textContent || '', state.startOffset, state.lastOffset);
+                    if (end > start) {
+                        const applied = applyMarkByTextOffsets_(container, start, end, 'highlighted-text');
+                        if (applied) pencilHighlightUndoStack_.push({ container, previousHtml });
+                    }
+                }
+
+                pencilHighlightState_ = null;
+                lastPencilHighlightEndAt_ = Date.now();
+                window.getSelection()?.removeAllRanges();
+            }
+
+            function handlePencilHighlightCancel_(event) {
+                const state = pencilHighlightState_;
+                if (!state || event.pointerId !== state.pointerId) return;
+                event.preventDefault();
+                state.container.classList.remove('pencil-highlighter-active');
+                restorePencilBaseHtml_();
+                pencilHighlightState_ = null;
+                lastPencilHighlightEndAt_ = Date.now();
+            }
+
             notamSection.addEventListener('mouseup', handleTextHighlight);
             notamSection.addEventListener('touchend', handleTextHighlight);
+            notamSection.addEventListener('pointerdown', handlePencilHighlightDown_, { passive: false });
+            notamSection.addEventListener('pointermove', handlePencilHighlightMove_, { passive: false });
+            notamSection.addEventListener('pointerup', handlePencilHighlightUp_, { passive: false });
+            notamSection.addEventListener('pointercancel', handlePencilHighlightCancel_, { passive: false });
+            document.querySelectorAll('.pencil-undo-highlight-action').forEach(button => button.addEventListener('click', undoLastPencilHighlight_));
         }
         
         function initializeManualMetarFetch() {
@@ -7692,7 +7931,7 @@ window.__notamTextFull = notamInput.value;
 
         function initializePageTitle() {
             const titleElement = document.getElementById('main-title');
-            titleElement.textContent = `Briefing Fdf TEST v4.03 du ${new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}`;
+            titleElement.textContent = `Briefing Fdf TEST v4.04 du ${new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}`;
             const timeDisplay = document.getElementById('current-time-display');
             const updateTime = () => timeDisplay.textContent = new Date().toLocaleTimeString('fr-FR');
             updateTime(); setInterval(updateTime, 1000);
