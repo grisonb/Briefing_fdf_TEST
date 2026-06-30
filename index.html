@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0">
-    <title>Briefing Fdf TEST v4.03</title>
+    <title>Briefing Fdf TEST v4.05</title>
     <link rel="manifest" href="./manifest.json?v=4.03">
     <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png?v=4.03">
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -1881,7 +1881,7 @@
 
     <div class="page-header">
         <div class="page-header-background"></div>
-        <h1 id="main-title">Briefing Fdf TEST v4.03</h1>
+        <h1 id="main-title">Briefing Fdf TEST v4.05</h1>
         <p id="current-time-display"></p>
         <p style="position: relative; z-index: 2; text-align: center; color: #333; font-size: 1em; margin-top: -25px; margin-bottom: 30px;">
     v<span id="app-version">3.92 TEST proxy CheckWX affichage brut</span>
@@ -2245,7 +2245,7 @@
     <footer>Données : Météo-France, SIA, Windy.com, CheckWX.com. Page non commerciale, à usage personnel.</footer>
     
     <script>
-        const APP_VERSION = "4.03 TEST rollback stable v3.98 - sans interception Pencil";
+        const APP_VERSION = "4.05 TEST - Pencil NOTAM surligneur BFG stable";
 
         // --- Proxy NAS pour la source de données météo CheckWX ---
         const CHECKWX_PROXY_URL = "https://grisonb.synology.me/briefing-api/get-metar-taf.php";
@@ -7671,6 +7671,9 @@ window.__notamTextFull = notamInput.value;
                     if(icao) await fetchAndDisplayWeather(icao, airportContainer);
                 }
 
+                // Évite qu'un clic synthétique généré par iPadOS après un tracé Apple Pencil
+                // supprime immédiatement le surlignage qui vient d'être appliqué.
+                if (Date.now() - lastPencilHighlightEndAt_ < 1200) return;
                 const mark = t.closest('mark.highlighted-text'); if(mark && !window.getSelection().toString()) { const p = mark.parentNode; while(mark.firstChild) p.insertBefore(mark.firstChild, mark); p.removeChild(mark); p.normalize(); }
             });
 
@@ -7931,7 +7934,7 @@ window.__notamTextFull = notamInput.value;
 
         function initializePageTitle() {
             const titleElement = document.getElementById('main-title');
-            titleElement.textContent = `Briefing Fdf TEST v4.04 du ${new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}`;
+            titleElement.textContent = `Briefing Fdf TEST v4.05 du ${new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}`;
             const timeDisplay = document.getElementById('current-time-display');
             const updateTime = () => timeDisplay.textContent = new Date().toLocaleTimeString('fr-FR');
             updateTime(); setInterval(updateTime, 1000);
