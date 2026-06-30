@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0">
-    <title>Briefing Fdf TEST v4.20</title>
+    <title>Briefing Fdf TEST v4.21</title>
     <link rel="manifest" href="./manifest.json?v=4.03">
     <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png?v=4.03">
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -258,6 +258,11 @@
         .session-actions-row .link-button {
             margin: 5px 6px;
         }
+        /* v4.21 : le partage reste compact. Aucun panneau QR / dernier partage ne s'affiche après création. */
+        #share-result, #last-share-panel {
+            display: none !important;
+        }
+
         .shared-briefing-panel {
             margin: 14px auto 0 auto;
             max-width: 420px;
@@ -1912,10 +1917,10 @@
 
     <div class="page-header">
         <div class="page-header-background"></div>
-        <h1 id="main-title">Briefing Fdf TEST v4.20</h1>
+        <h1 id="main-title">Briefing Fdf TEST v4.21</h1>
         <p id="current-time-display"></p>
         <p style="position: relative; z-index: 2; text-align: center; color: #333; font-size: 1em; margin-top: -25px; margin-bottom: 30px;">
-    v<span id="app-version">4.18 TEST - Login 23h + dernier partage mémorisé - auth text/plain sans préflight</span>
+    v<span id="app-version">4.21 TEST - partage compact + login 23h + Pencil NOTAMs</span>
     <button id="force-update-btn" class="link-button" style="background-color: #34495e; padding: 4px 10px; font-size: 0.8em; margin-left: 10px; vertical-align: middle;">
         Forcer MAJ
     </button>
@@ -2291,7 +2296,7 @@
     <footer>Données : Météo-France, SIA, Windy.com, CheckWX.com. Page non commerciale, à usage personnel.</footer>
     
     <script>
-        const APP_VERSION = "4.20 TEST - Login 23h + dernier partage mémorisé - auth GET HTTP 200 NAS";
+        const APP_VERSION = "4.21 TEST - partage compact + login 23h + Pencil NOTAMs";
 
         // --- Proxy NAS pour la source de données météo CheckWX ---
         const CHECKWX_PROXY_URL = "https://grisonb.synology.me/briefing-api/get-metar-taf.php";
@@ -6623,31 +6628,38 @@ let activeShareApiBase = SHARE_API_BASE;
         renderLastShareCode_();
     }
 
-    function renderLastShareCode_() {
+    function renderLastShareCode_(options = {}) {
         const storedCode = normalizeShareCode_(localStorage.getItem(LAST_SHARE_STORAGE_KEY));
-        if (!storedCode) {
-            if (lastSharePanel) lastSharePanel.style.display = 'none';
-            return;
-        }
+
+        // v4.21 : pas de panneau "Partage créé" ni "Dernier partage créé".
+        // Le dernier code créé reste seulement dans la ligne d'état de l'iPad créateur.
+        if (shareResult) shareResult.style.display = 'none';
+        if (lastSharePanel) lastSharePanel.style.display = 'none';
+
+        if (!storedCode) return;
 
         lastShareCode = storedCode;
+        lastShareUrl = buildShareUrl(storedCode);
         if (lastShareCodeDisplay) lastShareCodeDisplay.textContent = storedCode;
-        if (lastSharePanel) lastSharePanel.style.display = 'block';
+        if (shareLinkInput) shareLinkInput.value = storedCode;
+        if (shareCodeDisplay) shareCodeDisplay.textContent = storedCode;
+
+        if (options.updateStatus !== false && sessionStatus) {
+            sessionStatus.textContent = `Code de partage généré : ${storedCode}`;
+        }
     }
 
     function showShareResult(shareCode, shareUrl) {
         lastShareCode = normalizeShareCode_(shareCode);
-        lastShareUrl = shareUrl || "";
+        lastShareUrl = shareUrl || buildShareUrl(lastShareCode);
         if (!lastShareCode) return;
 
         persistLastShareCode_(lastShareCode);
 
-        if (shareLinkInput) shareLinkInput.value = lastShareCode;
-        if (shareCodeDisplay) shareCodeDisplay.textContent = lastShareCode;
-        if (shareQrImage) {
-            shareQrImage.src = `https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(lastShareCode)}`;
-        }
-        if (shareResult) shareResult.style.display = 'block';
+        // v4.21 : affichage compact uniquement.
+        if (shareResult) shareResult.style.display = 'none';
+        if (lastSharePanel) lastSharePanel.style.display = 'none';
+        if (sessionStatus) sessionStatus.textContent = `Code de partage généré : ${lastShareCode}`;
     }
 
     function getShareIdFromUrl_(shareUrl) {
@@ -7174,7 +7186,8 @@ let activeShareApiBase = SHARE_API_BASE;
 
     function applySavedSessionData_(data) {
         if (!data) {
-            sessionStatus.textContent = "Aucune session sauvegardée.";
+            const storedShareCode = normalizeShareCode_(localStorage.getItem(LAST_SHARE_STORAGE_KEY));
+            sessionStatus.textContent = storedShareCode ? `Code de partage généré : ${storedShareCode}` : "Aucune session sauvegardée.";
             return;
         }
 
@@ -7262,7 +7275,10 @@ let activeShareApiBase = SHARE_API_BASE;
             restoreTemsiOfflineState_(data.temsiState);
         }
 
-        sessionStatus.textContent = `Session restaurée (du ${new Date(data.savedAt).toLocaleString('fr-FR')})`;
+        const storedShareCode = normalizeShareCode_(localStorage.getItem(LAST_SHARE_STORAGE_KEY));
+        sessionStatus.textContent = storedShareCode
+            ? `Code de partage généré : ${storedShareCode}`
+            : `Session restaurée (du ${new Date(data.savedAt).toLocaleString('fr-FR')})`;
     }
 
     async function restoreLocalSession_() {
@@ -8352,7 +8368,7 @@ window.__notamTextFull = notamInput.value;
 
         function initializePageTitle() {
             const titleElement = document.getElementById('main-title');
-            titleElement.textContent = `Briefing Fdf TEST v4.20 du ${new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}`;
+            titleElement.textContent = `Briefing Fdf TEST v4.21 du ${new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}`;
             const timeDisplay = document.getElementById('current-time-display');
             const updateTime = () => timeDisplay.textContent = new Date().toLocaleTimeString('fr-FR');
             updateTime(); setInterval(updateTime, 1000);
