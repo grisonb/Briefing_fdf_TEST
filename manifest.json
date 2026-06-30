@@ -1,7 +1,7 @@
 {
   "name": "Briefing FDF TEST",
   "short_name": "Briefing TEST",
-  "description": "Briefing FDF TEST v4.20 Login 23h et dernier partage mémorisé auth GET HTTP 200 NAS",
+  "description": "Briefing FDF TEST v4.21 partage compact, login 23h, Pencil NOTAMs",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
