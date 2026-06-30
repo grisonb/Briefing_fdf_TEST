@@ -1,7 +1,7 @@
 {
   "name": "Briefing FDF TEST",
   "short_name": "Briefing TEST",
-  "description": "Briefing FDF TEST v4.02 Pencil NOTAM natif sans interception",
+  "description": "Briefing FDF TEST v4.03 rollback stable v3.98",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
