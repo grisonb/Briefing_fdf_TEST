@@ -1,4 +1,4 @@
-const CACHE_NAME = 'briefing-fdf-test-v4.00-apple-pencil-notams-no-cut-menu';
+const CACHE_NAME = 'briefing-fdf-test-v4.01-apple-pencil-notams-native-selection';
 
 const LOCAL_ASSETS = [
   './manifest.json',
