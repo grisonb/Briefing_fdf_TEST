@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0">
-    <title>Briefing Fdf TEST v4.19</title>
+    <title>Briefing Fdf TEST v4.20</title>
     <link rel="manifest" href="./manifest.json?v=4.03">
     <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png?v=4.03">
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -1912,7 +1912,7 @@
 
     <div class="page-header">
         <div class="page-header-background"></div>
-        <h1 id="main-title">Briefing Fdf TEST v4.19</h1>
+        <h1 id="main-title">Briefing Fdf TEST v4.20</h1>
         <p id="current-time-display"></p>
         <p style="position: relative; z-index: 2; text-align: center; color: #333; font-size: 1em; margin-top: -25px; margin-bottom: 30px;">
     v<span id="app-version">4.18 TEST - Login 23h + dernier partage mémorisé - auth text/plain sans préflight</span>
@@ -2291,7 +2291,7 @@
     <footer>Données : Météo-France, SIA, Windy.com, CheckWX.com. Page non commerciale, à usage personnel.</footer>
     
     <script>
-        const APP_VERSION = "4.19 TEST - Login 23h + dernier partage mémorisé - auth GET sans POST NAS";
+        const APP_VERSION = "4.20 TEST - Login 23h + dernier partage mémorisé - auth GET HTTP 200 NAS";
 
         // --- Proxy NAS pour la source de données météo CheckWX ---
         const CHECKWX_PROXY_URL = "https://grisonb.synology.me/briefing-api/get-metar-taf.php";
@@ -2625,7 +2625,7 @@ const tdfStages = [
             const input = document.getElementById('cncasc-password-input');
             if (!input) return;
 
-            // v4.19 : champ saisissable et authentification NAS par GET CORS simple.
+            // v4.20 : champ saisissable et authentification NAS par GET CORS simple.
             // La v4.14 pouvait empêcher la saisie du code accès Briefing sur iPad
             // selon le moment où Safari déclenchait pointerdown / focus.
             input.removeAttribute('readonly');
@@ -3253,10 +3253,10 @@ const tdfStages = [
                 if (unlockBtn) unlockBtn.disabled = true;
                 setCncascWarning_('Connexion Briefing en cours...');
 
-                // v4.19 : le POST vers ce fichier est intercepté par Synology avant PHP.
+                // v4.20 : le POST vers ce fichier est intercepté par Synology avant PHP.
                 // On utilise donc un GET CORS simple, avec URL unique par tentative.
                 // Le code n'est pas affiché dans l'adresse Safari : il est seulement dans la requête fetch.
-                const authUrl = `${CNCASC_AUTH_API_URL}?v=6&t=${Date.now()}&code=${encodeURIComponent(password)}`;
+                const authUrl = `${CNCASC_AUTH_API_URL}?v=7&t=${Date.now()}&code=${encodeURIComponent(password)}`;
                 const response = await fetch(authUrl, {
                     method: 'GET'
                 });
@@ -8352,7 +8352,7 @@ window.__notamTextFull = notamInput.value;
 
         function initializePageTitle() {
             const titleElement = document.getElementById('main-title');
-            titleElement.textContent = `Briefing Fdf TEST v4.19 du ${new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}`;
+            titleElement.textContent = `Briefing Fdf TEST v4.20 du ${new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}`;
             const timeDisplay = document.getElementById('current-time-display');
             const updateTime = () => timeDisplay.textContent = new Date().toLocaleTimeString('fr-FR');
             updateTime(); setInterval(updateTime, 1000);
