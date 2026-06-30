@@ -1,4 +1,4 @@
-const CACHE_NAME = 'briefing-fdf-test-v4.16-login-23h-dernier-partage-auth-simple';
+const CACHE_NAME = 'briefing-fdf-test-v4.17-login-23h-dernier-partage-auth-sans-preflight';
 
 const LOCAL_ASSETS = [
   './manifest.json',
