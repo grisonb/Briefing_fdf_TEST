@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0">
-    <title>Briefing Fdf TEST v3.99</title>
+    <title>Briefing Fdf TEST v4.01</title>
     <link rel="manifest" href="./manifest.json?v=4.00">
     <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png?v=4.00">
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -1885,7 +1885,7 @@
 
     <div class="page-header">
         <div class="page-header-background"></div>
-        <h1 id="main-title">Briefing Fdf TEST v3.99</h1>
+        <h1 id="main-title">Briefing Fdf TEST v4.01</h1>
         <p id="current-time-display"></p>
         <p style="position: relative; z-index: 2; text-align: center; color: #333; font-size: 1em; margin-top: -25px; margin-bottom: 30px;">
     v<span id="app-version">3.92 TEST proxy CheckWX affichage brut</span>
@@ -2247,7 +2247,7 @@
     <footer>Données : Météo-France, SIA, Windy.com, CheckWX.com. Page non commerciale, à usage personnel.</footer>
     
     <script>
-        const APP_VERSION = "4.00 TEST Apple Pencil NOTAM sans menu couper";
+        const APP_VERSION = "4.01 TEST Apple Pencil NOTAM sélection native";
 
         // --- Proxy NAS pour la source de données météo CheckWX ---
         const CHECKWX_PROXY_URL = "https://grisonb.synology.me/briefing-api/get-metar-taf.php";
@@ -7792,27 +7792,105 @@ window.__notamTextFull = notamInput.value;
             }
 
             let pencilNotamSelection = null;
-            let pencilPreviewNodes = [];
 
-            function clearPencilNotamPreview() {
-                pencilPreviewNodes.forEach((node) => node.remove());
-                pencilPreviewNodes = [];
+            function createCollapsedRange(node, offset) {
+                const range = document.createRange();
+                range.setStart(node, Math.max(0, Math.min(offset, node.nodeValue ? node.nodeValue.length : offset)));
+                range.collapse(true);
+                return range;
             }
 
-            function renderPencilNotamPreview(range) {
-                clearPencilNotamPreview();
-                if (!range || range.collapsed) return;
-                const rects = Array.from(range.getClientRects()).filter((rect) => rect.width > 1 && rect.height > 1);
-                rects.forEach((rect) => {
-                    const preview = document.createElement('div');
-                    preview.className = 'notam-pencil-selection-preview';
-                    preview.style.left = `${rect.left}px`;
-                    preview.style.top = `${rect.top}px`;
-                    preview.style.width = `${rect.width}px`;
-                    preview.style.height = `${rect.height}px`;
-                    document.body.appendChild(preview);
-                    pencilPreviewNodes.push(preview);
+            function textNodesInContainer(container) {
+                const nodes = [];
+                const walker = document.createTreeWalker(container, NodeFilter.SHOW_TEXT, {
+                    acceptNode(node) {
+                        return node.nodeValue && node.nodeValue.trim() ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_REJECT;
+                    }
                 });
+                let node;
+                while ((node = walker.nextNode())) nodes.push(node);
+                return nodes;
+            }
+
+            function rangeForCharacter(node, offset) {
+                const len = node.nodeValue.length;
+                const range = document.createRange();
+                const start = Math.max(0, Math.min(offset, Math.max(0, len - 1)));
+                const end = Math.max(start + 1, Math.min(len, start + 1));
+                range.setStart(node, start);
+                range.setEnd(node, end);
+                return range;
+            }
+
+            function fallbackRangeFromClientPointInContainer(clientX, clientY, container) {
+                const nodes = textNodesInContainer(container);
+                let closest = null;
+                let closestScore = Infinity;
+
+                for (const node of nodes) {
+                    const text = node.nodeValue || '';
+                    const len = text.length;
+                    if (!len) continue;
+
+                    let lastOffsetOnLine = null;
+                    let firstOffsetOnLine = null;
+                    let lineVerticalScore = Infinity;
+
+                    for (let i = 0; i < len; i++) {
+                        const charRange = rangeForCharacter(node, i);
+                        const rects = Array.from(charRange.getClientRects());
+                        for (const rect of rects) {
+                            if (rect.width <= 0 || rect.height <= 0) continue;
+                            const yInside = clientY >= rect.top - 7 && clientY <= rect.bottom + 7;
+                            const verticalScore = clientY < rect.top ? rect.top - clientY : (clientY > rect.bottom ? clientY - rect.bottom : 0);
+                            const horizontalScore = clientX < rect.left ? rect.left - clientX : (clientX > rect.right ? clientX - rect.right : 0);
+                            const score = verticalScore * 20 + horizontalScore;
+
+                            if (score < closestScore) {
+                                closestScore = score;
+                                closest = createCollapsedRange(node, clientX > (rect.left + rect.width / 2) ? i + 1 : i);
+                            }
+
+                            if (yInside) {
+                                if (verticalScore < lineVerticalScore) {
+                                    lineVerticalScore = verticalScore;
+                                    firstOffsetOnLine = i;
+                                    lastOffsetOnLine = i + 1;
+                                } else {
+                                    if (firstOffsetOnLine === null) firstOffsetOnLine = i;
+                                    lastOffsetOnLine = i + 1;
+                                }
+
+                                if (clientX <= rect.left) return createCollapsedRange(node, i);
+                                if (clientX <= rect.right) return createCollapsedRange(node, clientX > (rect.left + rect.width / 2) ? i + 1 : i);
+                            }
+                        }
+                    }
+
+                    if (lastOffsetOnLine !== null) {
+                        const fullRange = document.createRange();
+                        fullRange.setStart(node, Math.max(0, firstOffsetOnLine || 0));
+                        fullRange.setEnd(node, Math.min(len, lastOffsetOnLine));
+                        const lineRects = Array.from(fullRange.getClientRects());
+                        const sameLine = lineRects.some(rect => clientY >= rect.top - 7 && clientY <= rect.bottom + 7);
+                        if (sameLine) {
+                            return createCollapsedRange(node, clientX < (lineRects[0] ? lineRects[0].left : clientX) ? (firstOffsetOnLine || 0) : lastOffsetOnLine);
+                        }
+                    }
+                }
+
+                return closest;
+            }
+
+            function rangeFromClientPointInContainer(clientX, clientY, container) {
+                const directRange = rangeFromClientPoint(clientX, clientY);
+                if (rangeBelongsToContainer(directRange, container)) return directRange;
+                return fallbackRangeFromClientPointInContainer(clientX, clientY, container);
+            }
+
+            function showNativeSelection(range) {
+                if (!range || range.collapsed) return;
+                setDocumentSelection(range);
             }
 
             function startPencilNotamSelection(event) {
@@ -7820,7 +7898,7 @@ window.__notamTextFull = notamInput.value;
                 const textContentDiv = event.target.closest('.notam-text-content');
                 if (!textContentDiv) return;
 
-                const startRange = rangeFromClientPoint(event.clientX, event.clientY);
+                const startRange = rangeFromClientPointInContainer(event.clientX, event.clientY, textContentDiv);
                 if (!rangeBelongsToContainer(startRange, textContentDiv)) return;
 
                 event.preventDefault();
@@ -7828,40 +7906,48 @@ window.__notamTextFull = notamInput.value;
                     try { event.target.setPointerCapture(event.pointerId); } catch (_) {}
                 }
 
-                const nativeSelection = window.getSelection();
-                if (nativeSelection) nativeSelection.removeAllRanges();
+                const wordRange = expandRangeToWord(startRange, textContentDiv);
+                const activeStartRange = wordRange ? wordRange.cloneRange() : startRange.cloneRange();
+                const initialRange = wordRange ? wordRange.cloneRange() : null;
 
-                clearPencilNotamPreview();
                 textContentDiv.classList.add('pencil-selecting');
                 pencilNotamSelection = {
                     pointerId: event.pointerId,
                     textContentDiv,
-                    activeStartRange: startRange.cloneRange(),
-                    currentRange: null,
+                    activeStartRange,
+                    currentRange: initialRange,
+                    lastEndRange: startRange.cloneRange(),
                     startX: event.clientX,
-                    startY: event.clientY
+                    startY: event.clientY,
+                    moved: false
                 };
+
+                if (initialRange) showNativeSelection(initialRange);
             }
 
             function movePencilNotamSelection(event) {
                 if (!pencilNotamSelection || event.pointerId !== pencilNotamSelection.pointerId) return;
                 if (event.pointerType !== 'pen') return;
 
+                event.preventDefault();
+
                 const movedEnough = Math.hypot(event.clientX - pencilNotamSelection.startX, event.clientY - pencilNotamSelection.startY) > 1;
-                if (!movedEnough) {
-                    event.preventDefault();
+                if (!movedEnough && pencilNotamSelection.currentRange) {
+                    showNativeSelection(pencilNotamSelection.currentRange);
                     return;
                 }
+                pencilNotamSelection.moved = true;
 
-                const endRange = rangeFromClientPoint(event.clientX, event.clientY);
+                const endRange = rangeFromClientPointInContainer(event.clientX, event.clientY, pencilNotamSelection.textContentDiv);
                 if (!rangeBelongsToContainer(endRange, pencilNotamSelection.textContentDiv)) return;
+
+                pencilNotamSelection.lastEndRange = endRange.cloneRange();
 
                 const selectionRange = createOrderedRange(pencilNotamSelection.activeStartRange, endRange);
                 if (!selectionRange || selectionRange.collapsed) return;
 
-                event.preventDefault();
                 pencilNotamSelection.currentRange = selectionRange.cloneRange();
-                renderPencilNotamPreview(selectionRange);
+                showNativeSelection(selectionRange);
             }
 
             function endPencilNotamSelection(event) {
@@ -7870,14 +7956,14 @@ window.__notamTextFull = notamInput.value;
                 const { textContentDiv, currentRange } = pencilNotamSelection;
                 textContentDiv.classList.remove('pencil-selecting');
                 pencilNotamSelection = null;
-                clearPencilNotamPreview();
-
-                const selection = window.getSelection();
-                if (selection) selection.removeAllRanges();
 
                 if (currentRange && !currentRange.collapsed) {
                     event.preventDefault();
-                    wrapRangeInHighlight(currentRange);
+                    const rangeToHighlight = currentRange.cloneRange();
+                    const ok = wrapRangeInHighlight(rangeToHighlight);
+                    const selection = window.getSelection();
+                    if (selection) selection.removeAllRanges();
+                    if (!ok) showNativeSelection(currentRange);
                 }
             }
 
@@ -7906,7 +7992,7 @@ window.__notamTextFull = notamInput.value;
 
         function initializePageTitle() {
             const titleElement = document.getElementById('main-title');
-            titleElement.textContent = `Briefing Fdf TEST v3.99 du ${new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}`;
+            titleElement.textContent = `Briefing Fdf TEST v4.01 du ${new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}`;
             const timeDisplay = document.getElementById('current-time-display');
             const updateTime = () => timeDisplay.textContent = new Date().toLocaleTimeString('fr-FR');
             updateTime(); setInterval(updateTime, 1000);
