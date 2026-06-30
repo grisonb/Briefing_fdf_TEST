@@ -1,4 +1,4 @@
-const CACHE_NAME = 'briefing-fdf-test-v4.04-pencil-notams-surligneur-bfg';
+const CACHE_NAME = 'briefing-fdf-test-v4.05-pencil-notams-surligneur-bfg-stable';
 
 const LOCAL_ASSETS = [
   './manifest.json',
