@@ -1,4 +1,4 @@
-const CACHE_NAME = 'briefing-fdf-test-v4.02-pencil-notams-native-no-intercept';
+const CACHE_NAME = 'briefing-fdf-test-v4.03-rollback-stable-v3.98';
 
 const LOCAL_ASSETS = [
   './manifest.json',
