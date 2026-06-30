@@ -1,4 +1,4 @@
-const CACHE_NAME = 'briefing-fdf-test-v4.07-pencil-notams-ligne-verrouillee-scroll-lock';
+const CACHE_NAME = 'briefing-fdf-test-v4.08-pencil-notams-ligne-stricte-suppression-toleree';
 
 const LOCAL_ASSETS = [
   './manifest.json',
