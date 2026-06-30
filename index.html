@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0">
-    <title>Briefing Fdf TEST v4.10</title>
+    <title>Briefing Fdf TEST v4.11</title>
     <link rel="manifest" href="./manifest.json?v=4.03">
     <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png?v=4.03">
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -1888,7 +1888,7 @@
 
     <div class="page-header">
         <div class="page-header-background"></div>
-        <h1 id="main-title">Briefing Fdf TEST v4.10</h1>
+        <h1 id="main-title">Briefing Fdf TEST v4.11</h1>
         <p id="current-time-display"></p>
         <p style="position: relative; z-index: 2; text-align: center; color: #333; font-size: 1em; margin-top: -25px; margin-bottom: 30px;">
     v<span id="app-version">3.92 TEST proxy CheckWX affichage brut</span>
@@ -2252,7 +2252,7 @@
     <footer>Données : Météo-France, SIA, Windy.com, CheckWX.com. Page non commerciale, à usage personnel.</footer>
     
     <script>
-        const APP_VERSION = "4.10 TEST - Pencil NOTAM appui long et ligne verrouillée";
+        const APP_VERSION = "4.11 TEST - Pencil NOTAM ligne logique verrouillée";
 
         // --- Proxy NAS pour la source de données météo CheckWX ---
         const CHECKWX_PROXY_URL = "https://grisonb.synology.me/briefing-api/get-metar-taf.php";
@@ -7859,6 +7859,51 @@ window.__notamTextFull = notamInput.value;
                 return best;
             }
 
+            function getHardLineBoundsForOffset_(text, offset) {
+                const safeText = String(text || '');
+                if (!safeText.length) return { lineStart: 0, lineEnd: 0 };
+                offset = Math.max(0, Math.min(safeText.length, Number.isFinite(offset) ? offset : 0));
+
+                // Si Safari renvoie le caret juste après un caractère, on garde la ligne du caractère touché.
+                // Cela évite qu'un point proche d'une fin de ligne bascule sur la ligne suivante.
+                const reference = Math.max(0, Math.min(safeText.length - 1, offset >= safeText.length ? offset - 1 : offset));
+                const before = safeText.lastIndexOf('
+', reference - (safeText[reference] === '
+' ? 1 : 0));
+                let after = safeText.indexOf('
+', reference);
+                if (after === -1) after = safeText.length;
+                return { lineStart: before === -1 ? 0 : before + 1, lineEnd: after };
+            }
+
+            function clampLineLockToHardLine_(container, lineLock, seedOffset) {
+                if (!container || !lineLock) return lineLock;
+                const text = container.textContent || '';
+                const hard = getHardLineBoundsForOffset_(text, seedOffset);
+                const clampedBoxes = Array.isArray(lineLock.charBoxes)
+                    ? lineLock.charBoxes.filter(box => box.index >= hard.lineStart && box.index < hard.lineEnd)
+                    : [];
+
+                if (!clampedBoxes.length) {
+                    return {
+                        lineStart: hard.lineStart,
+                        lineEnd: hard.lineEnd,
+                        lineY: lineLock.lineY,
+                        charBoxes: []
+                    };
+                }
+
+                clampedBoxes.sort((a, b) => a.index - b.index);
+                return {
+                    lineStart: Math.max(hard.lineStart, clampedBoxes[0].index),
+                    // Ligne logique stricte : on interdit explicitement de prendre le 
+ et la ligne voisine.
+                    lineEnd: Math.min(hard.lineEnd, clampedBoxes[clampedBoxes.length - 1].index + 1),
+                    lineY: lineLock.lineY,
+                    charBoxes: clampedBoxes
+                };
+            }
+
             function getVisualLineLock_(container, y) {
                 const text = container.textContent || '';
                 const fullRange = document.createRange();
@@ -7873,10 +7918,13 @@ window.__notamTextFull = notamInput.value;
                 }, lineRects[0]);
 
                 const lineY = (targetRect.top + targetRect.bottom) / 2;
-                const toleranceY = Math.max(3, Math.min(7, targetRect.height * 0.38));
+                const toleranceY = Math.max(2.5, Math.min(5.5, targetRect.height * 0.30));
                 const charBoxes = [];
 
                 for (let i = 0; i < text.length; i++) {
+                    if (text[i] === '
+' || text[i] === '
+') continue;
                     const startPos = getDomPositionForTextOffset_(container, i);
                     const endPos = getDomPositionForTextOffset_(container, i + 1);
                     if (!startPos || !endPos) continue;
@@ -7887,7 +7935,7 @@ window.__notamTextFull = notamInput.value;
                     } catch (_) {
                         continue;
                     }
-                    const rects = Array.from(range.getClientRects()).filter(rect => rect.height > 0);
+                    const rects = Array.from(range.getClientRects()).filter(rect => rect.height > 0 && rect.width >= 0);
                     if (!rects.length) continue;
                     const bestRect = rects.reduce((best, rect) => {
                         const bestDist = Math.abs(((best.top + best.bottom) / 2) - lineY);
@@ -7924,8 +7972,15 @@ window.__notamTextFull = notamInput.value;
                 if (!visibleBoxes.length) return null;
                 const first = visibleBoxes[0];
                 const last = visibleBoxes[visibleBoxes.length - 1];
-                const outsideMargin = allowOutside ? 80 : 4;
-                if (x < first.left - outsideMargin || x > last.right + outsideMargin) return null;
+
+                if (!allowOutside) {
+                    const outsideMargin = 4;
+                    if (x < first.left - outsideMargin || x > last.right + outsideMargin) return null;
+                }
+
+                // Pendant une sélection active, on clamp volontairement à la ligne verrouillée.
+                // Même si la pointe dépasse à gauche/droite, on ne garde pas l'ancien offset,
+                // et on ne bascule jamais sur la ligne précédente/suivante.
                 if (x <= first.left) return lineLock.lineStart;
                 if (x >= last.right) return lineLock.lineEnd;
                 for (const box of visibleBoxes) {
@@ -8021,9 +8076,15 @@ window.__notamTextFull = notamInput.value;
                     return;
                 }
 
-                const lineLock = getVisualLineLock_(textContentDiv, event.clientY);
-                const startOffset = getOffsetOnLockedLine_(lineLock, event.clientX, false);
+                let lineLock = getVisualLineLock_(textContentDiv, event.clientY);
+                let startOffset = getOffsetOnLockedLine_(lineLock, event.clientX, false);
                 if (startOffset === null) return; // Zone blanche : on laisse le Pencil scroller normalement.
+
+                // Le verrouillage final se fait sur la ligne logique du texte touché.
+                // Cas corrigé : fin de ligne B / début de ligne C / première lettre de D.
+                lineLock = clampLineLockToHardLine_(textContentDiv, lineLock, startOffset);
+                startOffset = Math.max(lineLock.lineStart, Math.min(lineLock.lineEnd, startOffset));
+                if (startOffset === null || lineLock.lineEnd <= lineLock.lineStart) return;
 
                 pencilPendingState_ = {
                     pointerId: event.pointerId,
@@ -8174,7 +8235,7 @@ window.__notamTextFull = notamInput.value;
 
         function initializePageTitle() {
             const titleElement = document.getElementById('main-title');
-            titleElement.textContent = `Briefing Fdf TEST v4.10 du ${new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}`;
+            titleElement.textContent = `Briefing Fdf TEST v4.11 du ${new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}`;
             const timeDisplay = document.getElementById('current-time-display');
             const updateTime = () => timeDisplay.textContent = new Date().toLocaleTimeString('fr-FR');
             updateTime(); setInterval(updateTime, 1000);
