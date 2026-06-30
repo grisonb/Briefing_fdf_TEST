@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0">
-    <title>Briefing Fdf TEST v4.08</title>
+    <title>Briefing Fdf TEST v4.09</title>
     <link rel="manifest" href="./manifest.json?v=4.03">
     <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png?v=4.03">
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -1888,7 +1888,7 @@
 
     <div class="page-header">
         <div class="page-header-background"></div>
-        <h1 id="main-title">Briefing Fdf TEST v4.08</h1>
+        <h1 id="main-title">Briefing Fdf TEST v4.09</h1>
         <p id="current-time-display"></p>
         <p style="position: relative; z-index: 2; text-align: center; color: #333; font-size: 1em; margin-top: -25px; margin-bottom: 30px;">
     v<span id="app-version">3.92 TEST proxy CheckWX affichage brut</span>
@@ -2252,7 +2252,7 @@
     <footer>Données : Météo-France, SIA, Windy.com, CheckWX.com. Page non commerciale, à usage personnel.</footer>
     
     <script>
-        const APP_VERSION = "4.08 TEST - Pencil NOTAM ligne stricte";
+        const APP_VERSION = "4.09 TEST - Pencil NOTAM ligne unique stricte";
 
         // --- Proxy NAS pour la source de données météo CheckWX ---
         const CHECKWX_PROXY_URL = "https://grisonb.synology.me/briefing-api/get-metar-taf.php";
@@ -7866,8 +7866,8 @@ window.__notamTextFull = notamInput.value;
                 let bestDistance = Infinity;
                 container.querySelectorAll('mark.highlighted-text').forEach(mark => {
                     Array.from(mark.getClientRects()).forEach(rect => {
-                        const marginX = 10;
-                        const marginY = 10;
+                        const marginX = 12;
+                        const marginY = 8;
                         if (x < rect.left - marginX || x > rect.right + marginX || y < rect.top - marginY || y > rect.bottom + marginY) return;
                         const dx = x < rect.left ? rect.left - x : (x > rect.right ? x - rect.right : 0);
                         const dy = y < rect.top ? rect.top - y : (y > rect.bottom ? y - rect.bottom : 0);
@@ -7881,30 +7881,6 @@ window.__notamTextFull = notamInput.value;
                 return best;
             }
 
-            function getOffsetFromLineLock_(lineLock, x) {
-                const boxes = (lineLock && Array.isArray(lineLock.lineCharBoxes)) ? lineLock.lineCharBoxes : [];
-                if (!boxes.length) return lineLock ? lineLock.lineStart : null;
-                const sorted = boxes.slice().sort((a, b) => a.left - b.left || a.start - b.start);
-                const first = sorted[0];
-                const last = sorted[sorted.length - 1];
-                if (x <= first.left) return first.start;
-                if (x >= last.right) return last.end;
-                for (const box of sorted) {
-                    if (x <= box.left) return box.start;
-                    const mid = box.left + Math.max(0, box.right - box.left) / 2;
-                    if (x < mid) return box.start;
-                    if (x <= box.right) return box.end;
-                }
-                return last.end;
-            }
-
-            function getOffsetFromPencilState_(state, x) {
-                if (!state) return null;
-                const offset = getOffsetFromLineLock_(state, x);
-                if (offset === null || offset === undefined) return null;
-                return Math.max(state.lineStart, Math.min(state.lineEnd, offset));
-            }
-
             function getVisualLineLock_(container, y) {
                 const text = container.textContent || '';
                 const fullRange = document.createRange();
@@ -7912,20 +7888,19 @@ window.__notamTextFull = notamInput.value;
                 const lineRects = Array.from(fullRange.getClientRects()).filter(rect => rect.width > 0 && rect.height > 0);
                 if (!lineRects.length || !text.length) return { lineStart: 0, lineEnd: text.length, lineY: y };
 
-                let targetRect = lineRects.find(rect => y >= rect.top - 4 && y <= rect.bottom + 4);
-                if (!targetRect) {
-                    targetRect = lineRects.reduce((best, rect) => {
-                        const bestDist = Math.abs(((best.top + best.bottom) / 2) - y);
-                        const rectDist = Math.abs(((rect.top + rect.bottom) / 2) - y);
-                        return rectDist < bestDist ? rect : best;
-                    }, lineRects[0]);
-                }
+                // Verrouillage visuel strict : on prend la ligne dont le centre est le plus proche
+                // du point de départ Pencil, puis on ne garde que les caractères dont le centre
+                // vertical appartient à cette ligne. Cela évite d'accrocher la ligne précédente/suivante.
+                const targetRect = lineRects.reduce((best, rect) => {
+                    const bestDist = Math.abs(((best.top + best.bottom) / 2) - y);
+                    const rectDist = Math.abs(((rect.top + rect.bottom) / 2) - y);
+                    return rectDist < bestDist ? rect : best;
+                }, lineRects[0]);
 
-                const lineTop = targetRect.top - 2;
-                const lineBottom = targetRect.bottom + 2;
+                const lineY = (targetRect.top + targetRect.bottom) / 2;
+                const toleranceY = Math.max(3, Math.min(8, targetRect.height * 0.42));
                 let lineStart = null;
                 let lineEnd = null;
-                const lineCharBoxes = [];
 
                 for (let i = 0; i < text.length; i++) {
                     const startPos = getDomPositionForTextOffset_(container, i);
@@ -7938,27 +7913,24 @@ window.__notamTextFull = notamInput.value;
                     } catch (_) {
                         continue;
                     }
-                    const rects = Array.from(range.getClientRects()).filter(rect => rect.width >= 0 && rect.height > 0);
-                    const matchingRect = rects.find(rect => rect.bottom >= lineTop && rect.top <= lineBottom);
-                    if (matchingRect) {
+                    const rects = Array.from(range.getClientRects()).filter(rect => rect.height > 0);
+                    if (!rects.length) continue;
+                    const bestRect = rects.reduce((best, rect) => {
+                        const bestDist = Math.abs(((best.top + best.bottom) / 2) - lineY);
+                        const rectDist = Math.abs(((rect.top + rect.bottom) / 2) - lineY);
+                        return rectDist < bestDist ? rect : best;
+                    }, rects[0]);
+                    const charY = (bestRect.top + bestRect.bottom) / 2;
+                    if (Math.abs(charY - lineY) <= toleranceY) {
                         if (lineStart === null) lineStart = i;
                         lineEnd = i + 1;
-                        lineCharBoxes.push({
-                            start: i,
-                            end: i + 1,
-                            left: matchingRect.left,
-                            right: Math.max(matchingRect.right, matchingRect.left + 1),
-                            top: matchingRect.top,
-                            bottom: matchingRect.bottom
-                        });
                     }
                 }
 
                 return {
                     lineStart: lineStart === null ? 0 : lineStart,
                     lineEnd: lineEnd === null ? text.length : lineEnd,
-                    lineY: (targetRect.top + targetRect.bottom) / 2,
-                    lineCharBoxes
+                    lineY
                 };
             }
 
@@ -7996,8 +7968,8 @@ window.__notamTextFull = notamInput.value;
                 event.preventDefault();
                 event.stopPropagation();
                 const lineLock = getVisualLineLock_(textContentDiv, event.clientY);
-                let startOffset = getOffsetFromLineLock_(lineLock, event.clientX);
-                if (startOffset === null || startOffset === undefined) return;
+                let startOffset = getTextOffsetFromPoint_(textContentDiv, event.clientX, lineLock.lineY);
+                if (startOffset === null) return;
                 startOffset = Math.max(lineLock.lineStart, Math.min(lineLock.lineEnd, startOffset));
                 window.getSelection()?.removeAllRanges();
                 pencilHighlightState_ = {
@@ -8011,7 +7983,6 @@ window.__notamTextFull = notamInput.value;
                     lockY: lineLock.lineY,
                     lineStart: lineLock.lineStart,
                     lineEnd: lineLock.lineEnd,
-                    lineCharBoxes: lineLock.lineCharBoxes || [],
                     maxDistance: 0,
                     startScrollX: window.scrollX,
                     startScrollY: window.scrollY,
@@ -8032,9 +8003,10 @@ window.__notamTextFull = notamInput.value;
                 const distance = Math.hypot(event.clientX - state.startX, event.clientY - state.startY);
                 state.maxDistance = Math.max(state.maxDistance || 0, distance);
                 const horizontalDistance = Math.abs(event.clientX - state.startX);
-                if (horizontalDistance < 6) return;
-                let offset = getOffsetFromPencilState_(state, event.clientX);
-                if (offset === null || offset === undefined) return;
+                if (horizontalDistance < 4) return;
+                let offset = getTextOffsetFromPoint_(state.container, event.clientX, state.lockY);
+                if (offset === null) return;
+                offset = Math.max(state.lineStart, Math.min(state.lineEnd, offset));
                 state.moved = true;
                 state.lastOffset = offset;
                 renderPencilPreview_();
@@ -8048,20 +8020,20 @@ window.__notamTextFull = notamInput.value;
                 const container = state.container;
                 const previousHtml = state.baseHtml;
                 keepPencilPageStill_();
-                let offset = getOffsetFromPencilState_(state, event.clientX);
-                if (offset !== null && offset !== undefined) {
+                let offset = getTextOffsetFromPoint_(container, event.clientX, state.lockY);
+                if (offset !== null) {
+                    offset = Math.max(state.lineStart, Math.min(state.lineEnd, offset));
                     state.lastOffset = offset;
                 }
                 container.classList.remove('pencil-highlighter-active');
                 try { container.releasePointerCapture(event.pointerId); } catch (_) {}
                 const markToRemove = state.tapMark || getHighlightedMarkNearPoint_(container, event.clientX, event.clientY);
-                const deleteGesture = markToRemove && container.contains(markToRemove) && (!state.moved || (state.maxDistance || 0) < 16);
+                const deleteGesture = markToRemove && container.contains(markToRemove) && (!state.moved || (state.maxDistance || 0) < 14);
                 if (deleteGesture) {
                     pencilHighlightUndoStack_.push({ container, previousHtml });
                     removeHighlightedMark_(markToRemove);
                 } else if (!state.moved) {
-                    // Tap Pencil hors surlignage : aucune action. Cela évite de créer une lettre parasite
-                    // sur la ligne voisine lorsque Safari renvoie un point texte ambigu en fin de ligne.
+                    // Tap Pencil hors surlignage : aucune action.
                 } else {
                     restorePencilBaseHtml_();
                     let range = clampPencilRangeToLine_(state, expandOffsetsToWord_(container.textContent || '', state.startOffset, state.lastOffset));
@@ -8117,7 +8089,7 @@ window.__notamTextFull = notamInput.value;
 
         function initializePageTitle() {
             const titleElement = document.getElementById('main-title');
-            titleElement.textContent = `Briefing Fdf TEST v4.08 du ${new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}`;
+            titleElement.textContent = `Briefing Fdf TEST v4.09 du ${new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}`;
             const timeDisplay = document.getElementById('current-time-display');
             const updateTime = () => timeDisplay.textContent = new Date().toLocaleTimeString('fr-FR');
             updateTime(); setInterval(updateTime, 1000);
