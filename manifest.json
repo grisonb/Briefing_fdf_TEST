@@ -1,7 +1,7 @@
 {
   "name": "Briefing FDF TEST",
   "short_name": "Briefing TEST",
-  "description": "Briefing FDF TEST v4.01 Apple Pencil NOTAM sélection native",
+  "description": "Briefing FDF TEST v4.02 Pencil NOTAM natif sans interception",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
