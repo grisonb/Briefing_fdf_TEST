@@ -1,4 +1,4 @@
-const CACHE_NAME = 'briefing-fdf-test-v4.23-notams-persistants';
+const CACHE_NAME = 'briefing-fdf-test-v4.24-gaar-relais-nas-partage-jour';
 
 const LOCAL_ASSETS = [
   './manifest.json',
