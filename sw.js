@@ -1,4 +1,4 @@
-const CACHE_NAME = 'briefing-fdf-test-v4.22-sauvegarde-partage-compact-clavier-ok';
+const CACHE_NAME = 'briefing-fdf-test-v4.23-notams-persistants';
 
 const LOCAL_ASSETS = [
   './manifest.json',
