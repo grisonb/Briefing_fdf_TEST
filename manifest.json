@@ -1,7 +1,7 @@
 {
   "name": "Briefing FDF TEST",
   "short_name": "Briefing TEST",
-  "description": "Briefing FDF TEST v4.23 NOTAMs cochés/surlignés persistants, login 23h, Pencil",
+  "description": "Briefing FDF TEST v4.24 GAAR relais NAS, partage quotidien, NOTAMs persistants",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
