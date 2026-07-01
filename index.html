@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0">
-    <title>Briefing Fdf TEST v4.22</title>
+    <title>Briefing Fdf TEST v4.23</title>
     <link rel="manifest" href="./manifest.json?v=4.03">
     <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png?v=4.03">
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -1917,10 +1917,10 @@
 
     <div class="page-header">
         <div class="page-header-background"></div>
-        <h1 id="main-title">Briefing Fdf TEST v4.22</h1>
+        <h1 id="main-title">Briefing Fdf TEST v4.23</h1>
         <p id="current-time-display"></p>
         <p style="position: relative; z-index: 2; text-align: center; color: #333; font-size: 1em; margin-top: -25px; margin-bottom: 30px;">
-    v<span id="app-version">4.22 TEST - sauvegarde + partage compact + login 23h + Pencil NOTAMs</span>
+    v<span id="app-version">4.23 TEST - persistance NOTAMs cochés/surlignés + login 23h + Pencil</span>
     <button id="force-update-btn" class="link-button" style="background-color: #34495e; padding: 4px 10px; font-size: 0.8em; margin-left: 10px; vertical-align: middle;">
         Forcer MAJ
     </button>
@@ -2296,7 +2296,7 @@
     <footer>Données : Météo-France, SIA, Windy.com, CheckWX.com. Page non commerciale, à usage personnel.</footer>
     
     <script>
-        const APP_VERSION = "4.22 TEST - sauvegarde + partage compact + login 23h + Pencil NOTAMs";
+        const APP_VERSION = "4.23 TEST - persistance NOTAMs cochés/surlignés + login 23h + Pencil";
 
         // --- Proxy NAS pour la source de données météo CheckWX ---
         const CHECKWX_PROXY_URL = "https://grisonb.synology.me/briefing-api/get-metar-taf.php";
@@ -5410,6 +5410,30 @@ const tdfStages = [
         }
 
 
+        function normalizeNotamTextForState_(text) {
+            return String(text || '')
+                .replace(/\r/g, '\n')
+                .replace(/[ \t]+/g, ' ')
+                .replace(/\n[ \t]+/g, '\n')
+                .replace(/[ \t]+\n/g, '\n')
+                .replace(/\n{2,}/g, '\n')
+                .trim();
+        }
+
+        function hashStringForNotamState_(text) {
+            const input = normalizeNotamTextForState_(text);
+            let hash = 2166136261;
+            for (let i = 0; i < input.length; i += 1) {
+                hash ^= input.charCodeAt(i);
+                hash = Math.imul(hash, 16777619);
+            }
+            return (hash >>> 0).toString(36);
+        }
+
+        function createNotamStableSignature_(notamText) {
+            return hashStringForNotamState_(notamText);
+        }
+
         function createNotamItemElement(notamText, icao) {
             const validity = parseNotamValidity(notamText);
             const itemContainer = document.createElement('div');
@@ -5430,6 +5454,8 @@ const tdfStages = [
                     itemContainer.dataset.notamId = `${icao}-${bMatch[1]}-${cMatch[1]}`;
                 }
             }
+
+            itemContainer.dataset.notamSignature = createNotamStableSignature_(notamText);
 
             const checkbox = document.createElement('input');
             checkbox.type = 'checkbox';
@@ -6507,12 +6533,20 @@ let activeShareApiBase = SHARE_API_BASE;
 
     // ===== Export "portable" (partage/import) =====
     async function buildPortableSessionObject_() {
-        const checkedNotamIds = [], highlightedNotams = {};
+        const checkedNotamIds = [], highlightedNotams = {}, checkedNotamSignatures = {}, highlightSignatures = {};
         document.querySelectorAll('#notam-display .notam-item').forEach(item => {
             const id = item.dataset.notamId; if (!id) return;
-            if (item.querySelector('.notam-checkbox')?.checked) checkedNotamIds.push(id);
-            const content = item.querySelector('.notam-text-content')?.innerHTML || "";
-            if (content.includes('<mark')) highlightedNotams[id] = content;
+            const contentEl = item.querySelector('.notam-text-content');
+            const content = contentEl?.innerHTML || "";
+            const signature = item.dataset.notamSignature || createNotamStableSignature_(contentEl?.innerText || contentEl?.textContent || "");
+            if (item.querySelector('.notam-checkbox')?.checked) {
+                checkedNotamIds.push(id);
+                checkedNotamSignatures[id] = signature;
+            }
+            if (content.includes('<mark')) {
+                highlightedNotams[id] = content;
+                highlightSignatures[id] = signature;
+            }
         });
 
         const gaarMapState = (window.gaarDrawnCircuits || []).map(circuit => ({
@@ -6553,7 +6587,7 @@ let activeShareApiBase = SHARE_API_BASE;
             notamTextFull: window.__notamTextFull || (notamInput ? notamInput.value : ""),
             // NOTAM tel qu'affiché/filtré (compat)
             notamText: notamInput ? notamInput.value : "",
-            notamState: { checkedIds: checkedNotamIds, highlights: highlightedNotams },
+            notamState: { checkedIds: checkedNotamIds, highlights: highlightedNotams, checkedSignatures: checkedNotamSignatures, highlightSignatures: highlightSignatures },
 
             // ===== METAR/TAF =====
             weatherData: weatherData
@@ -7766,6 +7800,134 @@ window.__notamTextFull = notamInput.value;
                 });
             }
 
+            const NOTAM_PERSISTENT_STATE_STORAGE_KEY_ = 'briefingFdfPersistentNotamStateV1';
+
+            function findNotamItemById_(id) {
+                if (!id) return null;
+                if (window.CSS && CSS.escape) {
+                    return document.querySelector(`[data-notam-id="${CSS.escape(id)}"]`);
+                }
+                return Array.from(document.querySelectorAll('#notam-display .notam-item')).find(item => item.dataset.notamId === id) || null;
+            }
+
+            function readPersistentNotamState_() {
+                try {
+                    const raw = localStorage.getItem(NOTAM_PERSISTENT_STATE_STORAGE_KEY_);
+                    const parsed = raw ? JSON.parse(raw) : null;
+                    return parsed && typeof parsed === 'object' ? parsed : { version: 'persistentNotamStateV1', byId: {} };
+                } catch (error) {
+                    console.warn('Impossible de relire l’état persistant des NOTAMs:', error);
+                    return { version: 'persistentNotamStateV1', byId: {} };
+                }
+            }
+
+            function writePersistentNotamState_(state) {
+                try {
+                    localStorage.setItem(NOTAM_PERSISTENT_STATE_STORAGE_KEY_, JSON.stringify(state));
+                } catch (error) {
+                    console.warn('Impossible de mémoriser l’état persistant des NOTAMs:', error);
+                }
+            }
+
+            function captureCurrentNotamStateForPersistence_() {
+                const byId = {};
+                document.querySelectorAll('#notam-display .notam-item').forEach(item => {
+                    const id = item.dataset.notamId;
+                    if (!id) return;
+                    const checkbox = item.querySelector('.notam-checkbox');
+                    const contentEl = item.querySelector('.notam-text-content');
+                    const html = contentEl?.innerHTML || '';
+                    const hasHighlight = html.includes('<mark');
+                    const checked = !!checkbox?.checked;
+                    if (!checked && !hasHighlight) return;
+                    const signature = item.dataset.notamSignature || createNotamStableSignature_(contentEl?.innerText || contentEl?.textContent || '');
+                    byId[id] = {
+                        checked,
+                        textSignature: signature
+                    };
+                    if (hasHighlight) byId[id].highlightHtml = html;
+                });
+                return {
+                    version: 'persistentNotamStateV1',
+                    updatedAt: new Date().toISOString(),
+                    byId
+                };
+            }
+
+            function persistCurrentNotamState_() {
+                writePersistentNotamState_(captureCurrentNotamStateForPersistence_());
+            }
+
+            function stateEntryMatchesCurrentNotam_(item, entry) {
+                if (!item || !entry) return false;
+                const expected = entry.textSignature || entry.signature;
+                if (!expected) return true;
+                return expected === item.dataset.notamSignature;
+            }
+
+            function applyPersistentNotamState_() {
+                const state = readPersistentNotamState_();
+                const byId = state.byId || {};
+                Object.entries(byId).forEach(([id, entry]) => {
+                    const item = findNotamItemById_(id);
+                    if (!item || !stateEntryMatchesCurrentNotam_(item, entry)) return;
+                    const checkbox = item.querySelector('.notam-checkbox');
+                    if (checkbox && entry.checked) checkbox.checked = true;
+                    if (entry.highlightHtml) {
+                        const contentEl = item.querySelector('.notam-text-content');
+                        if (contentEl) contentEl.innerHTML = entry.highlightHtml;
+                    }
+                });
+            }
+
+            function applySavedNotamState_(savedState) {
+                if (!savedState) return false;
+                let hasChecked = false;
+
+                if (savedState.byId && typeof savedState.byId === 'object') {
+                    Object.entries(savedState.byId).forEach(([id, entry]) => {
+                        const item = findNotamItemById_(id);
+                        if (!item || !stateEntryMatchesCurrentNotam_(item, entry)) return;
+                        const checkbox = item.querySelector('.notam-checkbox');
+                        if (checkbox && entry.checked) {
+                            checkbox.checked = true;
+                            hasChecked = true;
+                        }
+                        if (entry.highlightHtml) {
+                            const contentEl = item.querySelector('.notam-text-content');
+                            if (contentEl) contentEl.innerHTML = entry.highlightHtml;
+                        }
+                    });
+                }
+
+                if (savedState.highlights) {
+                    Object.entries(savedState.highlights).forEach(([id, html]) => {
+                        const item = findNotamItemById_(id);
+                        if (!item) return;
+                        const expected = savedState.highlightSignatures && savedState.highlightSignatures[id];
+                        if (expected && expected !== item.dataset.notamSignature) return;
+                        const contentEl = item.querySelector('.notam-text-content');
+                        if (contentEl) contentEl.innerHTML = html;
+                    });
+                }
+
+                if (savedState.checkedIds) {
+                    savedState.checkedIds.forEach(id => {
+                        const item = findNotamItemById_(id);
+                        if (!item) return;
+                        const expected = savedState.checkedSignatures && savedState.checkedSignatures[id];
+                        if (expected && expected !== item.dataset.notamSignature) return;
+                        const checkbox = item.querySelector('.notam-checkbox');
+                        if (checkbox) {
+                            checkbox.checked = true;
+                            hasChecked = true;
+                        }
+                    });
+                }
+
+                return hasChecked;
+            }
+
             window.parseAndDisplayNotams = function(savedState = null) {
                 const rawText = notamInput.value; if (!rawText.trim()) return;
                 const airportSections = rawText.split(/\n\s*(?=LF[A-Z]{2}\s+-\s+)/);
@@ -7818,10 +7980,11 @@ window.__notamTextFull = notamInput.value;
                 document.getElementById('notam-controls-top').style.display = controlsVisible ? 'flex' : 'none';
                 document.getElementById('notam-controls-bottom').style.display = controlsVisible ? 'flex' : 'none';
                 
+                applyPersistentNotamState_();
                 if (savedState) {
-                    if (savedState.highlights) Object.entries(savedState.highlights).forEach(([id, html]) => { const item = document.querySelector(`[data-notam-id="${id}"]`); if (item) item.querySelector('.notam-text-content').innerHTML = html; });
-                    if (savedState.checkedIds) savedState.checkedIds.forEach(id => { const item = document.querySelector(`[data-notam-id="${id}"]`); if (item) item.querySelector('.notam-checkbox').checked = true; });
-                    if (savedState.checkedIds && savedState.checkedIds.length > 0) applySelectionFilter();
+                    const hasCheckedSavedState = applySavedNotamState_(savedState);
+                    persistCurrentNotamState_();
+                    if (hasCheckedSavedState) applySelectionFilter();
                 }
             }
             
@@ -7853,6 +8016,12 @@ window.__notamTextFull = notamInput.value;
             savePdfButtons.forEach(b => b.addEventListener('click', generateNotamPdf));
             document.getElementById('notam-date-filter-cb').addEventListener('change', applyLiveFilters);
 
+            notamSection.addEventListener('change', (e) => {
+                if (e.target && e.target.matches('.notam-checkbox')) {
+                    persistCurrentNotamState_();
+                }
+            });
+
             notamSection.addEventListener('click', async (e) => {
                 const t = e.target;
                 if (t.matches('.sup-aip-link')) { e.preventDefault(); window.open(t.href, '_blank'); return; }
@@ -7874,7 +8043,14 @@ window.__notamTextFull = notamInput.value;
                 // Évite qu'un clic synthétique généré par iPadOS après un tracé Apple Pencil
                 // supprime immédiatement le surlignage qui vient d'être appliqué.
                 if (Date.now() - lastPencilHighlightEndAt_ < 1200) return;
-                const mark = t.closest('mark.highlighted-text'); if(mark && !window.getSelection().toString()) { const p = mark.parentNode; while(mark.firstChild) p.insertBefore(mark.firstChild, mark); p.removeChild(mark); p.normalize(); }
+                const mark = t.closest('mark.highlighted-text');
+                if (mark && !window.getSelection().toString()) {
+                    const p = mark.parentNode;
+                    while (mark.firstChild) p.insertBefore(mark.firstChild, mark);
+                    p.removeChild(mark);
+                    p.normalize();
+                    persistCurrentNotamState_();
+                }
             });
 
             let lastPencilHighlightEndAt_ = 0;
@@ -7899,8 +8075,10 @@ window.__notamTextFull = notamInput.value;
                     const newSelection = window.getSelection(); if (newSelection.isCollapsed) return;
                     const newRange = newSelection.getRangeAt(0);
                     const mark = document.createElement('mark'); mark.className = 'highlighted-text';
-                    try { newRange.surroundContents(mark); } catch (e) { console.warn("Surlignage impossible.", e); }
+                    let applied = false;
+                    try { newRange.surroundContents(mark); applied = true; } catch (e) { console.warn("Surlignage impossible.", e); }
                     newSelection.removeAllRanges();
+                    if (applied) persistCurrentNotamState_();
                 }, 10);
             }
 
@@ -8012,6 +8190,7 @@ window.__notamTextFull = notamInput.value;
                 const last = pencilHighlightUndoStack_.pop();
                 if (!last || !last.container || !document.body.contains(last.container)) return;
                 last.container.innerHTML = last.previousHtml;
+                persistCurrentNotamState_();
             }
 
             function isPencilEvent_(event) {
@@ -8326,6 +8505,7 @@ window.__notamTextFull = notamInput.value;
                         const previousHtml = pending.container.innerHTML;
                         pencilHighlightUndoStack_.push({ container: pending.container, previousHtml });
                         removeHighlightedMark_(markToRemove);
+                        persistCurrentNotamState_();
                         lastPencilHighlightEndAt_ = Date.now();
                         window.getSelection()?.removeAllRanges();
                     }
@@ -8355,7 +8535,10 @@ window.__notamTextFull = notamInput.value;
                     const end = Math.max(state.lineStart, Math.min(state.lineEnd, state.lastOffset));
                     if (Math.abs(end - start) > 0) {
                         const applied = applyMarkByTextOffsets_(container, start, end, 'highlighted-text');
-                        if (applied) pencilHighlightUndoStack_.push({ container, previousHtml });
+                        if (applied) {
+                            pencilHighlightUndoStack_.push({ container, previousHtml });
+                            persistCurrentNotamState_();
+                        }
                     }
                 } else {
                     restorePencilBaseHtml_();
@@ -8411,7 +8594,7 @@ window.__notamTextFull = notamInput.value;
 
         function initializePageTitle() {
             const titleElement = document.getElementById('main-title');
-            titleElement.textContent = `Briefing Fdf TEST v4.22 du ${new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}`;
+            titleElement.textContent = `Briefing Fdf TEST v4.23 du ${new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}`;
             const timeDisplay = document.getElementById('current-time-display');
             const updateTime = () => timeDisplay.textContent = new Date().toLocaleTimeString('fr-FR');
             updateTime(); setInterval(updateTime, 1000);
