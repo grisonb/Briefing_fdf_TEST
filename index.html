@@ -5,9 +5,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0">
-    <title>Briefing Fdf TEST v4.23</title>
-    <link rel="manifest" href="./manifest.json?v=4.03">
-    <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png?v=4.03">
+    <title>Briefing Fdf TEST v4.24</title>
+    <link rel="manifest" href="./manifest.json?v=4.24">
+    <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png?v=4.24">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-title" content="Briefing TEST">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
@@ -1917,7 +1917,7 @@
 
     <div class="page-header">
         <div class="page-header-background"></div>
-        <h1 id="main-title">Briefing Fdf TEST v4.23</h1>
+        <h1 id="main-title">Briefing Fdf TEST v4.24</h1>
         <p id="current-time-display"></p>
         <p style="position: relative; z-index: 2; text-align: center; color: #333; font-size: 1em; margin-top: -25px; margin-bottom: 30px;">
     v<span id="app-version">4.23 TEST - persistance NOTAMs cochés/surlignés + login 23h + Pencil</span>
@@ -2296,7 +2296,7 @@
     <footer>Données : Météo-France, SIA, Windy.com, CheckWX.com. Page non commerciale, à usage personnel.</footer>
     
     <script>
-        const APP_VERSION = "4.23 TEST - persistance NOTAMs cochés/surlignés + login 23h + Pencil";
+        const APP_VERSION = "4.24 TEST - GAAR relais NAS + partage quotidien + changelog";
 
         // --- Proxy NAS pour la source de données météo CheckWX ---
         const CHECKWX_PROXY_URL = "https://grisonb.synology.me/briefing-api/get-metar-taf.php";
@@ -2524,6 +2524,7 @@ const tdfStages = [
         const FDS_PUBLIC_PDF_URL = 'https://grisonb.synology.me/briefing-data/feuille-service/latest-feuille-service.pdf';
         const GAAR_GMAIL_REFRESH_URL = FDS_GMAIL_REFRESH_URL;
         const GAAR_STATUS_API_URL = 'https://grisonb.synology.me/briefing-api/get-gaar-status.php';
+        const GAAR_IMPORT_REQUEST_API_URL = 'https://grisonb.synology.me/briefing-api/request-gaar-import.php';
         const GAAR_PDF_API_URL = 'https://grisonb.synology.me/briefing-api/get-gaar-pdf.php';
         const GAAR_PUBLIC_PDF_URL = 'https://grisonb.synology.me/briefing-data/gaar/latest-gaar.pdf';
         const FDS_MODE_STORAGE_KEY = 'briefingFdfFdsMode';
@@ -4546,6 +4547,29 @@ const tdfStages = [
             return payload;
         }
 
+        async function requestGaarImportViaNas_() {
+            const query = new URLSearchParams();
+            query.set('t', String(Date.now()));
+            query.set('source', 'bfg-test-v4.24');
+
+            const url = `${GAAR_IMPORT_REQUEST_API_URL}?${query.toString()}`;
+            const response = await fetchWithTimeout_(url, { cache: 'no-store' }, 65000);
+            const text = await response.text();
+            let payload = null;
+
+            try {
+                payload = JSON.parse(text);
+            } catch (error) {
+                throw new Error(`Réponse NAS import GAAR non JSON : ${String(text || '').slice(0, 220)}`);
+            }
+
+            if (!response.ok || !payload || payload.ok === false) {
+                throw new Error((payload && (payload.message || payload.error)) || `Import GAAR refusé (${response.status})`);
+            }
+
+            return payload;
+        }
+
         async function loadGaarPdfFromNas_(statusPayload, cacheBuster = Date.now(), dateKey = null, entryOverride = null, displayOptions = {}) {
             const entry = entryOverride || getGaarTodayEntry_(statusPayload);
             if (!entry || !entry.exists) {
@@ -4571,7 +4595,7 @@ const tdfStages = [
 
             window.gaarFileObject = file;
             window.__gaarSourceMode = GAAR_MODE_AUTO;
-            createInteractivePdfHandler(document.getElementById('pdf-interactive-container-gaar'), file, initializeGaarMapFromFile, 1.3);
+            createInteractivePdfHandler(document.getElementById('pdf-interactive-container-gaar'), file, initializeGaarMapFromFile, 1.2);
             document.getElementById('pdf-load-gaar-btn').style.display = 'none';
             document.getElementById('pdf-reset-gaar-btn').style.display = 'inline-block';
 
@@ -4608,7 +4632,6 @@ const tdfStages = [
         async function actualiserGaarDepuisGmail_() {
             const btn = document.getElementById('gaar-auto-refresh-btn');
             const originalText = btn ? btn.textContent : '';
-            let previousUpdatedAt = '';
 
             try {
                 setGaarMode_(GAAR_MODE_AUTO, { message: false });
@@ -4617,27 +4640,21 @@ const tdfStages = [
                     btn.textContent = 'Actualisation...';
                 }
 
-                setGaarAutoStatus_('Lecture du statut GAAR sur le NAS...');
-                try {
-                    const currentStatus = await fetchGaarStatus_(Date.now());
-                    previousUpdatedAt = getGaarStatusSignature_(currentStatus);
-                } catch (statusError) {
-                    previousUpdatedAt = '';
-                }
+                setGaarAutoStatus_('Demande de récupération GAAR envoyée au NAS...');
+                await requestGaarImportViaNas_();
 
-                setGaarAutoStatus_('Demande envoyée à Gmail via Apps Script...');
-                await callGaarGmailRefreshWithoutBlocking_();
+                setGaarAutoStatus_('Import mail GAAR terminé. Lecture du statut NAS...');
+                await waitFds_(900);
 
-                setGaarAutoStatus_('Gmail appelé. Attente du nouveau PDF GAAR sur le NAS...');
-                const newStatus = await waitForUpdatedGaarStatus_(previousUpdatedAt);
+                const newStatus = await fetchGaarStatus_(Date.now());
                 const todayEntry = getGaarTodayEntry_(newStatus);
                 const tomorrowEntry = getGaarTomorrowEntry_(newStatus);
+
                 if (todayEntry) {
-                    await loadGaarPdfFromNas_(newStatus, Date.now(), todayEntry.dateKey || todayEntry.fileDate, todayEntry);
+                    await loadGaarPdfFromNas_(newStatus, Date.now(), todayEntry.dateKey || todayEntry.fileDate, todayEntry, { sourceLabel: 'GAAR actualisée depuis le mail via NAS' });
                     const emailDate = todayEntry.mailDate ? formatFdsMetaDate_(todayEntry.mailDate) : formatFdsMetaDate_(todayEntry.updatedAt);
                     setGaarAutoStatus_(`Feuille GAAR du jour actualisée : ${todayEntry.originalFilename || 'PDF'} — email du ${emailDate}.`);
                 } else {
-                    // Aucune GAAR du jour : on efface toute GAAR locale/ancienne affichée automatiquement.
                     if (typeof resetGaarPdfOnly === 'function') resetGaarPdfOnly();
                     updateGaarTomorrowButton_(newStatus);
                     if (tomorrowEntry) {
@@ -6457,6 +6474,7 @@ const tdfStages = [
     const sharedCodeInput = document.getElementById('shared-code-input');
     const openSharedCodeBtn = document.getElementById('open-shared-code-btn');
     const LAST_SHARE_STORAGE_KEY = 'briefingFdfLastShareCodeV1';
+    const LAST_SHARE_DATE_STORAGE_KEY = 'briefingFdfLastShareDateV1';
     let lastShareUrl = "";
     let lastShareCode = ""; 
     const LAST_SAVE_STATUS_STORAGE_KEY = 'briefingFdfLastSaveStatusV1';
@@ -6471,12 +6489,35 @@ const tdfStages = [
         else localStorage.removeItem(LAST_SAVE_STATUS_STORAGE_KEY);
     }
 
+    function getTodayLocalDateKey_() {
+        const now = new Date();
+        return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+    }
+
+    function clearExpiredLastShareCode_() {
+        const storedCode = normalizeShareCode_(localStorage.getItem(LAST_SHARE_STORAGE_KEY));
+        const storedDate = String(localStorage.getItem(LAST_SHARE_DATE_STORAGE_KEY) || '').trim();
+        if (storedCode && storedDate !== getTodayLocalDateKey_()) {
+            localStorage.removeItem(LAST_SHARE_STORAGE_KEY);
+            localStorage.removeItem(LAST_SHARE_DATE_STORAGE_KEY);
+            lastShareCode = '';
+            lastShareUrl = '';
+            return true;
+        }
+        return false;
+    }
+
+    function getValidLastShareCode_() {
+        clearExpiredLastShareCode_();
+        return normalizeShareCode_(localStorage.getItem(LAST_SHARE_STORAGE_KEY));
+    }
+
     function setSessionStatusWithMemory_(fallbackMessage = '') {
         if (!sessionStatus) return;
 
         const parts = [];
         const saveMessage = getLastSaveStatus_();
-        const storedShareCode = normalizeShareCode_(localStorage.getItem(LAST_SHARE_STORAGE_KEY));
+        const storedShareCode = getValidLastShareCode_();
 
         if (saveMessage) parts.push(saveMessage);
         if (storedShareCode) parts.push(`Code de partage généré : ${storedShareCode}`);
@@ -6645,7 +6686,7 @@ let activeShareApiBase = SHARE_API_BASE;
             const file = portableSavableToFile(portable.gaar);
             window.gaarFileObject = file;
             document.getElementById('pdf-info-gaar').textContent = `Document chargé : ${file.name}`;
-            createInteractivePdfHandler(document.getElementById('pdf-interactive-container-gaar'), file, initializeGaarMapFromFile, 1.3);
+            createInteractivePdfHandler(document.getElementById('pdf-interactive-container-gaar'), file, initializeGaarMapFromFile, 1.2);
         }
 
         if (hasGaarMapState) {
@@ -6704,11 +6745,12 @@ let activeShareApiBase = SHARE_API_BASE;
         const normalized = normalizeShareCode_(shareCode);
         if (!normalized) return;
         localStorage.setItem(LAST_SHARE_STORAGE_KEY, normalized);
+        localStorage.setItem(LAST_SHARE_DATE_STORAGE_KEY, getTodayLocalDateKey_());
         renderLastShareCode_();
     }
 
     function renderLastShareCode_(options = {}) {
-        const storedCode = normalizeShareCode_(localStorage.getItem(LAST_SHARE_STORAGE_KEY));
+        const storedCode = getValidLastShareCode_();
 
         // v4.21 : pas de panneau "Partage créé" ni "Dernier partage créé".
         // Le dernier code créé reste seulement dans la ligne d'état de l'iPad créateur.
@@ -7024,7 +7066,7 @@ let activeShareApiBase = SHARE_API_BASE;
 
     if (copyLastShareCodeBtn) {
         copyLastShareCodeBtn.addEventListener('click', async () => {
-            const codeToCopy = normalizeShareCode_(localStorage.getItem(LAST_SHARE_STORAGE_KEY) || lastShareCode);
+            const codeToCopy = normalizeShareCode_(getValidLastShareCode_() || lastShareCode);
             if (!codeToCopy) return;
             try {
                 await navigator.clipboard.writeText(codeToCopy);
@@ -7043,7 +7085,7 @@ let activeShareApiBase = SHARE_API_BASE;
 
     if (openLastShareCodeBtn) {
         openLastShareCodeBtn.addEventListener('click', () => {
-            const code = normalizeShareCode_(localStorage.getItem(LAST_SHARE_STORAGE_KEY) || lastShareCode);
+            const code = normalizeShareCode_(getValidLastShareCode_() || lastShareCode);
             if (!code) return;
             if (sharedCodeInput) {
                 sharedCodeInput.value = code;
@@ -7299,7 +7341,7 @@ let activeShareApiBase = SHARE_API_BASE;
             const file = savableToFile(data.gaar);
             window.gaarFileObject = file;
             document.getElementById('pdf-info-gaar').textContent = `Document chargé : ${file.name}`;
-            createInteractivePdfHandler(document.getElementById('pdf-interactive-container-gaar'), file, initializeGaarMapFromFile, 1.3);
+            createInteractivePdfHandler(document.getElementById('pdf-interactive-container-gaar'), file, initializeGaarMapFromFile, 1.2);
         } else if (data.gaar) {
             window.gaarFileObject = null;
             const infoGaar = document.getElementById('pdf-info-gaar');
@@ -8594,7 +8636,7 @@ window.__notamTextFull = notamInput.value;
 
         function initializePageTitle() {
             const titleElement = document.getElementById('main-title');
-            titleElement.textContent = `Briefing Fdf TEST v4.23 du ${new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}`;
+            titleElement.textContent = `Briefing Fdf TEST v4.24 du ${new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}`;
             const timeDisplay = document.getElementById('current-time-display');
             const updateTime = () => timeDisplay.textContent = new Date().toLocaleTimeString('fr-FR');
             updateTime(); setInterval(updateTime, 1000);
