@@ -753,15 +753,40 @@
             font-weight: 800;
         }
         .interactive-pdf-controls .pdf-annotation-color-btn {
+            width: 30px;
             min-width: 30px;
+            max-width: 30px;
+            flex: 0 0 30px;
             height: 28px;
             padding: 0;
             border: 2px solid #d0d0d0;
             color: transparent;
+            font-size: 0;
+            line-height: 0;
+            overflow: hidden;
+            box-sizing: border-box;
         }
         .interactive-pdf-controls .pdf-annotation-color-btn.active {
             border-color: #0a2c5a;
             box-shadow: 0 0 0 2px rgba(10, 44, 90, 0.18);
+        }
+        .interactive-pdf-controls .pdf-annotation-size-wrap {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            color: #0a2c5a;
+            font-weight: 800;
+            white-space: nowrap;
+            padding: 0 4px;
+        }
+        .interactive-pdf-controls .pdf-annotation-size-wrap input[type="range"] {
+            width: 112px;
+            accent-color: #0a2c5a;
+        }
+        .interactive-pdf-controls .pdf-annotation-size-value {
+            min-width: 26px;
+            text-align: right;
+            font-variant-numeric: tabular-nums;
         }
         .interactive-pdf-controls .pdf-annotation-eraser-btn.active {
             background-color: #9b1c1c;
@@ -1974,7 +1999,7 @@
         <h1 id="main-title">Briefing Fdf TEST v4.25</h1>
         <p id="current-time-display"></p>
         <p style="position: relative; z-index: 2; text-align: center; color: #333; font-size: 1em; margin-top: -25px; margin-bottom: 30px;">
-    v<span id="app-version">4.26 TEST - gomme + couleurs annotations PDF</span>
+    v<span id="app-version">4.27 TEST - taille trait annotations PDF</span>
     <button id="force-update-btn" class="link-button" style="background-color: #34495e; padding: 4px 10px; font-size: 0.8em; margin-left: 10px; vertical-align: middle;">
         Forcer MAJ
     </button>
@@ -2350,7 +2375,7 @@
     <footer>Données : Météo-France, SIA, Windy.com, CheckWX.com. Page non commerciale, à usage personnel.</footer>
     
     <script>
-        const APP_VERSION = "4.26 TEST - gomme + couleurs annotations PDF";
+        const APP_VERSION = "4.27 TEST - taille trait annotations PDF";
 
         // --- Proxy NAS pour la source de données météo CheckWX ---
         const CHECKWX_PROXY_URL = "https://grisonb.synology.me/briefing-api/get-metar-taf.php";
@@ -5983,6 +6008,7 @@ const tdfStages = [
             let activeStroke = null;
             let annotationTool = 'pen';
             let annotationColor = '#d0021b';
+            let annotationStrokeWidth = 3.0;
             const annotationEraserRadius = 0.018;
             const annotationStrokesByPage = new Map();
 
@@ -5994,10 +6020,14 @@ const tdfStages = [
                 group.className = 'zoom-controls pdf-annotation-controls';
                 group.innerHTML = `
                     <button class="pdf-nav-btn pdf-annotate-toggle-btn" data-action="annotation-toggle" type="button">Écrire PDF</button>
-                    <button class="pdf-nav-btn pdf-annotation-color-btn" data-action="annotation-color" data-color="#d0021b" type="button" title="Rouge" style="background:#d0021b;">Rouge</button>
-                    <button class="pdf-nav-btn pdf-annotation-color-btn" data-action="annotation-color" data-color="#0057b8" type="button" title="Bleu" style="background:#0057b8;">Bleu</button>
-                    <button class="pdf-nav-btn pdf-annotation-color-btn" data-action="annotation-color" data-color="#0b7a2a" type="button" title="Vert" style="background:#0b7a2a;">Vert</button>
-                    <button class="pdf-nav-btn pdf-annotation-color-btn" data-action="annotation-color" data-color="#111111" type="button" title="Noir" style="background:#111111;">Noir</button>
+                    <button class="pdf-nav-btn pdf-annotation-color-btn" data-action="annotation-color" data-color="#d0021b" type="button" title="Rouge" aria-label="Rouge" style="background:#d0021b;"></button>
+                    <button class="pdf-nav-btn pdf-annotation-color-btn" data-action="annotation-color" data-color="#0057b8" type="button" title="Bleu" aria-label="Bleu" style="background:#0057b8;"></button>
+                    <button class="pdf-nav-btn pdf-annotation-color-btn" data-action="annotation-color" data-color="#0b7a2a" type="button" title="Vert" aria-label="Vert" style="background:#0b7a2a;"></button>
+                    <button class="pdf-nav-btn pdf-annotation-color-btn" data-action="annotation-color" data-color="#111111" type="button" title="Noir" aria-label="Noir" style="background:#111111;"></button>
+                    <label class="pdf-annotation-size-wrap" title="Taille du trait">Trait
+                        <input data-action="annotation-size" type="range" min="1" max="10" step="0.5" value="3">
+                        <span class="pdf-annotation-size-value">3</span>
+                    </label>
                     <button class="pdf-nav-btn pdf-annotation-eraser-btn" data-action="annotation-eraser" type="button">Gomme</button>
                     <button class="pdf-nav-btn" data-action="annotation-undo" type="button">Annuler trait</button>
                     <button class="pdf-nav-btn pdf-annotation-clear-btn" data-action="annotation-clear-page" type="button">Effacer page</button>
@@ -6060,6 +6090,10 @@ const tdfStages = [
                 });
                 const eraser = controls.querySelector('[data-action="annotation-eraser"]');
                 if (eraser) eraser.classList.toggle('active', annotationTool === 'eraser');
+                const sizeInput = controls.querySelector('[data-action="annotation-size"]');
+                if (sizeInput && Number(sizeInput.value) !== annotationStrokeWidth) sizeInput.value = String(annotationStrokeWidth);
+                const sizeValue = controls.querySelector('.pdf-annotation-size-value');
+                if (sizeValue) sizeValue.textContent = String(annotationStrokeWidth).replace(/\.0$/, '');
             }
 
             function distanceToSegment_(point, a, b) {
@@ -6152,7 +6186,7 @@ const tdfStages = [
                 }
                 activeStroke = {
                     color: annotationColor,
-                    width: event.pointerType === 'pen' ? 3.0 : 3.4,
+                    width: annotationStrokeWidth,
                     points: [point]
                 };
                 redrawPdfAnnotations_();
@@ -6206,6 +6240,14 @@ const tdfStages = [
 
             ensurePdfAnnotationControls_();
             ensurePdfAnnotationCanvas_();
+
+            controls.addEventListener('input', e => {
+                if (!e.target.dataset || e.target.dataset.action !== 'annotation-size') return;
+                const value = Number(e.target.value);
+                annotationStrokeWidth = Math.min(10, Math.max(1, Number.isFinite(value) ? value : 3));
+                annotationTool = 'pen';
+                updatePdfAnnotationToolButtons_();
+            });
 
             controls.addEventListener('click', e => {
                 if (!e.target.dataset.action) return;
