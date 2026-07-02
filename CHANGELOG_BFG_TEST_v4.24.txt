@@ -1,187 +1,27 @@
-CHANGELOG BFG / Briefing FDF
-Dernière mise à jour : 2026-07-02
-Branche concernée : TEST v4.25
-
-Objectif du fichier
-- Conserver un historique autonome des versions et décisions techniques.
-- Permettre de reprendre le projet même si l'historique du chat est perdu.
-- Le fichier log doit être fourni avant index.html dans les échanges.
-
-======================================================================
-VERSION TEST v4.25 — 2026-07-02
-Base utilisée : TEST v4.24.
-
-Changements fonctionnels :
-- Accès Briefing : le bandeau de succès après le bouton Actualiser global passe en vert soutenu.
-- Message concerné : "Actualisation globale terminée. Les rubriques disponibles ont été rechargées."
-- PDF FDS / GAAR : ajout d'un mode "Écrire PDF" utilisable au Pencil.
-- PDF FDS / GAAR : ajout de boutons "Annuler trait" et "Effacer page".
-- Le mode écriture est une annotation visuelle BFG au-dessus du PDF affiché ; il ne modifie pas le fichier PDF source.
-- Quand le mode écriture est désactivé, le comportement pan/zoom existant du PDF est conservé.
+CHANGELOG BFG TEST v4.26
+Date : 2026-07-02
+Base utilisée : TEST v4.25
 
 Fichiers modifiés :
 - index.html
 - manifest.json
 - sw.js
 
-Fichier NAS :
-- Aucun nouveau fichier NAS pour cette version.
-- request-gaar-import.php reste celui de la v4.24/v2026.15.
+Changements fonctionnels :
+- PDF FDS / GAAR : ajout d'une gomme dans le mode Écrire PDF.
+- PDF FDS / GAAR : ajout du choix de couleur pour les annotations Pencil : rouge, bleu, vert, noir.
+- La gomme supprime les traits touchés pendant le déplacement du Pencil.
+- Le bouton Annuler trait et Effacer page sont conservés.
+
+Points non modifiés :
+- Les annotations restent visuelles dans BFG et ne modifient pas le fichier PDF source.
+- Accès Briefing, GAAR relais NAS, NOTAMs persistants et partage compact inchangés depuis la base v4.25/v4.24.
+- Aucun fichier NAS à remplacer.
 
 Tests à refaire :
-- Ouvrir TEST avec ?v=425.
-- Cliquer sur Actualiser dans Accès Briefing et vérifier que le bandeau de succès est vert soutenu.
-- Ouvrir une FDS et activer "Écrire PDF".
-- Écrire au Pencil sur la FDS, puis tester "Annuler trait" et "Effacer page".
-- Ouvrir une GAAR et faire le même test.
-- Désactiver "Écriture ON" et vérifier que le déplacement/zoom PDF fonctionne normalement.
-
-======================================================================
-VERSION TEST v4.24 — 2026-07-01
-Base utilisée : TEST v4.23 validée.
-
-Changements fonctionnels :
-- GAAR : le bouton "Actualiser feuille GAAR" ne passe plus directement par Apps Script depuis BFG.
-- GAAR : ajout d'un endpoint NAS relais : /web/briefing-api/request-gaar-import.php.
-- GAAR : chaîne cible du bouton Actualiser : BFG -> NAS -> Apps Script GAAR -> Gmail -> NAS -> BFG.
-- GAAR : réduction légère du zoom PDF par défaut de 1.30 à 1.20.
-- Partage : la ligne "Code de partage généré : BFG-xxxx-xx" n'est affichée que le jour de création du partage.
-- Partage : si un ancien code local n'a pas de date enregistrée ou date d'un jour antérieur, il est supprimé automatiquement à l'ouverture.
-- Historique : ajout du fichier CHANGELOG_BFG_TEST_v4.24.txt au pack ZIP.
-
-Fichiers modifiés :
-- index.html
-- manifest.json
-- sw.js
-
-Fichier NAS à ajouter :
-- /web/briefing-api/request-gaar-import.php
-
-Tests à refaire :
-- Ouvrir TEST avec ?v=424.
-- Vérifier l'affichage v4.24.
-- Vérifier que l'ancien code de partage de la veille ne s'affiche plus.
-- Créer un partage : la ligne du code doit apparaître le jour même.
-- Fermer/réouvrir le même jour : la ligne doit rester.
-- Cliquer sur Actualiser feuille GAAR : le NAS doit déclencher l'import Gmail via Apps Script, puis BFG doit charger la GAAR du jour.
-- Vérifier que le zoom GAAR est légèrement plus faible.
-- Vérifier que les NOTAMs persistants v4.23 sont conservés.
-
-======================================================================
-VERSION TEST v4.23 — 2026-07-01
-Base utilisée : TEST v4.22 validée.
-
-Changements fonctionnels :
-- NOTAMs : mémorisation locale des NOTAMs cochés et surlignés par identité stable.
-- Si un NOTAM longue durée revient identique après importation, la coche et le surlignage sont restaurés.
-- Si le NOTAM disparaît ou change, l'état n'est pas restauré.
-
-======================================================================
-VERSION TEST v4.22 — 2026-06-30
-Base utilisée : TEST v4.21.
-
-Changements fonctionnels :
-- Sauvegarde : le message de sauvegarde reste affiché après action.
-- Partage : le code de partage généré reste affiché sur la ligne d'état avec le message de sauvegarde.
-- iPad : suppression de l'ouverture automatique du clavier au chargement de BFG.
-
-======================================================================
-VERSION TEST v4.21 — 2026-06-30
-Base utilisée : TEST v4.20.
-
-Changements fonctionnels :
-- Partage : suppression des grands panneaux "Partage créé" et "Dernier partage créé".
-- Affichage compact conservé : "Code de partage généré : BFG-xxxx-xx".
-- Le code est mémorisé localement sur l'iPad créateur.
-
-======================================================================
-VERSION TEST v4.20 — 2026-06-30
-Base utilisée : TEST v4.19.
-
-Changements fonctionnels :
-- Auth BFG : contournement Synology des erreurs HTTP 401/500.
-- auth-cncasc.php renvoie toujours HTTP 200 JSON avec ok:false en cas d'erreur.
-- Résout le "Failed to fetch" causé par la page HTML 401 Synology.
-
-Fichier NAS associé :
-- auth-cncasc.php v7 puis v9.
-- v9 validée : hash sha256(password_salt . code), HTTP 200 JSON, GET code.
-
-======================================================================
-VERSION TEST v4.19 — 2026-06-30
-Changements fonctionnels :
-- Auth BFG : passage en GET code=... pour éviter le POST intercepté par Synology.
-- Diagnostic : le POST NAS était intercepté par la page HTML Synology 401.
-
-======================================================================
-VERSIONS TEST v4.14 à v4.18 — 2026-06-30
-Objectif : connexion jusqu'à 23h00 et dernier partage mémorisé.
-
-Points principaux :
-- v4.14 : première intégration connexion jusqu'à 23h00 + dernier partage mémorisé.
-- v4.15 : correction affichage version et champ accès Briefing.
-- v4.16 à v4.18 : essais d'auth POST simplifié / form-urlencoded / text/plain.
-- Diagnostic final : Synology intercepte les erreurs HTTP et remplace les JSON par page HTML, d'où l'évolution vers v4.20.
-
-======================================================================
-VERSIONS TEST v4.04 à v4.13 — 2026-06-30
-Objectif : Apple Pencil dans NOTAMs.
-
-Points principaux :
-- Abandon de la sélection native iPadOS au Pencil.
-- Création d'un mode surligneur BFG spécifique Apple Pencil.
-- Scroll vs sélection : appui immobile court pour sélectionner, mouvement vertical direct pour scroller.
-- Verrouillage à une seule ligne.
-- Suppression de surlignage par tap.
-- v4.13 validée comme base Pencil fonctionnelle.
-
-======================================================================
-VERSION TEST v4.03 — 2026-06-30
-Objectif : rollback stable.
-
-Points principaux :
-- Retour à la base stable v3.98 après essais Pencil problématiques.
-- Accès Briefing de nouveau fonctionnel.
-
-======================================================================
-VERSION TEST v3.98 — base stable
-Points principaux :
-- FDS silencieuse.
-- Boutons cartes de risques harmonisés.
-- Raccourci SYNERGI.
-- Base retenue pour les évolutions Pencil puis login/partage.
-
-======================================================================
-VERSION PÉRENNE v2026.14 NG — 2026-06-30
-Base utilisée : TEST v4.22 validée.
-
-Changements intégrés en pérenne :
-- Pencil NOTAMs validé.
-- Connexion BFG jusqu'à 23h00 via auth NAS corrigée.
-- Partage compact.
-- Message sauvegarde + code de partage conservés.
-- Clavier iPad non ouvert automatiquement.
-
-======================================================================
-VERSION PÉRENNE v2026.13 NG — 2026-06-30
-Base utilisée : TEST v4.20.
-
-Changements intégrés :
-- Connexion jusqu'à 23h00.
-- Dernier partage mémorisé.
-- Auth NAS HTTP 200 JSON.
-
-======================================================================
-VERSION PÉRENNE v2026.12 NG — base pérenne précédente
-Points principaux :
-- Base pérenne antérieure à la série login 23h / partage compact.
-- Tour de France 2026 masqué hors période.
-- Affichage Tour de France prévu du 2026-07-04 au 2026-07-27, avec TDF_FORCE_DISPLAY=false.
-
-======================================================================
-DÉCISIONS TECHNIQUES À CONSERVER
-- Les évolutions doivent être testées sur Briefing_fdf_TEST avant passage en Briefing-fdf pérenne.
-- Pour les appels NAS susceptibles d'échouer, privilégier HTTP 200 JSON ok:false plutôt que HTTP 401/500, car Synology peut remplacer la réponse par une page HTML.
-- Éviter les appels directs BFG -> Apps Script quand c'est possible ; préférer BFG -> NAS -> Apps Script.
-- Ne pas afficher une GAAR ancienne en mode Auto : uniquement GAAR du jour, avec bouton distinct si GAAR du lendemain disponible.
-- Tour de France 2026 : masqué hors période, forçage désactivé.
+1. Ouvrir TEST avec ?v=426.
+2. FDS : activer Écrire PDF, écrire en rouge, bleu, vert, noir.
+3. FDS : activer Gomme et effacer un trait.
+4. FDS : vérifier Annuler trait et Effacer page.
+5. GAAR : refaire les mêmes tests.
+6. Désactiver Écriture ON et vérifier que déplacement/zoom PDF redeviennent normaux.
