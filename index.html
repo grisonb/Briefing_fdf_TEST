@@ -752,6 +752,22 @@
             color: #9b1c1c;
             font-weight: 800;
         }
+        .interactive-pdf-controls .pdf-annotation-color-btn {
+            min-width: 30px;
+            height: 28px;
+            padding: 0;
+            border: 2px solid #d0d0d0;
+            color: transparent;
+        }
+        .interactive-pdf-controls .pdf-annotation-color-btn.active {
+            border-color: #0a2c5a;
+            box-shadow: 0 0 0 2px rgba(10, 44, 90, 0.18);
+        }
+        .interactive-pdf-controls .pdf-annotation-eraser-btn.active {
+            background-color: #9b1c1c;
+            color: #ffffff;
+            border-color: #9b1c1c;
+        }
         
         .taf-toggle-btn { background-color: var(--sc-blue); color: white; border: none; padding: 5px 10px; font-size: 0.8em; cursor: pointer; border-radius: 4px; margin-left: 10px; vertical-align: middle; }
         .metar-taf-refresh-btn { margin-left: 10px; background: none; border: 1px solid #ccc; cursor: pointer; border-radius: 50%; width: 24px; height: 24px; font-size: 14px; line-height: 22px; vertical-align: middle; padding: 0; }
@@ -1958,7 +1974,7 @@
         <h1 id="main-title">Briefing Fdf TEST v4.25</h1>
         <p id="current-time-display"></p>
         <p style="position: relative; z-index: 2; text-align: center; color: #333; font-size: 1em; margin-top: -25px; margin-bottom: 30px;">
-    v<span id="app-version">4.25 TEST - bandeau vert + écriture Pencil PDF FDS/GAAR</span>
+    v<span id="app-version">4.26 TEST - gomme + couleurs annotations PDF</span>
     <button id="force-update-btn" class="link-button" style="background-color: #34495e; padding: 4px 10px; font-size: 0.8em; margin-left: 10px; vertical-align: middle;">
         Forcer MAJ
     </button>
@@ -2334,7 +2350,7 @@
     <footer>Données : Météo-France, SIA, Windy.com, CheckWX.com. Page non commerciale, à usage personnel.</footer>
     
     <script>
-        const APP_VERSION = "4.25 TEST - bandeau vert + écriture Pencil PDF FDS/GAAR";
+        const APP_VERSION = "4.26 TEST - gomme + couleurs annotations PDF";
 
         // --- Proxy NAS pour la source de données météo CheckWX ---
         const CHECKWX_PROXY_URL = "https://grisonb.synology.me/briefing-api/get-metar-taf.php";
@@ -5965,6 +5981,9 @@ const tdfStages = [
             let annotationMode = false;
             let annotationDrawing = false;
             let activeStroke = null;
+            let annotationTool = 'pen';
+            let annotationColor = '#d0021b';
+            const annotationEraserRadius = 0.018;
             const annotationStrokesByPage = new Map();
 
             function getDistance(t1, t2) { const dx = t1.clientX - t2.clientX, dy = t1.clientY - t2.clientY; return Math.sqrt(dx * dx + dy * dy); }
@@ -5975,9 +5994,15 @@ const tdfStages = [
                 group.className = 'zoom-controls pdf-annotation-controls';
                 group.innerHTML = `
                     <button class="pdf-nav-btn pdf-annotate-toggle-btn" data-action="annotation-toggle" type="button">Écrire PDF</button>
+                    <button class="pdf-nav-btn pdf-annotation-color-btn" data-action="annotation-color" data-color="#d0021b" type="button" title="Rouge" style="background:#d0021b;">Rouge</button>
+                    <button class="pdf-nav-btn pdf-annotation-color-btn" data-action="annotation-color" data-color="#0057b8" type="button" title="Bleu" style="background:#0057b8;">Bleu</button>
+                    <button class="pdf-nav-btn pdf-annotation-color-btn" data-action="annotation-color" data-color="#0b7a2a" type="button" title="Vert" style="background:#0b7a2a;">Vert</button>
+                    <button class="pdf-nav-btn pdf-annotation-color-btn" data-action="annotation-color" data-color="#111111" type="button" title="Noir" style="background:#111111;">Noir</button>
+                    <button class="pdf-nav-btn pdf-annotation-eraser-btn" data-action="annotation-eraser" type="button">Gomme</button>
                     <button class="pdf-nav-btn" data-action="annotation-undo" type="button">Annuler trait</button>
                     <button class="pdf-nav-btn pdf-annotation-clear-btn" data-action="annotation-clear-page" type="button">Effacer page</button>
                 `;
+                updatePdfAnnotationToolButtons_();
                 controls.appendChild(group);
             }
 
@@ -6028,6 +6053,45 @@ const tdfStages = [
                 return annotationStrokesByPage.get(pageNum);
             }
 
+            function updatePdfAnnotationToolButtons_() {
+                if (!controls) return;
+                controls.querySelectorAll('[data-action="annotation-color"]').forEach(btn => {
+                    btn.classList.toggle('active', annotationTool === 'pen' && btn.dataset.color === annotationColor);
+                });
+                const eraser = controls.querySelector('[data-action="annotation-eraser"]');
+                if (eraser) eraser.classList.toggle('active', annotationTool === 'eraser');
+            }
+
+            function distanceToSegment_(point, a, b) {
+                const dx = b.x - a.x;
+                const dy = b.y - a.y;
+                const len2 = dx * dx + dy * dy;
+                if (!len2) return Math.hypot(point.x - a.x, point.y - a.y);
+                const t = Math.max(0, Math.min(1, ((point.x - a.x) * dx + (point.y - a.y) * dy) / len2));
+                const x = a.x + t * dx;
+                const y = a.y + t * dy;
+                return Math.hypot(point.x - x, point.y - y);
+            }
+
+            function strokeTouchesPoint_(stroke, point) {
+                const points = Array.isArray(stroke && stroke.points) ? stroke.points : [];
+                if (points.length === 1) return Math.hypot(points[0].x - point.x, points[0].y - point.y) <= annotationEraserRadius;
+                for (let i = 1; i < points.length; i++) {
+                    if (distanceToSegment_(point, points[i - 1], points[i]) <= annotationEraserRadius) return true;
+                }
+                return false;
+            }
+
+            function erasePdfAnnotationsAtPoint_(point) {
+                const strokes = getPdfAnnotationPageStrokes_();
+                if (!strokes.length) return false;
+                const kept = strokes.filter(stroke => !strokeTouchesPoint_(stroke, point));
+                if (kept.length === strokes.length) return false;
+                annotationStrokesByPage.set(pageNum, kept);
+                redrawPdfAnnotations_();
+                return true;
+            }
+
             function drawPdfAnnotationStroke_(stroke) {
                 if (!annotationCtx || !stroke || !Array.isArray(stroke.points) || stroke.points.length < 1) return;
                 const width = annotationCanvas.width || 1;
@@ -6066,6 +6130,7 @@ const tdfStages = [
                     toggle.textContent = annotationMode ? 'Écriture ON' : 'Écrire PDF';
                 }
                 if (annotationCanvas) annotationCanvas.style.pointerEvents = annotationMode ? 'auto' : 'none';
+                updatePdfAnnotationToolButtons_();
                 if (!annotationMode) {
                     annotationDrawing = false;
                     activeStroke = null;
@@ -6079,19 +6144,30 @@ const tdfStages = [
                 event.stopPropagation();
                 annotationDrawing = true;
                 try { annotationCanvas.setPointerCapture(event.pointerId); } catch (error) {}
+                const point = getPdfAnnotationPoint_(event);
+                if (annotationTool === 'eraser') {
+                    activeStroke = null;
+                    erasePdfAnnotationsAtPoint_(point);
+                    return;
+                }
                 activeStroke = {
-                    color: '#d0021b',
+                    color: annotationColor,
                     width: event.pointerType === 'pen' ? 3.0 : 3.4,
-                    points: [getPdfAnnotationPoint_(event)]
+                    points: [point]
                 };
                 redrawPdfAnnotations_();
             }
 
             function handlePdfAnnotationPointerMove_(event) {
-                if (!annotationMode || !annotationDrawing || !activeStroke) return;
+                if (!annotationMode || !annotationDrawing) return;
                 event.preventDefault();
                 event.stopPropagation();
                 const point = getPdfAnnotationPoint_(event);
+                if (annotationTool === 'eraser') {
+                    erasePdfAnnotationsAtPoint_(point);
+                    return;
+                }
+                if (!activeStroke) return;
                 const last = activeStroke.points[activeStroke.points.length - 1];
                 if (!last || Math.hypot(point.x - last.x, point.y - last.y) > 0.0015) {
                     activeStroke.points.push(point);
@@ -6135,6 +6211,17 @@ const tdfStages = [
                 if (!e.target.dataset.action) return;
                 const action = e.target.dataset.action;
                 if (action === 'annotation-toggle') { setPdfAnnotationMode_(!annotationMode); return; }
+                if (action === 'annotation-color') {
+                    annotationTool = 'pen';
+                    annotationColor = e.target.dataset.color || '#d0021b';
+                    updatePdfAnnotationToolButtons_();
+                    return;
+                }
+                if (action === 'annotation-eraser') {
+                    annotationTool = annotationTool === 'eraser' ? 'pen' : 'eraser';
+                    updatePdfAnnotationToolButtons_();
+                    return;
+                }
                 if (action === 'annotation-undo') {
                     const strokes = getPdfAnnotationPageStrokes_();
                     strokes.pop();
