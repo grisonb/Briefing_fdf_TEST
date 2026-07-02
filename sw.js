@@ -1,4 +1,4 @@
-const CACHE_NAME = 'briefing-fdf-test-v4.24-gaar-relais-nas-partage-jour';
+const CACHE_NAME = 'briefing-fdf-test-v4.25-bandeau-vert-annotations-pdf';
 
 const LOCAL_ASSETS = [
   './manifest.json',
