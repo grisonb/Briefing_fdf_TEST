@@ -1,6 +1,6 @@
-CHANGELOG BFG TEST v4.26
+CHANGELOG BFG TEST v4.27
 Date : 2026-07-02
-Base utilisée : TEST v4.25
+Base utilisée : TEST v4.26
 
 Fichiers modifiés :
 - index.html
@@ -8,20 +8,19 @@ Fichiers modifiés :
 - sw.js
 
 Changements fonctionnels :
-- PDF FDS / GAAR : ajout d'une gomme dans le mode Écrire PDF.
-- PDF FDS / GAAR : ajout du choix de couleur pour les annotations Pencil : rouge, bleu, vert, noir.
-- La gomme supprime les traits touchés pendant le déplacement du Pencil.
-- Le bouton Annuler trait et Effacer page sont conservés.
+- PDF FDS / GAAR : ajout d’un curseur "Trait" pour régler la taille du trait d’écriture Pencil.
+- PDF FDS / GAAR : taille réglable de 1 à 10, par pas de 0,5.
 
-Points non modifiés :
-- Les annotations restent visuelles dans BFG et ne modifient pas le fichier PDF source.
-- Accès Briefing, GAAR relais NAS, NOTAMs persistants et partage compact inchangés depuis la base v4.25/v4.24.
+Corrections :
+- PDF FDS / GAAR : les carrés de couleur ont maintenant une largeur fixe identique.
+- Correction du carré rouge, qui pouvait apparaître plus large que les autres à cause du texte interne du bouton.
+
+Points NAS :
 - Aucun fichier NAS à remplacer.
 
 Tests à refaire :
-1. Ouvrir TEST avec ?v=426.
-2. FDS : activer Écrire PDF, écrire en rouge, bleu, vert, noir.
-3. FDS : activer Gomme et effacer un trait.
-4. FDS : vérifier Annuler trait et Effacer page.
-5. GAAR : refaire les mêmes tests.
-6. Désactiver Écriture ON et vérifier que déplacement/zoom PDF redeviennent normaux.
+- Ouvrir la TEST avec ?v=427.
+- Vérifier que les quatre carrés de couleur ont la même taille.
+- Vérifier l’écriture PDF FDS avec différentes tailles de trait.
+- Vérifier l’écriture PDF GAAR avec différentes tailles de trait.
+- Vérifier que la gomme, Annuler trait et Effacer page fonctionnent toujours.
