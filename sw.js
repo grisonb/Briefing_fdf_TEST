@@ -1,4 +1,4 @@
-const CACHE_NAME = 'briefing-fdf-test-v4.26-gomme-couleurs-annotations-pdf';
+const CACHE_NAME = 'briefing-fdf-test-v4.27-taille-trait-annotations-pdf';
 
 const LOCAL_ASSETS = [
   './manifest.json',
