@@ -1,11 +1,40 @@
 CHANGELOG BFG / Briefing FDF
-Dernière mise à jour : 2026-07-01
-Branche concernée : TEST v4.24
+Dernière mise à jour : 2026-07-02
+Branche concernée : TEST v4.25
 
 Objectif du fichier
 - Conserver un historique autonome des versions et décisions techniques.
 - Permettre de reprendre le projet même si l'historique du chat est perdu.
-- À partir de la v4.24, ce fichier doit être ajouté à chaque pack ZIP TEST et pérenne.
+- Le fichier log doit être fourni avant index.html dans les échanges.
+
+======================================================================
+VERSION TEST v4.25 — 2026-07-02
+Base utilisée : TEST v4.24.
+
+Changements fonctionnels :
+- Accès Briefing : le bandeau de succès après le bouton Actualiser global passe en vert soutenu.
+- Message concerné : "Actualisation globale terminée. Les rubriques disponibles ont été rechargées."
+- PDF FDS / GAAR : ajout d'un mode "Écrire PDF" utilisable au Pencil.
+- PDF FDS / GAAR : ajout de boutons "Annuler trait" et "Effacer page".
+- Le mode écriture est une annotation visuelle BFG au-dessus du PDF affiché ; il ne modifie pas le fichier PDF source.
+- Quand le mode écriture est désactivé, le comportement pan/zoom existant du PDF est conservé.
+
+Fichiers modifiés :
+- index.html
+- manifest.json
+- sw.js
+
+Fichier NAS :
+- Aucun nouveau fichier NAS pour cette version.
+- request-gaar-import.php reste celui de la v4.24/v2026.15.
+
+Tests à refaire :
+- Ouvrir TEST avec ?v=425.
+- Cliquer sur Actualiser dans Accès Briefing et vérifier que le bandeau de succès est vert soutenu.
+- Ouvrir une FDS et activer "Écrire PDF".
+- Écrire au Pencil sur la FDS, puis tester "Annuler trait" et "Effacer page".
+- Ouvrir une GAAR et faire le même test.
+- Désactiver "Écriture ON" et vérifier que le déplacement/zoom PDF fonctionne normalement.
 
 ======================================================================
 VERSION TEST v4.24 — 2026-07-01
