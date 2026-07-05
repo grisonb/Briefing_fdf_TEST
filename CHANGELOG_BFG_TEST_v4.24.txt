@@ -1,6 +1,6 @@
-CHANGELOG BFG TEST v4.27
-Date : 2026-07-02
-Base utilisée : TEST v4.26
+CHANGELOG BFG TEST v4.28
+Date : 2026-07-05
+Base utilisée : TEST v4.27 - taille trait annotations PDF
 
 Fichiers modifiés :
 - index.html
@@ -8,19 +8,20 @@ Fichiers modifiés :
 - sw.js
 
 Changements fonctionnels :
-- PDF FDS / GAAR : ajout d’un curseur "Trait" pour régler la taille du trait d’écriture Pencil.
-- PDF FDS / GAAR : taille réglable de 1 à 10, par pas de 0,5.
+- Ajout d’un bouton "Carte SUP AIP" dans la rubrique SUP AIP.
+- Le bouton "Carte SUP AIP" ouvre https://supaip.fr/ dans un nouvel onglet, car l’intégration en iframe a été testée et la carte ne s’affiche pas dans le cadre.
+- Le bouton a été placé à gauche du bouton ForeFlight.
+- Le bouton "Ouvrir ForeFlight" est renommé "ForeFlight".
 
-Corrections :
-- PDF FDS / GAAR : les carrés de couleur ont maintenant une largeur fixe identique.
-- Correction du carré rouge, qui pouvait apparaître plus large que les autres à cause du texte interne du bouton.
-
-Points NAS :
+Corrections / contraintes :
+- Aucune intégration locale du code supaip.fr dans BFG.
+- Aucun iframe supaip.fr dans BFG.
 - Aucun fichier NAS à remplacer.
 
 Tests à refaire :
-- Ouvrir la TEST avec ?v=427.
-- Vérifier que les quatre carrés de couleur ont la même taille.
-- Vérifier l’écriture PDF FDS avec différentes tailles de trait.
-- Vérifier l’écriture PDF GAAR avec différentes tailles de trait.
-- Vérifier que la gomme, Annuler trait et Effacer page fonctionnent toujours.
+1. Ouvrir BFG TEST v4.28.
+2. Vérifier l’affichage de la version v4.28 TEST.
+3. Aller dans la rubrique SUP AIP.
+4. Vérifier l’ordre des boutons : Carte SUP AIP, ForeFlight, Charger SUP AIP.
+5. Cliquer sur Carte SUP AIP : ouverture de https://supaip.fr/ dans un nouvel onglet.
+6. Cliquer sur ForeFlight sur iPad : ouverture de l’application ForeFlight si installée.
