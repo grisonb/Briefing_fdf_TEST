@@ -1999,7 +1999,7 @@
         <h1 id="main-title">Briefing Fdf TEST v4.25</h1>
         <p id="current-time-display"></p>
         <p style="position: relative; z-index: 2; text-align: center; color: #333; font-size: 1em; margin-top: -25px; margin-bottom: 30px;">
-    v<span id="app-version">4.27 TEST - taille trait annotations PDF</span>
+    v<span id="app-version">4.28 TEST - bouton Carte SUP AIP</span>
     <button id="force-update-btn" class="link-button" style="background-color: #34495e; padding: 4px 10px; font-size: 0.8em; margin-left: 10px; vertical-align: middle;">
         Forcer MAJ
     </button>
@@ -2336,7 +2336,8 @@
     <div id="sup-aip-section" class="pdf-section dropzone">
         <h2>SUP AIP</h2>
         <div id="sup-aip-controls" class="pdf-controls">
-            <a id="foreflight-btn" href="foreflightmobile://" class="link-button" style="background-color: #007aff;">Ouvrir ForeFlight</a>
+            <a id="supaip-map-btn" href="https://supaip.fr/" target="_blank" rel="noopener" class="link-button" style="background-color: #0F2B5B;">Carte SUP AIP</a>
+            <a id="foreflight-btn" href="foreflightmobile://" class="link-button" style="background-color: #007aff;">ForeFlight</a>
             <button id="pdf-load-sup-aip-btn" class="link-button" style="background-color: #c0392b;">Charger SUP AIP</button>
             <button id="pdf-add-sup-aip-btn" class="link-button" style="display: none; background-color: #c0392b;">+</button>
         </div>
@@ -2375,7 +2376,7 @@
     <footer>Données : Météo-France, SIA, Windy.com, CheckWX.com. Page non commerciale, à usage personnel.</footer>
     
     <script>
-        const APP_VERSION = "4.27 TEST - taille trait annotations PDF";
+        const APP_VERSION = "4.28 TEST - bouton Carte SUP AIP";
 
         // --- Proxy NAS pour la source de données météo CheckWX ---
         const CHECKWX_PROXY_URL = "https://grisonb.synology.me/briefing-api/get-metar-taf.php";
