@@ -1,4 +1,4 @@
-const CACHE_NAME = 'briefing-fdf-test-v4.29-azba-supaip-groupe';
+const CACHE_NAME = 'briefing-fdf-test-v4.30-reset-pdf-fds-gaar';
 
 const LOCAL_ASSETS = [
   './manifest.json',
