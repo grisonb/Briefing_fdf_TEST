@@ -1,4 +1,4 @@
-const CACHE_NAME = 'briefing-fdf-test-v4.27-taille-trait-annotations-pdf';
+const CACHE_NAME = 'briefing-fdf-test-v4.28-carte-supaip-foreflight';
 
 const LOCAL_ASSETS = [
   './manifest.json',
