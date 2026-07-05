@@ -1,4 +1,4 @@
-const CACHE_NAME = 'briefing-fdf-test-v4.28-carte-supaip-foreflight';
+const CACHE_NAME = 'briefing-fdf-test-v4.29-azba-supaip-groupe';
 
 const LOCAL_ASSETS = [
   './manifest.json',
