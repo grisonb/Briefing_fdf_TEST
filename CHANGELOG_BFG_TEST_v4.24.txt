@@ -1,38 +1,42 @@
-CHANGELOG BFG TEST v4.29
+CHANGELOG BFG TEST v4.30
 Date : 2026-07-05
-Base : TEST v4.28
-
-
+Base : TEST v4.29
 
 Objectif
-- Regrouper les accès AZBA et SUP AIP dans une seule fenêtre BFG.
+- Corriger les rendus PDF FDS et GAAR qui peuvent apparaître à l'envers et/ou avec un zoom anormalement réduit après perte/reprise réseau, retour d'arrière-plan iPad, changement de rubrique ou rechargement partiel.
 
-Modifications
-- Fenêtre/rubrique renommée : « AZBA / SUP AIP ».
-- Suppression de la fenêtre séparée « Carte AZBA ».
-- Bouton « Carte SUP AIP » renommé « Carte SUP AIP / AZBA ».
-- Bouton « Ouvrir AZBA » renommé « AZBA SIA ».
-- Ordre des boutons dans la rubrique :
-  1. Carte SUP AIP / AZBA
-  2. AZBA SIA
-  3. ForeFlight
-  4. Charger SUP AIP
-- Bouton « ForeFlight » conservé.
-- Navigation haute : lien « SUP AIP » renommé « AZBA / SUP AIP ».
+Changements fonctionnels
+- FDS / GAAR : destruction logique de l'ancien handler PDF avant création d'un nouveau rendu.
+- FDS / GAAR : rendu PDF recréé proprement avec rotation forcée à 0°.
+- FDS / GAAR : reset des transformations CSS du canvas PDF avant chaque rendu.
+- FDS / GAAR : attente d'une largeur de conteneur stable avant calcul du rendu.
+- FDS / GAAR : rerender automatique lors du retour réseau.
+- FDS / GAAR : rerender automatique lorsque l'app revient au premier plan.
+- FDS / GAAR : rerender automatique après resize / changement d'orientation.
+- FDS / GAAR : détection d'un rendu anormalement petit et relance automatique du rendu.
+- FDS / GAAR : ajout d'un bouton de secours "Réafficher PDF" dans la barre d'annotation PDF.
+
+Conservé depuis v4.29
+- Fenêtre groupée "AZBA / SUP AIP".
+- Boutons : "Carte SUP AIP / AZBA", "AZBA SIA", "ForeFlight".
+- Annotations PDF FDS / GAAR : écriture, gomme, couleurs, taille de trait, annuler trait, effacer page.
+- Connexion Briefing jusqu'à 23h00.
+- Dernier partage masqué le lendemain.
+- Persistance des NOTAMs cochés/surlignés.
 
 Fichiers modifiés
 - index.html
 - manifest.json
 - sw.js
 
-Fichier NAS
-- Aucun fichier NAS à remplacer.
+Fichiers NAS
+- Aucun nouveau fichier NAS.
 
-Tests à refaire
-- Ouvrir BFG TEST avec ?v=429.
-- Vérifier la version affichée v4.29.
-- Vérifier que la rubrique s'appelle « AZBA / SUP AIP ».
-- Vérifier l'ordre des boutons : Carte SUP AIP / AZBA, AZBA SIA, ForeFlight.
-- Vérifier que « Carte SUP AIP / AZBA » ouvre supaip.fr.
-- Vérifier que « AZBA SIA » ouvre la page SIA AZBA.
-- Vérifier que « ForeFlight » ouvre l'application ForeFlight si disponible.
+Tests à faire
+1. Ouvrir FDS puis vérifier que le PDF est dans le bon sens.
+2. Ouvrir GAAR puis vérifier que le PDF est dans le bon sens.
+3. Mettre l'iPad hors réseau puis revenir en ligne avec FDS/GAAR ouverte.
+4. Mettre BFG en arrière-plan puis revenir.
+5. Vérifier que le PDF se réaffiche normalement.
+6. Tester le bouton "Réafficher PDF".
+7. Vérifier que l'écriture Pencil fonctionne toujours.
