@@ -1,27 +1,36 @@
-CHANGELOG BFG TEST v4.28
+CHANGELOG BFG TEST v4.29
 Date : 2026-07-05
-Base utilisée : TEST v4.27 - taille trait annotations PDF
+Base : TEST v4.28
 
-Fichiers modifiés :
+Objectif
+- Regrouper les accès AZBA et SUP AIP dans une seule fenêtre BFG.
+
+Modifications
+- Fenêtre/rubrique renommée : « AZBA / SUP AIP ».
+- Suppression de la fenêtre séparée « Carte AZBA ».
+- Bouton « Carte SUP AIP » renommé « Carte SUP AIP / AZBA ».
+- Bouton « Ouvrir AZBA » renommé « AZBA SIA ».
+- Ordre des boutons dans la rubrique :
+  1. Carte SUP AIP / AZBA
+  2. AZBA SIA
+  3. ForeFlight
+  4. Charger SUP AIP
+- Bouton « ForeFlight » conservé.
+- Navigation haute : lien « SUP AIP » renommé « AZBA / SUP AIP ».
+
+Fichiers modifiés
 - index.html
 - manifest.json
 - sw.js
 
-Changements fonctionnels :
-- Ajout d’un bouton "Carte SUP AIP" dans la rubrique SUP AIP.
-- Le bouton "Carte SUP AIP" ouvre https://supaip.fr/ dans un nouvel onglet, car l’intégration en iframe a été testée et la carte ne s’affiche pas dans le cadre.
-- Le bouton a été placé à gauche du bouton ForeFlight.
-- Le bouton "Ouvrir ForeFlight" est renommé "ForeFlight".
-
-Corrections / contraintes :
-- Aucune intégration locale du code supaip.fr dans BFG.
-- Aucun iframe supaip.fr dans BFG.
+Fichier NAS
 - Aucun fichier NAS à remplacer.
 
-Tests à refaire :
-1. Ouvrir BFG TEST v4.28.
-2. Vérifier l’affichage de la version v4.28 TEST.
-3. Aller dans la rubrique SUP AIP.
-4. Vérifier l’ordre des boutons : Carte SUP AIP, ForeFlight, Charger SUP AIP.
-5. Cliquer sur Carte SUP AIP : ouverture de https://supaip.fr/ dans un nouvel onglet.
-6. Cliquer sur ForeFlight sur iPad : ouverture de l’application ForeFlight si installée.
+Tests à refaire
+- Ouvrir BFG TEST avec ?v=429.
+- Vérifier la version affichée v4.29.
+- Vérifier que la rubrique s'appelle « AZBA / SUP AIP ».
+- Vérifier l'ordre des boutons : Carte SUP AIP / AZBA, AZBA SIA, ForeFlight.
+- Vérifier que « Carte SUP AIP / AZBA » ouvre supaip.fr.
+- Vérifier que « AZBA SIA » ouvre la page SIA AZBA.
+- Vérifier que « ForeFlight » ouvre l'application ForeFlight si disponible.
