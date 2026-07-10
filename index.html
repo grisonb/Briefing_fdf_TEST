@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0">
-    <title>Briefing Fdf TEST v4.33</title>
+    <title>Briefing Fdf TEST v4.34</title>
     <link rel="manifest" href="./manifest.json?v=4.24">
     <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png?v=4.24">
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -2025,10 +2025,10 @@
 
     <div class="page-header">
         <div class="page-header-background"></div>
-        <h1 id="main-title">Briefing Fdf TEST v4.33</h1>
+        <h1 id="main-title">Briefing Fdf TEST v4.34</h1>
         <p id="current-time-display"></p>
         <p style="position: relative; z-index: 2; text-align: center; color: #333; font-size: 1em; margin-top: -25px; margin-bottom: 30px;">
-    v<span id="app-version">4.33 TEST - icône crayon PDF agrandie</span>
+    v<span id="app-version">4.34 TEST - filtres NOTAMs alphabétiques</span>
     <button id="force-update-btn" class="link-button" style="background-color: #34495e; padding: 4px 10px; font-size: 0.8em; margin-left: 10px; vertical-align: middle;">
         Forcer MAJ
     </button>
@@ -2399,7 +2399,7 @@
     <footer>Données : Météo-France, SIA, Windy.com, CheckWX.com. Page non commerciale, à usage personnel.</footer>
     
     <script>
-        const APP_VERSION = "4.33 TEST - icône crayon PDF agrandie";
+        const APP_VERSION = "4.34 TEST - filtres NOTAMs alphabétiques";
 
         // --- Proxy NAS pour la source de données météo CheckWX ---
         const CHECKWX_PROXY_URL = "https://grisonb.synology.me/briefing-api/get-metar-taf.php";
@@ -4694,7 +4694,7 @@ const tdfStages = [
         async function requestGaarImportViaNas_() {
             const query = new URLSearchParams();
             query.set('t', String(Date.now()));
-            query.set('source', 'bfg-test-v4.33');
+            query.set('source', 'bfg-test-v4.34');
 
             const url = `${GAAR_IMPORT_REQUEST_API_URL}?${query.toString()}`;
             const response = await fetchWithTimeout_(url, { cache: 'no-store' }, 65000);
@@ -8380,10 +8380,36 @@ window.__notamTextFull = notamInput.value;
                 'LFLX':'LFLX - CHATEAUROUX DEOLS', 'LFGJ':'LFGJ - DOLE', 'LFSG':'LFSG - EPINAL MIRECOURT', 'LFRV':'LFRV - VANNES GOLFE DU MORBIHAN'
             };
             const keywordsToFilter = [
-                'aerodrome administration', 'animal', 'avgas 100ll', 'crane', 'dme', 'drill', 
-                'fato', 'grf', 'handling', 'lights', 'model flying', 'night parachuting', 
-                'obst', 'obstacle', 'obstacles', 'police', 'radar', 'rffs', 'telescopic', 'trees', 
-                'unpaved', 'vor', 'wig wag', 'papi', 'ul', 'construction', 'altitude', 'security', 'nacelle', 'air start'
+                'aerodrome administration',
+                'air start',
+                'altitude',
+                'animal',
+                'avgas 100ll',
+                'construction',
+                'crane',
+                'dme',
+                'drill',
+                'fato',
+                'grf',
+                'handling',
+                'lights',
+                'model flying',
+                'nacelle',
+                'night parachuting',
+                'obst',
+                'obstacle',
+                'obstacles',
+                'papi',
+                'police',
+                'radar',
+                'rffs',
+                'security',
+                'telescopic',
+                'trees',
+                'ul',
+                'unpaved',
+                'vor',
+                'wig wag'
             ];
 
             const manualLoadWeatherBtn = document.getElementById('manual-load-weather-btn');
@@ -9268,7 +9294,7 @@ window.__notamTextFull = notamInput.value;
 
         function initializePageTitle() {
             const titleElement = document.getElementById('main-title');
-            titleElement.textContent = `Briefing Fdf TEST v4.33 du ${new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}`;
+            titleElement.textContent = `Briefing Fdf TEST v4.34 du ${new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}`;
             const timeDisplay = document.getElementById('current-time-display');
             const updateTime = () => timeDisplay.textContent = new Date().toLocaleTimeString('fr-FR');
             updateTime(); setInterval(updateTime, 1000);
