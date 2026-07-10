@@ -1,20 +1,23 @@
-CHANGELOG BFG TEST v4.34
+CHANGELOG BFG TEST v4.35
 Date : 2026-07-10
-Base : TEST v4.33 - icône crayon PDF agrandie
-
-Changements :
-- NOTAMs : classement alphabétique des mots-clés dans la liste des filtres.
-- Conservation des mots-clés ajoutés en v4.32 : PAPI, UL, CONSTRUCTION, ALTITUDE, SECURITY, NACELLE, AIR START.
+Base : TEST v4.34 - filtres NOTAMs alphabétiques
 
 Fichiers modifiés :
 - index.html
 - manifest.json
 - sw.js
 
+Modifications :
+- NOTAMs : ajout d’un bouton “Annuler sélection” juste avant “Annuler surlignage”.
+- NOTAMs : le bouton “Annuler sélection” décoche tous les NOTAMs sélectionnés et réaffiche la liste complète.
+- NOTAMs : correction du bouton “Annuler surlignage”.
+- NOTAMs : si la pile d’annulation Pencil est vide ou invalide, le dernier surlignage visible est supprimé en secours.
+
 Fichier NAS :
-- Aucun fichier NAS à remplacer.
+- Aucun.
 
 Tests à refaire :
-- Ouvrir les filtres NOTAMs.
-- Vérifier que les mots-clés sont affichés par ordre alphabétique.
-- Vérifier que les filtres existants fonctionnent toujours.
+1. Cocher plusieurs NOTAMs, cliquer “Garder la sélection”, puis “Annuler sélection”.
+2. Vérifier que les cases sont décochées et que tous les NOTAMs réapparaissent.
+3. Surligner au doigt, cliquer “Annuler surlignage”.
+4. Surligner au Pencil, cliquer “Annuler surlignage”.
