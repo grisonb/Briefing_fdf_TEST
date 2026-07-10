@@ -1,7 +1,7 @@
 {
   "name": "Briefing FDF TEST",
   "short_name": "Briefing TEST",
-  "description": "Briefing FDF TEST v4.33 icône crayon PDF agrandie",
+  "description": "Briefing FDF TEST v4.34 filtres NOTAMs alphabétiques",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
