@@ -1,10 +1,10 @@
-CHANGELOG BFG TEST v4.33
+CHANGELOG BFG TEST v4.34
 Date : 2026-07-10
-Base : TEST v4.32
+Base : TEST v4.33 - icône crayon PDF agrandie
 
-Changement :
-- PDF FDS / GAAR : agrandissement de l’icône crayon du mode Écrire PDF.
-- Le bouton conserve maintenant l’icône crayon même lorsque le mode écriture est actif, avec titre/aria-label mis à jour.
+Changements :
+- NOTAMs : classement alphabétique des mots-clés dans la liste des filtres.
+- Conservation des mots-clés ajoutés en v4.32 : PAPI, UL, CONSTRUCTION, ALTITUDE, SECURITY, NACELLE, AIR START.
 
 Fichiers modifiés :
 - index.html
@@ -12,10 +12,9 @@ Fichiers modifiés :
 - sw.js
 
 Fichier NAS :
-- Aucun.
+- Aucun fichier NAS à remplacer.
 
 Tests à refaire :
-- Ouvrir FDS et GAAR.
-- Vérifier que l’icône crayon est suffisamment visible.
-- Activer/désactiver le mode écriture PDF.
-- Vérifier que les couleurs, la gomme, la taille de trait et Centrer PDF fonctionnent toujours.
+- Ouvrir les filtres NOTAMs.
+- Vérifier que les mots-clés sont affichés par ordre alphabétique.
+- Vérifier que les filtres existants fonctionnent toujours.
