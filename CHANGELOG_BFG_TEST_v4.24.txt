@@ -1,36 +1,21 @@
-CHANGELOG BFG TEST v4.32
+CHANGELOG BFG TEST v4.33
 Date : 2026-07-10
-Base : TEST v4.31 hors ligne PDF zoom
+Base : TEST v4.32
+
+Changement :
+- PDF FDS / GAAR : agrandissement de l’icône crayon du mode Écrire PDF.
+- Le bouton conserve maintenant l’icône crayon même lorsque le mode écriture est actif, avec titre/aria-label mis à jour.
 
 Fichiers modifiés :
 - index.html
 - manifest.json
 - sw.js
 
-Modifications fonctionnelles :
-1. PDF FDS / GAAR
-- Suppression des boutons zoom + et - dans les viewers PDF FDS et GAAR.
-- Ajout à leur place du bouton "Centrer PDF".
-- Le bouton reprend l’action de réaffichage/recentrage propre du PDF.
-
-2. Mode Écrire PDF
-- Le bouton texte "Écrire PDF" est remplacé par une icône crayon.
-- Ajout de la couleur blanche dans les couleurs disponibles.
-- Les couleurs existantes rouge, bleu, vert et noir sont conservées.
-
-3. Carte des pélicandromes
-- Si le champ Observations contient "Eau", un point bleu est affiché au centre du rond du pélicandrome.
-- Si le pélicandrome est armé, le point bleu est affiché au centre du point vert.
-
-4. Filtres NOTAMs
-- Ajout des mots-clés : PAPI, UL, CONSTRUCTION, ALTITUDE, SECURITY, NACELLE, AIR START.
-
-Fichiers NAS :
-- Aucun fichier NAS à remplacer.
+Fichier NAS :
+- Aucun.
 
 Tests à refaire :
-- FDS : vérifier que les boutons zoom ont disparu et que "Centrer PDF" fonctionne.
-- GAAR : même test.
-- Écriture PDF : vérifier icône crayon et couleur blanche.
-- Pélicandromes : vérifier point bleu sur observation Eau, y compris statut armé.
-- NOTAMs : vérifier présence et action des nouveaux filtres.
+- Ouvrir FDS et GAAR.
+- Vérifier que l’icône crayon est suffisamment visible.
+- Activer/désactiver le mode écriture PDF.
+- Vérifier que les couleurs, la gomme, la taille de trait et Centrer PDF fonctionnent toujours.
