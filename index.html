@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0">
-    <title>Briefing Fdf TEST v4.34</title>
+    <title>Briefing Fdf TEST v4.35</title>
     <link rel="manifest" href="./manifest.json?v=4.24">
     <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png?v=4.24">
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -671,6 +671,14 @@
             overflow: hidden !important;
             touch-action: none !important;
             overscroll-behavior: none !important;
+        }
+
+        .clear-notam-selection-action {
+            background-color: #7f8c8d !important;
+        }
+
+        .clear-notam-selection-action:hover {
+            background-color: #6c7a7b !important;
         }
 
         .pencil-undo-highlight-action {
@@ -2025,10 +2033,10 @@
 
     <div class="page-header">
         <div class="page-header-background"></div>
-        <h1 id="main-title">Briefing Fdf TEST v4.34</h1>
+        <h1 id="main-title">Briefing Fdf TEST v4.35</h1>
         <p id="current-time-display"></p>
         <p style="position: relative; z-index: 2; text-align: center; color: #333; font-size: 1em; margin-top: -25px; margin-bottom: 30px;">
-    v<span id="app-version">4.34 TEST - filtres NOTAMs alphabétiques</span>
+    v<span id="app-version">4.35 TEST - annulation sélection NOTAMs</span>
     <button id="force-update-btn" class="link-button" style="background-color: #34495e; padding: 4px 10px; font-size: 0.8em; margin-left: 10px; vertical-align: middle;">
         Forcer MAJ
     </button>
@@ -2310,6 +2318,7 @@
             <button class="link-button confirm-action filter-action">Garder la sélection</button>
             <button class="link-button reset show-all-action" style="display: none;">Tout afficher</button>
             <button class="link-button save-pdf-action" style="display: none;">Sauvegarder en PDF</button>
+            <button class="link-button reset clear-notam-selection-action" type="button">Annuler sélection</button>
             <button class="link-button pencil-undo-highlight-action" type="button">Annuler surlignage</button>
         </div>
         <div id="notam-display"></div>
@@ -2317,6 +2326,7 @@
             <button class="link-button confirm-action filter-action">Garder la sélection</button>
             <button class="link-button reset show-all-action" style="display: none;">Tout afficher</button>
             <button class="link-button save-pdf-action" style="display: none;">Sauvegarder en PDF</button>
+            <button class="link-button reset clear-notam-selection-action" type="button">Annuler sélection</button>
             <button class="link-button pencil-undo-highlight-action" type="button">Annuler surlignage</button>
         </div>
 
@@ -2399,7 +2409,7 @@
     <footer>Données : Météo-France, SIA, Windy.com, CheckWX.com. Page non commerciale, à usage personnel.</footer>
     
     <script>
-        const APP_VERSION = "4.34 TEST - filtres NOTAMs alphabétiques";
+        const APP_VERSION = "4.35 TEST - annulation sélection NOTAMs";
 
         // --- Proxy NAS pour la source de données météo CheckWX ---
         const CHECKWX_PROXY_URL = "https://grisonb.synology.me/briefing-api/get-metar-taf.php";
@@ -4694,7 +4704,7 @@ const tdfStages = [
         async function requestGaarImportViaNas_() {
             const query = new URLSearchParams();
             query.set('t', String(Date.now()));
-            query.set('source', 'bfg-test-v4.34');
+            query.set('source', 'bfg-test-v4.35');
 
             const url = `${GAAR_IMPORT_REQUEST_API_URL}?${query.toString()}`;
             const response = await fetchWithTimeout_(url, { cache: 'no-store' }, 65000);
@@ -8707,6 +8717,14 @@ window.__notamTextFull = notamInput.value;
                 savePdfButtons.forEach(btn => btn.style.display = 'none');
                 filterButtons.forEach(btn => btn.style.display = 'inline-block');
             }
+
+            function clearNotamSelection_() {
+                document.querySelectorAll('#notam-display .notam-checkbox:checked').forEach(checkbox => {
+                    checkbox.checked = false;
+                });
+                resetSelectionFilter();
+                persistCurrentNotamState_();
+            }
             
             setupKeywordFilterDropdown();
             renderInitialAirportSections();
@@ -8714,6 +8732,7 @@ window.__notamTextFull = notamInput.value;
             filterButtons.forEach(b => b.addEventListener('click', applySelectionFilter));
             showAllButtons.forEach(b => b.addEventListener('click', resetSelectionFilter));
             savePdfButtons.forEach(b => b.addEventListener('click', generateNotamPdf));
+            document.querySelectorAll('.clear-notam-selection-action').forEach(button => button.addEventListener('click', clearNotamSelection_));
             document.getElementById('notam-date-filter-cb').addEventListener('change', applyLiveFilters);
 
             notamSection.addEventListener('change', (e) => {
@@ -8887,10 +8906,23 @@ window.__notamTextFull = notamInput.value;
             }
 
             function undoLastPencilHighlight_() {
-                const last = pencilHighlightUndoStack_.pop();
-                if (!last || !last.container || !document.body.contains(last.container)) return;
-                last.container.innerHTML = last.previousHtml;
+                while (pencilHighlightUndoStack_.length > 0) {
+                    const last = pencilHighlightUndoStack_.pop();
+                    if (last && last.container && document.body.contains(last.container)) {
+                        last.container.innerHTML = last.previousHtml;
+                        persistCurrentNotamState_();
+                        return;
+                    }
+                }
+
+                // Secours : les surlignages faits au doigt ne passaient pas toujours
+                // par la pile Pencil. On retire alors le dernier <mark> visible dans les NOTAMs.
+                const marks = Array.from(document.querySelectorAll('#notam-display mark.highlighted-text:not(.pencil-highlight-preview)'));
+                const lastMark = marks[marks.length - 1];
+                if (!lastMark) return;
+                removeHighlightedMark_(lastMark);
                 persistCurrentNotamState_();
+                window.getSelection()?.removeAllRanges();
             }
 
             function isPencilEvent_(event) {
@@ -9294,7 +9326,7 @@ window.__notamTextFull = notamInput.value;
 
         function initializePageTitle() {
             const titleElement = document.getElementById('main-title');
-            titleElement.textContent = `Briefing Fdf TEST v4.34 du ${new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}`;
+            titleElement.textContent = `Briefing Fdf TEST v4.35 du ${new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}`;
             const timeDisplay = document.getElementById('current-time-display');
             const updateTime = () => timeDisplay.textContent = new Date().toLocaleTimeString('fr-FR');
             updateTime(); setInterval(updateTime, 1000);
