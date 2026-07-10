@@ -1,4 +1,4 @@
-const CACHE_NAME = 'briefing-fdf-test-v4.30-reset-pdf-fds-gaar';
+const CACHE_NAME = 'briefing-fdf-test-v4.31-hors-ligne-pdf-zoom';
 
 const LOCAL_ASSETS = [
   './manifest.json',
@@ -90,6 +90,31 @@ self.addEventListener('activate', (event) => {
   })());
 });
 
+
+function normalizedBfgCacheRequest(request) {
+  try {
+    const url = new URL(request.url);
+    if (url.hostname !== 'grisonb.synology.me') return request;
+    const stablePaths = [
+      '/briefing-api/get-risk-map-pdf.php',
+      '/briefing-api/get-risk-map-status.php',
+      '/briefing-api/get-feuille-service-pdf.php',
+      '/briefing-api/get-feuille-service-status.php',
+      '/briefing-api/get-gaar-pdf.php',
+      '/briefing-api/get-gaar-status.php'
+    ];
+    if (!stablePaths.some((p) => url.pathname.includes(p))) return request;
+    const keep = new URL(url.origin + url.pathname);
+    ['map', 'date'].forEach((key) => {
+      const value = url.searchParams.get(key);
+      if (value) keep.searchParams.set(key, value);
+    });
+    return new Request(keep.toString(), { method: 'GET' });
+  } catch (_) {
+    return request;
+  }
+}
+
 self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET') return;
 
@@ -100,9 +125,12 @@ self.addEventListener('fetch', (event) => {
   if (!sameOrigin && url.hostname === 'grisonb.synology.me' && (
       url.pathname.includes('/briefing-data/risk-maps/') ||
       url.pathname.includes('/briefing-data/gaar/') ||
+      url.pathname.includes('/briefing-data/feuille-service/') ||
       url.pathname.includes('/briefing-data/temsi/') ||
       url.pathname.includes('/briefing-api/get-risk-map-pdf.php') ||
       url.pathname.includes('/briefing-api/get-risk-map-status.php') ||
+      url.pathname.includes('/briefing-api/get-feuille-service-pdf.php') ||
+      url.pathname.includes('/briefing-api/get-feuille-service-status.php') ||
       url.pathname.includes('/briefing-api/request-risk-map-generation.php') ||
       url.pathname.includes('/briefing-api/get-risk-map-generation-status.php') ||
       url.pathname.includes('/briefing-api/get-gaar-pdf.php') ||
@@ -110,13 +138,15 @@ self.addEventListener('fetch', (event) => {
       url.pathname.includes('/briefing-api/get-metar-taf.php')
     )) {
     event.respondWith((async () => {
+      const normalizedRequest = normalizedBfgCacheRequest(event.request);
       try {
         const networkRes = await fetch(event.request, { cache: 'no-store' });
         const cache = await caches.open(CACHE_NAME);
         cache.put(event.request, networkRes.clone()).catch(() => {});
+        cache.put(normalizedRequest, networkRes.clone()).catch(() => {});
         return networkRes;
       } catch (err) {
-        const cached = await caches.match(event.request);
+        const cached = await caches.match(event.request) || await caches.match(normalizedRequest);
         if (cached) return cached;
         throw err;
       }
