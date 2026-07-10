@@ -1999,7 +1999,7 @@
         <h1 id="main-title">Briefing Fdf TEST v4.30</h1>
         <p id="current-time-display"></p>
         <p style="position: relative; z-index: 2; text-align: center; color: #333; font-size: 1em; margin-top: -25px; margin-bottom: 30px;">
-    v<span id="app-version">4.30 TEST - reset PDF FDS/GAAR</span>
+    v<span id="app-version">4.31 TEST - hors ligne PDF zoom</span>
     <button id="force-update-btn" class="link-button" style="background-color: #34495e; padding: 4px 10px; font-size: 0.8em; margin-left: 10px; vertical-align: middle;">
         Forcer MAJ
     </button>
@@ -2370,7 +2370,7 @@
     <footer>Données : Météo-France, SIA, Windy.com, CheckWX.com. Page non commerciale, à usage personnel.</footer>
     
     <script>
-        const APP_VERSION = "4.30 TEST - reset PDF FDS/GAAR";
+        const APP_VERSION = "4.31 TEST - hors ligne PDF zoom";
 
         // --- Proxy NAS pour la source de données météo CheckWX ---
         const CHECKWX_PROXY_URL = "https://grisonb.synology.me/briefing-api/get-metar-taf.php";
@@ -4097,12 +4097,36 @@ const tdfStages = [
         }
         
 
+        const BFG_START_OFFLINE_ = !navigator.onLine;
         let bfgWasOffline_ = !navigator.onLine;
         let bfgOnlineReloadStarted_ = false;
 
+        function isBfgOffline_() {
+            return navigator.onLine === false;
+        }
+
+        function setBfgOfflineBanner_(message) {
+            const sessionStatus = document.getElementById('session-status');
+            if (!sessionStatus) return;
+            sessionStatus.textContent = message || 'Mode hors ligne — dernières données enregistrées affichées.';
+            sessionStatus.style.background = '#fef5d7';
+            sessionStatus.style.color = '#7a4b00';
+            sessionStatus.style.border = '1px solid #d8a400';
+            sessionStatus.style.padding = '6px 10px';
+            sessionStatus.style.borderRadius = '6px';
+        }
+
         function setBfgConnectionMessage_(message) {
             const sessionStatus = document.getElementById('session-status');
-            if (sessionStatus) sessionStatus.textContent = message;
+            if (!sessionStatus) return;
+            sessionStatus.textContent = message;
+            if (navigator.onLine === false) {
+                sessionStatus.style.background = '#fef5d7';
+                sessionStatus.style.color = '#7a4b00';
+                sessionStatus.style.border = '1px solid #d8a400';
+                sessionStatus.style.padding = '6px 10px';
+                sessionStatus.style.borderRadius = '6px';
+            }
         }
 
         async function reloadBfgAfterOnlineReturn_() {
@@ -4176,10 +4200,12 @@ const tdfStages = [
             const subject = meta.mailSubject || meta.subject || '';
             const sourceLabel = options.sourceLabel || (mode === FDS_MODE_MANUAL ? 'FDS manuelle affichée' : 'FDS automatique chargée');
 
+            window.__lastFdsMetaPanelPayload = { meta: { ...meta }, options: { ...options }, savedAt: new Date().toISOString() };
             panel.innerHTML = `
                 ${subject ? `<div class="fds-meta-title">${escapeHtml_(subject)}</div>` : ''}
                 <div class="fds-meta-date">Email / document du : ${escapeHtml_(dateLabel)}</div>
                 <div class="fds-meta-subject">${escapeHtml_(sourceLabel)} — ${escapeHtml_(filename)}</div>
+                ${isBfgOffline_() ? '<div class="fds-meta-subject">Mode hors ligne — métadonnées locales conservées</div>' : ''}
             `;
             panel.classList.add('visible');
         }
@@ -4275,6 +4301,9 @@ const tdfStages = [
         }
 
         function fetchWithTimeout_(url, options = {}, timeoutMs = 10000) {
+            if (isBfgOffline_()) {
+                return fetch(url, { ...options, cache: options.cache || 'force-cache' });
+            }
             const controller = new AbortController();
             const timer = setTimeout(() => controller.abort(), timeoutMs);
             return fetch(url, { ...options, signal: controller.signal })
@@ -4454,6 +4483,10 @@ const tdfStages = [
         }
 
         async function chargerDerniereFeuilleServiceAuDemarrage_() {
+            if (isBfgOffline_()) {
+                setFdsAutoStatus_('Mode hors ligne : aucune requête NAS FDS lancée. Dernière FDS locale conservée si disponible.', { warning: true });
+                return;
+            }
             if (getFdsMode_() === FDS_MODE_MANUAL) {
                 setFdsAutoStatus_('Mode FDS manuel : aucune feuille NAS chargée automatiquement. Utiliser Importation manuelle ou repasser en Auto.', { warning: true });
                 return;
@@ -4521,10 +4554,12 @@ const tdfStages = [
             const subject = meta.mailSubject || meta.subject || '';
             const sourceLabel = options.sourceLabel || (mode === GAAR_MODE_MANUAL ? 'GAAR manuelle affichée' : 'GAAR automatique chargée');
 
+            window.__lastGaarMetaPanelPayload = { meta: { ...meta }, options: { ...options }, savedAt: new Date().toISOString() };
             panel.innerHTML = `
                 ${subject ? `<div class="fds-meta-title">${escapeHtml_(subject)}</div>` : ''}
                 <div class="fds-meta-date">Email / document du : ${escapeHtml_(dateLabel)}</div>
                 <div class="fds-meta-subject">${escapeHtml_(sourceLabel)} — ${escapeHtml_(filename)}</div>
+                ${isBfgOffline_() ? '<div class="fds-meta-subject">Mode hors ligne — métadonnées locales conservées</div>' : ''}
             `;
             panel.classList.add('visible');
         }
@@ -4751,6 +4786,10 @@ const tdfStages = [
         }
 
         async function chargerDerniereGaarAuDemarrage_() {
+            if (isBfgOffline_()) {
+                setGaarAutoStatus_('Mode hors ligne : aucune requête NAS GAAR lancée. Dernier diagramme local conservé si disponible.', { warning: true });
+                return;
+            }
             if (getGaarMode_() === GAAR_MODE_MANUAL) {
                 setGaarAutoStatus_('Mode GAAR manuel : aucune feuille NAS chargée automatiquement. Utiliser Importation manuelle ou repasser en Auto.', { warning: true });
                 return;
@@ -4775,8 +4814,12 @@ const tdfStages = [
                     }
                 }
             } catch (error) {
-                if (typeof resetGaarPdfOnly === 'function') resetGaarPdfOnly();
-                setGaarAutoStatus_('Aucune feuille GAAR du jour chargée automatiquement. Aucun ancien diagramme GAAR n’est affiché.', { warning: true });
+                if (!isBfgOffline_()) {
+                    if (typeof resetGaarPdfOnly === 'function') resetGaarPdfOnly();
+                    setGaarAutoStatus_('Aucune feuille GAAR du jour chargée automatiquement. Aucun ancien diagramme GAAR n’est affiché.', { warning: true });
+                } else {
+                    setGaarAutoStatus_('Mode hors ligne : dernier diagramme GAAR local conservé si disponible.', { warning: true });
+                }
             }
         }
 
@@ -4904,6 +4947,20 @@ const tdfStages = [
         async function loadRiskMaps_() {
             const loadedAt = new Date();
             const cacheBuster = Date.now();
+
+            if (isBfgOffline_()) {
+                setRiskMapsStatus_('Mode hors ligne : tentative d’affichage des dernières cartes risques en cache local...');
+                try {
+                    for (const cfg of Object.values(BFG_RISK_MAPS)) {
+                        await renderRiskMapPdf_(cfg, 'offline');
+                    }
+                    setRiskMapsStatus_(`Mode hors ligne — dernières cartes risques locales affichées à ${loadedAt.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}.`);
+                } catch (error) {
+                    console.warn('Cartes risques hors ligne indisponibles:', error);
+                    setRiskMapsStatus_('Mode hors ligne : cartes risques non disponibles dans le cache local.');
+                }
+                return;
+            }
 
             setRiskMapsStatus_('Vérification serveur des dernières cartes disponibles...');
 
@@ -5082,6 +5139,9 @@ const tdfStages = [
 
     initializeNavigation(); 
     initializePageTitle();
+    if (isBfgOffline_()) {
+        setBfgOfflineBanner_('Mode hors ligne détecté au démarrage — chargement des dernières données locales.');
+    }
     initializeTemsi();
     initializeRiskMaps();
     initializeWindy();
@@ -5840,6 +5900,14 @@ const tdfStages = [
 
                 if (!select || !info) return;
 
+                if (isBfgOffline_()) {
+                    info.classList.remove('temsi-status-ok');
+                    info.classList.add('temsi-status-warning');
+                    info.textContent = 'Mode hors ligne : aucune recherche TEMSI NAS lancée. Dernière TEMSI locale conservée si disponible.';
+                    if (refreshBtn) refreshBtn.onclick = () => populateTemsi_();
+                    return;
+                }
+
                 select.innerHTML = '';
 
                 const now = new Date();
@@ -6397,8 +6465,8 @@ const tdfStages = [
                 if (!pdfDoc) return;
                 if (action === 'prev' && pageNum > 1) { pageNum--; queueRenderPage(pageNum); }
                 else if (action === 'next' && pageNum < pdfDoc.numPages) { pageNum++; queueRenderPage(pageNum); }
-                else if (action === 'zoom-in') { scale = Math.min(5.0, scale + 0.2); queueRenderPage(pageNum); }
-                else if (action === 'zoom-out') { scale = Math.max(0.3, scale - 0.2); queueRenderPage(pageNum); }
+                else if (action === 'zoom-in') { scale = Math.min(5.0, Math.round((scale + 0.10) * 100) / 100); queueRenderPage(pageNum); }
+                else if (action === 'zoom-out') { scale = Math.max(0.3, Math.round((scale - 0.10) * 100) / 100); queueRenderPage(pageNum); }
             }, { signal: handlerSignal });
 
             wrapper.addEventListener('wheel', e => {
@@ -6438,7 +6506,9 @@ const tdfStages = [
                 if (annotationMode) return;
                 if (e.touches.length === 2 && initialPinchDistance) {
                     e.preventDefault();
-                    scale = Math.max(0.3, Math.min(startScale * (getDistance(e.touches[0], e.touches[1]) / initialPinchDistance), 5.0));
+                    const pinchRatio = getDistance(e.touches[0], e.touches[1]) / initialPinchDistance;
+                    const dampedRatio = 1 + ((pinchRatio - 1) * 0.28);
+                    scale = Math.max(0.3, Math.min(startScale * dampedRatio, 5.0));
                     queueRenderPage(pageNum);
                 } else if (e.touches.length === 1 && isPanning) {
                     e.preventDefault();
@@ -7464,6 +7534,8 @@ let activeShareApiBase = SHARE_API_BASE;
 
                 fds: window.fdsFileObject ? await fileToSavable(window.fdsFileObject) : null,
                 gaar: window.gaarFileObject ? await fileToSavable(window.gaarFileObject) : null,
+                fdsMetaPanel: window.__lastFdsMetaPanelPayload || null,
+                gaarMetaPanel: window.__lastGaarMetaPanelPayload || null,
 
                 gaarMapState: (window.gaarDrawnCircuits || []).map(circuit => ({
                     color: circuit.color,
@@ -7838,6 +7910,9 @@ let activeShareApiBase = SHARE_API_BASE;
             window.fdsFileObject = file;
             document.getElementById('pdf-info-fds').textContent = `Document chargé : ${file.name}`;
             createInteractivePdfHandler(document.getElementById('pdf-interactive-container-fds'), file, null, 1.65);
+            if (data.fdsMetaPanel && data.fdsMetaPanel.meta) {
+                setFdsMetaPanel_(data.fdsMetaPanel.meta, { ...(data.fdsMetaPanel.options || {}), sourceLabel: ((data.fdsMetaPanel.options || {}).sourceLabel || 'FDS locale restaurée') });
+            }
         } else if (data.fds) {
             window.fdsFileObject = null;
             const infoFds = document.getElementById('pdf-info-fds');
@@ -7861,6 +7936,9 @@ let activeShareApiBase = SHARE_API_BASE;
             window.gaarFileObject = file;
             document.getElementById('pdf-info-gaar').textContent = `Document chargé : ${file.name}`;
             createInteractivePdfHandler(document.getElementById('pdf-interactive-container-gaar'), file, initializeGaarMapFromFile, 1.2);
+            if (data.gaarMetaPanel && data.gaarMetaPanel.meta) {
+                setGaarMetaPanel_(data.gaarMetaPanel.meta, { ...(data.gaarMetaPanel.options || {}), sourceLabel: ((data.gaarMetaPanel.options || {}).sourceLabel || 'GAAR locale restaurée') });
+            }
         } else if (data.gaar) {
             window.gaarFileObject = null;
             const infoGaar = document.getElementById('pdf-info-gaar');
