@@ -1,28 +1,33 @@
-CHANGELOG BFG TEST v4.30
-Date : 2026-07-05
-Base : TEST v4.29
+BFG TEST v4.31 — Hors ligne renforcé / PDF FDS-GAAR / zoom
+Date : 2026-07-07
+Base : BFG TEST v4.30
 
 Objectif
-- Corriger les rendus PDF FDS et GAAR qui peuvent apparaître à l'envers et/ou avec un zoom anormalement réduit après perte/reprise réseau, retour d'arrière-plan iPad, changement de rubrique ou rechargement partiel.
+- Corriger les pertes d'affichage après lancement de BFG hors ligne.
+- Renforcer l'affichage local des dernières données connues.
+- Réduire la sensibilité du zoom tactile sur les PDF FDS / GAAR.
 
-Changements fonctionnels
-- FDS / GAAR : destruction logique de l'ancien handler PDF avant création d'un nouveau rendu.
-- FDS / GAAR : rendu PDF recréé proprement avec rotation forcée à 0°.
-- FDS / GAAR : reset des transformations CSS du canvas PDF avant chaque rendu.
-- FDS / GAAR : attente d'une largeur de conteneur stable avant calcul du rendu.
-- FDS / GAAR : rerender automatique lors du retour réseau.
-- FDS / GAAR : rerender automatique lorsque l'app revient au premier plan.
-- FDS / GAAR : rerender automatique après resize / changement d'orientation.
-- FDS / GAAR : détection d'un rendu anormalement petit et relance automatique du rendu.
-- FDS / GAAR : ajout d'un bouton de secours "Réafficher PDF" dans la barre d'annotation PDF.
+Changements principaux
+1. Mode hors ligne au démarrage
+- Détection de navigator.onLine === false dès l'initialisation.
+- Affichage d'un bandeau de mode hors ligne.
+- Les chargements automatiques FDS / GAAR ne lancent plus de requêtes NAS au démarrage hors ligne.
+- La TEMSI ne lance plus de recherche NAS au démarrage hors ligne.
 
-Conservé depuis v4.29
-- Fenêtre groupée "AZBA / SUP AIP".
-- Boutons : "Carte SUP AIP / AZBA", "AZBA SIA", "ForeFlight".
-- Annotations PDF FDS / GAAR : écriture, gomme, couleurs, taille de trait, annuler trait, effacer page.
-- Connexion Briefing jusqu'à 23h00.
-- Dernier partage masqué le lendemain.
-- Persistance des NOTAMs cochés/surlignés.
+2. FDS / GAAR hors ligne
+- Conservation locale des métadonnées de panneaux FDS / GAAR : sujet, date/heure du mail, nom du fichier, source.
+- Réaffichage des métadonnées locales lors de la restauration si disponibles.
+- En cas d'échec hors ligne, BFG ne doit plus vider volontairement le diagramme GAAR local.
+
+3. Cartes de risques hors ligne
+- Tentative d'affichage des dernières cartes risques depuis le cache local en mode hors ligne.
+- Service worker amélioré : mise en cache également sous une clé normalisée sans cache-buster.
+- Ajout au cache BFG des endpoints FDS : get-feuille-service-pdf.php et get-feuille-service-status.php.
+
+4. PDF FDS / GAAR
+- Zoom tactile par pincement fortement amorti : variation environ 3 à 4 fois moins sensible.
+- Boutons + / - ramenés à des pas fixes plus fins : ±0,10 au lieu de ±0,20.
+- Conservation des protections v4.30 : rerender propre, rotation forcée à 0°, bouton Réafficher PDF.
 
 Fichiers modifiés
 - index.html
@@ -30,13 +35,11 @@ Fichiers modifiés
 - sw.js
 
 Fichiers NAS
-- Aucun nouveau fichier NAS.
+- Aucun fichier NAS à remplacer.
 
-Tests à faire
-1. Ouvrir FDS puis vérifier que le PDF est dans le bon sens.
-2. Ouvrir GAAR puis vérifier que le PDF est dans le bon sens.
-3. Mettre l'iPad hors réseau puis revenir en ligne avec FDS/GAAR ouverte.
-4. Mettre BFG en arrière-plan puis revenir.
-5. Vérifier que le PDF se réaffiche normalement.
-6. Tester le bouton "Réafficher PDF".
-7. Vérifier que l'écriture Pencil fonctionne toujours.
+Tests recommandés
+1. Charger BFG en ligne et faire une sauvegarde locale.
+2. Fermer BFG, couper le réseau, rouvrir BFG.
+3. Vérifier TEMSI, cartes risques, FDS, GAAR et panneaux de métadonnées.
+4. Remettre le réseau et vérifier la reprise.
+5. Tester zoom tactile FDS / GAAR et boutons + / -.
