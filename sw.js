@@ -1,4 +1,4 @@
-const CACHE_NAME = 'briefing-fdf-test-v4.32-pdf-centre-pelic-eau-filtres-notams';
+const CACHE_NAME = 'briefing-fdf-test-v4.33-icone-crayon-pdf-agrandie';
 
 const LOCAL_ASSETS = [
   './manifest.json',
