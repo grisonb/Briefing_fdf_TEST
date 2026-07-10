@@ -1,45 +1,36 @@
-BFG TEST v4.31 — Hors ligne renforcé / PDF FDS-GAAR / zoom
-Date : 2026-07-07
-Base : BFG TEST v4.30
+CHANGELOG BFG TEST v4.32
+Date : 2026-07-10
+Base : TEST v4.31 hors ligne PDF zoom
 
-Objectif
-- Corriger les pertes d'affichage après lancement de BFG hors ligne.
-- Renforcer l'affichage local des dernières données connues.
-- Réduire la sensibilité du zoom tactile sur les PDF FDS / GAAR.
-
-Changements principaux
-1. Mode hors ligne au démarrage
-- Détection de navigator.onLine === false dès l'initialisation.
-- Affichage d'un bandeau de mode hors ligne.
-- Les chargements automatiques FDS / GAAR ne lancent plus de requêtes NAS au démarrage hors ligne.
-- La TEMSI ne lance plus de recherche NAS au démarrage hors ligne.
-
-2. FDS / GAAR hors ligne
-- Conservation locale des métadonnées de panneaux FDS / GAAR : sujet, date/heure du mail, nom du fichier, source.
-- Réaffichage des métadonnées locales lors de la restauration si disponibles.
-- En cas d'échec hors ligne, BFG ne doit plus vider volontairement le diagramme GAAR local.
-
-3. Cartes de risques hors ligne
-- Tentative d'affichage des dernières cartes risques depuis le cache local en mode hors ligne.
-- Service worker amélioré : mise en cache également sous une clé normalisée sans cache-buster.
-- Ajout au cache BFG des endpoints FDS : get-feuille-service-pdf.php et get-feuille-service-status.php.
-
-4. PDF FDS / GAAR
-- Zoom tactile par pincement fortement amorti : variation environ 3 à 4 fois moins sensible.
-- Boutons + / - ramenés à des pas fixes plus fins : ±0,10 au lieu de ±0,20.
-- Conservation des protections v4.30 : rerender propre, rotation forcée à 0°, bouton Réafficher PDF.
-
-Fichiers modifiés
+Fichiers modifiés :
 - index.html
 - manifest.json
 - sw.js
 
-Fichiers NAS
+Modifications fonctionnelles :
+1. PDF FDS / GAAR
+- Suppression des boutons zoom + et - dans les viewers PDF FDS et GAAR.
+- Ajout à leur place du bouton "Centrer PDF".
+- Le bouton reprend l’action de réaffichage/recentrage propre du PDF.
+
+2. Mode Écrire PDF
+- Le bouton texte "Écrire PDF" est remplacé par une icône crayon.
+- Ajout de la couleur blanche dans les couleurs disponibles.
+- Les couleurs existantes rouge, bleu, vert et noir sont conservées.
+
+3. Carte des pélicandromes
+- Si le champ Observations contient "Eau", un point bleu est affiché au centre du rond du pélicandrome.
+- Si le pélicandrome est armé, le point bleu est affiché au centre du point vert.
+
+4. Filtres NOTAMs
+- Ajout des mots-clés : PAPI, UL, CONSTRUCTION, ALTITUDE, SECURITY, NACELLE, AIR START.
+
+Fichiers NAS :
 - Aucun fichier NAS à remplacer.
 
-Tests recommandés
-1. Charger BFG en ligne et faire une sauvegarde locale.
-2. Fermer BFG, couper le réseau, rouvrir BFG.
-3. Vérifier TEMSI, cartes risques, FDS, GAAR et panneaux de métadonnées.
-4. Remettre le réseau et vérifier la reprise.
-5. Tester zoom tactile FDS / GAAR et boutons + / -.
+Tests à refaire :
+- FDS : vérifier que les boutons zoom ont disparu et que "Centrer PDF" fonctionne.
+- GAAR : même test.
+- Écriture PDF : vérifier icône crayon et couleur blanche.
+- Pélicandromes : vérifier point bleu sur observation Eau, y compris statut armé.
+- NOTAMs : vérifier présence et action des nouveaux filtres.
