@@ -1,14 +1,13 @@
-CHANGELOG BFG TEST v4.37
+CHANGELOG BFG TEST v4.38
 Date : 2026-07-11
-Base : TEST v4.36 surlignages NOTAMs complets
+Base : TEST v4.37 zoom PDF fluide
 
 Modifications :
-- PDF FDS / GAAR : zoom à deux doigts rendu plus fluide sur iPad.
-- Pendant le pincement, le PDF est agrandi ou réduit immédiatement par transformation graphique, sans relancer PDF.js à chaque mouvement.
-- Un seul rendu PDF haute définition est effectué au relâchement des doigts.
-- Le point situé entre les doigts reste autant que possible sous les doigts après le rendu final.
-- Le déplacement à un doigt reste inchangé.
-- Le mode écriture PDF et les annotations existantes sont conservés.
+- PDF FDS / GAAR : suppression du rendu PDF.js automatique au relâchement du zoom à deux doigts.
+- Le niveau de zoom obtenu est désormais conservé immédiatement par redimensionnement CSS du PDF et des annotations.
+- Le document reste utilisable dès que les doigts sont relâchés, sans blocage lié à un nouveau rendu haute définition.
+- Les rendus PDF déclenchés par un changement de page ou les boutons de zoom sont plafonnés en nombre de pixels afin d'éviter les canevas excessivement lourds sur iPad.
+- Adaptation de l'épaisseur des annotations lorsque le PDF est agrandi sans nouveau rendu.
 
 Fichiers modifiés :
 - index.html
@@ -18,10 +17,10 @@ Fichiers modifiés :
 Fichier NAS :
 - Aucun fichier NAS à remplacer.
 
-Tests à refaire sur iPad :
-1. Ouvrir une FDS puis effectuer plusieurs zooms avant/arrière à deux doigts.
-2. Vérifier que le mouvement suit immédiatement les doigts et qu'un rendu net apparaît au relâchement.
-3. Vérifier que le point central du pincement reste approximativement au même endroit.
-4. Déplacer le PDF à un doigt après zoom.
-5. Refaire les mêmes essais sur le GAAR.
-6. Activer le crayon, écrire, désactiver le crayon, zoomer, puis vérifier que l'écriture reste correctement positionnée.
+Tests à refaire :
+1. Ouvrir une FDS et effectuer plusieurs zooms/dézooms sans relâcher : le mouvement doit rester fluide.
+2. Relâcher les doigts après chaque zoom : le PDF doit rester immédiatement déplaçable et un nouveau pincement doit pouvoir commencer sans attente.
+3. Répéter rapidement plusieurs pincements successifs sur la FDS puis sur le GAAR.
+4. Vérifier le déplacement à un doigt après le zoom.
+5. Vérifier l'écriture et la gomme après avoir zoomé.
+6. Changer de page, puis vérifier que le PDF reste affiché correctement.
