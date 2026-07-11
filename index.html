@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0">
-    <title>Briefing Fdf TEST v4.35</title>
+    <title>Briefing Fdf TEST v4.36</title>
     <link rel="manifest" href="./manifest.json?v=4.24">
     <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png?v=4.24">
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -659,7 +659,8 @@
             outline: 1px dashed rgba(120, 90, 0, 0.55);
         }
 
-        .notam-text-content.pencil-highlighter-active {
+        .notam-text-content.pencil-highlighter-active,
+        .notam-validity.pencil-highlighter-active {
             cursor: crosshair;
             touch-action: none;
             -webkit-user-select: none;
@@ -2033,10 +2034,10 @@
 
     <div class="page-header">
         <div class="page-header-background"></div>
-        <h1 id="main-title">Briefing Fdf TEST v4.35</h1>
+        <h1 id="main-title">Briefing Fdf TEST v4.36</h1>
         <p id="current-time-display"></p>
         <p style="position: relative; z-index: 2; text-align: center; color: #333; font-size: 1em; margin-top: -25px; margin-bottom: 30px;">
-    v<span id="app-version">4.35 TEST - annulation sélection NOTAMs</span>
+    v<span id="app-version">4.36 TEST - surlignages NOTAMs complets</span>
     <button id="force-update-btn" class="link-button" style="background-color: #34495e; padding: 4px 10px; font-size: 0.8em; margin-left: 10px; vertical-align: middle;">
         Forcer MAJ
     </button>
@@ -2409,7 +2410,7 @@
     <footer>Données : Météo-France, SIA, Windy.com, CheckWX.com. Page non commerciale, à usage personnel.</footer>
     
     <script>
-        const APP_VERSION = "4.35 TEST - annulation sélection NOTAMs";
+        const APP_VERSION = "4.36 TEST - surlignages NOTAMs complets";
 
         // --- Proxy NAS pour la source de données météo CheckWX ---
         const CHECKWX_PROXY_URL = "https://grisonb.synology.me/briefing-api/get-metar-taf.php";
@@ -4704,7 +4705,7 @@ const tdfStages = [
         async function requestGaarImportViaNas_() {
             const query = new URLSearchParams();
             query.set('t', String(Date.now()));
-            query.set('source', 'bfg-test-v4.35');
+            query.set('source', 'bfg-test-v4.36');
 
             const url = `${GAAR_IMPORT_REQUEST_API_URL}?${query.toString()}`;
             const response = await fetchWithTimeout_(url, { cache: 'no-store' }, 65000);
@@ -8546,16 +8547,20 @@ window.__notamTextFull = notamInput.value;
                     if (!id) return;
                     const checkbox = item.querySelector('.notam-checkbox');
                     const contentEl = item.querySelector('.notam-text-content');
+                    const validityEl = item.querySelector('.notam-validity');
                     const html = contentEl?.innerHTML || '';
+                    const validityHtml = validityEl?.innerHTML || '';
                     const hasHighlight = html.includes('<mark');
+                    const hasValidityHighlight = validityHtml.includes('<mark');
                     const checked = !!checkbox?.checked;
-                    if (!checked && !hasHighlight) return;
+                    if (!checked && !hasHighlight && !hasValidityHighlight) return;
                     const signature = item.dataset.notamSignature || createNotamStableSignature_(contentEl?.innerText || contentEl?.textContent || '');
                     byId[id] = {
                         checked,
                         textSignature: signature
                     };
                     if (hasHighlight) byId[id].highlightHtml = html;
+                    if (hasValidityHighlight) byId[id].validityHighlightHtml = validityHtml;
                 });
                 return {
                     version: 'persistentNotamStateV1',
@@ -8587,6 +8592,10 @@ window.__notamTextFull = notamInput.value;
                         const contentEl = item.querySelector('.notam-text-content');
                         if (contentEl) contentEl.innerHTML = entry.highlightHtml;
                     }
+                    if (entry.validityHighlightHtml) {
+                        const validityEl = item.querySelector('.notam-validity');
+                        if (validityEl) validityEl.innerHTML = entry.validityHighlightHtml;
+                    }
                 });
             }
 
@@ -8606,6 +8615,10 @@ window.__notamTextFull = notamInput.value;
                         if (entry.highlightHtml) {
                             const contentEl = item.querySelector('.notam-text-content');
                             if (contentEl) contentEl.innerHTML = entry.highlightHtml;
+                        }
+                        if (entry.validityHighlightHtml) {
+                            const validityEl = item.querySelector('.notam-validity');
+                            if (validityEl) validityEl.innerHTML = entry.validityHighlightHtml;
                         }
                     });
                 }
@@ -8783,7 +8796,7 @@ window.__notamTextFull = notamInput.value;
 
             function handleTextHighlight(event) {
                 if (Date.now() - lastPencilHighlightEndAt_ < 700) return;
-                const textContentDiv = event.target.closest('.notam-text-content'); if (!textContentDiv) return;
+                const textContentDiv = event.target.closest('.notam-text-content, .notam-validity'); if (!textContentDiv) return;
                 setTimeout(() => {
                     const selection = window.getSelection(); if (!selection || selection.isCollapsed || !textContentDiv.contains(selection.anchorNode)) return;
                     const range = selection.getRangeAt(0);
@@ -8906,21 +8919,15 @@ window.__notamTextFull = notamInput.value;
             }
 
             function undoLastPencilHighlight_() {
-                while (pencilHighlightUndoStack_.length > 0) {
-                    const last = pencilHighlightUndoStack_.pop();
-                    if (last && last.container && document.body.contains(last.container)) {
-                        last.container.innerHTML = last.previousHtml;
-                        persistCurrentNotamState_();
-                        return;
-                    }
+                // Suppression globale demandée : un clic retire tous les surlignages NOTAMs,
+                // y compris les surlignages Pencil, doigt et titres de validité.
+                pencilHighlightUndoStack_.length = 0;
+                const marks = Array.from(document.querySelectorAll('#notam-display mark.highlighted-text'));
+                if (!marks.length) {
+                    window.getSelection()?.removeAllRanges();
+                    return;
                 }
-
-                // Secours : les surlignages faits au doigt ne passaient pas toujours
-                // par la pile Pencil. On retire alors le dernier <mark> visible dans les NOTAMs.
-                const marks = Array.from(document.querySelectorAll('#notam-display mark.highlighted-text:not(.pencil-highlight-preview)'));
-                const lastMark = marks[marks.length - 1];
-                if (!lastMark) return;
-                removeHighlightedMark_(lastMark);
+                marks.forEach(removeHighlightedMark_);
                 persistCurrentNotamState_();
                 window.getSelection()?.removeAllRanges();
             }
@@ -9147,7 +9154,7 @@ window.__notamTextFull = notamInput.value;
             function handlePencilHighlightDown_(event) {
                 if (!isPencilEvent_(event)) return;
                 if (pencilHighlightState_ || pencilPendingState_) return;
-                const textContentDiv = event.target.closest('.notam-text-content');
+                const textContentDiv = event.target.closest('.notam-text-content, .notam-validity');
                 if (!textContentDiv) return;
 
                 const tapMark = event.target.closest('mark.highlighted-text') || getHighlightedMarkNearPoint_(textContentDiv, event.clientX, event.clientY);
@@ -9326,7 +9333,7 @@ window.__notamTextFull = notamInput.value;
 
         function initializePageTitle() {
             const titleElement = document.getElementById('main-title');
-            titleElement.textContent = `Briefing Fdf TEST v4.35 du ${new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}`;
+            titleElement.textContent = `Briefing Fdf TEST v4.36 du ${new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}`;
             const timeDisplay = document.getElementById('current-time-display');
             const updateTime = () => timeDisplay.textContent = new Date().toLocaleTimeString('fr-FR');
             updateTime(); setInterval(updateTime, 1000);
