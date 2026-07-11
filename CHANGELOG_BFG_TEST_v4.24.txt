@@ -1,11 +1,14 @@
-CHANGELOG BFG TEST v4.36
+CHANGELOG BFG TEST v4.37
 Date : 2026-07-11
-Base : TEST v4.35 annulation sélection/surlignage NOTAMs
+Base : TEST v4.36 surlignages NOTAMs complets
 
 Modifications :
-- NOTAMs : le bouton "Annuler surlignage" supprime désormais tous les surlignages visibles en une seule action.
-- NOTAMs : le surlignage est maintenant possible sur les titres de validité "VALIDE DU ...".
-- NOTAMs : les surlignages des titres de validité sont inclus dans la sauvegarde/restauration locale des états persistants.
+- PDF FDS / GAAR : zoom à deux doigts rendu plus fluide sur iPad.
+- Pendant le pincement, le PDF est agrandi ou réduit immédiatement par transformation graphique, sans relancer PDF.js à chaque mouvement.
+- Un seul rendu PDF haute définition est effectué au relâchement des doigts.
+- Le point situé entre les doigts reste autant que possible sous les doigts après le rendu final.
+- Le déplacement à un doigt reste inchangé.
+- Le mode écriture PDF et les annotations existantes sont conservés.
 
 Fichiers modifiés :
 - index.html
@@ -15,8 +18,10 @@ Fichiers modifiés :
 Fichier NAS :
 - Aucun fichier NAS à remplacer.
 
-Tests à refaire :
-1. Surligner un texte de NOTAM puis cliquer sur Annuler surlignage : tous les surlignages doivent disparaître.
-2. Surligner une ligne "VALIDE DU ..." au doigt et au Pencil.
-3. Recharger les NOTAMs : vérifier la conservation des surlignages persistants.
-4. Vérifier que le bouton Annuler sélection décoche toujours les NOTAMs cochés.
+Tests à refaire sur iPad :
+1. Ouvrir une FDS puis effectuer plusieurs zooms avant/arrière à deux doigts.
+2. Vérifier que le mouvement suit immédiatement les doigts et qu'un rendu net apparaît au relâchement.
+3. Vérifier que le point central du pincement reste approximativement au même endroit.
+4. Déplacer le PDF à un doigt après zoom.
+5. Refaire les mêmes essais sur le GAAR.
+6. Activer le crayon, écrire, désactiver le crayon, zoomer, puis vérifier que l'écriture reste correctement positionnée.
