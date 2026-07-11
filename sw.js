@@ -1,4 +1,4 @@
-const CACHE_NAME = 'briefing-fdf-test-v4.36-surlignages-notams-titres';
+const CACHE_NAME = 'briefing-fdf-test-v4.37-zoom-pdf-fluide';
 
 const LOCAL_ASSETS = [
   './manifest.json',
