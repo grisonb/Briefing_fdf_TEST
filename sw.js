@@ -1,4 +1,4 @@
-const CACHE_NAME = 'briefing-fdf-test-v4.37-zoom-pdf-fluide';
+const CACHE_NAME = 'briefing-fdf-test-v4.38-zoom-pdf-sans-blocage';
 
 const LOCAL_ASSETS = [
   './manifest.json',
