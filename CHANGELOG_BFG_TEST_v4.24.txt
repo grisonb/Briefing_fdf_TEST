@@ -1,23 +1,22 @@
-CHANGELOG BFG TEST v4.35
-Date : 2026-07-10
-Base : TEST v4.34 - filtres NOTAMs alphabétiques
+CHANGELOG BFG TEST v4.36
+Date : 2026-07-11
+Base : TEST v4.35 annulation sélection/surlignage NOTAMs
+
+Modifications :
+- NOTAMs : le bouton "Annuler surlignage" supprime désormais tous les surlignages visibles en une seule action.
+- NOTAMs : le surlignage est maintenant possible sur les titres de validité "VALIDE DU ...".
+- NOTAMs : les surlignages des titres de validité sont inclus dans la sauvegarde/restauration locale des états persistants.
 
 Fichiers modifiés :
 - index.html
 - manifest.json
 - sw.js
 
-Modifications :
-- NOTAMs : ajout d’un bouton “Annuler sélection” juste avant “Annuler surlignage”.
-- NOTAMs : le bouton “Annuler sélection” décoche tous les NOTAMs sélectionnés et réaffiche la liste complète.
-- NOTAMs : correction du bouton “Annuler surlignage”.
-- NOTAMs : si la pile d’annulation Pencil est vide ou invalide, le dernier surlignage visible est supprimé en secours.
-
 Fichier NAS :
-- Aucun.
+- Aucun fichier NAS à remplacer.
 
 Tests à refaire :
-1. Cocher plusieurs NOTAMs, cliquer “Garder la sélection”, puis “Annuler sélection”.
-2. Vérifier que les cases sont décochées et que tous les NOTAMs réapparaissent.
-3. Surligner au doigt, cliquer “Annuler surlignage”.
-4. Surligner au Pencil, cliquer “Annuler surlignage”.
+1. Surligner un texte de NOTAM puis cliquer sur Annuler surlignage : tous les surlignages doivent disparaître.
+2. Surligner une ligne "VALIDE DU ..." au doigt et au Pencil.
+3. Recharger les NOTAMs : vérifier la conservation des surlignages persistants.
+4. Vérifier que le bouton Annuler sélection décoche toujours les NOTAMs cochés.
