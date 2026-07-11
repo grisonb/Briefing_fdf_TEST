@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0">
-    <title>Briefing Fdf TEST v4.37</title>
+    <title>Briefing Fdf TEST v4.38</title>
     <link rel="manifest" href="./manifest.json?v=4.24">
     <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png?v=4.24">
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -2049,7 +2049,7 @@
         <h1 id="main-title">Briefing Fdf TEST v4.37</h1>
         <p id="current-time-display"></p>
         <p style="position: relative; z-index: 2; text-align: center; color: #333; font-size: 1em; margin-top: -25px; margin-bottom: 30px;">
-    v<span id="app-version">4.37 TEST - zoom PDF fluide</span>
+    v<span id="app-version">4.38 TEST - zoom PDF sans blocage</span>
     <button id="force-update-btn" class="link-button" style="background-color: #34495e; padding: 4px 10px; font-size: 0.8em; margin-left: 10px; vertical-align: middle;">
         Forcer MAJ
     </button>
@@ -6249,25 +6249,34 @@ const tdfStages = [
                 applyPinchPreviewNow_();
 
                 const finalScale = Math.max(0.3, Math.min(pinchTargetScale || startScale, 5.0));
-                const xRatio = pinchBaseCanvasWidth ? Math.max(0, Math.min(1, pinchFocusX / pinchBaseCanvasWidth)) : 0;
-                const yRatio = pinchBaseCanvasHeight ? Math.max(0, Math.min(1, pinchFocusY / pinchBaseCanvasHeight)) : 0;
-                const scaleChanged = Math.abs(finalScale - scale) >= 0.005;
+                const finalRatio = Math.max(0.01, finalScale / startScale);
+                const finalCssWidth = Math.max(1, pinchBaseCanvasWidth * finalRatio);
+                const finalCssHeight = Math.max(1, pinchBaseCanvasHeight * finalRatio);
 
-                clearPinchPreview_();
+                // v4.38 : on conserve directement l'aperçu CSS au relâchement.
+                // Aucun rendu PDF.js lourd n'est déclenché ici : le geste reste disponible
+                // immédiatement, même sur les FDS et GAAR volumineux.
+                scale = Math.round(finalScale * 1000) / 1000;
+                pageStage.classList.remove('pdf-pinch-preview');
+                pageStage.style.width = `${finalCssWidth}px`;
+                pageStage.style.height = `${finalCssHeight}px`;
+                canvas.style.width = `${finalCssWidth}px`;
+                canvas.style.height = `${finalCssHeight}px`;
+                canvas.style.transform = 'none';
+                canvas.style.transformOrigin = 'top left';
+                if (annotationCanvas) {
+                    annotationCanvas.style.width = `${finalCssWidth}px`;
+                    annotationCanvas.style.height = `${finalCssHeight}px`;
+                    annotationCanvas.style.transform = 'none';
+                    annotationCanvas.style.transformOrigin = 'top left';
+                }
+
+                pendingPdfScrollAnchor = null;
                 initialPinchDistance = null;
                 startScale = null;
                 pinchPreviewRatio = 1;
-
-                if (scaleChanged) {
-                    scale = Math.round(finalScale * 1000) / 1000;
-                    pendingPdfScrollAnchor = {
-                        xRatio,
-                        yRatio,
-                        localX: pinchLastLocalX,
-                        localY: pinchLastLocalY
-                    };
-                    queueRenderPage(pageNum);
-                }
+                pinchBaseCanvasWidth = finalCssWidth;
+                pinchBaseCanvasHeight = finalCssHeight;
                 return true;
             }
 
@@ -6449,12 +6458,13 @@ const tdfStages = [
                 if (!annotationCtx || !stroke || !Array.isArray(stroke.points) || stroke.points.length < 1) return;
                 const width = annotationCanvas.width || 1;
                 const height = annotationCanvas.height || 1;
-                const ratio = Math.max(window.devicePixelRatio || 1, 2);
+                const cssWidth = parseFloat(annotationCanvas.style.width) || annotationCanvas.clientWidth || width;
+                const effectiveRatio = cssWidth > 0 ? width / cssWidth : 1;
                 annotationCtx.save();
                 annotationCtx.lineCap = 'round';
                 annotationCtx.lineJoin = 'round';
                 annotationCtx.strokeStyle = stroke.color || '#d0021b';
-                annotationCtx.lineWidth = Math.max(2, (stroke.width || 3.2) * ratio);
+                annotationCtx.lineWidth = Math.max(1, (stroke.width || 3.2) * effectiveRatio);
                 annotationCtx.beginPath();
                 stroke.points.forEach((point, index) => {
                     const x = point.x * width;
@@ -6552,13 +6562,18 @@ const tdfStages = [
                     return pdfDoc.getPage(num);
                 }).then(page => {
                     if (!page || !isCurrentPdfHandler_() || generation !== renderGeneration) return;
-                    const pixelRatio = Math.max(window.devicePixelRatio || 1, 2);
+                    const cssViewport = page.getViewport({ scale, rotation: 0 });
+                    const preferredPixelRatio = Math.min(2, Math.max(1, window.devicePixelRatio || 1));
+                    const maxRenderPixels = annotationsEnabledForViewer ? 6000000 : 8000000;
+                    const cssPixels = Math.max(1, cssViewport.width * cssViewport.height);
+                    const cappedPixelRatio = Math.sqrt(maxRenderPixels / cssPixels);
+                    const pixelRatio = Math.max(0.55, Math.min(preferredPixelRatio, cappedPixelRatio));
                     const viewport = page.getViewport({ scale: scale * pixelRatio, rotation: 0 });
                     resetPdfCanvasState_();
                     canvas.height = Math.max(1, Math.round(viewport.height));
                     canvas.width = Math.max(1, Math.round(viewport.width));
-                    canvas.style.height = `${viewport.height / pixelRatio}px`;
-                    canvas.style.width = `${viewport.width / pixelRatio}px`;
+                    canvas.style.height = `${cssViewport.height}px`;
+                    canvas.style.width = `${cssViewport.width}px`;
                     pageStage.style.height = canvas.style.height;
                     pageStage.style.width = canvas.style.width;
                     canvas.style.transform = 'none';
