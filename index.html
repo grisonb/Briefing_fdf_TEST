@@ -5,8 +5,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0">
-    <title>Briefing Fdf TEST v4.41</title>
-    <link rel="manifest" href="./manifest.json?v=4.41">
+    <title>Briefing Fdf TEST v4.42</title>
+    <link rel="manifest" href="./manifest.json?v=4.42">
     <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png?v=4.24">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-title" content="Briefing TEST">
@@ -714,6 +714,9 @@
             transition: transform 0.16s ease, box-shadow 0.16s ease, background-color 0.16s ease, border-color 0.16s ease;
             border-radius: 10px;
             box-shadow: 0 1px 0 rgba(255,255,255,0.95) inset, 0 2px 5px rgba(25, 45, 72, 0.10);
+            -webkit-appearance: none;
+            appearance: none;
+            opacity: 1;
         }
         .interactive-pdf-controls .pdf-nav-btn:hover {
             background: linear-gradient(180deg, #ffffff 0%, #eaf0f6 100%);
@@ -799,9 +802,23 @@
             transform: translateY(1px);
             pointer-events: none;
         }
-        .interactive-pdf-controls .pdf-annotate-toggle-btn.active {
+        .interactive-pdf-controls .pdf-annotate-toggle-btn:not(.active),
+        .interactive-pdf-controls .pdf-annotate-toggle-btn:not(.active):hover,
+        .interactive-pdf-controls .pdf-annotate-toggle-btn:not(.active):active,
+        .interactive-pdf-controls .pdf-annotate-toggle-btn:not(.active):focus-visible {
+            background: linear-gradient(180deg, #fff7cc 0%, #ffe082 100%);
+            border-color: #e0b84d;
+            color: #133b6a;
+            -webkit-text-fill-color: #133b6a;
+            box-shadow: 0 1px 0 rgba(255,255,255,0.9) inset, 0 2px 5px rgba(25, 45, 72, 0.12);
+        }
+        .interactive-pdf-controls .pdf-annotate-toggle-btn.active,
+        .interactive-pdf-controls .pdf-annotate-toggle-btn.active:hover,
+        .interactive-pdf-controls .pdf-annotate-toggle-btn.active:active,
+        .interactive-pdf-controls .pdf-annotate-toggle-btn.active:focus-visible {
             background: linear-gradient(180deg, #0f4a8d 0%, #0a2c5a 100%);
             color: #ffffff;
+            -webkit-text-fill-color: #ffffff;
             border-color: #0a2c5a;
             box-shadow: 0 0 0 3px rgba(10, 44, 90, 0.14), 0 4px 10px rgba(10, 44, 90, 0.20);
             text-shadow: none;
@@ -879,12 +896,17 @@
             text-align: right;
             font-variant-numeric: tabular-nums;
         }
-        .interactive-pdf-controls .pdf-annotation-eraser-btn.active {
+        .interactive-pdf-controls .pdf-annotation-eraser-btn.active,
+        .interactive-pdf-controls .pdf-annotation-eraser-btn.active:hover,
+        .interactive-pdf-controls .pdf-annotation-eraser-btn.active:active,
+        .interactive-pdf-controls .pdf-annotation-eraser-btn.active:focus-visible {
             background: linear-gradient(180deg, #d84e4e 0%, #b91c1c 100%);
             color: #ffffff;
+            -webkit-text-fill-color: #ffffff;
             border-color: #9b1c1c;
             box-shadow: 0 0 0 2px rgba(185, 28, 28, 0.12), 0 4px 10px rgba(120, 20, 20, 0.18);
             text-shadow: none;
+            opacity: 1;
         }
         
         .taf-toggle-btn { background-color: var(--sc-blue); color: white; border: none; padding: 5px 10px; font-size: 0.8em; cursor: pointer; border-radius: 4px; margin-left: 10px; vertical-align: middle; }
@@ -2105,10 +2127,10 @@
 
     <div class="page-header">
         <div class="page-header-background"></div>
-        <h1 id="main-title">Briefing Fdf TEST v4.41</h1>
+        <h1 id="main-title">Briefing Fdf TEST v4.42</h1>
         <p id="current-time-display"></p>
         <p style="position: relative; z-index: 2; text-align: center; color: #333; font-size: 1em; margin-top: -25px; margin-bottom: 30px;">
-    v<span id="app-version">4.41 TEST - correction boutons PDF</span>
+    v<span id="app-version">4.42 TEST - stabilisation boutons PDF</span>
     <button id="force-update-btn" class="link-button" style="background-color: #34495e; padding: 4px 10px; font-size: 0.8em; margin-left: 10px; vertical-align: middle;">
         Forcer MAJ
     </button>
@@ -2481,7 +2503,7 @@
     <footer>Données : Météo-France, SIA, Windy.com, CheckWX.com. Page non commerciale, à usage personnel.</footer>
     
     <script>
-        const APP_VERSION = "4.41 TEST - correction boutons PDF";
+        const APP_VERSION = "4.42 TEST - stabilisation boutons PDF";
 
         // --- Proxy NAS pour la source de données météo CheckWX ---
         const CHECKWX_PROXY_URL = "https://grisonb.synology.me/briefing-api/get-metar-taf.php";
@@ -4821,7 +4843,7 @@ const tdfStages = [
         async function requestGaarImportViaNas_() {
             const query = new URLSearchParams();
             query.set('t', String(Date.now()));
-            query.set('source', 'bfg-test-v4.41');
+            query.set('source', 'bfg-test-v4.42');
 
             const url = `${GAAR_IMPORT_REQUEST_API_URL}?${query.toString()}`;
             const response = await fetchWithTimeout_(url, { cache: 'no-store' }, 65000);
@@ -6568,7 +6590,7 @@ const tdfStages = [
                 const finalCssWidth = Math.max(1, pinchBaseCanvasWidth * finalRatio);
                 const finalCssHeight = Math.max(1, pinchBaseCanvasHeight * finalRatio);
 
-                // v4.41 : on conserve directement l'aperçu CSS au relâchement.
+                // v4.42 : on conserve directement l'aperçu CSS au relâchement.
                 // Aucun rendu PDF.js lourd n'est déclenché ici : le geste reste disponible
                 // immédiatement, même sur les FDS et GAAR volumineux.
                 scale = Math.round(finalScale * 1000) / 1000;
@@ -9848,7 +9870,7 @@ window.__notamTextFull = notamInput.value;
 
         function initializePageTitle() {
             const titleElement = document.getElementById('main-title');
-            titleElement.textContent = `Briefing Fdf TEST v4.41 du ${new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}`;
+            titleElement.textContent = `Briefing Fdf TEST v4.42 du ${new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}`;
             const timeDisplay = document.getElementById('current-time-display');
             const updateTime = () => timeDisplay.textContent = new Date().toLocaleTimeString('fr-FR');
             updateTime(); setInterval(updateTime, 1000);
