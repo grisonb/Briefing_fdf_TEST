@@ -1,12 +1,18 @@
-CHANGELOG BFG TEST v4.43
+CHANGELOG BFG TEST v4.44
 Date : 2026-07-13
-Base : TEST v4.42 stabilisation boutons PDF
+Base : TEST v4.43 navigation PDF à 2 doigts
 
 Modifications :
-- PDF FDS / GAAR : en mode écriture, ajout de la navigation PDF à 2 doigts.
-- PDF FDS / GAAR : pendant que le stylo est activé, 2 doigts permettent désormais de zoomer et déplacer le PDF.
-- PDF FDS / GAAR : en mode écriture, les doigts ne tracent plus sur le PDF. Le tracé est réservé au Pencil (et à la souris sur PC), ce qui évite les aplats/colorations involontaires entre deux doigts.
-- PDF FDS / GAAR : conservation du fonctionnement actuel du zoom fluide et du déplacement du PDF.
+- Démarrage BFG : restauration complète des dernières données locales avant le lancement des actualisations automatiques.
+- FDS automatique : la FDS réellement récupérée sur le NAS est maintenant sauvegardée automatiquement sur l’iPad. Une ancienne FDS locale ne doit donc plus réapparaître à chaque lancement.
+- FDS automatique : si la FDS affichée est déjà identique ou plus récente que la réponse NAS/cache, elle est conservée sans rechargement inutile du PDF.
+- CNCASC : les disponibilités avions, les pélicandromes et la situation FDF récupérés sont sauvegardés automatiquement après une actualisation réussie.
+- CNCASC : au lancement, les dernières données locales sont affichées avant l’actualisation réseau ; elles ne doivent plus rester absentes pendant le chargement.
+- Cartes des risques : tentative d’affichage immédiat des dernières cartes PDF présentes dans le cache local avant la vérification du serveur.
+- Mise à jour PWA : migration des derniers PDF FDS/GAAR/risques depuis l’ancien cache vers le nouveau cache, afin de ne pas perdre les données locales lors du passage en v4.44.
+- Cartes des risques : l’ancienne carte reste affichée pendant le rendu de la nouvelle ; le conteneur n’est remplacé qu’une fois le nouveau PDF entièrement prêt.
+- Cartes des risques : en cas d’échec réseau, les dernières cartes déjà affichées sont conservées.
+- Sauvegarde locale : ajout d’une sauvegarde automatique silencieuse et temporisée pour éviter de perturber l’utilisation de l’application.
 
 Fichiers modifiés :
 - index.html
@@ -17,8 +23,10 @@ Fichier NAS :
 - Aucun fichier NAS à remplacer.
 
 Tests à refaire :
-1. Vérifier que la version affichée est bien v4.43.
-2. Activer le mode écriture sur une FDS puis dessiner au Pencil : le tracé doit fonctionner normalement.
-3. En laissant le mode écriture actif, utiliser 2 doigts : le PDF doit pouvoir se zoomer et se déplacer.
-4. Vérifier qu’avec 2 doigts, aucune zone colorée involontaire n’apparaît.
-5. Vérifier que la gomme, les couleurs, Tout Effacer et la sauvegarde des écritures fonctionnent toujours.
+1. Vérifier que la version affichée est bien v4.44.
+2. Lancer BFG avec une FDS déjà chargée : elle doit apparaître d’abord localement, puis rester visible pendant la vérification NAS.
+3. Attendre la récupération de la FDS la plus récente, fermer complètement BFG puis le relancer : la FDS récente doit apparaître directement, sans retour systématique à l’ancienne FDS de 05h00.
+4. Vérifier que les données avions, pélicandromes et FDF CNCASC restent visibles pendant leur actualisation.
+5. Vérifier que les cartes des risques locales apparaissent avant ou pendant la vérification serveur, sans écran vide entre deux rendus.
+6. Tester en réseau lent : les dernières données visibles doivent être conservées si la nouvelle récupération échoue.
+7. Vérifier que FDS, GAAR, annotations PDF, NOTAMs et navigation à 2 doigts fonctionnent toujours normalement.
