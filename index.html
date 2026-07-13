@@ -5,8 +5,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0">
-    <title>Briefing Fdf TEST v4.40</title>
-    <link rel="manifest" href="./manifest.json?v=4.40">
+    <title>Briefing Fdf TEST v4.41</title>
+    <link rel="manifest" href="./manifest.json?v=4.41">
     <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png?v=4.24">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-title" content="Briefing TEST">
@@ -791,6 +791,14 @@
             color: #133b6a;
             text-shadow: 0 1px 0 rgba(255,255,255,0.7);
         }
+        .interactive-pdf-controls .pdf-annotate-toggle-btn .pdf-annotate-toggle-icon {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            line-height: 1;
+            transform: translateY(1px);
+            pointer-events: none;
+        }
         .interactive-pdf-controls .pdf-annotate-toggle-btn.active {
             background: linear-gradient(180deg, #0f4a8d 0%, #0a2c5a 100%);
             color: #ffffff;
@@ -872,9 +880,11 @@
             font-variant-numeric: tabular-nums;
         }
         .interactive-pdf-controls .pdf-annotation-eraser-btn.active {
-            background-color: #9b1c1c;
+            background: linear-gradient(180deg, #d84e4e 0%, #b91c1c 100%);
             color: #ffffff;
             border-color: #9b1c1c;
+            box-shadow: 0 0 0 2px rgba(185, 28, 28, 0.12), 0 4px 10px rgba(120, 20, 20, 0.18);
+            text-shadow: none;
         }
         
         .taf-toggle-btn { background-color: var(--sc-blue); color: white; border: none; padding: 5px 10px; font-size: 0.8em; cursor: pointer; border-radius: 4px; margin-left: 10px; vertical-align: middle; }
@@ -2095,10 +2105,10 @@
 
     <div class="page-header">
         <div class="page-header-background"></div>
-        <h1 id="main-title">Briefing Fdf TEST v4.40</h1>
+        <h1 id="main-title">Briefing Fdf TEST v4.41</h1>
         <p id="current-time-display"></p>
         <p style="position: relative; z-index: 2; text-align: center; color: #333; font-size: 1em; margin-top: -25px; margin-bottom: 30px;">
-    v<span id="app-version">4.40 TEST - boutons PDF plus lisibles</span>
+    v<span id="app-version">4.41 TEST - correction boutons PDF</span>
     <button id="force-update-btn" class="link-button" style="background-color: #34495e; padding: 4px 10px; font-size: 0.8em; margin-left: 10px; vertical-align: middle;">
         Forcer MAJ
     </button>
@@ -2471,7 +2481,7 @@
     <footer>Données : Météo-France, SIA, Windy.com, CheckWX.com. Page non commerciale, à usage personnel.</footer>
     
     <script>
-        const APP_VERSION = "4.40 TEST - boutons PDF plus lisibles";
+        const APP_VERSION = "4.41 TEST - correction boutons PDF";
 
         // --- Proxy NAS pour la source de données météo CheckWX ---
         const CHECKWX_PROXY_URL = "https://grisonb.synology.me/briefing-api/get-metar-taf.php";
@@ -4811,7 +4821,7 @@ const tdfStages = [
         async function requestGaarImportViaNas_() {
             const query = new URLSearchParams();
             query.set('t', String(Date.now()));
-            query.set('source', 'bfg-test-v4.40');
+            query.set('source', 'bfg-test-v4.41');
 
             const url = `${GAAR_IMPORT_REQUEST_API_URL}?${query.toString()}`;
             const response = await fetchWithTimeout_(url, { cache: 'no-store' }, 65000);
@@ -6558,7 +6568,7 @@ const tdfStages = [
                 const finalCssWidth = Math.max(1, pinchBaseCanvasWidth * finalRatio);
                 const finalCssHeight = Math.max(1, pinchBaseCanvasHeight * finalRatio);
 
-                // v4.40 : on conserve directement l'aperçu CSS au relâchement.
+                // v4.41 : on conserve directement l'aperçu CSS au relâchement.
                 // Aucun rendu PDF.js lourd n'est déclenché ici : le geste reste disponible
                 // immédiatement, même sur les FDS et GAAR volumineux.
                 scale = Math.round(finalScale * 1000) / 1000;
@@ -6642,7 +6652,7 @@ const tdfStages = [
                 const group = document.createElement('div');
                 group.className = 'zoom-controls pdf-annotation-controls';
                 group.innerHTML = `
-                    <button class="pdf-nav-btn pdf-annotate-toggle-btn" data-action="annotation-toggle" type="button" title="Écrire PDF" aria-label="Écrire PDF">✏️</button>
+                    <button class="pdf-nav-btn pdf-annotate-toggle-btn" data-action="annotation-toggle" type="button" title="Écrire PDF" aria-label="Écrire PDF"><span class="pdf-annotate-toggle-icon" aria-hidden="true">✏️</span></button>
                     <button class="pdf-nav-btn pdf-annotation-color-btn" data-action="annotation-color" data-color="#d0021b" type="button" title="Rouge" aria-label="Rouge" style="background:#d0021b;"></button>
                     <button class="pdf-nav-btn pdf-annotation-color-btn" data-action="annotation-color" data-color="#0057b8" type="button" title="Bleu" aria-label="Bleu" style="background:#0057b8;"></button>
                     <button class="pdf-nav-btn pdf-annotation-color-btn" data-action="annotation-color" data-color="#0b7a2a" type="button" title="Vert" aria-label="Vert" style="background:#0b7a2a;"></button>
@@ -6795,7 +6805,9 @@ const tdfStages = [
                 const toggle = controls ? controls.querySelector('[data-action="annotation-toggle"]') : null;
                 if (toggle) {
                     toggle.classList.toggle('active', annotationMode);
-                    toggle.textContent = '✎';
+                    if (!toggle.querySelector('.pdf-annotate-toggle-icon')) {
+                        toggle.innerHTML = '<span class="pdf-annotate-toggle-icon" aria-hidden="true">✏️</span>';
+                    }
                     toggle.title = annotationMode ? 'Écriture PDF activée' : 'Écrire PDF';
                     toggle.setAttribute('aria-label', annotationMode ? 'Écriture PDF activée' : 'Écrire PDF');
                 }
@@ -9836,7 +9848,7 @@ window.__notamTextFull = notamInput.value;
 
         function initializePageTitle() {
             const titleElement = document.getElementById('main-title');
-            titleElement.textContent = `Briefing Fdf TEST v4.40 du ${new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}`;
+            titleElement.textContent = `Briefing Fdf TEST v4.41 du ${new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}`;
             const timeDisplay = document.getElementById('current-time-display');
             const updateTime = () => timeDisplay.textContent = new Date().toLocaleTimeString('fr-FR');
             updateTime(); setInterval(updateTime, 1000);
