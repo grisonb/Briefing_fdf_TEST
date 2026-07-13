@@ -5,8 +5,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0">
-    <title>Briefing Fdf TEST v4.42</title>
-    <link rel="manifest" href="./manifest.json?v=4.42">
+    <title>Briefing Fdf TEST v4.43</title>
+    <link rel="manifest" href="./manifest.json?v=4.43">
     <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png?v=4.24">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-title" content="Briefing TEST">
@@ -2127,10 +2127,10 @@
 
     <div class="page-header">
         <div class="page-header-background"></div>
-        <h1 id="main-title">Briefing Fdf TEST v4.42</h1>
+        <h1 id="main-title">Briefing Fdf TEST v4.43</h1>
         <p id="current-time-display"></p>
         <p style="position: relative; z-index: 2; text-align: center; color: #333; font-size: 1em; margin-top: -25px; margin-bottom: 30px;">
-    v<span id="app-version">4.42 TEST - stabilisation boutons PDF</span>
+    v<span id="app-version">4.43 TEST - navigation PDF à 2 doigts</span>
     <button id="force-update-btn" class="link-button" style="background-color: #34495e; padding: 4px 10px; font-size: 0.8em; margin-left: 10px; vertical-align: middle;">
         Forcer MAJ
     </button>
@@ -2503,7 +2503,7 @@
     <footer>Données : Météo-France, SIA, Windy.com, CheckWX.com. Page non commerciale, à usage personnel.</footer>
     
     <script>
-        const APP_VERSION = "4.42 TEST - stabilisation boutons PDF";
+        const APP_VERSION = "4.43 TEST - navigation PDF à 2 doigts";
 
         // --- Proxy NAS pour la source de données météo CheckWX ---
         const CHECKWX_PROXY_URL = "https://grisonb.synology.me/briefing-api/get-metar-taf.php";
@@ -4843,7 +4843,7 @@ const tdfStages = [
         async function requestGaarImportViaNas_() {
             const query = new URLSearchParams();
             query.set('t', String(Date.now()));
-            query.set('source', 'bfg-test-v4.42');
+            query.set('source', 'bfg-test-v4.43');
 
             const url = `${GAAR_IMPORT_REQUEST_API_URL}?${query.toString()}`;
             const response = await fetchWithTimeout_(url, { cache: 'no-store' }, 65000);
@@ -6590,7 +6590,7 @@ const tdfStages = [
                 const finalCssWidth = Math.max(1, pinchBaseCanvasWidth * finalRatio);
                 const finalCssHeight = Math.max(1, pinchBaseCanvasHeight * finalRatio);
 
-                // v4.42 : on conserve directement l'aperçu CSS au relâchement.
+                // v4.43 : on conserve directement l'aperçu CSS au relâchement.
                 // Aucun rendu PDF.js lourd n'est déclenché ici : le geste reste disponible
                 // immédiatement, même sur les FDS et GAAR volumineux.
                 scale = Math.round(finalScale * 1000) / 1000;
@@ -6748,6 +6748,10 @@ const tdfStages = [
                 return annotationStrokesByPage.get(pageNum);
             }
 
+            function isPdfAnnotationDrawPointer_(event) {
+                return !!(event && (event.pointerType === 'pen' || event.pointerType === 'mouse'));
+            }
+
             function updatePdfAnnotationToolButtons_() {
                 if (!controls) return;
                 controls.querySelectorAll('[data-action="annotation-color"]').forEach(btn => {
@@ -6843,7 +6847,7 @@ const tdfStages = [
             }
 
             function handlePdfAnnotationPointerDown_(event) {
-                if (!annotationMode || !annotationCanvas) return;
+                if (!annotationMode || !annotationCanvas || !isPdfAnnotationDrawPointer_(event)) return;
                 event.preventDefault();
                 event.stopPropagation();
                 annotationDrawing = true;
@@ -6863,7 +6867,7 @@ const tdfStages = [
             }
 
             function handlePdfAnnotationPointerMove_(event) {
-                if (!annotationMode || !annotationDrawing) return;
+                if (!annotationMode || !annotationDrawing || !isPdfAnnotationDrawPointer_(event)) return;
                 event.preventDefault();
                 event.stopPropagation();
                 const point = getPdfAnnotationPoint_(event);
@@ -6880,7 +6884,7 @@ const tdfStages = [
             }
 
             function handlePdfAnnotationPointerEnd_(event) {
-                if (!annotationDrawing) return;
+                if (!annotationDrawing || !isPdfAnnotationDrawPointer_(event)) return;
                 event.preventDefault();
                 event.stopPropagation();
                 annotationDrawing = false;
@@ -7028,7 +7032,6 @@ const tdfStages = [
                 }
             }, { signal: handlerSignal });
             wrapper.addEventListener('touchstart', e => {
-                if (annotationMode) return;
                 if (e.touches.length === 2) {
                     e.preventDefault();
                     isPanning = false;
@@ -7043,13 +7046,15 @@ const tdfStages = [
                     pinchLastLocalY = center.y;
                     pinchFocusX = wrapper.scrollLeft + center.x;
                     pinchFocusY = wrapper.scrollTop + center.y;
-                } else if (e.touches.length === 1) {
+                    return;
+                }
+                if (annotationMode) return;
+                if (e.touches.length === 1) {
                     isPanning = true;
                     panStart = { x: e.touches[0].clientX + wrapper.scrollLeft, y: e.touches[0].clientY + wrapper.scrollTop };
                 }
             }, { passive: false, signal: handlerSignal });
             wrapper.addEventListener('touchmove', e => {
-                if (annotationMode) return;
                 if (e.touches.length === 2 && initialPinchDistance && startScale) {
                     e.preventDefault();
                     const pinchRatio = getDistance(e.touches[0], e.touches[1]) / initialPinchDistance;
@@ -7059,18 +7064,20 @@ const tdfStages = [
                     pinchLastLocalX = center.x;
                     pinchLastLocalY = center.y;
                     schedulePinchPreview_();
-                } else if (e.touches.length === 1 && isPanning) {
+                    return;
+                }
+                if (annotationMode) return;
+                if (e.touches.length === 1 && isPanning) {
                     e.preventDefault();
                     wrapper.scrollLeft = panStart.x - e.touches[0].clientX;
                     wrapper.scrollTop = panStart.y - e.touches[0].clientY;
                 }
             }, { passive: false, signal: handlerSignal });
             wrapper.addEventListener('touchend', e => {
-                if (annotationMode) return;
                 if (initialPinchDistance && e.touches.length < 2) {
                     e.preventDefault();
                     finalizePinchZoom_();
-                    if (e.touches.length === 1) {
+                    if (!annotationMode && e.touches.length === 1) {
                         isPanning = true;
                         panStart = {
                             x: e.touches[0].clientX + wrapper.scrollLeft,
@@ -7081,10 +7088,10 @@ const tdfStages = [
                     }
                     return;
                 }
+                if (annotationMode) return;
                 if (e.touches.length === 0) isPanning = false;
             }, { passive: false, signal: handlerSignal });
             wrapper.addEventListener('touchcancel', () => {
-                if (annotationMode) return;
                 finalizePinchZoom_();
                 isPanning = false;
             }, { passive: false, signal: handlerSignal });
@@ -9870,7 +9877,7 @@ window.__notamTextFull = notamInput.value;
 
         function initializePageTitle() {
             const titleElement = document.getElementById('main-title');
-            titleElement.textContent = `Briefing Fdf TEST v4.42 du ${new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}`;
+            titleElement.textContent = `Briefing Fdf TEST v4.43 du ${new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}`;
             const timeDisplay = document.getElementById('current-time-display');
             const updateTime = () => timeDisplay.textContent = new Date().toLocaleTimeString('fr-FR');
             updateTime(); setInterval(updateTime, 1000);
