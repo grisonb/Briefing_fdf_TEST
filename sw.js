@@ -1,4 +1,4 @@
-const CACHE_NAME = 'briefing-fdf-test-v4.42-boutons-pdf-r1';
+const CACHE_NAME = 'briefing-fdf-test-v4.43-pdf-2-doigts-r1';
 
 const LOCAL_ASSETS = [
   './manifest.json',
