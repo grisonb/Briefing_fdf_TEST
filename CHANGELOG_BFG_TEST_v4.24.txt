@@ -1,11 +1,12 @@
-CHANGELOG BFG TEST v4.41
+CHANGELOG BFG TEST v4.42
 Date : 2026-07-13
-Base : TEST v4.40 boutons PDF plus lisibles
+Base : TEST v4.41 correction boutons PDF
 
 Modifications :
-- PDF FDS / GAAR : correction du bouton crayon. L’icône reste désormais identique avant et après activation, sans retour à l’ancien pictogramme.
-- PDF FDS / GAAR : correction du bouton Gomme lorsqu’il est actif. Le texte reste lisible grâce à un fond rouge réellement appliqué, plus contrasté.
-- PDF FDS / GAAR : conservation du style amélioré de la barre d’annotation de la v4.40.
+- PDF FDS / GAAR : stabilisation visuelle du bouton crayon sur iPad. Lorsqu’il est inactif, il reste jaune ; lorsqu’il est actif, il reste bleu.
+- PDF FDS / GAAR : correction du retour visuel après un second clic sur le crayon. Le bouton ne doit plus passer sur fond blanc.
+- PDF FDS / GAAR : stabilisation visuelle du bouton Gomme actif. Le fond rouge et le texte blanc restent visibles même sur iPad.
+- PDF FDS / GAAR : renforcement des styles explicites hover / active / focus pour éviter les retours au style système iOS.
 
 Fichiers modifiés :
 - index.html
@@ -16,8 +17,9 @@ Fichier NAS :
 - Aucun fichier NAS à remplacer.
 
 Tests à refaire :
-1. Vérifier que la version affichée est bien v4.41.
-2. Ouvrir une FDS puis activer/désactiver le bouton crayon plusieurs fois : l’icône ne doit plus changer pour revenir à l’ancien symbole.
-3. Activer la Gomme : le texte "Gomme" doit rester bien lisible.
-4. Vérifier que le bouton Tout Effacer fonctionne toujours.
-5. Vérifier que la sélection des couleurs et les annotations fonctionnent toujours normalement.
+1. Vérifier que la version affichée est bien v4.42.
+2. Cliquer sur le crayon : il doit devenir bleu.
+3. Recliquer sur le crayon : il doit redevenir jaune, pas blanc.
+4. Cliquer sur une couleur ou sur Gomme : le crayon doit revenir jaune.
+5. Cliquer sur Gomme : le bouton doit rester rouge avec le texte bien lisible.
+6. Vérifier que Tout Effacer et les annotations fonctionnent toujours.
