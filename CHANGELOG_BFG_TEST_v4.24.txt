@@ -1,22 +1,13 @@
-CHANGELOG BFG TEST v4.39
+CHANGELOG BFG TEST v4.40
 Date : 2026-07-13
-Base : TEST v4.38 corrigée — zoom PDF sans blocage validé
+Base : TEST v4.39 filtres, annotations hors ligne et réseau dégradé
 
 Modifications :
-- NOTAMs : ajout du filtre "ADMINISTRATION".
-- NOTAMs : ajout du filtre "VDF".
-- NOTAMs : conservation de l'ordre alphabétique complet de la liste des filtres.
-- PDF FDS / GAAR : sauvegarde locale automatique des écritures après chaque trait, utilisation de la gomme, annulation de trait ou effacement de page.
-- PDF FDS / GAAR : restauration des écritures après passage hors ligne, rechargement ou nouvelle ouverture du même PDF.
-- PDF FDS / GAAR : association des écritures à une empreinte SHA-256 du contenu du PDF.
-- PDF FDS / GAAR : lorsqu'un nouveau PDF remplace le précédent, les écritures de l'ancien PDF sont supprimées et ne sont pas affichées sur le nouveau.
-- PDF FDS / GAAR : stockage principal dans IndexedDB avec secours localStorage si IndexedDB est indisponible.
-- Réseau très dégradé : ajout d’une surveillance active de la qualité de connexion, distincte du simple indicateur navigator.onLine.
-- Après deux sondes sans réponse, le BFG considère le réseau comme dégradé et utilise les dernières données locales, sans imposer le passage en mode avion.
-- Réseau très dégradé : ajout de délais maximum dans le service worker afin de ne plus attendre indéfiniment une réponse réseau.
-- Ouverture du BFG : en l'absence de réponse complète du réseau sous environ 3,5 secondes, bascule automatique vers l'index en cache, sans devoir activer le mode avion.
-- Données NAS : délais différenciés pour les statuts, les PDF et les demandes longues, puis reprise de la dernière réponse mise en cache lorsqu'elle existe.
-- Mise à jour du service worker : si le réseau est mauvais pendant l'installation, reprise de l'ancien index et des anciennes ressources en cache avant suppression de l'ancien cache.
+- PDF FDS / GAAR : boutons de la barre d’annotation rendus plus visuels et plus lisibles (style plus arrondi, plus contrasté, effet bouton plus marqué).
+- PDF FDS / GAAR : icône crayon agrandie et remplacée par une icône plus lisible.
+- PDF FDS / GAAR : le bouton "Effacer page" est renommé en "Tout Effacer".
+- PDF FDS / GAAR : la pastille de couleur blanche affiche désormais un état sélectionné beaucoup plus visible (contour bleu renforcé + coche visible), tout en restant identifiable lorsqu’elle n’est pas sélectionnée.
+- PDF FDS / GAAR : pastilles de couleur légèrement agrandies et plus lisibles.
 
 Fichiers modifiés :
 - index.html
@@ -27,13 +18,9 @@ Fichier NAS :
 - Aucun fichier NAS à remplacer.
 
 Tests à refaire :
-1. Ouvrir les filtres NOTAMs et vérifier l'ordre alphabétique, notamment ADMINISTRATION en tête de liste et VDF avant VOR.
-2. Vérifier que les filtres ADMINISTRATION et VDF masquent correctement les NOTAMs correspondants lorsqu'ils sont cochés.
-3. Écrire sur une FDS, passer en mode avion, recharger ou rouvrir le BFG et vérifier que les écritures sont restaurées.
-4. Refaire le même test avec le GAAR.
-5. Sur le même PDF, tester un trait, la gomme, Annuler trait et Effacer page, puis recharger après chaque opération.
-6. Charger un PDF différent dans le même emplacement FDS ou GAAR et vérifier que les écritures du PDF précédent ont disparu.
-7. Recharger ensuite le nouveau PDF hors ligne et vérifier que seules ses propres écritures sont restaurées.
-8. Avec le BFG déjà mis en cache, simuler un réseau extrêmement faible sans activer le mode avion et rouvrir le BFG : l'application doit revenir sur la copie locale après quelques secondes.
-9. Revenir sur un réseau normal et vérifier que les données en ligne continuent à se mettre à jour.
-10. Vérifier que le zoom PDF fluide validé en v4.38 reste inchangé.
+1. Vérifier que la version affichée est bien v4.40.
+2. Ouvrir une FDS puis un GAAR : contrôler le nouveau style des boutons de la barre PDF.
+3. Vérifier que le bouton crayon est plus gros et bien lisible.
+4. Vérifier que le bouton "Tout Effacer" efface toujours toutes les écritures de la page.
+5. Sélectionner la couleur blanche puis une autre couleur : vérifier que l’état sélectionné est immédiatement identifiable.
+6. Vérifier que l’annotation, la gomme, l’annulation de trait et le hors ligne fonctionnent toujours comme en v4.39.
