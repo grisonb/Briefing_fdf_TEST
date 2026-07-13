@@ -1,13 +1,11 @@
-CHANGELOG BFG TEST v4.40
+CHANGELOG BFG TEST v4.41
 Date : 2026-07-13
-Base : TEST v4.39 filtres, annotations hors ligne et réseau dégradé
+Base : TEST v4.40 boutons PDF plus lisibles
 
 Modifications :
-- PDF FDS / GAAR : boutons de la barre d’annotation rendus plus visuels et plus lisibles (style plus arrondi, plus contrasté, effet bouton plus marqué).
-- PDF FDS / GAAR : icône crayon agrandie et remplacée par une icône plus lisible.
-- PDF FDS / GAAR : le bouton "Effacer page" est renommé en "Tout Effacer".
-- PDF FDS / GAAR : la pastille de couleur blanche affiche désormais un état sélectionné beaucoup plus visible (contour bleu renforcé + coche visible), tout en restant identifiable lorsqu’elle n’est pas sélectionnée.
-- PDF FDS / GAAR : pastilles de couleur légèrement agrandies et plus lisibles.
+- PDF FDS / GAAR : correction du bouton crayon. L’icône reste désormais identique avant et après activation, sans retour à l’ancien pictogramme.
+- PDF FDS / GAAR : correction du bouton Gomme lorsqu’il est actif. Le texte reste lisible grâce à un fond rouge réellement appliqué, plus contrasté.
+- PDF FDS / GAAR : conservation du style amélioré de la barre d’annotation de la v4.40.
 
 Fichiers modifiés :
 - index.html
@@ -18,9 +16,8 @@ Fichier NAS :
 - Aucun fichier NAS à remplacer.
 
 Tests à refaire :
-1. Vérifier que la version affichée est bien v4.40.
-2. Ouvrir une FDS puis un GAAR : contrôler le nouveau style des boutons de la barre PDF.
-3. Vérifier que le bouton crayon est plus gros et bien lisible.
-4. Vérifier que le bouton "Tout Effacer" efface toujours toutes les écritures de la page.
-5. Sélectionner la couleur blanche puis une autre couleur : vérifier que l’état sélectionné est immédiatement identifiable.
-6. Vérifier que l’annotation, la gomme, l’annulation de trait et le hors ligne fonctionnent toujours comme en v4.39.
+1. Vérifier que la version affichée est bien v4.41.
+2. Ouvrir une FDS puis activer/désactiver le bouton crayon plusieurs fois : l’icône ne doit plus changer pour revenir à l’ancien symbole.
+3. Activer la Gomme : le texte "Gomme" doit rester bien lisible.
+4. Vérifier que le bouton Tout Effacer fonctionne toujours.
+5. Vérifier que la sélection des couleurs et les annotations fonctionnent toujours normalement.
