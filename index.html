@@ -5,8 +5,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0">
-    <title>Briefing Fdf TEST v4.43</title>
-    <link rel="manifest" href="./manifest.json?v=4.43">
+    <title>Briefing Fdf TEST v4.44</title>
+    <link rel="manifest" href="./manifest.json?v=4.44">
     <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png?v=4.24">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-title" content="Briefing TEST">
@@ -2127,10 +2127,10 @@
 
     <div class="page-header">
         <div class="page-header-background"></div>
-        <h1 id="main-title">Briefing Fdf TEST v4.43</h1>
+        <h1 id="main-title">Briefing Fdf TEST v4.44</h1>
         <p id="current-time-display"></p>
         <p style="position: relative; z-index: 2; text-align: center; color: #333; font-size: 1em; margin-top: -25px; margin-bottom: 30px;">
-    v<span id="app-version">4.43 TEST - navigation PDF à 2 doigts</span>
+    v<span id="app-version">4.44 TEST - démarrage sans écran vide</span>
     <button id="force-update-btn" class="link-button" style="background-color: #34495e; padding: 4px 10px; font-size: 0.8em; margin-left: 10px; vertical-align: middle;">
         Forcer MAJ
     </button>
@@ -2503,7 +2503,7 @@
     <footer>Données : Météo-France, SIA, Windy.com, CheckWX.com. Page non commerciale, à usage personnel.</footer>
     
     <script>
-        const APP_VERSION = "4.43 TEST - navigation PDF à 2 doigts";
+        const APP_VERSION = "4.44 TEST - démarrage sans écran vide";
 
         // --- Proxy NAS pour la source de données météo CheckWX ---
         const CHECKWX_PROXY_URL = "https://grisonb.synology.me/briefing-api/get-metar-taf.php";
@@ -4046,6 +4046,7 @@ const tdfStages = [
                 renderCncascFdf_(payload);
                 updateCncascAuthUi_();
                 clearCncascWarning_();
+                scheduleBfgLocalSnapshotSave_();
             } catch (error) {
                 console.error(error);
                 const message = `⚠️ Situation FDF CNCASC impossible : ${error.message}`;
@@ -4158,6 +4159,7 @@ const tdfStages = [
                 renderAbeDispo_(payload);
                 updateCncascAuthUi_();
                 clearCncascWarning_();
+                scheduleBfgLocalSnapshotSave_();
             } catch (error) {
                 console.error(error);
                 const message = `⚠️ Synchronisation CNCASC impossible : ${error.message}`;
@@ -4351,6 +4353,28 @@ const tdfStages = [
         setInterval(monitorBfgNetworkQuality_, 8000);
 
 
+        let bfgLocalSnapshotSaveTimer_ = null;
+
+        function scheduleBfgLocalSnapshotSave_(delayMs = 1400) {
+            if (bfgLocalSnapshotSaveTimer_ !== null) clearTimeout(bfgLocalSnapshotSaveTimer_);
+            bfgLocalSnapshotSaveTimer_ = setTimeout(async () => {
+                bfgLocalSnapshotSaveTimer_ = null;
+                if (window.__bfgSessionSaveRunning) {
+                    scheduleBfgLocalSnapshotSave_(1200);
+                    return;
+                }
+                if (typeof window.performBfgLocalSave_ !== 'function') {
+                    scheduleBfgLocalSnapshotSave_(1200);
+                    return;
+                }
+                try {
+                    await window.performBfgLocalSave_({ silent: true });
+                } catch (error) {
+                    console.warn('BFG : sauvegarde locale automatique différée impossible.', error);
+                }
+            }, Math.max(300, Number(delayMs) || 1400));
+        }
+
         function setFdsAutoStatus_(message, options = {}) {
             const status = document.getElementById('fds-auto-status');
             if (!status) return;
@@ -4434,6 +4458,37 @@ const tdfStages = [
                 getFdsEntrySignature_(getFdsTodayEntry_(payload)),
                 getFdsEntrySignature_(getFdsTomorrowEntry_(payload))
             ].join('||');
+        }
+
+        function getFdsEntryTime_(entry) {
+            if (!entry) return 0;
+            const raw = entry.mailDate || entry.emailDate || entry.updatedAt || entry.lastModified || '';
+            const time = raw ? new Date(raw).getTime() : 0;
+            return Number.isFinite(time) ? time : 0;
+        }
+
+        function getDisplayedFdsMeta_() {
+            const payload = window.__lastFdsMetaPanelPayload;
+            return payload && payload.meta ? payload.meta : null;
+        }
+
+        function shouldKeepDisplayedFds_(serverEntry) {
+            if (!serverEntry || !window.fdsFileObject) return false;
+            const displayedMeta = getDisplayedFdsMeta_();
+            if (!displayedMeta) return false;
+
+            const serverSignature = getFdsEntrySignature_(serverEntry);
+            const displayedSignature = getFdsEntrySignature_(displayedMeta);
+            if (serverSignature && displayedSignature && serverSignature === displayedSignature) return true;
+
+            const serverDateKey = String(serverEntry.dateKey || serverEntry.fileDate || '');
+            const displayedDateKey = String(displayedMeta.dateKey || displayedMeta.fileDate || '');
+            const sameOperationalDay = serverDateKey && displayedDateKey && serverDateKey === displayedDateKey;
+            const serverTime = getFdsEntryTime_(serverEntry);
+            const displayedTime = getFdsEntryTime_(displayedMeta);
+
+            // Ne jamais remplacer une FDS déjà plus récente par une réponse NAS/cache plus ancienne.
+            return Boolean(sameOperationalDay && serverTime && displayedTime && displayedTime >= serverTime);
         }
 
         function describeFdsStatusForWait_(payload) {
@@ -4555,6 +4610,7 @@ const tdfStages = [
             document.getElementById('pdf-info-fds').textContent = `Document chargé : ${filename}${emailDateText}${updatedText}`;
             setFdsMetaPanel_(meta, { mode: FDS_MODE_AUTO, sourceLabel: displayOptions.sourceLabel });
             updateFdsTomorrowButton_(statusPayload);
+            scheduleBfgLocalSnapshotSave_();
 
             return file;
         }
@@ -4679,9 +4735,14 @@ const tdfStages = [
                 const todayEntry = getFdsTodayEntry_(statusPayload);
                 const tomorrowEntry = getFdsTomorrowEntry_(statusPayload);
                 if (todayEntry) {
-                    await loadFdsPdfFromNas_(statusPayload, Date.now(), todayEntry.dateKey || todayEntry.fileDate, todayEntry);
                     const emailDate = todayEntry.mailDate ? formatFdsMetaDate_(todayEntry.mailDate) : formatFdsMetaDate_(todayEntry.updatedAt);
-                    setFdsAutoStatus_(`FDS du jour chargée : ${todayEntry.originalFilename || 'PDF'} — email du ${emailDate}.`);
+                    if (shouldKeepDisplayedFds_(todayEntry)) {
+                        updateFdsTomorrowButton_(statusPayload);
+                        setFdsAutoStatus_(`FDS déjà à jour et conservée à l’écran : ${todayEntry.originalFilename || 'PDF'} — email du ${emailDate}.`);
+                    } else {
+                        await loadFdsPdfFromNas_(statusPayload, Date.now(), todayEntry.dateKey || todayEntry.fileDate, todayEntry);
+                        setFdsAutoStatus_(`FDS du jour chargée : ${todayEntry.originalFilename || 'PDF'} — email du ${emailDate}.`);
+                    }
                 } else {
                     updateFdsTomorrowButton_(statusPayload);
                     if (tomorrowEntry) {
@@ -4843,7 +4904,7 @@ const tdfStages = [
         async function requestGaarImportViaNas_() {
             const query = new URLSearchParams();
             query.set('t', String(Date.now()));
-            query.set('source', 'bfg-test-v4.43');
+            query.set('source', 'bfg-test-v4.44');
 
             const url = `${GAAR_IMPORT_REQUEST_API_URL}?${query.toString()}`;
             const response = await fetchWithTimeout_(url, { cache: 'no-store' }, 65000);
@@ -4897,6 +4958,7 @@ const tdfStages = [
             document.getElementById('pdf-info-gaar').textContent = `Document chargé : ${filename}${emailDateText}${updatedText}`;
             setGaarMetaPanel_(meta, { mode: GAAR_MODE_AUTO, sourceLabel: displayOptions.sourceLabel });
             updateGaarTomorrowButton_(statusPayload);
+            scheduleBfgLocalSnapshotSave_();
 
             return file;
         }
@@ -5088,27 +5150,31 @@ const tdfStages = [
             return payload;
         }
 
-        async function renderRiskMapPdf_(cfg, cacheBuster) {
+        function hasRenderedRiskMaps_() {
+            return Object.values(BFG_RISK_MAPS).some(cfg => {
+                const container = document.getElementById(cfg.pagesId);
+                return Boolean(container && container.querySelector('canvas'));
+            });
+        }
+
+        async function renderRiskMapPdfSource_(cfg, pdfSource, loadingLabel = '') {
             const pagesContainer = document.getElementById(cfg.pagesId);
-            const openLink = document.getElementById(cfg.openId);
-            const pdfUrl = `${cfg.pdfUrl}&v=${cacheBuster}`;
-            const openUrl = cfg.openUrl.includes('meteo.fr')
-                ? cfg.openUrl
-                : `${cfg.openUrl}?v=${cacheBuster}#zoom=150`;
-
-            if (openLink) openLink.href = openUrl;
-
             if (!pagesContainer) return;
 
-            pagesContainer.innerHTML = `<p class="risk-map-loading">Chargement ${cfg.label} à 150 %...</p>`;
+            const alreadyVisible = Boolean(pagesContainer.querySelector('canvas'));
+            if (!alreadyVisible) {
+                pagesContainer.innerHTML = `<p class="risk-map-loading">${loadingLabel || `Chargement ${cfg.label} à 150 %...`}</p>`;
+            }
 
             if (!window.pdfjsLib) {
-                pagesContainer.innerHTML = `<p class="risk-map-loading">PDF.js indisponible. Utilisez le bouton Ouvrir ${cfg.label}.</p>`;
+                if (!alreadyVisible) {
+                    pagesContainer.innerHTML = `<p class="risk-map-loading">PDF.js indisponible. Utilisez le bouton Ouvrir ${cfg.label}.</p>`;
+                }
                 return;
             }
 
-            const pdf = await pdfjsLib.getDocument({ url: pdfUrl }).promise;
-            pagesContainer.innerHTML = '';
+            const pdf = await pdfjsLib.getDocument(pdfSource).promise;
+            const staging = document.createElement('div');
 
             for (let pageNumber = 1; pageNumber <= pdf.numPages; pageNumber++) {
                 const page = await pdf.getPage(pageNumber);
@@ -5121,9 +5187,46 @@ const tdfStages = [
                 canvas.style.width = `${Math.floor(viewport.width)}px`;
                 canvas.style.height = `${Math.floor(viewport.height)}px`;
 
-                pagesContainer.appendChild(canvas);
+                staging.appendChild(canvas);
                 await page.render({ canvasContext: context, viewport }).promise;
             }
+
+            // L’ancienne carte reste visible jusqu’à ce que la nouvelle soit totalement prête.
+            pagesContainer.replaceChildren(...Array.from(staging.childNodes));
+        }
+
+        async function renderRiskMapPdf_(cfg, cacheBuster) {
+            const openLink = document.getElementById(cfg.openId);
+            const pdfUrl = `${cfg.pdfUrl}&v=${cacheBuster}`;
+            const openUrl = cfg.openUrl.includes('meteo.fr')
+                ? cfg.openUrl
+                : `${cfg.openUrl}?v=${cacheBuster}#zoom=150`;
+
+            if (openLink) openLink.href = openUrl;
+            await renderRiskMapPdfSource_(cfg, { url: pdfUrl }, `Chargement ${cfg.label} à 150 %...`);
+        }
+
+        async function loadCachedRiskMapsFirst_() {
+            if (!('caches' in window) || !window.pdfjsLib) return 0;
+            let restored = 0;
+
+            for (const cfg of Object.values(BFG_RISK_MAPS)) {
+                try {
+                    const cachedResponse = await caches.match(cfg.pdfUrl);
+                    if (!cachedResponse || !cachedResponse.ok) continue;
+                    const buffer = await cachedResponse.arrayBuffer();
+                    if (!buffer || buffer.byteLength < 1000) continue;
+                    await renderRiskMapPdfSource_(cfg, { data: new Uint8Array(buffer) }, `Restauration locale ${cfg.label}...`);
+                    restored += 1;
+                } catch (error) {
+                    console.warn(`BFG : carte risques ${cfg.label} en cache illisible.`, error);
+                }
+            }
+
+            if (restored > 0) {
+                setRiskMapsStatus_('Dernières cartes risques locales affichées — vérification du serveur en arrière-plan...');
+            }
+            return restored;
         }
 
         async function loadRiskMaps_() {
@@ -5166,7 +5269,11 @@ const tdfStages = [
                 setRiskMapsStatus_(`Serveur vérifié — National : ${nationalAt} — Zone Sud : ${zoneSudAt} — affichage 150 % rechargé à ${loadedAt.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}`);
             } catch (error) {
                 console.error(error);
-                setRiskMapsStatus_(`Erreur vérification cartes serveur : ${error.message}. Utilisez les boutons Météo-France direct.`);
+                if (hasRenderedRiskMaps_()) {
+                    setRiskMapsStatus_(`Vérification serveur impossible : ${error.message}. Les dernières cartes affichées sont conservées.`);
+                } else {
+                    setRiskMapsStatus_(`Erreur vérification cartes serveur : ${error.message}. Utilisez les boutons Météo-France direct.`);
+                }
             }
         }
 
@@ -5296,7 +5403,10 @@ const tdfStages = [
                 forceMfBtn.addEventListener('click', forceRiskMapsMeteoFrance_);
             }
 
-            loadRiskMaps_();
+            (async () => {
+                await loadCachedRiskMapsFirst_();
+                await loadRiskMaps_();
+            })().catch(error => console.warn('BFG : démarrage cartes risques incomplet.', error));
         }
 
 
@@ -5325,12 +5435,9 @@ const tdfStages = [
         setBfgOfflineBanner_('Mode hors ligne détecté au démarrage — chargement des dernières données locales.');
     }
     initializeTemsi();
-    initializeRiskMaps();
     initializeWindy();
     if (window.pdfjsLib) {
         initializeInteractivePdfViewers();
-        initializeFeuilleServiceAuto();
-        initializeGaarAuto();
     } else {
         console.warn("Visionneuse PDF désactivée (pdf.js introuvable).");
     }
@@ -5338,8 +5445,19 @@ const tdfStages = [
     initializeNotamParser(); 
     initializeManualMetarFetch();
     initializeForeFlightButton();
+
+    // v4.44 : restaurer d’abord les dernières données locales, puis seulement lancer
+    // les actualisations automatiques. Cela évite les rubriques vides au démarrage.
     initializeSessionManagement();
-    initializeAbeDispo();
+    Promise.resolve(window.__bfgLocalRestorePromise).catch(() => {}).finally(() => {
+        initializeRiskMaps();
+        if (window.pdfjsLib) {
+            initializeFeuilleServiceAuto();
+            initializeGaarAuto();
+        }
+        initializeAbeDispo();
+    });
+
     initializeHelpTooltips();
     initializeGaarMapControls();
     initializeTdfViewer();
@@ -6590,7 +6708,7 @@ const tdfStages = [
                 const finalCssWidth = Math.max(1, pinchBaseCanvasWidth * finalRatio);
                 const finalCssHeight = Math.max(1, pinchBaseCanvasHeight * finalRatio);
 
-                // v4.43 : on conserve directement l'aperçu CSS au relâchement.
+                // v4.44 : on conserve directement l'aperçu CSS au relâchement.
                 // Aucun rendu PDF.js lourd n'est déclenché ici : le geste reste disponible
                 // immédiatement, même sur les FDS et GAAR volumineux.
                 scale = Math.round(finalScale * 1000) / 1000;
@@ -8102,16 +8220,20 @@ let activeShareApiBase = SHARE_API_BASE;
         return true;
     }
 
-    async function performSave() {
+    async function performSave(options = {}) {
+        const silent = Boolean(options && options.silent === true);
         if (isSavingSession) return;
         isSavingSession = true;
+        window.__bfgSessionSaveRunning = true;
 
-        saveBtnTop && (saveBtnTop.disabled = true);
-        saveBtnBottom && (saveBtnBottom.disabled = true);
+        if (!silent) {
+            saveBtnTop && (saveBtnTop.disabled = true);
+            saveBtnBottom && (saveBtnBottom.disabled = true);
+        }
 
         let localDb;
         try {
-            sessionStatus.textContent = "Sauvegarde en cours...";
+            if (!silent) sessionStatus.textContent = "Sauvegarde en cours...";
             localStorage.removeItem('briefingFdfDoNotAutoRestore');
             localDb = await openDB();
             const portableSnapshot = await buildPortableSessionObject_();
@@ -8159,17 +8281,22 @@ let activeShareApiBase = SHARE_API_BASE;
                 tx.onerror = () => reject(tx.error);
             });
 
-            const saveMessage = `Sauvegarde locale effectuée (${new Date(savable.savedAt).toLocaleString('fr-FR')})`;
-            setLastSaveStatus_(saveMessage);
-            setSessionStatusWithMemory_(saveMessage);
+            if (!silent) {
+                const saveMessage = `Sauvegarde locale effectuée (${new Date(savable.savedAt).toLocaleString('fr-FR')})`;
+                setLastSaveStatus_(saveMessage);
+                setSessionStatusWithMemory_(saveMessage);
+            }
         } catch (error) {
-            sessionStatus.textContent = `Erreur lors de la sauvegarde: ${error.message || error}`;
+            if (!silent) sessionStatus.textContent = `Erreur lors de la sauvegarde: ${error.message || error}`;
             console.error("Erreur de sauvegarde :", error);
         } finally {
             if (localDb) localDb.close();
             isSavingSession = false;
-            saveBtnTop && (saveBtnTop.disabled = false);
-            saveBtnBottom && (saveBtnBottom.disabled = false);
+            window.__bfgSessionSaveRunning = false;
+            if (!silent) {
+                saveBtnTop && (saveBtnTop.disabled = false);
+                saveBtnBottom && (saveBtnBottom.disabled = false);
+            }
         }
     }
 
@@ -8696,7 +8823,7 @@ let activeShareApiBase = SHARE_API_BASE;
     }
 
     // ===== Restore on load =====
-    (async function loadSession() {
+    window.__bfgLocalRestorePromise = (async function loadSession() {
         try {
             const skipAutoRestoreOnce = sessionStorage.getItem('skipAutoRestoreOnce') === '1';
             if (skipAutoRestoreOnce) sessionStorage.removeItem('skipAutoRestoreOnce');
@@ -9877,7 +10004,7 @@ window.__notamTextFull = notamInput.value;
 
         function initializePageTitle() {
             const titleElement = document.getElementById('main-title');
-            titleElement.textContent = `Briefing Fdf TEST v4.43 du ${new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}`;
+            titleElement.textContent = `Briefing Fdf TEST v4.44 du ${new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}`;
             const timeDisplay = document.getElementById('current-time-display');
             const updateTime = () => timeDisplay.textContent = new Date().toLocaleTimeString('fr-FR');
             updateTime(); setInterval(updateTime, 1000);
