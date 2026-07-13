@@ -1,7 +1,7 @@
 {
-  "name": "Briefing FDF TEST",
-  "short_name": "Briefing TEST",
-  "description": "Briefing FDF TEST v4.44 démarrage sans écran vide",
+  "name": "Briefing FDF",
+  "short_name": "Briefing",
+  "description": "Briefing FDF v2026.21",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
