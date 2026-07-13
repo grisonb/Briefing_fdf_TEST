@@ -1,13 +1,22 @@
-CHANGELOG BFG TEST v4.38
-Date : 2026-07-11
-Base : TEST v4.37 zoom PDF fluide
+CHANGELOG BFG TEST v4.39
+Date : 2026-07-13
+Base : TEST v4.38 corrigée — zoom PDF sans blocage validé
 
 Modifications :
-- PDF FDS / GAAR : suppression du rendu PDF.js automatique au relâchement du zoom à deux doigts.
-- Le niveau de zoom obtenu est désormais conservé immédiatement par redimensionnement CSS du PDF et des annotations.
-- Le document reste utilisable dès que les doigts sont relâchés, sans blocage lié à un nouveau rendu haute définition.
-- Les rendus PDF déclenchés par un changement de page ou les boutons de zoom sont plafonnés en nombre de pixels afin d'éviter les canevas excessivement lourds sur iPad.
-- Adaptation de l'épaisseur des annotations lorsque le PDF est agrandi sans nouveau rendu.
+- NOTAMs : ajout du filtre "ADMINISTRATION".
+- NOTAMs : ajout du filtre "VDF".
+- NOTAMs : conservation de l'ordre alphabétique complet de la liste des filtres.
+- PDF FDS / GAAR : sauvegarde locale automatique des écritures après chaque trait, utilisation de la gomme, annulation de trait ou effacement de page.
+- PDF FDS / GAAR : restauration des écritures après passage hors ligne, rechargement ou nouvelle ouverture du même PDF.
+- PDF FDS / GAAR : association des écritures à une empreinte SHA-256 du contenu du PDF.
+- PDF FDS / GAAR : lorsqu'un nouveau PDF remplace le précédent, les écritures de l'ancien PDF sont supprimées et ne sont pas affichées sur le nouveau.
+- PDF FDS / GAAR : stockage principal dans IndexedDB avec secours localStorage si IndexedDB est indisponible.
+- Réseau très dégradé : ajout d’une surveillance active de la qualité de connexion, distincte du simple indicateur navigator.onLine.
+- Après deux sondes sans réponse, le BFG considère le réseau comme dégradé et utilise les dernières données locales, sans imposer le passage en mode avion.
+- Réseau très dégradé : ajout de délais maximum dans le service worker afin de ne plus attendre indéfiniment une réponse réseau.
+- Ouverture du BFG : en l'absence de réponse complète du réseau sous environ 3,5 secondes, bascule automatique vers l'index en cache, sans devoir activer le mode avion.
+- Données NAS : délais différenciés pour les statuts, les PDF et les demandes longues, puis reprise de la dernière réponse mise en cache lorsqu'elle existe.
+- Mise à jour du service worker : si le réseau est mauvais pendant l'installation, reprise de l'ancien index et des anciennes ressources en cache avant suppression de l'ancien cache.
 
 Fichiers modifiés :
 - index.html
@@ -18,9 +27,13 @@ Fichier NAS :
 - Aucun fichier NAS à remplacer.
 
 Tests à refaire :
-1. Ouvrir une FDS et effectuer plusieurs zooms/dézooms sans relâcher : le mouvement doit rester fluide.
-2. Relâcher les doigts après chaque zoom : le PDF doit rester immédiatement déplaçable et un nouveau pincement doit pouvoir commencer sans attente.
-3. Répéter rapidement plusieurs pincements successifs sur la FDS puis sur le GAAR.
-4. Vérifier le déplacement à un doigt après le zoom.
-5. Vérifier l'écriture et la gomme après avoir zoomé.
-6. Changer de page, puis vérifier que le PDF reste affiché correctement.
+1. Ouvrir les filtres NOTAMs et vérifier l'ordre alphabétique, notamment ADMINISTRATION en tête de liste et VDF avant VOR.
+2. Vérifier que les filtres ADMINISTRATION et VDF masquent correctement les NOTAMs correspondants lorsqu'ils sont cochés.
+3. Écrire sur une FDS, passer en mode avion, recharger ou rouvrir le BFG et vérifier que les écritures sont restaurées.
+4. Refaire le même test avec le GAAR.
+5. Sur le même PDF, tester un trait, la gomme, Annuler trait et Effacer page, puis recharger après chaque opération.
+6. Charger un PDF différent dans le même emplacement FDS ou GAAR et vérifier que les écritures du PDF précédent ont disparu.
+7. Recharger ensuite le nouveau PDF hors ligne et vérifier que seules ses propres écritures sont restaurées.
+8. Avec le BFG déjà mis en cache, simuler un réseau extrêmement faible sans activer le mode avion et rouvrir le BFG : l'application doit revenir sur la copie locale après quelques secondes.
+9. Revenir sur un réseau normal et vérifier que les données en ligne continuent à se mettre à jour.
+10. Vérifier que le zoom PDF fluide validé en v4.38 reste inchangé.
