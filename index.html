@@ -5,8 +5,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0">
-    <title>Briefing Fdf TEST v4.38</title>
-    <link rel="manifest" href="./manifest.json?v=4.24">
+    <title>Briefing Fdf TEST v4.39</title>
+    <link rel="manifest" href="./manifest.json?v=4.39">
     <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png?v=4.24">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-title" content="Briefing TEST">
@@ -2046,10 +2046,10 @@
 
     <div class="page-header">
         <div class="page-header-background"></div>
-        <h1 id="main-title">Briefing Fdf TEST v4.37</h1>
+        <h1 id="main-title">Briefing Fdf TEST v4.39</h1>
         <p id="current-time-display"></p>
         <p style="position: relative; z-index: 2; text-align: center; color: #333; font-size: 1em; margin-top: -25px; margin-bottom: 30px;">
-    v<span id="app-version">4.38 TEST - zoom PDF sans blocage</span>
+    v<span id="app-version">4.39 TEST - filtres, annotations hors ligne et réseau dégradé</span>
     <button id="force-update-btn" class="link-button" style="background-color: #34495e; padding: 4px 10px; font-size: 0.8em; margin-left: 10px; vertical-align: middle;">
         Forcer MAJ
     </button>
@@ -2422,7 +2422,7 @@
     <footer>Données : Météo-France, SIA, Windy.com, CheckWX.com. Page non commerciale, à usage personnel.</footer>
     
     <script>
-        const APP_VERSION = "4.37 TEST - zoom PDF fluide";
+        const APP_VERSION = "4.39 TEST - filtres, annotations hors ligne et réseau dégradé";
 
         // --- Proxy NAS pour la source de données météo CheckWX ---
         const CHECKWX_PROXY_URL = "https://grisonb.synology.me/briefing-api/get-metar-taf.php";
@@ -4156,9 +4156,62 @@ const tdfStages = [
         const BFG_START_OFFLINE_ = !navigator.onLine;
         let bfgWasOffline_ = !navigator.onLine;
         let bfgOnlineReloadStarted_ = false;
+        let bfgNetworkDegraded_ = false;
+        let bfgNetworkProbeFailures_ = 0;
+        let bfgNetworkProbeRunning_ = false;
 
         function isBfgOffline_() {
-            return navigator.onLine === false;
+            return navigator.onLine === false || bfgNetworkDegraded_;
+        }
+
+        async function probeBfgNetwork_(timeoutMs = 3000) {
+            if (navigator.onLine === false) return false;
+            const controller = new AbortController();
+            const timer = setTimeout(() => controller.abort(), timeoutMs);
+            try {
+                const probeUrl = new URL(window.location.pathname || './index.html', window.location.origin);
+                probeUrl.searchParams.set('_networkProbe', Date.now().toString());
+                const response = await fetch(probeUrl.toString(), {
+                    method: 'HEAD',
+                    cache: 'no-store',
+                    signal: controller.signal
+                });
+                return Boolean(response && response.ok);
+            } catch (error) {
+                return false;
+            } finally {
+                clearTimeout(timer);
+            }
+        }
+
+        async function monitorBfgNetworkQuality_() {
+            if (bfgNetworkProbeRunning_) return;
+            if (isBfgOffline_()) {
+                bfgNetworkProbeFailures_ = 0;
+                return;
+            }
+
+            bfgNetworkProbeRunning_ = true;
+            const networkResponds = await probeBfgNetwork_(3000);
+            bfgNetworkProbeRunning_ = false;
+
+            if (networkResponds) {
+                bfgNetworkProbeFailures_ = 0;
+                const wasDegraded = bfgNetworkDegraded_;
+                bfgNetworkDegraded_ = false;
+                if (wasDegraded) {
+                    bfgWasOffline_ = true;
+                    reloadBfgAfterOnlineReturn_();
+                }
+                return;
+            }
+
+            bfgNetworkProbeFailures_ += 1;
+            if (bfgNetworkProbeFailures_ >= 2 && !bfgNetworkDegraded_) {
+                bfgNetworkDegraded_ = true;
+                bfgWasOffline_ = true;
+                setBfgOfflineBanner_('Réseau très dégradé — bascule sur les dernières données enregistrées.');
+            }
         }
 
         function setBfgOfflineBanner_(message) {
@@ -4189,19 +4242,9 @@ const tdfStages = [
             if (!bfgWasOffline_ || bfgOnlineReloadStarted_) return;
             if (!navigator.onLine) return;
 
-            try {
-                const probeUrl = new URL(window.location.pathname || './index.html', window.location.origin);
-                probeUrl.searchParams.set('_probe', Date.now().toString());
-
-                const response = await fetch(probeUrl.toString(), {
-                    method: 'HEAD',
-                    cache: 'no-store'
-                });
-
-                if (!response || !response.ok) return;
-            } catch (error) {
-                return;
-            }
+            if (bfgNetworkDegraded_) return;
+            const networkResponds = await probeBfgNetwork_(3000);
+            if (!networkResponds) return;
 
             bfgOnlineReloadStarted_ = true;
             setBfgConnectionMessage_("Connexion retrouvée : rechargement en ligne...");
@@ -4223,6 +4266,8 @@ const tdfStages = [
         });
 
         setInterval(reloadBfgAfterOnlineReturn_, 5000);
+        setTimeout(monitorBfgNetworkQuality_, 1500);
+        setInterval(monitorBfgNetworkQuality_, 8000);
 
 
         function setFdsAutoStatus_(message, options = {}) {
@@ -4717,7 +4762,7 @@ const tdfStages = [
         async function requestGaarImportViaNas_() {
             const query = new URLSearchParams();
             query.set('t', String(Date.now()));
-            query.set('source', 'bfg-test-v4.37');
+            query.set('source', 'bfg-test-v4.39');
 
             const url = `${GAAR_IMPORT_REQUEST_API_URL}?${query.toString()}`;
             const response = await fetchWithTimeout_(url, { cache: 'no-store' }, 65000);
@@ -6107,6 +6152,160 @@ const tdfStages = [
             window.__lastTemsiState = { ...state, label: cleanLabel, restoredAt: new Date().toISOString(), source: 'offline' };
         }
 
+        const PDF_ANNOTATION_DB_NAME_ = 'bfg-pdf-annotations-v1';
+        const PDF_ANNOTATION_STORE_NAME_ = 'pdfAnnotations';
+        const PDF_ANNOTATION_LOCAL_PREFIX_ = 'bfgPdfAnnotations:';
+        const PDF_ANNOTATION_ACTIVE_KEYS_ = new Map();
+
+        function openPdfAnnotationDb_() {
+            return new Promise((resolve, reject) => {
+                if (!window.indexedDB) {
+                    reject(new Error('IndexedDB indisponible'));
+                    return;
+                }
+                const request = window.indexedDB.open(PDF_ANNOTATION_DB_NAME_, 1);
+                request.onupgradeneeded = () => {
+                    const db = request.result;
+                    if (!db.objectStoreNames.contains(PDF_ANNOTATION_STORE_NAME_)) {
+                        db.createObjectStore(PDF_ANNOTATION_STORE_NAME_, { keyPath: 'id' });
+                    }
+                };
+                request.onsuccess = () => resolve(request.result);
+                request.onerror = () => reject(request.error || new Error('Ouverture IndexedDB impossible'));
+                request.onblocked = () => reject(new Error('IndexedDB bloquée'));
+            });
+        }
+
+        function getPdfAnnotationLocalKey_(id) {
+            return `${PDF_ANNOTATION_LOCAL_PREFIX_}${id}`;
+        }
+
+        async function loadPdfAnnotationRecord_(id) {
+            try {
+                const db = await openPdfAnnotationDb_();
+                const record = await new Promise((resolve, reject) => {
+                    const tx = db.transaction(PDF_ANNOTATION_STORE_NAME_, 'readonly');
+                    const request = tx.objectStore(PDF_ANNOTATION_STORE_NAME_).get(id);
+                    request.onsuccess = () => resolve(request.result || null);
+                    request.onerror = () => reject(request.error || new Error('Lecture annotations impossible'));
+                    tx.oncomplete = () => db.close();
+                    tx.onerror = () => {
+                        try { db.close(); } catch (error) {}
+                    };
+                });
+                if (record) return record;
+                try {
+                    const raw = localStorage.getItem(getPdfAnnotationLocalKey_(id));
+                    return raw ? JSON.parse(raw) : null;
+                } catch (fallbackError) {
+                    return null;
+                }
+            } catch (error) {
+                try {
+                    const raw = localStorage.getItem(getPdfAnnotationLocalKey_(id));
+                    return raw ? JSON.parse(raw) : null;
+                } catch (fallbackError) {
+                    console.warn('BFG PDF : restauration locale des écritures impossible.', fallbackError);
+                    return null;
+                }
+            }
+        }
+
+        async function savePdfAnnotationRecord_(record) {
+            const safeRecord = JSON.parse(JSON.stringify(record));
+            try {
+                const db = await openPdfAnnotationDb_();
+                await new Promise((resolve, reject) => {
+                    const tx = db.transaction(PDF_ANNOTATION_STORE_NAME_, 'readwrite');
+                    tx.objectStore(PDF_ANNOTATION_STORE_NAME_).put(safeRecord);
+                    tx.oncomplete = () => {
+                        db.close();
+                        resolve();
+                    };
+                    tx.onerror = () => {
+                        try { db.close(); } catch (error) {}
+                        reject(tx.error || new Error('Sauvegarde annotations impossible'));
+                    };
+                    tx.onabort = () => {
+                        try { db.close(); } catch (error) {}
+                        reject(tx.error || new Error('Sauvegarde annotations annulée'));
+                    };
+                });
+            } catch (error) {
+                try {
+                    localStorage.setItem(getPdfAnnotationLocalKey_(safeRecord.id), JSON.stringify(safeRecord));
+                } catch (fallbackError) {
+                    console.warn('BFG PDF : sauvegarde locale des écritures impossible.', fallbackError);
+                }
+            }
+        }
+
+        async function deleteOtherPdfAnnotationRecords_(viewerKey, keepId) {
+            try {
+                const db = await openPdfAnnotationDb_();
+                await new Promise((resolve, reject) => {
+                    const tx = db.transaction(PDF_ANNOTATION_STORE_NAME_, 'readwrite');
+                    const store = tx.objectStore(PDF_ANNOTATION_STORE_NAME_);
+                    const request = store.openCursor();
+                    request.onsuccess = () => {
+                        const cursor = request.result;
+                        if (!cursor) return;
+                        const value = cursor.value || {};
+                        if (value.viewerKey === viewerKey && value.id !== keepId) cursor.delete();
+                        cursor.continue();
+                    };
+                    request.onerror = () => reject(request.error || new Error('Nettoyage annotations impossible'));
+                    tx.oncomplete = () => {
+                        db.close();
+                        resolve();
+                    };
+                    tx.onerror = () => {
+                        try { db.close(); } catch (error) {}
+                        reject(tx.error || new Error('Nettoyage annotations impossible'));
+                    };
+                });
+            } catch (error) {
+                // Le nettoyage localStorage est tout de même tenté ci-dessous.
+            }
+
+            try {
+                const keysToDelete = [];
+                for (let index = 0; index < localStorage.length; index += 1) {
+                    const key = localStorage.key(index);
+                    if (!key || !key.startsWith(PDF_ANNOTATION_LOCAL_PREFIX_)) continue;
+                    try {
+                        const value = JSON.parse(localStorage.getItem(key) || 'null');
+                        if (value && value.viewerKey === viewerKey && value.id !== keepId) keysToDelete.push(key);
+                    } catch (error) {
+                        keysToDelete.push(key);
+                    }
+                }
+                keysToDelete.forEach(key => localStorage.removeItem(key));
+            } catch (error) {}
+        }
+
+        async function computePdfFingerprint_(arrayBuffer) {
+            const bytes = new Uint8Array(arrayBuffer);
+            try {
+                if (window.crypto && window.crypto.subtle) {
+                    const digest = await window.crypto.subtle.digest('SHA-256', arrayBuffer);
+                    return Array.from(new Uint8Array(digest), byte => byte.toString(16).padStart(2, '0')).join('');
+                }
+            } catch (error) {}
+
+            // Secours pour les anciens moteurs WebKit : empreinte calculée sur le contenu complet.
+            let hashA = 2166136261;
+            let hashB = 2246822519;
+            for (let index = 0; index < bytes.length; index += 1) {
+                const value = bytes[index];
+                hashA ^= value;
+                hashA = Math.imul(hashA, 16777619);
+                hashB ^= value + (index & 255);
+                hashB = Math.imul(hashB, 3266489917);
+            }
+            return `${bytes.length.toString(16)}-${(hashA >>> 0).toString(16)}-${(hashB >>> 0).toString(16)}`;
+        }
+
         function createInteractivePdfHandler(viewerContainer, file, callback, initialScale = 1.5) {
             if (!viewerContainer) return;
 
@@ -6166,6 +6365,63 @@ const tdfStages = [
             let annotationStrokeWidth = 3.0;
             const annotationEraserRadius = 0.018;
             const annotationStrokesByPage = new Map();
+            const annotationViewerKey = viewerContainer.id === 'pdf-interactive-container-fds' ? 'fds' : 'gaar';
+            let annotationStorageId = '';
+            let annotationPersistenceReady = false;
+
+            function exportPdfAnnotationPages_() {
+                const pages = {};
+                annotationStrokesByPage.forEach((strokes, page) => {
+                    if (!Array.isArray(strokes) || !strokes.length) return;
+                    pages[String(page)] = strokes;
+                });
+                return pages;
+            }
+
+            function restorePdfAnnotationPages_(pages) {
+                annotationStrokesByPage.clear();
+                if (!pages || typeof pages !== 'object') return;
+                Object.entries(pages).forEach(([page, strokes]) => {
+                    const pageNumber = Number(page);
+                    if (!Number.isInteger(pageNumber) || pageNumber < 1 || !Array.isArray(strokes)) return;
+                    const cleanStrokes = strokes.filter(stroke => (
+                        stroke &&
+                        Array.isArray(stroke.points) &&
+                        stroke.points.length > 0
+                    ));
+                    if (cleanStrokes.length) annotationStrokesByPage.set(pageNumber, cleanStrokes);
+                });
+            }
+
+            async function initializePdfAnnotationPersistence_(arrayBuffer) {
+                if (!annotationsEnabledForViewer) return;
+                try {
+                    const fingerprint = await computePdfFingerprint_(arrayBuffer);
+                    if (!isCurrentPdfHandler_()) return;
+                    annotationStorageId = `${annotationViewerKey}:${fingerprint}`;
+                    PDF_ANNOTATION_ACTIVE_KEYS_.set(annotationViewerKey, annotationStorageId);
+                    await deleteOtherPdfAnnotationRecords_(annotationViewerKey, annotationStorageId);
+                    if (!isCurrentPdfHandler_()) return;
+                    const record = await loadPdfAnnotationRecord_(annotationStorageId);
+                    if (!isCurrentPdfHandler_()) return;
+                    restorePdfAnnotationPages_(record && record.pages);
+                    annotationPersistenceReady = true;
+                } catch (error) {
+                    annotationPersistenceReady = true;
+                    console.warn('BFG PDF : initialisation de la sauvegarde des écritures impossible.', error);
+                }
+            }
+
+            async function persistPdfAnnotationsNow_() {
+                if (!annotationsEnabledForViewer || !annotationPersistenceReady || !annotationStorageId) return;
+                if (PDF_ANNOTATION_ACTIVE_KEYS_.get(annotationViewerKey) !== annotationStorageId) return;
+                await savePdfAnnotationRecord_({
+                    id: annotationStorageId,
+                    viewerKey: annotationViewerKey,
+                    pages: exportPdfAnnotationPages_(),
+                    updatedAt: new Date().toISOString()
+                });
+            }
 
             function isCurrentPdfHandler_() {
                 return viewerContainer.__bfgPdfHandlerToken === handlerToken && !handlerSignal.aborted;
@@ -6253,7 +6509,7 @@ const tdfStages = [
                 const finalCssWidth = Math.max(1, pinchBaseCanvasWidth * finalRatio);
                 const finalCssHeight = Math.max(1, pinchBaseCanvasHeight * finalRatio);
 
-                // v4.38 : on conserve directement l'aperçu CSS au relâchement.
+                // v4.39 : on conserve directement l'aperçu CSS au relâchement.
                 // Aucun rendu PDF.js lourd n'est déclenché ici : le geste reste disponible
                 // immédiatement, même sur les FDS et GAAR volumineux.
                 scale = Math.round(finalScale * 1000) / 1000;
@@ -6550,6 +6806,7 @@ const tdfStages = [
                 }
                 activeStroke = null;
                 redrawPdfAnnotations_();
+                void persistPdfAnnotationsNow_();
             }
 
             function renderPage(num, reason = 'normal') {
@@ -6643,6 +6900,7 @@ const tdfStages = [
                     const strokes = getPdfAnnotationPageStrokes_();
                     strokes.pop();
                     redrawPdfAnnotations_();
+                    void persistPdfAnnotationsNow_();
                     return;
                 }
                 if (action === 'annotation-clear-page') {
@@ -6650,6 +6908,7 @@ const tdfStages = [
                         annotationStrokesByPage.set(pageNum, []);
                         activeStroke = null;
                         redrawPdfAnnotations_();
+                        void persistPdfAnnotationsNow_();
                     }
                     return;
                 }
@@ -6747,6 +7006,12 @@ const tdfStages = [
                 isPanning = false;
             }, { passive: false, signal: handlerSignal });
 
+            window.addEventListener('offline', () => { void persistPdfAnnotationsNow_(); }, { passive: true, signal: handlerSignal });
+            window.addEventListener('pagehide', () => { void persistPdfAnnotationsNow_(); }, { passive: true, signal: handlerSignal });
+            document.addEventListener('visibilitychange', () => {
+                if (document.hidden) void persistPdfAnnotationsNow_();
+            }, { passive: true, signal: handlerSignal });
+
             window.addEventListener('online', () => scheduleCleanPdfRerender_('online', 450), { passive: true, signal: handlerSignal });
             window.addEventListener('resize', () => scheduleCleanPdfRerender_('resize', 350), { passive: true, signal: handlerSignal });
             window.addEventListener('orientationchange', () => scheduleCleanPdfRerender_('orientation', 650), { passive: true, signal: handlerSignal });
@@ -6757,12 +7022,20 @@ const tdfStages = [
             const fileReader = new FileReader();
             fileReader.onload = function() {
                 if (!isCurrentPdfHandler_()) return;
-                const buffer = new Uint8Array(this.result);
+                const sourceArrayBuffer = this.result;
+                const fingerprintBuffer = annotationsEnabledForViewer ? sourceArrayBuffer.slice(0) : null;
+                const buffer = new Uint8Array(sourceArrayBuffer);
                 viewerContainer.style.display = 'block';
                 wrapper.scrollLeft = 0;
                 wrapper.scrollTop = 0;
                 resetPdfCanvasState_();
-                pdfjsLib.getDocument(buffer).promise.then(pdfDoc_ => {
+                const annotationReadyPromise = annotationsEnabledForViewer
+                    ? initializePdfAnnotationPersistence_(fingerprintBuffer)
+                    : Promise.resolve();
+                Promise.all([
+                    pdfjsLib.getDocument(buffer).promise,
+                    annotationReadyPromise
+                ]).then(([pdfDoc_]) => {
                     if (!isCurrentPdfHandler_()) return;
                     pdfDoc = pdfDoc_;
                     const pageCountEl = controls.querySelector('.page-count');
@@ -8570,6 +8843,7 @@ window.__notamTextFull = notamInput.value;
                 'LFLX':'LFLX - CHATEAUROUX DEOLS', 'LFGJ':'LFGJ - DOLE', 'LFSG':'LFSG - EPINAL MIRECOURT', 'LFRV':'LFRV - VANNES GOLFE DU MORBIHAN'
             };
             const keywordsToFilter = [
+                'administration',
                 'aerodrome administration',
                 'air start',
                 'altitude',
@@ -8598,6 +8872,7 @@ window.__notamTextFull = notamInput.value;
                 'trees',
                 'ul',
                 'unpaved',
+                'vdf',
                 'vor',
                 'wig wag'
             ];
@@ -9512,7 +9787,7 @@ window.__notamTextFull = notamInput.value;
 
         function initializePageTitle() {
             const titleElement = document.getElementById('main-title');
-            titleElement.textContent = `Briefing Fdf TEST v4.37 du ${new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}`;
+            titleElement.textContent = `Briefing Fdf TEST v4.39 du ${new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}`;
             const timeDisplay = document.getElementById('current-time-display');
             const updateTime = () => timeDisplay.textContent = new Date().toLocaleTimeString('fr-FR');
             updateTime(); setInterval(updateTime, 1000);
