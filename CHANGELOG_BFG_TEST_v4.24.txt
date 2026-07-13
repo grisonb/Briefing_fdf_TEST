@@ -1,31 +1,47 @@
-{
-  "name": "Briefing FDF",
-  "short_name": "Briefing",
-  "description": "Briefing FDF v2026.21",
-  "start_url": "./index.html",
-  "scope": "./",
-  "display": "standalone",
-  "background_color": "#f4f6f9",
-  "theme_color": "#0a2c5a",
-  "orientation": "any",
-  "icons": [
-    {
-      "src": "./icons/icon-180.png",
-      "sizes": "180x180",
-      "type": "image/png",
-      "purpose": "any"
-    },
-    {
-      "src": "./icons/icon-192.png",
-      "sizes": "192x192",
-      "type": "image/png",
-      "purpose": "any maskable"
-    },
-    {
-      "src": "./icons/icon-512.png",
-      "sizes": "512x512",
-      "type": "image/png",
-      "purpose": "any maskable"
-    }
-  ]
-}
+BFG - Version pérenne v2026.21
+Date : 2026-07-13
+Base : TEST v4.44 validée
+
+Modifications reprises depuis la version pérenne v2026.20 :
+
+NOTAMs :
+- Ajout des filtres « ADMINISTRATION » et « VDF » dans l’ordre alphabétique.
+
+PDF FDS / GAAR :
+- Sauvegarde automatique des écritures après chaque trait, passage de gomme, annulation ou effacement complet.
+- Restauration des écritures hors ligne et après réouverture du même PDF.
+- Association des écritures à l’empreinte du PDF : elles disparaissent automatiquement lorsque le document change.
+- Stockage principal dans IndexedDB avec secours localStorage.
+- Barre d’annotation rendue plus lisible : boutons arrondis, pastilles agrandies, sélection blanche clairement identifiable.
+- Icône crayon agrandie et stabilisée : jaune lorsqu’elle est inactive, bleue lorsqu’elle est active.
+- Bouton « Effacer page » renommé « Tout Effacer ».
+- Bouton Gomme actif rendu plus lisible.
+- En mode écriture : tracé réservé au Pencil sur iPad ; zoom et déplacement possibles à deux doigts sans créer de zone colorée involontaire.
+
+Réseau dégradé et mode hors ligne :
+- Détection active d’un réseau très lent même lorsque l’iPad reste indiqué connecté.
+- Bascule automatique vers les données locales après plusieurs sondes sans réponse.
+- Ouverture depuis l’index en cache après environ 3,5 secondes sans réponse complète du réseau.
+- Délais maximum différenciés pour les statuts, PDF et demandes longues du NAS.
+- Lors d’une mise à jour en réseau dégradé, reprise de l’ancien index et des anciennes ressources mises en cache.
+
+Démarrage et actualisation des données :
+- Restauration des dernières données locales avant le lancement des actualisations automatiques.
+- Sauvegarde automatique de la FDS réellement récupérée sur le NAS.
+- Conservation de la FDS affichée lorsqu’elle est identique ou plus récente que la réponse reçue.
+- Sauvegarde et affichage immédiat des dernières données avions, pélicandromes et situation FDF CNCASC pendant leur actualisation.
+- Affichage prioritaire des dernières cartes des risques présentes en cache.
+- Conservation de l’ancienne carte jusqu’au rendu complet de la nouvelle.
+- Migration des derniers PDF FDS, GAAR et risques lors du changement de cache PWA.
+
+Paramètres pérennes :
+- Version affichée : 2026.21.
+- Tour de France : forçage TEST désactivé ; affichage uniquement pendant la période prévue.
+- Identifiant de source GAAR : bfg-v2026.21.
+- Nouveau cache du service worker : briefing-fdf-v2026-21-donnees-conservees.
+- Aucun fichier NAS à remplacer.
+
+Fichiers à remplacer :
+- index.html
+- manifest.json
+- sw.js
