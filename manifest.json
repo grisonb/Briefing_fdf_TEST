@@ -1,7 +1,7 @@
 {
   "name": "Briefing FDF TEST",
   "short_name": "Briefing TEST",
-  "description": "Briefing FDF TEST v4.43 navigation PDF à 2 doigts",
+  "description": "Briefing FDF TEST v4.44 démarrage sans écran vide",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
