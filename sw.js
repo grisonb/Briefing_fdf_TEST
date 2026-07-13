@@ -1,4 +1,4 @@
-const CACHE_NAME = 'briefing-fdf-test-v4.44-demarrage-donnees-r1';
+const CACHE_NAME = 'briefing-fdf-v2026-21-donnees-conservees';
 
 const LOCAL_ASSETS = [
   './manifest.json',
@@ -151,7 +151,7 @@ async function migratePreviousBfgDataCaches_() {
 
 self.addEventListener('activate', (event) => {
   event.waitUntil((async () => {
-    // v4.44 : conserver les derniers PDF FDS/GAAR/risques lors d'une mise à jour
+    // v2026.21 : conserver les derniers PDF FDS/GAAR/risques lors d'une mise à jour
     // de l'application, puis seulement supprimer les anciens caches.
     await migratePreviousBfgDataCaches_();
     const keys = await caches.keys();
