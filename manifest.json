@@ -1,7 +1,7 @@
 {
   "name": "Briefing FDF TEST",
   "short_name": "Briefing TEST",
-  "description": "Briefing FDF TEST v4.38 zoom PDF sans blocage",
+  "description": "Briefing FDF TEST v4.39 filtres NOTAMs, annotations hors ligne et réseau dégradé",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
