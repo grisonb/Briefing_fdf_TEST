@@ -1,4 +1,4 @@
-const CACHE_NAME = 'briefing-fdf-test-v4.43-pdf-2-doigts-r1';
+const CACHE_NAME = 'briefing-fdf-test-v4.44-demarrage-donnees-r1';
 
 const LOCAL_ASSETS = [
   './manifest.json',
@@ -107,8 +107,53 @@ self.addEventListener('install', (event) => {
   })());
 });
 
+function isMigratableBfgDataRequest(request) {
+  try {
+    const url = new URL(request.url);
+    if (url.hostname !== 'grisonb.synology.me') return false;
+    return (
+      url.pathname.includes('/briefing-api/get-risk-map-pdf.php') ||
+      url.pathname.includes('/briefing-api/get-risk-map-status.php') ||
+      url.pathname.includes('/briefing-api/get-feuille-service-pdf.php') ||
+      url.pathname.includes('/briefing-api/get-feuille-service-status.php') ||
+      url.pathname.includes('/briefing-api/get-gaar-pdf.php') ||
+      url.pathname.includes('/briefing-api/get-gaar-status.php') ||
+      url.pathname.includes('/briefing-data/risk-maps/') ||
+      url.pathname.includes('/briefing-data/feuille-service/') ||
+      url.pathname.includes('/briefing-data/gaar/')
+    );
+  } catch (_) {
+    return false;
+  }
+}
+
+async function migratePreviousBfgDataCaches_() {
+  const keys = await caches.keys();
+  const target = await caches.open(CACHE_NAME);
+
+  for (const key of keys) {
+    if (key === CACHE_NAME || !key.startsWith('briefing-fdf')) continue;
+    try {
+      const source = await caches.open(key);
+      const requests = await source.keys();
+      for (const request of requests) {
+        if (!isMigratableBfgDataRequest(request)) continue;
+        const alreadyPresent = await target.match(request);
+        if (alreadyPresent) continue;
+        const response = await source.match(request);
+        if (response) await target.put(request, response.clone());
+      }
+    } catch (_) {
+      // Une entrée ancienne illisible ne doit pas bloquer l'activation.
+    }
+  }
+}
+
 self.addEventListener('activate', (event) => {
   event.waitUntil((async () => {
+    // v4.44 : conserver les derniers PDF FDS/GAAR/risques lors d'une mise à jour
+    // de l'application, puis seulement supprimer les anciens caches.
+    await migratePreviousBfgDataCaches_();
     const keys = await caches.keys();
     await Promise.all(keys.map((key) => (key === CACHE_NAME ? null : caches.delete(key))));
     await self.clients.claim();
