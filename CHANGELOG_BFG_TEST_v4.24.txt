@@ -1,47 +1,33 @@
-BFG - Version pérenne v2026.21
-Date : 2026-07-13
-Base : TEST v4.44 validée
+CHANGELOG BFG TEST v4.45
+Date : 2026-07-30
+Base : TEST v4.44 démarrage sans écran vide
 
-Modifications reprises depuis la version pérenne v2026.20 :
+Modifications :
+- NOTAMs : ajout d’une seconde case sous la case de sélection normale.
+- NOTAMs : la case supérieure « Garder » est entourée de vert.
+- NOTAMs : la nouvelle case inférieure « Masquer » est entourée de rouge.
+- NOTAMs : cocher la case rouge masque durablement le NOTAM lors des prochains chargements.
+- NOTAMs : le masquage est lié à l’identifiant et à l’empreinte du contenu du NOTAM. Si le NOTAM change, il réapparaît automatiquement. Un identifiant de secours est créé pour les rares NOTAMs sans numéro exploitable.
+- NOTAMs : ajout du bouton « Afficher les NOTAMs masqués (n) » dans les commandes du haut et du bas.
+- NOTAMs : lorsque les NOTAMs masqués sont affichés, le bouton devient « Masquer les NOTAMs masqués (n) » et force leur affichage pour permettre leur gestion, même si la sélection courante est filtrée.
+- NOTAMs : un NOTAM masqué, lorsqu’il est temporairement affiché, est signalé par un fond et un bord rouges.
+- NOTAMs : les cases verte et rouge sont exclusives : cocher l’une décoche l’autre.
+- NOTAMs : compatibilité conservée avec les anciennes sélections et les anciens surlignages persistants.
 
-NOTAMs :
-- Ajout des filtres « ADMINISTRATION » et « VDF » dans l’ordre alphabétique.
-
-PDF FDS / GAAR :
-- Sauvegarde automatique des écritures après chaque trait, passage de gomme, annulation ou effacement complet.
-- Restauration des écritures hors ligne et après réouverture du même PDF.
-- Association des écritures à l’empreinte du PDF : elles disparaissent automatiquement lorsque le document change.
-- Stockage principal dans IndexedDB avec secours localStorage.
-- Barre d’annotation rendue plus lisible : boutons arrondis, pastilles agrandies, sélection blanche clairement identifiable.
-- Icône crayon agrandie et stabilisée : jaune lorsqu’elle est inactive, bleue lorsqu’elle est active.
-- Bouton « Effacer page » renommé « Tout Effacer ».
-- Bouton Gomme actif rendu plus lisible.
-- En mode écriture : tracé réservé au Pencil sur iPad ; zoom et déplacement possibles à deux doigts sans créer de zone colorée involontaire.
-
-Réseau dégradé et mode hors ligne :
-- Détection active d’un réseau très lent même lorsque l’iPad reste indiqué connecté.
-- Bascule automatique vers les données locales après plusieurs sondes sans réponse.
-- Ouverture depuis l’index en cache après environ 3,5 secondes sans réponse complète du réseau.
-- Délais maximum différenciés pour les statuts, PDF et demandes longues du NAS.
-- Lors d’une mise à jour en réseau dégradé, reprise de l’ancien index et des anciennes ressources mises en cache.
-
-Démarrage et actualisation des données :
-- Restauration des dernières données locales avant le lancement des actualisations automatiques.
-- Sauvegarde automatique de la FDS réellement récupérée sur le NAS.
-- Conservation de la FDS affichée lorsqu’elle est identique ou plus récente que la réponse reçue.
-- Sauvegarde et affichage immédiat des dernières données avions, pélicandromes et situation FDF CNCASC pendant leur actualisation.
-- Affichage prioritaire des dernières cartes des risques présentes en cache.
-- Conservation de l’ancienne carte jusqu’au rendu complet de la nouvelle.
-- Migration des derniers PDF FDS, GAAR et risques lors du changement de cache PWA.
-
-Paramètres pérennes :
-- Version affichée : 2026.21.
-- Tour de France : forçage TEST désactivé ; affichage uniquement pendant la période prévue.
-- Identifiant de source GAAR : bfg-v2026.21.
-- Nouveau cache du service worker : briefing-fdf-v2026-21-donnees-conservees.
-- Aucun fichier NAS à remplacer.
-
-Fichiers à remplacer :
+Fichiers modifiés :
 - index.html
 - manifest.json
 - sw.js
+
+Fichier NAS :
+- Aucun fichier NAS à remplacer.
+
+Tests à refaire :
+1. Vérifier que la version affichée est bien v4.45.
+2. Vérifier la présence de deux cases verticales sur chaque NOTAM : verte en haut, rouge en bas.
+3. Cocher une case rouge : le NOTAM doit disparaître immédiatement.
+4. Recharger l’application ou les NOTAMs : le même NOTAM doit rester masqué.
+5. Cliquer sur « Afficher les NOTAMs masqués » : le NOTAM doit réapparaître avec une présentation rouge.
+6. Décocher sa case rouge : il doit redevenir un NOTAM normal et rester visible aux prochains chargements.
+7. Vérifier qu’un NOTAM dont le texte a changé n’est plus masqué automatiquement.
+8. Vérifier que « Garder la sélection », « Tout afficher », « Annuler sélection », les filtres et les surlignages fonctionnent toujours.
