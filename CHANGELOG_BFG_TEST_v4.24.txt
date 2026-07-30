@@ -1,18 +1,15 @@
-CHANGELOG BFG TEST v4.45
+CHANGELOG BFG TEST v4.46
 Date : 2026-07-30
-Base : TEST v4.44 démarrage sans écran vide
+Base : TEST v4.45 NOTAMs masqués persistants
 
 Modifications :
-- NOTAMs : ajout d’une seconde case sous la case de sélection normale.
-- NOTAMs : la case supérieure « Garder » est entourée de vert.
-- NOTAMs : la nouvelle case inférieure « Masquer » est entourée de rouge.
-- NOTAMs : cocher la case rouge masque durablement le NOTAM lors des prochains chargements.
-- NOTAMs : le masquage est lié à l’identifiant et à l’empreinte du contenu du NOTAM. Si le NOTAM change, il réapparaît automatiquement. Un identifiant de secours est créé pour les rares NOTAMs sans numéro exploitable.
-- NOTAMs : ajout du bouton « Afficher les NOTAMs masqués (n) » dans les commandes du haut et du bas.
-- NOTAMs : lorsque les NOTAMs masqués sont affichés, le bouton devient « Masquer les NOTAMs masqués (n) » et force leur affichage pour permettre leur gestion, même si la sélection courante est filtrée.
-- NOTAMs : un NOTAM masqué, lorsqu’il est temporairement affiché, est signalé par un fond et un bord rouges.
-- NOTAMs : les cases verte et rouge sont exclusives : cocher l’une décoche l’autre.
-- NOTAMs : compatibilité conservée avec les anciennes sélections et les anciens surlignages persistants.
+- NOTAMs : la case rouge est légèrement décalée vers le bas pour mieux la distinguer de la case verte.
+- NOTAMs : cocher la case rouge ne masque plus immédiatement le NOTAM ; il reste visible avec un fond et une bordure rouges.
+- NOTAMs : le bouton « Garder la sélection » affiche uniquement les NOTAMs cochés en vert. Il masque les NOTAMs rouges et les NOTAMs non sélectionnés.
+- NOTAMs : le bouton « Tout afficher » réaffiche les NOTAMs non sélectionnés et les NOTAMs rouges.
+- NOTAMs : le bouton « Annuler sélection » décoche désormais toutes les cases vertes et rouges, puis réaffiche tous les NOTAMs.
+- NOTAMs : suppression du bouton dédié « Afficher les NOTAMs masqués » / « Masquer les NOTAMs masqués ».
+- NOTAMs : les sélections rouges restent mémorisées et sont automatiquement annulées si le contenu du NOTAM change.
 
 Fichiers modifiés :
 - index.html
@@ -23,11 +20,10 @@ Fichier NAS :
 - Aucun fichier NAS à remplacer.
 
 Tests à refaire :
-1. Vérifier que la version affichée est bien v4.45.
-2. Vérifier la présence de deux cases verticales sur chaque NOTAM : verte en haut, rouge en bas.
-3. Cocher une case rouge : le NOTAM doit disparaître immédiatement.
-4. Recharger l’application ou les NOTAMs : le même NOTAM doit rester masqué.
-5. Cliquer sur « Afficher les NOTAMs masqués » : le NOTAM doit réapparaître avec une présentation rouge.
-6. Décocher sa case rouge : il doit redevenir un NOTAM normal et rester visible aux prochains chargements.
-7. Vérifier qu’un NOTAM dont le texte a changé n’est plus masqué automatiquement.
-8. Vérifier que « Garder la sélection », « Tout afficher », « Annuler sélection », les filtres et les surlignages fonctionnent toujours.
+1. Vérifier que la version affichée est bien v4.46.
+2. Cocher une case rouge : le NOTAM doit rester visible et passer sur fond rouge.
+3. Cocher une case verte : le NOTAM doit passer sur fond vert et la case rouge doit être décochée.
+4. Cliquer sur « Garder la sélection » : seuls les NOTAMs verts doivent rester visibles.
+5. Cliquer sur « Tout afficher » : les NOTAMs rouges et non sélectionnés doivent réapparaître.
+6. Cliquer sur « Annuler sélection » : toutes les cases rouges et vertes doivent être décochées et tous les NOTAMs réaffichés.
+7. Vérifier que le bouton « Afficher les NOTAMs masqués » n’apparaît plus.
