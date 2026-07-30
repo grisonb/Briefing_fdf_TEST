@@ -1,4 +1,4 @@
-const CACHE_NAME = 'briefing-fdf-test-v4.45-notams-masques-r1';
+const CACHE_NAME = 'briefing-fdf-test-v4.46-selection-notams-r1';
 
 const LOCAL_ASSETS = [
   './manifest.json',
