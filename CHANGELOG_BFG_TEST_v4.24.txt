@@ -1,15 +1,19 @@
-CHANGELOG BFG TEST v4.47
+CHANGELOG BFG TEST v4.48
 Date : 2026-08-04
-Base : TEST v4.46 sélection NOTAMs verte et rouge
+Base : TEST v4.47 fiabilisation METAR/TAF
+
+Constat après essai v4.47 :
+- Safari affiche encore « FetchEvent.respondWith received an error: TypeError: Load failed ».
+- L’erreur provient donc toujours du traitement de la requête METAR/TAF par le service worker.
 
 Modifications :
-- METAR / TAF : délai du service worker porté de 5 secondes à 25 secondes pour les appels au proxy CheckWX.
-- METAR / TAF : ajout d’une seconde tentative automatique en cas d’interruption, d’AbortError ou d’erreur temporaire HTTP 502/503/504.
-- METAR / TAF : limitation à 4 requêtes CheckWX simultanées afin d’éviter une rafale trop importante lors du chargement de plusieurs aérodromes.
-- METAR / TAF : une panne sur un METAR ne fait plus échouer le TAF du même terrain, et inversement.
-- METAR / TAF : la dernière donnée déjà affichée reste visible si une actualisation échoue.
-- METAR / TAF : mise en cache stable par couple type/OACI pour permettre une reprise locale en cas de réseau dégradé.
-- Message d’erreur réseau rendu plus précis lorsque les deux tentatives échouent.
+- METAR/TAF : suppression complète de l’interception de get-metar-taf.php par le service worker.
+- METAR/TAF : appels directs de la page vers le proxy météo NAS avec mode CORS explicite.
+- METAR/TAF : délai de sécurité de 30 secondes géré dans la page, indépendamment du service worker.
+- METAR/TAF : conservation de deux tentatives, espacées de 1,2 seconde.
+- METAR/TAF : limitation à 2 requêtes simultanées, soit en pratique le METAR et le TAF d’un seul aérodrome à la fois.
+- METAR/TAF : message d’erreur adapté à l’accès direct au proxy NAS.
+- Conservation des dernières données déjà affichées lorsqu’une actualisation échoue.
 
 Fichiers modifiés :
 - index.html
@@ -20,9 +24,9 @@ Fichier NAS :
 - Aucun fichier NAS à remplacer.
 
 Tests à refaire :
-1. Vérifier que la version affichée est bien v4.47.
-2. Charger les METAR/TAF de tous les aérodromes et vérifier qu’ils finissent par apparaître sans AbortError après 5 secondes.
-3. Tester le bouton d’actualisation individuel d’un aérodrome.
-4. Tester une connexion lente : la dernière donnée doit rester visible si l’actualisation échoue.
-5. Vérifier qu’un METAR peut s’afficher même si le TAF du même aérodrome échoue, et inversement.
-6. Vérifier que les sélections NOTAMs vertes/rouges de la v4.46 fonctionnent toujours.
+1. Vérifier que la version affichée est bien v4.48.
+2. Fermer complètement la PWA puis la rouvrir après installation du nouveau service worker.
+3. Cliquer sur « Charger Météo » et attendre le chargement progressif des terrains.
+4. Vérifier que le message « FetchEvent.respondWith received an error » n’apparaît plus.
+5. Tester également le bouton de rafraîchissement d’un seul aérodrome.
+6. Vérifier que les dernières données restent affichées si un rafraîchissement échoue.
