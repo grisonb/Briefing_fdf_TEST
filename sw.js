@@ -1,4 +1,4 @@
-const CACHE_NAME = 'briefing-fdf-test-v4.47-metar-taf-r1';
+const CACHE_NAME = 'briefing-fdf-test-v4.48-acces-direct-metar-taf-r1';
 
 const LOCAL_ASSETS = [
   './manifest.json',
@@ -171,12 +171,11 @@ function normalizedBfgCacheRequest(request) {
       '/briefing-api/get-feuille-service-pdf.php',
       '/briefing-api/get-feuille-service-status.php',
       '/briefing-api/get-gaar-pdf.php',
-      '/briefing-api/get-gaar-status.php',
-      '/briefing-api/get-metar-taf.php'
+      '/briefing-api/get-gaar-status.php'
     ];
     if (!stablePaths.some((p) => url.pathname.includes(p))) return request;
     const keep = new URL(url.origin + url.pathname);
-    ['map', 'date', 'type', 'icao'].forEach((key) => {
+    ['map', 'date'].forEach((key) => {
       const value = url.searchParams.get(key);
       if (value) keep.searchParams.set(key, value);
     });
@@ -205,14 +204,12 @@ self.addEventListener('fetch', (event) => {
       url.pathname.includes('/briefing-api/request-risk-map-generation.php') ||
       url.pathname.includes('/briefing-api/get-risk-map-generation-status.php') ||
       url.pathname.includes('/briefing-api/get-gaar-pdf.php') ||
-      url.pathname.includes('/briefing-api/get-gaar-status.php') ||
-      url.pathname.includes('/briefing-api/get-metar-taf.php')
+      url.pathname.includes('/briefing-api/get-gaar-status.php')
     )) {
     event.respondWith((async () => {
       const normalizedRequest = normalizedBfgCacheRequest(event.request);
       try {
         const isLongGenerationRequest = url.pathname.includes('/briefing-api/request-risk-map-generation.php');
-        const isMetarTafRequest = url.pathname.includes('/briefing-api/get-metar-taf.php');
         const isPdfOrDataRequest =
           url.pathname.includes('/get-risk-map-pdf.php') ||
           url.pathname.includes('/get-feuille-service-pdf.php') ||
@@ -220,10 +217,9 @@ self.addEventListener('fetch', (event) => {
           url.pathname.includes('/briefing-data/risk-maps/') ||
           url.pathname.includes('/briefing-data/gaar/') ||
           url.pathname.includes('/briefing-data/feuille-service/');
-        // v4.47 : le proxy CheckWX peut attendre jusqu'à 20 s ; on lui laisse 25 s.
         const timeoutMs = isLongGenerationRequest
           ? 65000
-          : (isMetarTafRequest ? 25000 : (isPdfOrDataRequest ? 15000 : 5000));
+          : (isPdfOrDataRequest ? 15000 : 5000);
         const networkRes = await fetchWithTimeout(event.request, { cache: 'no-store' }, timeoutMs, true);
         if (networkRes && networkRes.ok) {
           const cache = await caches.open(CACHE_NAME);
