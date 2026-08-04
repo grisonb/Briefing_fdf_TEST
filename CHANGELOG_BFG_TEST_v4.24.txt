@@ -1,15 +1,15 @@
-CHANGELOG BFG TEST v4.46
-Date : 2026-07-30
-Base : TEST v4.45 NOTAMs masqués persistants
+CHANGELOG BFG TEST v4.47
+Date : 2026-08-04
+Base : TEST v4.46 sélection NOTAMs verte et rouge
 
 Modifications :
-- NOTAMs : la case rouge est légèrement décalée vers le bas pour mieux la distinguer de la case verte.
-- NOTAMs : cocher la case rouge ne masque plus immédiatement le NOTAM ; il reste visible avec un fond et une bordure rouges.
-- NOTAMs : le bouton « Garder la sélection » affiche uniquement les NOTAMs cochés en vert. Il masque les NOTAMs rouges et les NOTAMs non sélectionnés.
-- NOTAMs : le bouton « Tout afficher » réaffiche les NOTAMs non sélectionnés et les NOTAMs rouges.
-- NOTAMs : le bouton « Annuler sélection » décoche désormais toutes les cases vertes et rouges, puis réaffiche tous les NOTAMs.
-- NOTAMs : suppression du bouton dédié « Afficher les NOTAMs masqués » / « Masquer les NOTAMs masqués ».
-- NOTAMs : les sélections rouges restent mémorisées et sont automatiquement annulées si le contenu du NOTAM change.
+- METAR / TAF : délai du service worker porté de 5 secondes à 25 secondes pour les appels au proxy CheckWX.
+- METAR / TAF : ajout d’une seconde tentative automatique en cas d’interruption, d’AbortError ou d’erreur temporaire HTTP 502/503/504.
+- METAR / TAF : limitation à 4 requêtes CheckWX simultanées afin d’éviter une rafale trop importante lors du chargement de plusieurs aérodromes.
+- METAR / TAF : une panne sur un METAR ne fait plus échouer le TAF du même terrain, et inversement.
+- METAR / TAF : la dernière donnée déjà affichée reste visible si une actualisation échoue.
+- METAR / TAF : mise en cache stable par couple type/OACI pour permettre une reprise locale en cas de réseau dégradé.
+- Message d’erreur réseau rendu plus précis lorsque les deux tentatives échouent.
 
 Fichiers modifiés :
 - index.html
@@ -20,10 +20,9 @@ Fichier NAS :
 - Aucun fichier NAS à remplacer.
 
 Tests à refaire :
-1. Vérifier que la version affichée est bien v4.46.
-2. Cocher une case rouge : le NOTAM doit rester visible et passer sur fond rouge.
-3. Cocher une case verte : le NOTAM doit passer sur fond vert et la case rouge doit être décochée.
-4. Cliquer sur « Garder la sélection » : seuls les NOTAMs verts doivent rester visibles.
-5. Cliquer sur « Tout afficher » : les NOTAMs rouges et non sélectionnés doivent réapparaître.
-6. Cliquer sur « Annuler sélection » : toutes les cases rouges et vertes doivent être décochées et tous les NOTAMs réaffichés.
-7. Vérifier que le bouton « Afficher les NOTAMs masqués » n’apparaît plus.
+1. Vérifier que la version affichée est bien v4.47.
+2. Charger les METAR/TAF de tous les aérodromes et vérifier qu’ils finissent par apparaître sans AbortError après 5 secondes.
+3. Tester le bouton d’actualisation individuel d’un aérodrome.
+4. Tester une connexion lente : la dernière donnée doit rester visible si l’actualisation échoue.
+5. Vérifier qu’un METAR peut s’afficher même si le TAF du même aérodrome échoue, et inversement.
+6. Vérifier que les sélections NOTAMs vertes/rouges de la v4.46 fonctionnent toujours.
