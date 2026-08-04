@@ -1,7 +1,7 @@
 {
   "name": "Briefing FDF TEST",
   "short_name": "Briefing TEST",
-  "description": "Briefing FDF TEST v4.46 sélection NOTAMs verte et rouge",
+  "description": "Briefing FDF TEST v4.47 fiabilisation METAR TAF",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
