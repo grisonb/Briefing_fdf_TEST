@@ -1,4 +1,5 @@
-const CACHE_NAME = 'briefing-fdf-test-v4.48-acces-direct-metar-taf-r1';
+const BFG_SW_VERSION = '4.49';
+const CACHE_NAME = 'briefing-fdf-test-v4.49-activation-forcee-meteo-r1';
 
 const LOCAL_ASSETS = [
   './manifest.json',
@@ -79,6 +80,20 @@ async function cacheFirst(request) {
   }
   return networkRes;
 }
+
+
+self.addEventListener('message', (event) => {
+  const data = event && event.data ? event.data : {};
+
+  if (data.type === 'BFG_SKIP_WAITING') {
+    self.skipWaiting();
+    return;
+  }
+
+  if (data.type === 'BFG_GET_VERSION' && event.ports && event.ports[0]) {
+    event.ports[0].postMessage({ version: BFG_SW_VERSION });
+  }
+});
 
 self.addEventListener('install', (event) => {
   event.waitUntil((async () => {
