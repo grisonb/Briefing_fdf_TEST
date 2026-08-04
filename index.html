@@ -5,8 +5,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0">
-    <title>Briefing Fdf TEST v4.47</title>
-    <link rel="manifest" href="./manifest.json?v=4.47">
+    <title>Briefing Fdf TEST v4.48</title>
+    <link rel="manifest" href="./manifest.json?v=4.48">
     <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png?v=4.24">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-title" content="Briefing TEST">
@@ -2170,10 +2170,10 @@
 
     <div class="page-header">
         <div class="page-header-background"></div>
-        <h1 id="main-title">Briefing Fdf TEST v4.47</h1>
+        <h1 id="main-title">Briefing Fdf TEST v4.48</h1>
         <p id="current-time-display"></p>
         <p style="position: relative; z-index: 2; text-align: center; color: #333; font-size: 1em; margin-top: -25px; margin-bottom: 30px;">
-    v<span id="app-version">4.47 TEST - fiabilisation METAR TAF</span>
+    v<span id="app-version">4.48 TEST - accès direct METAR/TAF</span>
     <button id="force-update-btn" class="link-button" style="background-color: #34495e; padding: 4px 10px; font-size: 0.8em; margin-left: 10px; vertical-align: middle;">
         Forcer MAJ
     </button>
@@ -2546,11 +2546,11 @@
     <footer>Données : Météo-France, SIA, Windy.com, CheckWX.com. Page non commerciale, à usage personnel.</footer>
     
     <script>
-        const APP_VERSION = "4.47 TEST - fiabilisation METAR TAF";
+        const APP_VERSION = "4.48 TEST - accès direct METAR/TAF";
 
         // --- Proxy NAS pour la source de données météo CheckWX ---
         const CHECKWX_PROXY_URL = "https://grisonb.synology.me/briefing-api/get-metar-taf.php";
-        const CHECKWX_MAX_CONCURRENT_REQUESTS = 4;
+        const CHECKWX_MAX_CONCURRENT_REQUESTS = 2;
         let checkwxActiveRequests_ = 0;
         const checkwxRequestQueue_ = [];
 
@@ -4975,7 +4975,7 @@ const tdfStages = [
         async function requestGaarImportViaNas_() {
             const query = new URLSearchParams();
             query.set('t', String(Date.now()));
-            query.set('source', 'bfg-test-v4.47');
+            query.set('source', 'bfg-test-v4.48');
 
             const url = `${GAAR_IMPORT_REQUEST_API_URL}?${query.toString()}`;
             const response = await fetchWithTimeout_(url, { cache: 'no-store' }, 65000);
@@ -6103,7 +6103,7 @@ const tdfStages = [
                     return `<p class="error-msg">CheckWX : erreur ${type}${statusText}.${detailText}</p>`;
                 }
 
-                return `<p class="error-msg">CheckWX : réponse trop lente ou connexion au proxy météo NAS interrompue. Une seconde tentative a été effectuée.${detailText}</p>`;
+                return `<p class="error-msg">CheckWX : accès direct au proxy météo NAS impossible ou interrompu. Une seconde tentative a été effectuée.${detailText}</p>`;
             }
 
             async function readCheckwxPayload_(response) {
@@ -6119,7 +6119,22 @@ const tdfStages = [
 
             async function fetchCheckwxAttempt_(type, icao, attempt) {
                 const proxyUrl = `${CHECKWX_PROXY_URL}?type=${encodeURIComponent(type.toLowerCase())}&icao=${encodeURIComponent(icao)}&v=${Date.now()}&attempt=${attempt}`;
-                return fetch(proxyUrl, { cache: 'no-store' });
+                const controller = new AbortController();
+                const timer = setTimeout(() => controller.abort(), 30000);
+
+                try {
+                    // v4.48 : appel direct au proxy NAS. Le service worker ne doit plus
+                    // intercepter les METAR/TAF, afin d'éviter les rejets FetchEvent.respondWith.
+                    return await fetch(proxyUrl, {
+                        method: 'GET',
+                        mode: 'cors',
+                        credentials: 'omit',
+                        cache: 'no-store',
+                        signal: controller.signal
+                    });
+                } finally {
+                    clearTimeout(timer);
+                }
             }
 
             async function fetchCheckwx_(type, icao) {
@@ -6131,7 +6146,7 @@ const tdfStages = [
                             const response = await fetchCheckwxAttempt_(type, icao, attempt);
 
                             if (attempt === 1 && [502, 503, 504].includes(response.status)) {
-                                await waitCheckwxRetry_(700);
+                                await waitCheckwxRetry_(1200);
                                 continue;
                             }
 
@@ -6178,7 +6193,7 @@ const tdfStages = [
                         } catch (error) {
                             lastError = error;
                             if (attempt === 1) {
-                                await waitCheckwxRetry_(700);
+                                await waitCheckwxRetry_(1200);
                                 continue;
                             }
                         }
@@ -10184,7 +10199,7 @@ window.__notamTextFull = notamInput.value;
 
         function initializePageTitle() {
             const titleElement = document.getElementById('main-title');
-            titleElement.textContent = `Briefing Fdf TEST v4.47 du ${new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}`;
+            titleElement.textContent = `Briefing Fdf TEST v4.48 du ${new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}`;
             const timeDisplay = document.getElementById('current-time-display');
             const updateTime = () => timeDisplay.textContent = new Date().toLocaleTimeString('fr-FR');
             updateTime(); setInterval(updateTime, 1000);
