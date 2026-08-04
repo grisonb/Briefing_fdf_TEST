@@ -1,19 +1,20 @@
-CHANGELOG BFG TEST v4.48
+CHANGELOG BFG TEST v4.49
 Date : 2026-08-04
-Base : TEST v4.47 fiabilisation METAR/TAF
+Base : TEST v4.48 accès direct METAR/TAF
 
-Constat après essai v4.47 :
-- Safari affiche encore « FetchEvent.respondWith received an error: TypeError: Load failed ».
-- L’erreur provient donc toujours du traitement de la requête METAR/TAF par le service worker.
+Cause identifiée :
+- L’index v4.48 était bien chargé, mais un ancien service worker (notamment v4.47) pouvait encore contrôler la page.
+- Cet ancien service worker continuait alors à intercepter get-metar-taf.php, d’où le message FetchEvent.respondWith / Load failed malgré le code direct de la v4.48.
 
 Modifications :
-- METAR/TAF : suppression complète de l’interception de get-metar-taf.php par le service worker.
-- METAR/TAF : appels directs de la page vers le proxy météo NAS avec mode CORS explicite.
-- METAR/TAF : délai de sécurité de 30 secondes géré dans la page, indépendamment du service worker.
-- METAR/TAF : conservation de deux tentatives, espacées de 1,2 seconde.
-- METAR/TAF : limitation à 2 requêtes simultanées, soit en pratique le METAR et le TAF d’un seul aérodrome à la fois.
-- METAR/TAF : message d’erreur adapté à l’accès direct au proxy NAS.
-- Conservation des dernières données déjà affichées lorsqu’une actualisation échoue.
+- Enregistrement du service worker avec une URL explicitement versionnée : sw.js?v=4.49.
+- Désactivation du cache HTTP lors de la vérification du fichier du service worker (updateViaCache: none).
+- Ajout d’un protocole de contrôle permettant à la page de vérifier que le service worker actif est bien la v4.49.
+- Activation forcée du nouveau service worker avec skipWaiting et prise de contrôle des pages ouvertes avec clients.claim.
+- Le bouton Charger Météo reste désactivé et affiche « Initialisation météo… » tant que la v4.49 n’a pas réellement pris le contrôle.
+- Les requêtes METAR/TAF ne sont lancées qu’après validation du service worker actif.
+- Si l’activation échoue, le bouton devient « Réactiver météo » et permet une nouvelle tentative.
+- Conservation de l’accès direct au proxy NAS, du délai de 30 secondes, de la seconde tentative et de la file limitée à deux requêtes simultanées.
 
 Fichiers modifiés :
 - index.html
@@ -23,10 +24,10 @@ Fichiers modifiés :
 Fichier NAS :
 - Aucun fichier NAS à remplacer.
 
-Tests à refaire :
-1. Vérifier que la version affichée est bien v4.48.
-2. Fermer complètement la PWA puis la rouvrir après installation du nouveau service worker.
-3. Cliquer sur « Charger Météo » et attendre le chargement progressif des terrains.
-4. Vérifier que le message « FetchEvent.respondWith received an error » n’apparaît plus.
-5. Tester également le bouton de rafraîchissement d’un seul aérodrome.
-6. Vérifier que les dernières données restent affichées si un rafraîchissement échoue.
+Tests :
+1. Remplacer les trois fichiers puis ouvrir le BFG TEST.
+2. Vérifier que la version affichée est v4.49.
+3. Attendre que « Initialisation météo… » redevienne « Charger Météo ».
+4. Cliquer sur Charger Météo.
+5. Vérifier que le message FetchEvent.respondWith n’apparaît plus.
+6. Vérifier le chargement progressif des METAR et TAF.
