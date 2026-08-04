@@ -1,7 +1,7 @@
 {
   "name": "Briefing FDF TEST",
   "short_name": "Briefing TEST",
-  "description": "Briefing FDF TEST v4.48 accès direct METAR/TAF",
+  "description": "Briefing FDF TEST v4.49 activation forcée météo",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
