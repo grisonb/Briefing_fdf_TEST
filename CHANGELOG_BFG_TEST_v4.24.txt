@@ -1,17 +1,27 @@
-CHANGELOG BFG TEST v4.50
-Date : 2026-08-04
-Base : TEST v4.49 activation forcée météo
+CHANGELOG BFG TEST v4.51
+Date : 2026-08-05
+Base : TEST v4.50 contournement réel du service worker météo
 
-Cause identifiée :
-- La v4.49 avait bien retiré get-metar-taf.php de la règle NAS spécifique du service worker.
-- Cependant, la règle générique située plus bas interceptait encore toutes les ressources externes avec event.respondWith(fetch(...)).
-- Les appels METAR/TAF passaient donc toujours par le service worker, d’où le message « FetchEvent.respondWith received an error ».
+Cause corrigée :
+- La v4.50 limitait le proxy CheckWX à deux requêtes simultanées.
+- Chaque requête pouvait effectuer deux tentatives de 30 secondes dans la même place de la file.
+- Les derniers aérodromes pouvaient donc attendre plusieurs minutes avant même leur première tentative.
 
-Modifications :
-- Ajout d’une exclusion explicite de /briefing-api/get-metar-taf.php au tout début du gestionnaire fetch du service worker.
-- Pour cette URL, aucun event.respondWith() n’est désormais appelé : Safari réalise directement la requête réseau vers le proxy NAS.
-- Conservation de la file d’attente limitée à deux requêtes, des deux tentatives et du délai de 30 secondes de la v4.49.
-- Nouveau cache : briefing-fdf-test-v4.50-bypass-metar-taf-r1.
+Modifications METAR/TAF :
+- Passage de 2 à 8 requêtes simultanées : compromis entre rapidité et protection du proxy NAS.
+- Délai maximum ramené de 30 à 15 secondes par tentative.
+- Premier passage prioritaire pour tous les METAR et TAF de tous les aérodromes.
+- Les secondes tentatives sont ajoutées à la fin de la file et ne peuvent plus bloquer les derniers aérodromes.
+- Seules les erreurs récupérables sont retentées ; les erreurs 401, 403 et 404 ne le sont pas.
+- Progression affichée dans le bouton : « Chargement météo x/27… ».
+- Conservation de la dernière météo connue lorsqu'une actualisation échoue.
+- Accès direct au proxy météo maintenu, sans interception par le service worker.
+
+Paramètres :
+- Concurrence : 8 requêtes.
+- Délai par tentative : 15 secondes.
+- Seconde tentative : après 800 ms, uniquement en cas d'échec récupérable.
+- Nouveau cache : briefing-fdf-test-v4.51-meteo-equilibree-r1.
 
 Fichiers modifiés :
 - index.html
@@ -21,9 +31,8 @@ Fichiers modifiés :
 Fichier NAS :
 - Aucun fichier NAS à remplacer.
 
-Tests :
-1. Vérifier que la version affichée est bien v4.50.
-2. Attendre l’activation du service worker v4.50.
-3. Cliquer sur Charger Météo.
-4. Vérifier que le message ne contient plus « FetchEvent.respondWith ».
-5. Vérifier le chargement successif des METAR et TAF.
+Tests recommandés :
+1. Vérifier l'affichage de la version v4.51.
+2. Cliquer sur Charger Météo et suivre la progression jusqu'à 27/27.
+3. Vérifier particulièrement LFBN, LFLX, LFJR, LFRV, LFGJ, LFSG et LFAQ en fin de liste.
+4. Vérifier qu'un rafraîchissement individuel avec ↻ reste fonctionnel.
