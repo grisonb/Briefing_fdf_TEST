@@ -1,5 +1,5 @@
-const BFG_SW_VERSION = '4.49';
-const CACHE_NAME = 'briefing-fdf-test-v4.49-activation-forcee-meteo-r1';
+const BFG_SW_VERSION = '4.50';
+const CACHE_NAME = 'briefing-fdf-test-v4.50-bypass-metar-taf-r1';
 
 const LOCAL_ASSETS = [
   './manifest.json',
@@ -205,6 +205,15 @@ self.addEventListener('fetch', (event) => {
 
   const url = new URL(event.request.url);
   const sameOrigin = url.origin === self.location.origin;
+
+  // v4.50 — METAR/TAF : ne surtout pas appeler event.respondWith().
+  // Le navigateur effectue alors la requête réseau native directement vers le proxy NAS.
+  // Cette exclusion doit précéder la règle NAS et la règle générique des ressources externes.
+  if (!sameOrigin &&
+      url.hostname === 'grisonb.synology.me' &&
+      url.pathname.includes('/briefing-api/get-metar-taf.php')) {
+    return;
+  }
 
   // Ressources externes spéciales stockées sur le NAS BFG.
   if (!sameOrigin && url.hostname === 'grisonb.synology.me' && (
