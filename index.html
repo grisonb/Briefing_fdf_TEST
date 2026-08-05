@@ -5,8 +5,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0">
-    <title>Briefing Fdf TEST v4.50</title>
-    <link rel="manifest" href="./manifest.json?v=4.50">
+    <title>Briefing Fdf TEST v4.51</title>
+    <link rel="manifest" href="./manifest.json?v=4.51">
     <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png?v=4.24">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-title" content="Briefing TEST">
@@ -2170,10 +2170,10 @@
 
     <div class="page-header">
         <div class="page-header-background"></div>
-        <h1 id="main-title">Briefing Fdf TEST v4.50</h1>
+        <h1 id="main-title">Briefing Fdf TEST v4.51</h1>
         <p id="current-time-display"></p>
         <p style="position: relative; z-index: 2; text-align: center; color: #333; font-size: 1em; margin-top: -25px; margin-bottom: 30px;">
-    v<span id="app-version">4.50 TEST - contournement réel du service worker météo</span>
+    v<span id="app-version">4.51 TEST - chargement météo équilibré</span>
     <button id="force-update-btn" class="link-button" style="background-color: #34495e; padding: 4px 10px; font-size: 0.8em; margin-left: 10px; vertical-align: middle;">
         Forcer MAJ
     </button>
@@ -2546,11 +2546,15 @@
     <footer>Données : Météo-France, SIA, Windy.com, CheckWX.com. Page non commerciale, à usage personnel.</footer>
     
     <script>
-        const APP_VERSION = "4.50 TEST - contournement réel du service worker météo";
+        const APP_VERSION = "4.51 TEST - chargement météo équilibré";
 
         // --- Proxy NAS pour la source de données météo CheckWX ---
         const CHECKWX_PROXY_URL = "https://grisonb.synology.me/briefing-api/get-metar-taf.php";
-        const CHECKWX_MAX_CONCURRENT_REQUESTS = 2;
+        // v4.51 : compromis entre le lancement massif initial et la file trop restrictive de la v4.50.
+        // Les premières tentatives de tous les terrains passent avant les éventuelles secondes tentatives.
+        const CHECKWX_MAX_CONCURRENT_REQUESTS = 8;
+        const CHECKWX_REQUEST_TIMEOUT_MS = 15000;
+        const CHECKWX_RETRY_DELAY_MS = 800;
         let checkwxActiveRequests_ = 0;
         const checkwxRequestQueue_ = [];
 
@@ -4300,7 +4304,7 @@ const tdfStages = [
             }
         }
         window.onload = waitForPdfJsAndInitialize;
-        const BFG_REQUIRED_SW_VERSION_ = '4.50';
+        const BFG_REQUIRED_SW_VERSION_ = '4.51';
         let bfgServiceWorkerWeatherReadyPromise_ = Promise.resolve(true);
 
         function queryBfgControllerVersion_(timeoutMs = 1800) {
@@ -4341,7 +4345,7 @@ const tdfStages = [
             }
 
             const registration = await navigator.serviceWorker.register(
-                './sw.js?v=4.50',
+                './sw.js?v=4.51',
                 { updateViaCache: 'none' }
             );
 
@@ -5049,7 +5053,7 @@ const tdfStages = [
         async function requestGaarImportViaNas_() {
             const query = new URLSearchParams();
             query.set('t', String(Date.now()));
-            query.set('source', 'bfg-test-v4.50');
+            query.set('source', 'bfg-test-v4.51');
 
             const url = `${GAAR_IMPORT_REQUEST_API_URL}?${query.toString()}`;
             const response = await fetchWithTimeout_(url, { cache: 'no-store' }, 65000);
@@ -6126,7 +6130,9 @@ const tdfStages = [
             const metarContainer = airportContainer.querySelector('.metar-container');
             const tafContainer = airportContainer.querySelector('.taf-container');
 
-            if (!metarContainer || !tafContainer) return;
+            if (!metarContainer || !tafContainer) {
+                return { icao, ok: false, metarOk: false, tafOk: false };
+            }
 
             function getWeatherHtmlWithoutRefreshWarning_(container) {
                 const clone = container.cloneNode(true);
@@ -6153,12 +6159,13 @@ const tdfStages = [
                     .replace(/'/g, '&#039;');
             }
 
-            function formatCheckwxError_(type, status, details) {
+            function formatCheckwxError_(type, status, details, secondAttemptDone = false) {
                 const statusText = status ? ` HTTP ${status}` : '';
                 const detailText = details ? `<br><small>${escapeWeatherText_(details)}</small>` : '';
+                const retryText = secondAttemptDone ? ' Une seconde tentative a été effectuée.' : '';
 
                 if (status === 429) {
-                    return `<p class="error-msg">CheckWX : limite de requêtes atteinte${statusText}. Réessayez plus tard.${detailText}</p>`;
+                    return `<p class="error-msg">CheckWX : limite de requêtes atteinte${statusText}. Réessayez plus tard.${retryText}${detailText}</p>`;
                 }
 
                 if (status === 401 || status === 403) {
@@ -6170,14 +6177,18 @@ const tdfStages = [
                 }
 
                 if (status && status >= 500) {
-                    return `<p class="error-msg">CheckWX : serveur temporairement indisponible${statusText}.${detailText}</p>`;
+                    return `<p class="error-msg">CheckWX : serveur temporairement indisponible${statusText}.${retryText}${detailText}</p>`;
                 }
 
                 if (status) {
-                    return `<p class="error-msg">CheckWX : erreur ${type}${statusText}.${detailText}</p>`;
+                    return `<p class="error-msg">CheckWX : erreur ${type}${statusText}.${retryText}${detailText}</p>`;
                 }
 
-                return `<p class="error-msg">CheckWX : accès direct au proxy météo NAS impossible ou interrompu. Une seconde tentative a été effectuée.${detailText}</p>`;
+                return `<p class="error-msg">CheckWX : accès direct au proxy météo NAS impossible ou interrompu.${retryText}${detailText}</p>`;
+            }
+
+            function isCheckwxRetryable_(status) {
+                return ![401, 403, 404].includes(Number(status || 0));
             }
 
             async function readCheckwxPayload_(response) {
@@ -6194,16 +6205,14 @@ const tdfStages = [
             async function fetchCheckwxAttempt_(type, icao, attempt) {
                 const serviceWorkerReady = await bfgServiceWorkerWeatherReadyPromise_;
                 if (!serviceWorkerReady) {
-                    throw new Error('Le nouveau service worker v4.49 n’a pas encore pris le contrôle de la page.');
+                    throw new Error('Le service worker v4.51 n’a pas encore pris le contrôle de la page.');
                 }
 
                 const proxyUrl = `${CHECKWX_PROXY_URL}?type=${encodeURIComponent(type.toLowerCase())}&icao=${encodeURIComponent(icao)}&v=${Date.now()}&attempt=${attempt}`;
                 const controller = new AbortController();
-                const timer = setTimeout(() => controller.abort(), 30000);
+                const timer = setTimeout(() => controller.abort(), CHECKWX_REQUEST_TIMEOUT_MS);
 
                 try {
-                    // v4.49 : appel direct au proxy NAS après activation vérifiée du nouveau service worker.
-                    // L’ancien service worker ne doit plus pouvoir intercepter cet appel.
                     return await fetch(proxyUrl, {
                         method: 'GET',
                         mode: 'cors',
@@ -6216,75 +6225,64 @@ const tdfStages = [
                 }
             }
 
-            async function fetchCheckwx_(type, icao) {
+            async function fetchCheckwx_(type, icao, attempt = 1) {
                 return runCheckwxRequestQueued_(async () => {
-                    let lastError = null;
+                    try {
+                        const response = await fetchCheckwxAttempt_(type, icao, attempt);
+                        const payload = await readCheckwxPayload_(response);
+                        const details = payload.json && payload.json.error
+                            ? payload.json.error
+                            : payload.json && payload.json.message
+                                ? payload.json.message
+                                : payload.raw.slice(0, 180);
 
-                    for (let attempt = 1; attempt <= 2; attempt++) {
-                        try {
-                            const response = await fetchCheckwxAttempt_(type, icao, attempt);
-
-                            if (attempt === 1 && [502, 503, 504].includes(response.status)) {
-                                await waitCheckwxRetry_(1200);
-                                continue;
-                            }
-
-                            const payload = await readCheckwxPayload_(response);
-                            const details = payload.json && payload.json.error
-                                ? payload.json.error
-                                : payload.json && payload.json.message
-                                    ? payload.json.message
-                                    : payload.raw.slice(0, 180);
-
-                            if (!response.ok) {
-                                return {
-                                    ok: false,
-                                    type,
-                                    status: response.status,
-                                    errorHtml: formatCheckwxError_(type, response.status, details)
-                                };
-                            }
-
-                            if (!payload.json) {
-                                return {
-                                    ok: false,
-                                    type,
-                                    status: response.status,
-                                    errorHtml: `<p class="error-msg">CheckWX : réponse ${type} illisible ou non JSON via proxy NAS.<br><small>${escapeWeatherText_(payload.raw.slice(0, 180))}</small></p>`
-                                };
-                            }
-
-                            if (payload.json.ok === false) {
-                                return {
-                                    ok: false,
-                                    type,
-                                    status: payload.json.status || response.status,
-                                    errorHtml: formatCheckwxError_(type, payload.json.status || response.status, payload.json.message || payload.json.error || '')
-                                };
-                            }
-
+                        if (!response.ok) {
                             return {
-                                ok: true,
+                                ok: false,
+                                retryable: isCheckwxRetryable_(response.status),
                                 type,
-                                status: payload.json.status || response.status,
-                                json: payload.json.data ? payload.json.data : payload.json
+                                status: response.status,
+                                details
                             };
-                        } catch (error) {
-                            lastError = error;
-                            if (attempt === 1) {
-                                await waitCheckwxRetry_(1200);
-                                continue;
-                            }
                         }
-                    }
 
-                    const message = lastError && lastError.message ? lastError.message : '';
-                    return {
-                        ok: false,
-                        type,
-                        status: 0,
-                        errorHtml: formatCheckwxError_(type, 0, message)
-                    };
+                        if (!payload.json) {
+                            return {
+                                ok: false,
+                                retryable: true,
+                                type,
+                                status: response.status,
+                                details: `Réponse ${type} illisible ou non JSON via proxy NAS. ${payload.raw.slice(0, 180)}`
+                            };
+                        }
+
+                        if (payload.json.ok === false) {
+                            const payloadStatus = payload.json.status || response.status;
+                            return {
+                                ok: false,
+                                retryable: isCheckwxRetryable_(payloadStatus),
+                                type,
+                                status: payloadStatus,
+                                details: payload.json.message || payload.json.error || ''
+                            };
+                        }
+
+                        return {
+                            ok: true,
+                            retryable: false,
+                            type,
+                            status: payload.json.status || response.status,
+                            json: payload.json.data ? payload.json.data : payload.json
+                        };
+                    } catch (error) {
+                        return {
+                            ok: false,
+                            retryable: true,
+                            type,
+                            status: 0,
+                            details: error && error.message ? error.message : String(error || '')
+                        };
+                    }
                 });
             }
 
@@ -6319,14 +6317,38 @@ const tdfStages = [
                     return;
                 }
 
-                container.innerHTML = `<h4>${label}</h4>${result.errorHtml}`;
+                container.innerHTML = `<h4>${label}</h4>${formatCheckwxError_(label, result.status, result.details, result.attempt === 2)}`;
             }
 
             try {
-                const [metarResult, tafResult] = await Promise.all([
-                    fetchCheckwx_('METAR', icao),
-                    fetchCheckwx_('TAF', icao)
+                // Premier passage : toutes les requêtes de tous les terrains sont mises en file immédiatement.
+                let [metarResult, tafResult] = await Promise.all([
+                    fetchCheckwx_('METAR', icao, 1),
+                    fetchCheckwx_('TAF', icao, 1)
                 ]);
+                metarResult.attempt = 1;
+                tafResult.attempt = 1;
+
+                // Les nouvelles tentatives sont ajoutées en fin de file : elles ne bloquent donc plus
+                // les premières tentatives des aérodromes situés à la fin de la liste.
+                const retryTasks = [];
+                if (!metarResult.ok && metarResult.retryable) {
+                    retryTasks.push(async () => {
+                        metarResult = await fetchCheckwx_('METAR', icao, 2);
+                        metarResult.attempt = 2;
+                    });
+                }
+                if (!tafResult.ok && tafResult.retryable) {
+                    retryTasks.push(async () => {
+                        tafResult = await fetchCheckwx_('TAF', icao, 2);
+                        tafResult.attempt = 2;
+                    });
+                }
+
+                if (retryTasks.length > 0) {
+                    await waitCheckwxRetry_(CHECKWX_RETRY_DELAY_MS);
+                    await Promise.all(retryTasks.map(task => task()));
+                }
 
                 displayWeatherResult_(metarContainer, 'METAR', metarResult, previousMetarHtml);
                 displayWeatherResult_(tafContainer, 'TAF', tafResult, previousTafHtml);
@@ -6335,6 +6357,13 @@ const tdfStages = [
                     airportContainer.dataset.loaded = 'true';
                     checkWeatherValidity();
                 }
+
+                return {
+                    icao,
+                    ok: metarResult.ok || tafResult.ok,
+                    metarOk: metarResult.ok,
+                    tafOk: tafResult.ok
+                };
             } finally {
                 airportContainer.classList.remove('weather-refreshing');
             }
@@ -9353,13 +9382,21 @@ window.__notamTextFull = notamInput.value;
                         return;
                     }
 
-                    manualLoadWeatherBtn.textContent = 'Chargement météo…';
-                    const airportContainers = document.querySelectorAll('#notam-display .airport-section-container');
-                    const tasks = [];
-                    airportContainers.forEach(container => {
-                        const icao = container.dataset.icao;
-                        if (icao) tasks.push(fetchAndDisplayWeather(icao, container));
+                    const airportContainers = Array.from(document.querySelectorAll('#notam-display .airport-section-container'))
+                        .filter(container => Boolean(container.dataset.icao));
+                    const totalAirports = airportContainers.length;
+                    let completedAirports = 0;
+
+                    manualLoadWeatherBtn.textContent = `Chargement météo 0/${totalAirports}…`;
+                    const tasks = airportContainers.map(async (container) => {
+                        try {
+                            return await fetchAndDisplayWeather(container.dataset.icao, container);
+                        } finally {
+                            completedAirports += 1;
+                            manualLoadWeatherBtn.textContent = `Chargement météo ${completedAirports}/${totalAirports}…`;
+                        }
                     });
+
                     await Promise.allSettled(tasks);
                     manualLoadWeatherBtn.disabled = false;
                     manualLoadWeatherBtn.textContent = defaultWeatherButtonText || previousText;
@@ -10310,7 +10347,7 @@ window.__notamTextFull = notamInput.value;
 
         function initializePageTitle() {
             const titleElement = document.getElementById('main-title');
-            titleElement.textContent = `Briefing Fdf TEST v4.50 du ${new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}`;
+            titleElement.textContent = `Briefing Fdf TEST v4.51 du ${new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}`;
             const timeDisplay = document.getElementById('current-time-display');
             const updateTime = () => timeDisplay.textContent = new Date().toLocaleTimeString('fr-FR');
             updateTime(); setInterval(updateTime, 1000);
