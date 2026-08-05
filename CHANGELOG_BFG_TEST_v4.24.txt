@@ -1,20 +1,17 @@
-CHANGELOG BFG TEST v4.49
+CHANGELOG BFG TEST v4.50
 Date : 2026-08-04
-Base : TEST v4.48 accès direct METAR/TAF
+Base : TEST v4.49 activation forcée météo
 
 Cause identifiée :
-- L’index v4.48 était bien chargé, mais un ancien service worker (notamment v4.47) pouvait encore contrôler la page.
-- Cet ancien service worker continuait alors à intercepter get-metar-taf.php, d’où le message FetchEvent.respondWith / Load failed malgré le code direct de la v4.48.
+- La v4.49 avait bien retiré get-metar-taf.php de la règle NAS spécifique du service worker.
+- Cependant, la règle générique située plus bas interceptait encore toutes les ressources externes avec event.respondWith(fetch(...)).
+- Les appels METAR/TAF passaient donc toujours par le service worker, d’où le message « FetchEvent.respondWith received an error ».
 
 Modifications :
-- Enregistrement du service worker avec une URL explicitement versionnée : sw.js?v=4.49.
-- Désactivation du cache HTTP lors de la vérification du fichier du service worker (updateViaCache: none).
-- Ajout d’un protocole de contrôle permettant à la page de vérifier que le service worker actif est bien la v4.49.
-- Activation forcée du nouveau service worker avec skipWaiting et prise de contrôle des pages ouvertes avec clients.claim.
-- Le bouton Charger Météo reste désactivé et affiche « Initialisation météo… » tant que la v4.49 n’a pas réellement pris le contrôle.
-- Les requêtes METAR/TAF ne sont lancées qu’après validation du service worker actif.
-- Si l’activation échoue, le bouton devient « Réactiver météo » et permet une nouvelle tentative.
-- Conservation de l’accès direct au proxy NAS, du délai de 30 secondes, de la seconde tentative et de la file limitée à deux requêtes simultanées.
+- Ajout d’une exclusion explicite de /briefing-api/get-metar-taf.php au tout début du gestionnaire fetch du service worker.
+- Pour cette URL, aucun event.respondWith() n’est désormais appelé : Safari réalise directement la requête réseau vers le proxy NAS.
+- Conservation de la file d’attente limitée à deux requêtes, des deux tentatives et du délai de 30 secondes de la v4.49.
+- Nouveau cache : briefing-fdf-test-v4.50-bypass-metar-taf-r1.
 
 Fichiers modifiés :
 - index.html
@@ -25,9 +22,8 @@ Fichier NAS :
 - Aucun fichier NAS à remplacer.
 
 Tests :
-1. Remplacer les trois fichiers puis ouvrir le BFG TEST.
-2. Vérifier que la version affichée est v4.49.
-3. Attendre que « Initialisation météo… » redevienne « Charger Météo ».
-4. Cliquer sur Charger Météo.
-5. Vérifier que le message FetchEvent.respondWith n’apparaît plus.
-6. Vérifier le chargement progressif des METAR et TAF.
+1. Vérifier que la version affichée est bien v4.50.
+2. Attendre l’activation du service worker v4.50.
+3. Cliquer sur Charger Météo.
+4. Vérifier que le message ne contient plus « FetchEvent.respondWith ».
+5. Vérifier le chargement successif des METAR et TAF.
