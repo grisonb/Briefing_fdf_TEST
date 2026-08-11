@@ -5,8 +5,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0">
-    <title>Briefing Fdf TEST v4.51</title>
-    <link rel="manifest" href="./manifest.json?v=4.51">
+    <title>Briefing Fdf TEST v4.52</title>
+    <link rel="manifest" href="./manifest.json?v=4.52">
     <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png?v=4.24">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-title" content="Briefing TEST">
@@ -2170,10 +2170,10 @@
 
     <div class="page-header">
         <div class="page-header-background"></div>
-        <h1 id="main-title">Briefing Fdf TEST v4.51</h1>
+        <h1 id="main-title">Briefing Fdf TEST v4.52</h1>
         <p id="current-time-display"></p>
         <p style="position: relative; z-index: 2; text-align: center; color: #333; font-size: 1em; margin-top: -25px; margin-bottom: 30px;">
-    v<span id="app-version">4.51 TEST - chargement météo équilibré</span>
+    v<span id="app-version">4.52 TEST - persistance et partage METAR/TAF</span>
     <button id="force-update-btn" class="link-button" style="background-color: #34495e; padding: 4px 10px; font-size: 0.8em; margin-left: 10px; vertical-align: middle;">
         Forcer MAJ
     </button>
@@ -2221,7 +2221,7 @@
         <ol>
             <li><strong>Sauvegarder :</strong> enregistre localement le briefing affiché sur cet iPad/navigateur, avec les derniers PDF, NOTAMs, pélicandromes, cartes et données disponibles.</li>
             <li><strong>Chargement automatique :</strong> à l’ouverture du briefing, la dernière sauvegarde locale de cet iPad/navigateur est chargée automatiquement si elle existe.</li>
-            <li><strong>Partager :</strong> crée un briefing partagé sur le NAS et fournit un code à ouvrir depuis un autre appareil.</li>
+            <li><strong>Partager :</strong> crée un briefing partagé sur le NAS et fournit un code à ouvrir depuis un autre appareil. Les METAR/TAF déjà chargés sont inclus dans le partage et s’affichent chez le destinataire sans nouvelle requête météo.</li>
             <li><strong>Effacer :</strong> réinitialise le stockage local de cet iPad pour BFG : sauvegarde locale, anciens PDF/NOTAM/TEMSI/SUP AIP, modes FDS/GAAR et caches PWA BFG. Les fichiers NAS et les briefings partagés déjà créés ne sont pas supprimés.</li>
             <li><strong>Ouvrir un briefing partagé :</strong> permet de saisir un code du type BFG-JJMM-01 pour récupérer un briefing déjà partagé.</li>
         </ol>
@@ -2546,11 +2546,12 @@
     <footer>Données : Météo-France, SIA, Windy.com, CheckWX.com. Page non commerciale, à usage personnel.</footer>
     
     <script>
-        const APP_VERSION = "4.51 TEST - chargement météo équilibré";
+        const APP_VERSION = "4.52 TEST - persistance et partage METAR/TAF";
 
         // --- Proxy NAS pour la source de données météo CheckWX ---
         const CHECKWX_PROXY_URL = "https://grisonb.synology.me/briefing-api/get-metar-taf.php";
         // v4.51 : compromis entre le lancement massif initial et la file trop restrictive de la v4.50.
+        // v4.52 : persistance automatique et partage du snapshot METAR/TAF sans requête de restauration.
         // Les premières tentatives de tous les terrains passent avant les éventuelles secondes tentatives.
         const CHECKWX_MAX_CONCURRENT_REQUESTS = 8;
         const CHECKWX_REQUEST_TIMEOUT_MS = 15000;
@@ -4304,7 +4305,7 @@ const tdfStages = [
             }
         }
         window.onload = waitForPdfJsAndInitialize;
-        const BFG_REQUIRED_SW_VERSION_ = '4.51';
+        const BFG_REQUIRED_SW_VERSION_ = '4.52';
         let bfgServiceWorkerWeatherReadyPromise_ = Promise.resolve(true);
 
         function queryBfgControllerVersion_(timeoutMs = 1800) {
@@ -4345,7 +4346,7 @@ const tdfStages = [
             }
 
             const registration = await navigator.serviceWorker.register(
-                './sw.js?v=4.51',
+                './sw.js?v=4.52',
                 { updateViaCache: 'none' }
             );
 
@@ -5053,7 +5054,7 @@ const tdfStages = [
         async function requestGaarImportViaNas_() {
             const query = new URLSearchParams();
             query.set('t', String(Date.now()));
-            query.set('source', 'bfg-test-v4.51');
+            query.set('source', 'bfg-test-v4.52');
 
             const url = `${GAAR_IMPORT_REQUEST_API_URL}?${query.toString()}`;
             const response = await fetchWithTimeout_(url, { cache: 'no-store' }, 65000);
@@ -6205,7 +6206,7 @@ const tdfStages = [
             async function fetchCheckwxAttempt_(type, icao, attempt) {
                 const serviceWorkerReady = await bfgServiceWorkerWeatherReadyPromise_;
                 if (!serviceWorkerReady) {
-                    throw new Error('Le service worker v4.51 n’a pas encore pris le contrôle de la page.');
+                    throw new Error('Le service worker v4.52 n’a pas encore pris le contrôle de la page.');
                 }
 
                 const proxyUrl = `${CHECKWX_PROXY_URL}?type=${encodeURIComponent(type.toLowerCase())}&icao=${encodeURIComponent(icao)}&v=${Date.now()}&attempt=${attempt}`;
@@ -6355,7 +6356,13 @@ const tdfStages = [
 
                 if (metarResult.ok || tafResult.ok || hadPreviousWeather) {
                     airportContainer.dataset.loaded = 'true';
+                    airportContainer.dataset.weatherSavedAt = new Date().toISOString();
                     checkWeatherValidity();
+
+                    // Sauvegarde automatique différée et regroupée. Lors d'un chargement global,
+                    // les appels successifs réarment le même timer : le snapshot final est enregistré
+                    // après la fin des réponses, sans multiplier inutilement les écritures IndexedDB.
+                    scheduleBfgLocalSnapshotSave_(2500);
                 }
 
                 return {
@@ -8123,6 +8130,57 @@ let activeShareApiBase = SHARE_API_BASE;
         return new File([buffer], s.name, { type: s.type });
     }
 
+    // ===== METAR/TAF : instantané local et portable =====
+    // v4.52 : la météo déjà chargée est conservée telle qu'affichée.
+    // La restauration (locale ou partage) ne déclenche aucune requête CheckWX.
+    function collectWeatherDataSnapshot_() {
+        const weatherData = {};
+        document.querySelectorAll('.airport-section-container[data-loaded="true"]').forEach(container => {
+            const icao = String(container.dataset.icao || '').trim().toUpperCase();
+            if (!icao) return;
+
+            const metarContainer = container.querySelector('.metar-container');
+            const tafContainer = container.querySelector('.taf-container');
+            weatherData[icao] = {
+                metarHTML: metarContainer?.innerHTML || "",
+                tafHTML: tafContainer?.innerHTML || "",
+                savedAt: container.dataset.weatherSavedAt || new Date().toISOString()
+            };
+        });
+        return weatherData;
+    }
+
+    window.collectWeatherData = collectWeatherDataSnapshot_;
+
+    function restoreWeatherDataSnapshot_(weatherData) {
+        if (!weatherData || typeof weatherData !== 'object') return 0;
+        let restored = 0;
+
+        Object.entries(weatherData).forEach(([icaoRaw, weather]) => {
+            const icao = String(icaoRaw || '').trim().toUpperCase();
+            if (!icao || !weather) return;
+
+            let container = document.getElementById(`notam-container-${icao}`);
+            if (!container) {
+                container = createAirportSectionElement(icao, icao);
+                (document.getElementById('manual-metar-display') || document.getElementById('notam-display')).appendChild(container);
+            }
+
+            const metarContainer = container.querySelector('.metar-container');
+            const tafContainer = container.querySelector('.taf-container');
+            if (metarContainer) metarContainer.innerHTML = weather.metarHTML || '<h4>METAR</h4><p><i>Non disponible dans la sauvegarde.</i></p>';
+            if (tafContainer) tafContainer.innerHTML = weather.tafHTML || '<h4>TAF</h4><p><i>Non disponible dans la sauvegarde.</i></p>';
+            container.dataset.loaded = 'true';
+            container.dataset.weatherSavedAt = weather.savedAt || '';
+            restored += 1;
+        });
+
+        if (restored > 0) checkWeatherValidity();
+        return restored;
+    }
+
+    window.restoreWeatherDataSnapshot_ = restoreWeatherDataSnapshot_;
+
     // ===== Export "portable" (partage/import) =====
     async function buildPortableSessionObject_() {
         const checkedNotamIds = [], highlightedNotams = {}, checkedNotamSignatures = {}, highlightSignatures = {};
@@ -8151,16 +8209,8 @@ let activeShareApiBase = SHARE_API_BASE;
             }))
         }));
 
-        const weatherData = {};
-        document.querySelectorAll('.airport-section-container[data-loaded="true"]').forEach(container => {
-            const icao = container.dataset.icao;
-            if (icao) {
-                weatherData[icao] = {
-                    metarHTML: container.querySelector('.metar-container')?.innerHTML || "",
-                    tafHTML: container.querySelector('.taf-container')?.innerHTML || ""
-                };
-            }
-        });
+        // Capture directe de la météo déjà affichée : aucune requête n'est lancée pour partager.
+        const weatherData = collectWeatherDataSnapshot_();
 
         const notamInput = document.getElementById('notam-input');
 
@@ -8262,19 +8312,8 @@ let activeShareApiBase = SHARE_API_BASE;
         }
 
         // ===== METAR/TAF =====
-        if (portable.weatherData) {
-            Object.entries(portable.weatherData).forEach(([icao, weather]) => {
-                let container = document.getElementById(`notam-container-${icao}`);
-                if (!container) {
-                    container = createAirportSectionElement(icao, icao);
-                    (document.getElementById('manual-metar-display') || document.getElementById('notam-display')).appendChild(container);
-                }
-                container.querySelector('.metar-container').innerHTML = weather.metarHTML || "";
-                container.querySelector('.taf-container').innerHTML = weather.tafHTML || "";
-                container.dataset.loaded = 'true';
-            });
-            checkWeatherValidity();
-        }
+        // Restauration du snapshot partagé uniquement : aucune requête météo.
+        restoreWeatherDataSnapshot_(portable.weatherData);
 
         // Revenir sur la feuille de service (évite les scrolls auto vers Windy)
         if (fdsSection) {
@@ -8519,7 +8558,7 @@ let activeShareApiBase = SHARE_API_BASE;
                 notamState: portableSnapshot.notamState || window.__lastNotamState || null,
                 notamsAutoPdfStatus: window.__lastNotamsAutoPdfStatus || loadNotamsAutoPdfStatus_() || null,
 
-                weatherData: window.collectWeatherData ? window.collectWeatherData() : null,
+                weatherData: collectWeatherDataSnapshot_(),
 
                 // v3.30 : données hors ligne locales uniquement.
                 // Non inclus dans le partage distant volontairement.
@@ -8940,19 +8979,8 @@ let activeShareApiBase = SHARE_API_BASE;
             restoreNotamsAutoPdfStatusDisplay_(document.getElementById('notam-auto-import-status'));
         }
 
-        if (data.weatherData) {
-            Object.entries(data.weatherData).forEach(([icao, weather]) => {
-                let container = document.getElementById(`notam-container-${icao}`);
-                if (!container) {
-                    container = createAirportSectionElement(icao, icao);
-                    (document.getElementById('manual-metar-display') || document.getElementById('notam-display')).appendChild(container);
-                }
-                container.querySelector('.metar-container').innerHTML = weather.metarHTML || "";
-                container.querySelector('.taf-container').innerHTML = weather.tafHTML || "";
-                container.dataset.loaded = 'true';
-            });
-            checkWeatherValidity();
-        }
+        // v4.52 : réaffiche immédiatement les METAR/TAF sauvegardés, sans appel réseau.
+        restoreWeatherDataSnapshot_(data.weatherData);
 
         if (data.cncascDispo) {
             restoreCncascOfflineData_(data.cncascDispo, data.savedAt);
@@ -10347,7 +10375,7 @@ window.__notamTextFull = notamInput.value;
 
         function initializePageTitle() {
             const titleElement = document.getElementById('main-title');
-            titleElement.textContent = `Briefing Fdf TEST v4.51 du ${new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}`;
+            titleElement.textContent = `Briefing Fdf TEST v4.52 du ${new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}`;
             const timeDisplay = document.getElementById('current-time-display');
             const updateTime = () => timeDisplay.textContent = new Date().toLocaleTimeString('fr-FR');
             updateTime(); setInterval(updateTime, 1000);
