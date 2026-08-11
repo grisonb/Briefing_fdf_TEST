@@ -1,27 +1,22 @@
-CHANGELOG BFG TEST v4.51
-Date : 2026-08-05
-Base : TEST v4.50 contournement réel du service worker météo
+CHANGELOG BFG TEST v4.52
+Date : 2026-08-11
+Base : TEST v4.51 chargement météo équilibré
 
-Cause corrigée :
-- La v4.50 limitait le proxy CheckWX à deux requêtes simultanées.
-- Chaque requête pouvait effectuer deux tentatives de 30 secondes dans la même place de la file.
-- Les derniers aérodromes pouvaient donc attendre plusieurs minutes avant même leur première tentative.
+Objectif :
+- Conserver automatiquement les METAR/TAF déjà chargés pour les réafficher à la prochaine ouverture de la PWA.
+- Inclure ces METAR/TAF dans le briefing partagé.
+- À la restauration locale ou à l'ouverture d'un partage, afficher les données sauvegardées sans lancer de nouvelle requête CheckWX.
 
-Modifications METAR/TAF :
-- Passage de 2 à 8 requêtes simultanées : compromis entre rapidité et protection du proxy NAS.
-- Délai maximum ramené de 30 à 15 secondes par tentative.
-- Premier passage prioritaire pour tous les METAR et TAF de tous les aérodromes.
-- Les secondes tentatives sont ajoutées à la fin de la file et ne peuvent plus bloquer les derniers aérodromes.
-- Seules les erreurs récupérables sont retentées ; les erreurs 401, 403 et 404 ne le sont pas.
-- Progression affichée dans le bouton : « Chargement météo x/27… ».
-- Conservation de la dernière météo connue lorsqu'une actualisation échoue.
-- Accès direct au proxy météo maintenu, sans interception par le service worker.
-
-Paramètres :
-- Concurrence : 8 requêtes.
-- Délai par tentative : 15 secondes.
-- Seconde tentative : après 800 ms, uniquement en cas d'échec récupérable.
-- Nouveau cache : briefing-fdf-test-v4.51-meteo-equilibree-r1.
+Modifications :
+- Ajout d'un collecteur central collectWeatherDataSnapshot_() pour les aérodromes dont la météo est chargée.
+- Après chargement/rafraîchissement METAR/TAF réussi, sauvegarde locale automatique différée et regroupée via le mécanisme de snapshot existant.
+- La sauvegarde locale currentSession contient désormais réellement weatherData (la v4.51 testait window.collectWeatherData sans que cette fonction soit définie).
+- Réaffichage de weatherData au démarrage depuis IndexedDB, sans appel réseau météo.
+- Le partage portable reprend directement le snapshot METAR/TAF affiché au moment du clic sur Partager, sans requête de rafraîchissement.
+- À l'ouverture d'un briefing partagé, restauration directe du snapshot METAR/TAF reçu, sans appel CheckWX.
+- Mutualisation de la logique de restauration locale et partagée.
+- Conservation d'un horodatage savedAt par aérodrome dans le snapshot, sans modifier l'affichage opérationnel existant.
+- Comportement de chargement v4.51 conservé : 8 requêtes simultanées, délai 15 s, retry en fin de file.
 
 Fichiers modifiés :
 - index.html
@@ -32,7 +27,9 @@ Fichier NAS :
 - Aucun fichier NAS à remplacer.
 
 Tests recommandés :
-1. Vérifier l'affichage de la version v4.51.
-2. Cliquer sur Charger Météo et suivre la progression jusqu'à 27/27.
-3. Vérifier particulièrement LFBN, LFLX, LFJR, LFRV, LFGJ, LFSG et LFAQ en fin de liste.
-4. Vérifier qu'un rafraîchissement individuel avec ↻ reste fonctionnel.
+1. Ouvrir le BFG TEST v4.52 et cliquer sur Charger Météo.
+2. Attendre la fin du chargement puis fermer complètement la PWA.
+3. Rouvrir la PWA : les METAR/TAF précédemment chargés doivent être visibles sans cliquer sur Charger Météo.
+4. Créer un partage après chargement météo.
+5. Ouvrir le code de partage sur un autre appareil : les METAR/TAF doivent apparaître immédiatement avec le briefing, sans lancement d'une requête météo.
+6. Vérifier que le bouton Charger Météo reste disponible pour une actualisation volontaire ultérieure.
