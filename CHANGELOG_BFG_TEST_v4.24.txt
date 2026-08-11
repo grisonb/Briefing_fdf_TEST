@@ -1,6 +1,271 @@
-CHANGELOG BFG TEST v4.52
+CHANGELOG CUMULATIF — BFG TEST v4.53
 Date : 2026-08-11
+Base actuelle : TEST v4.52
+
+RÈGLE DU FICHIER
+- Ce CHANGELOG est cumulatif.
+- Chaque nouvelle version TEST doit conserver l’historique des modifications antérieures et ajouter la nouvelle version en tête ou à la suite.
+- Les évolutions intermédiaires qui ont ensuite été corrigées ou remplacées restent mentionnées afin de conserver l’historique technique complet.
+
+===============================================================================
+HISTORIQUE ANTÉRIEUR À v4.36 — repris de la branche validée v2026.19 NG
+===============================================================================
+
+Modifications précédemment validées :
+- NOTAMs : ajout du bouton "Annuler sélection".
+- NOTAMs : classement alphabétique des filtres.
+- NOTAMs : ajout des filtres PAPI, UL, CONSTRUCTION, ALTITUDE, SECURITY, NACELLE, AIR START.
+- PDF FDS / GAAR : bouton "Centrer PDF".
+- PDF FDS / GAAR : icône crayon agrandie pour le mode écriture.
+- PDF FDS / GAAR : ajout de la couleur blanche.
+- Carte pélicandromes : point bleu si l’observation contient "Eau".
+- Mode hors ligne : reprise des corrections de robustesse de la v4.31.
+
+===============================================================================
+TEST v4.36 — 2026-07-11
+Base : TEST v4.35 annulation sélection/surlignage NOTAMs
+===============================================================================
+
+Modifications :
+- NOTAMs : le bouton "Annuler surlignage" supprime désormais tous les surlignages visibles en une seule action.
+- NOTAMs : le surlignage est maintenant possible sur les titres de validité "VALIDE DU ...".
+- NOTAMs : les surlignages des titres de validité sont inclus dans la sauvegarde/restauration locale des états persistants.
+
+===============================================================================
+TEST v4.37 — 2026-07-11
+Base : TEST v4.36 surlignages NOTAMs complets
+===============================================================================
+
+Modifications :
+- PDF FDS / GAAR : zoom à deux doigts rendu plus fluide sur iPad.
+- Pendant le pincement, le PDF est agrandi ou réduit immédiatement par transformation graphique, sans relancer PDF.js à chaque mouvement.
+- Un seul rendu PDF haute définition est effectué au relâchement des doigts.
+- Le point situé entre les doigts reste autant que possible sous les doigts après le rendu final.
+- Le déplacement à un doigt reste inchangé.
+- Le mode écriture PDF et les annotations existantes sont conservés.
+
+===============================================================================
+TEST v4.38 — 2026-07-11
+Base : TEST v4.37 zoom PDF fluide
+===============================================================================
+
+Modifications :
+- PDF FDS / GAAR : suppression du rendu PDF.js automatique au relâchement du zoom à deux doigts.
+- Le niveau de zoom obtenu est désormais conservé immédiatement par redimensionnement CSS du PDF et des annotations.
+- Le document reste utilisable dès que les doigts sont relâchés, sans blocage lié à un nouveau rendu haute définition.
+- Les rendus PDF déclenchés par un changement de page ou les boutons de zoom sont plafonnés en nombre de pixels afin d'éviter les canevas excessivement lourds sur iPad.
+- Adaptation de l'épaisseur des annotations lorsque le PDF est agrandi sans nouveau rendu.
+
+===============================================================================
+TEST v4.39 — 2026-07-13
+Base : TEST v4.38 corrigée — zoom PDF sans blocage validé
+===============================================================================
+
+Modifications :
+- NOTAMs : ajout du filtre "ADMINISTRATION".
+- NOTAMs : ajout du filtre "VDF".
+- NOTAMs : conservation de l'ordre alphabétique complet de la liste des filtres.
+- PDF FDS / GAAR : sauvegarde locale automatique des écritures après chaque trait, utilisation de la gomme, annulation de trait ou effacement de page.
+- PDF FDS / GAAR : restauration des écritures après passage hors ligne, rechargement ou nouvelle ouverture du même PDF.
+- PDF FDS / GAAR : association des écritures à une empreinte SHA-256 du contenu du PDF.
+- PDF FDS / GAAR : lorsqu'un nouveau PDF remplace le précédent, les écritures de l'ancien PDF sont supprimées et ne sont pas affichées sur le nouveau.
+- PDF FDS / GAAR : stockage principal dans IndexedDB avec secours localStorage si IndexedDB est indisponible.
+- Réseau très dégradé : ajout d’une surveillance active de la qualité de connexion, distincte du simple indicateur navigator.onLine.
+- Après deux sondes sans réponse, le BFG considère le réseau comme dégradé et utilise les dernières données locales, sans imposer le passage en mode avion.
+- Réseau très dégradé : ajout de délais maximum dans le service worker afin de ne plus attendre indéfiniment une réponse réseau.
+- Ouverture du BFG : en l'absence de réponse complète du réseau sous environ 3,5 secondes, bascule automatique vers l'index en cache, sans devoir activer le mode avion.
+- Données NAS : délais différenciés pour les statuts, les PDF et les demandes longues, puis reprise de la dernière réponse mise en cache lorsqu'elle existe.
+- Mise à jour du service worker : si le réseau est mauvais pendant l'installation, reprise de l'ancien index et des anciennes ressources en cache avant suppression de l'ancien cache.
+
+===============================================================================
+TEST v4.40 — 2026-07-13
+Base : TEST v4.39 filtres, annotations hors ligne et réseau dégradé
+===============================================================================
+
+Modifications :
+- PDF FDS / GAAR : boutons de la barre d’annotation rendus plus visuels et plus lisibles (style plus arrondi, plus contrasté, effet bouton plus marqué).
+- PDF FDS / GAAR : icône crayon agrandie et remplacée par une icône plus lisible.
+- PDF FDS / GAAR : le bouton "Effacer page" est renommé en "Tout Effacer".
+- PDF FDS / GAAR : la pastille de couleur blanche affiche désormais un état sélectionné beaucoup plus visible (contour bleu renforcé + coche visible), tout en restant identifiable lorsqu’elle n’est pas sélectionnée.
+- PDF FDS / GAAR : pastilles de couleur légèrement agrandies et plus lisibles.
+
+===============================================================================
+TEST v4.41 — 2026-07-13
+Base : TEST v4.40 boutons PDF plus lisibles
+===============================================================================
+
+Modifications :
+- PDF FDS / GAAR : correction du bouton crayon. L’icône reste désormais identique avant et après activation, sans retour à l’ancien pictogramme.
+- PDF FDS / GAAR : correction du bouton Gomme lorsqu’il est actif. Le texte reste lisible grâce à un fond rouge réellement appliqué, plus contrasté.
+- PDF FDS / GAAR : conservation du style amélioré de la barre d’annotation de la v4.40.
+
+===============================================================================
+TEST v4.42 — 2026-07-13
+Base : TEST v4.41 correction boutons PDF
+===============================================================================
+
+Modifications :
+- PDF FDS / GAAR : stabilisation visuelle du bouton crayon sur iPad. Lorsqu’il est inactif, il reste jaune ; lorsqu’il est actif, il reste bleu.
+- PDF FDS / GAAR : correction du retour visuel après un second clic sur le crayon. Le bouton ne doit plus passer sur fond blanc.
+- PDF FDS / GAAR : stabilisation visuelle du bouton Gomme actif. Le fond rouge et le texte blanc restent visibles même sur iPad.
+- PDF FDS / GAAR : renforcement des styles explicites hover / active / focus pour éviter les retours au style système iOS.
+
+===============================================================================
+TEST v4.43 — 2026-07-13
+Base : TEST v4.42 stabilisation boutons PDF
+===============================================================================
+
+Modifications :
+- PDF FDS / GAAR : en mode écriture, ajout de la navigation PDF à 2 doigts.
+- PDF FDS / GAAR : pendant que le stylo est activé, 2 doigts permettent désormais de zoomer et déplacer le PDF.
+- PDF FDS / GAAR : en mode écriture, les doigts ne tracent plus sur le PDF. Le tracé est réservé au Pencil (et à la souris sur PC), ce qui évite les aplats/colorations involontaires entre deux doigts.
+- PDF FDS / GAAR : conservation du fonctionnement actuel du zoom fluide et du déplacement du PDF.
+
+===============================================================================
+TEST v4.44 — 2026-07-13
+Base : TEST v4.43 navigation PDF à 2 doigts
+===============================================================================
+
+Modifications :
+- Démarrage BFG : restauration complète des dernières données locales avant le lancement des actualisations automatiques.
+- FDS automatique : la FDS réellement récupérée sur le NAS est maintenant sauvegardée automatiquement sur l’iPad. Une ancienne FDS locale ne doit donc plus réapparaître à chaque lancement.
+- FDS automatique : si la FDS affichée est déjà identique ou plus récente que la réponse NAS/cache, elle est conservée sans rechargement inutile du PDF.
+- CNCASC : les disponibilités avions, les pélicandromes et la situation FDF récupérés sont sauvegardés automatiquement après une actualisation réussie.
+- CNCASC : au lancement, les dernières données locales sont affichées avant l’actualisation réseau ; elles ne doivent plus rester absentes pendant le chargement.
+- Cartes des risques : tentative d’affichage immédiat des dernières cartes PDF présentes dans le cache local avant la vérification du serveur.
+- Mise à jour PWA : migration des derniers PDF FDS/GAAR/risques depuis l’ancien cache vers le nouveau cache, afin de ne pas perdre les données locales lors du passage en v4.44.
+- Cartes des risques : l’ancienne carte reste affichée pendant le rendu de la nouvelle ; le conteneur n’est remplacé qu’une fois le nouveau PDF entièrement prêt.
+- Cartes des risques : en cas d’échec réseau, les dernières cartes déjà affichées sont conservées.
+- Sauvegarde locale : ajout d’une sauvegarde automatique silencieuse et temporisée pour éviter de perturber l’utilisation de l’application.
+
+===============================================================================
+TEST v4.45 — 2026-07-30
+Base : TEST v4.44 démarrage sans écran vide
+===============================================================================
+
+Modifications :
+- NOTAMs : ajout d’une seconde case sous la case de sélection normale.
+- NOTAMs : la case supérieure « Garder » est entourée de vert.
+- NOTAMs : la nouvelle case inférieure « Masquer » est entourée de rouge.
+- NOTAMs : cocher la case rouge masque durablement le NOTAM lors des prochains chargements.
+- NOTAMs : le masquage est lié à l’identifiant et à l’empreinte du contenu du NOTAM. Si le NOTAM change, il réapparaît automatiquement. Un identifiant de secours est créé pour les rares NOTAMs sans numéro exploitable.
+- NOTAMs : ajout du bouton « Afficher les NOTAMs masqués (n) » dans les commandes du haut et du bas.
+- NOTAMs : lorsque les NOTAMs masqués sont affichés, le bouton devient « Masquer les NOTAMs masqués (n) » et force leur affichage pour permettre leur gestion, même si la sélection courante est filtrée.
+- NOTAMs : un NOTAM masqué, lorsqu’il est temporairement affiché, est signalé par un fond et un bord rouges.
+- NOTAMs : les cases verte et rouge sont exclusives : cocher l’une décoche l’autre.
+- NOTAMs : compatibilité conservée avec les anciennes sélections et les anciens surlignages persistants.
+
+===============================================================================
+TEST v4.46 — 2026-07-30
+Base : TEST v4.45 NOTAMs masqués persistants
+===============================================================================
+
+Modifications :
+- NOTAMs : la case rouge est légèrement décalée vers le bas pour mieux la distinguer de la case verte.
+- NOTAMs : cocher la case rouge ne masque plus immédiatement le NOTAM ; il reste visible avec un fond et une bordure rouges.
+- NOTAMs : le bouton « Garder la sélection » affiche uniquement les NOTAMs cochés en vert. Il masque les NOTAMs rouges et les NOTAMs non sélectionnés.
+- NOTAMs : le bouton « Tout afficher » réaffiche les NOTAMs non sélectionnés et les NOTAMs rouges.
+- NOTAMs : le bouton « Annuler sélection » décoche désormais toutes les cases vertes et rouges, puis réaffiche tous les NOTAMs.
+- NOTAMs : suppression du bouton dédié « Afficher les NOTAMs masqués » / « Masquer les NOTAMs masqués ».
+- NOTAMs : les sélections rouges restent mémorisées et sont automatiquement annulées si le contenu du NOTAM change.
+
+===============================================================================
+TEST v4.47 — 2026-08-04
+Base : TEST v4.46 sélection NOTAMs verte et rouge
+===============================================================================
+
+Modifications :
+- METAR / TAF : délai du service worker porté de 5 secondes à 25 secondes pour les appels au proxy CheckWX.
+- METAR / TAF : ajout d’une seconde tentative automatique en cas d’interruption, d’AbortError ou d’erreur temporaire HTTP 502/503/504.
+- METAR / TAF : limitation à 4 requêtes CheckWX simultanées afin d’éviter une rafale trop importante lors du chargement de plusieurs aérodromes.
+- METAR / TAF : une panne sur un METAR ne fait plus échouer le TAF du même terrain, et inversement.
+- METAR / TAF : la dernière donnée déjà affichée reste visible si une actualisation échoue.
+- METAR / TAF : mise en cache stable par couple type/OACI pour permettre une reprise locale en cas de réseau dégradé.
+- Message d’erreur réseau rendu plus précis lorsque les deux tentatives échouent.
+
+===============================================================================
+TEST v4.48 — 2026-08-04
+Base : TEST v4.47 fiabilisation METAR/TAF
+===============================================================================
+
+Constat après essai v4.47 :
+- Safari affiche encore « FetchEvent.respondWith received an error: TypeError: Load failed ».
+- L’erreur provient donc toujours du traitement de la requête METAR/TAF par le service worker.
+
+Modifications :
+- METAR/TAF : suppression complète de l’interception de get-metar-taf.php par le service worker.
+- METAR/TAF : appels directs de la page vers le proxy météo NAS avec mode CORS explicite.
+- METAR/TAF : délai de sécurité de 30 secondes géré dans la page, indépendamment du service worker.
+- METAR/TAF : conservation de deux tentatives, espacées de 1,2 seconde.
+- METAR/TAF : limitation à 2 requêtes simultanées, soit en pratique le METAR et le TAF d’un seul aérodrome à la fois.
+- METAR/TAF : message d’erreur adapté à l’accès direct au proxy NAS.
+- Conservation des dernières données déjà affichées lorsqu’une actualisation échoue.
+
+===============================================================================
+TEST v4.49 — 2026-08-04
+Base : TEST v4.48 accès direct METAR/TAF
+===============================================================================
+
+Cause identifiée :
+- L’index v4.48 était bien chargé, mais un ancien service worker (notamment v4.47) pouvait encore contrôler la page.
+- Cet ancien service worker continuait alors à intercepter get-metar-taf.php, d’où le message FetchEvent.respondWith / Load failed malgré le code direct de la v4.48.
+
+Modifications :
+- Enregistrement du service worker avec une URL explicitement versionnée : sw.js?v=4.49.
+- Désactivation du cache HTTP lors de la vérification du fichier du service worker (updateViaCache: none).
+- Ajout d’un protocole de contrôle permettant à la page de vérifier que le service worker actif est bien la v4.49.
+- Activation forcée du nouveau service worker avec skipWaiting et prise de contrôle des pages ouvertes avec clients.claim.
+- Le bouton Charger Météo reste désactivé et affiche « Initialisation météo… » tant que la v4.49 n’a pas réellement pris le contrôle.
+- Les requêtes METAR/TAF ne sont lancées qu’après validation du service worker actif.
+- Si l’activation échoue, le bouton devient « Réactiver météo » et permet une nouvelle tentative.
+- Conservation de l’accès direct au proxy NAS, du délai de 30 secondes, de la seconde tentative et de la file limitée à deux requêtes simultanées.
+
+===============================================================================
+TEST v4.50 — 2026-08-04
+Base : TEST v4.49 activation forcée météo
+===============================================================================
+
+Cause identifiée :
+- La v4.49 avait bien retiré get-metar-taf.php de la règle NAS spécifique du service worker.
+- Cependant, la règle générique située plus bas interceptait encore toutes les ressources externes avec event.respondWith(fetch(...)).
+- Les appels METAR/TAF passaient donc toujours par le service worker, d’où le message « FetchEvent.respondWith received an error ».
+
+Modifications :
+- Ajout d’une exclusion explicite de /briefing-api/get-metar-taf.php au tout début du gestionnaire fetch du service worker.
+- Pour cette URL, aucun event.respondWith() n’est désormais appelé : Safari réalise directement la requête réseau vers le proxy NAS.
+- Conservation de la file d’attente limitée à deux requêtes, des deux tentatives et du délai de 30 secondes de la v4.49.
+- Nouveau cache : briefing-fdf-test-v4.50-bypass-metar-taf-r1.
+
+===============================================================================
+TEST v4.51 — 2026-08-05
+Base : TEST v4.50 contournement réel du service worker météo
+===============================================================================
+
+Cause corrigée :
+- La v4.50 limitait le proxy CheckWX à deux requêtes simultanées.
+- Chaque requête pouvait effectuer deux tentatives de 30 secondes dans la même place de la file.
+- Les derniers aérodromes pouvaient donc attendre plusieurs minutes avant même leur première tentative.
+
+Modifications METAR/TAF :
+- Passage de 2 à 8 requêtes simultanées : compromis entre rapidité et protection du proxy NAS.
+- Délai maximum ramené de 30 à 15 secondes par tentative.
+- Premier passage prioritaire pour tous les METAR et TAF de tous les aérodromes.
+- Les secondes tentatives sont ajoutées à la fin de la file et ne peuvent plus bloquer les derniers aérodromes.
+- Seules les erreurs récupérables sont retentées ; les erreurs 401, 403 et 404 ne le sont pas.
+- Progression affichée dans le bouton : « Chargement météo x/27… ».
+- Conservation de la dernière météo connue lorsqu'une actualisation échoue.
+- Accès direct au proxy météo maintenu, sans interception par le service worker.
+
+Paramètres :
+- Concurrence : 8 requêtes.
+- Délai par tentative : 15 secondes.
+- Seconde tentative : après 800 ms, uniquement en cas d'échec récupérable.
+- Nouveau cache : briefing-fdf-test-v4.51-meteo-equilibree-r1.
+
+===============================================================================
+TEST v4.52 — 2026-08-11
 Base : TEST v4.51 chargement météo équilibré
+===============================================================================
 
 Objectif :
 - Conserver automatiquement les METAR/TAF déjà chargés pour les réafficher à la prochaine ouverture de la PWA.
@@ -18,6 +283,33 @@ Modifications :
 - Conservation d'un horodatage savedAt par aérodrome dans le snapshot, sans modifier l'affichage opérationnel existant.
 - Comportement de chargement v4.51 conservé : 8 requêtes simultanées, délai 15 s, retry en fin de file.
 
+
+===============================================================================
+TEST v4.53 — 2026-08-11
+Base : TEST v4.52 persistance et partage METAR/TAF
+===============================================================================
+
+Cause corrigée :
+- En v4.52, le chargement METAR/TAF restait artificiellement conditionné à la validation du service worker actif.
+- Si la page ne recevait pas la réponse de version du service worker dans le délai prévu, le bouton devenait « Réactiver météo » alors que les appels METAR/TAF sont justement conçus pour contourner le service worker.
+- Le clic affichait alors le message demandant de fermer/réouvrir la PWA, ce qui bloquait inutilement le chargement météo.
+
+Modifications :
+- Suppression complète de la dépendance METAR/TAF à l'état d'activation du service worker.
+- Le bouton reste « Charger Météo » et est utilisable immédiatement après l'ouverture de la page.
+- Suppression des états « Initialisation météo… », « Vérification… » et « Réactiver météo » liés au service worker.
+- Suppression de l'alerte demandant de fermer/réouvrir la PWA pour charger la météo.
+- fetchCheckwxAttempt_ contacte directement le proxy NAS sans vérifier la version du service worker.
+- Le service worker continue d'être enregistré et actualisé en arrière-plan pour les fonctions PWA/hors ligne, mais il ne bloque plus la météo.
+- Le contournement de get-metar-taf.php dans le service worker est conservé.
+- Persistance locale METAR/TAF de v4.52 conservée : les données chargées sont sauvegardées et réaffichées au prochain démarrage sans nouvelle requête.
+- Partage METAR/TAF de v4.52 conservé : les données affichées sont incluses dans le partage et restaurées sans requête CheckWX.
+- Chargement équilibré de v4.51 conservé : 8 requêtes simultanées, timeout 15 s et retry récupérable en fin de file.
+
+===============================================================================
+FICHIERS DE LA VERSION ACTUELLE v4.53
+===============================================================================
+
 Fichiers modifiés :
 - index.html
 - manifest.json
@@ -25,11 +317,3 @@ Fichiers modifiés :
 
 Fichier NAS :
 - Aucun fichier NAS à remplacer.
-
-Tests recommandés :
-1. Ouvrir le BFG TEST v4.52 et cliquer sur Charger Météo.
-2. Attendre la fin du chargement puis fermer complètement la PWA.
-3. Rouvrir la PWA : les METAR/TAF précédemment chargés doivent être visibles sans cliquer sur Charger Météo.
-4. Créer un partage après chargement météo.
-5. Ouvrir le code de partage sur un autre appareil : les METAR/TAF doivent apparaître immédiatement avec le briefing, sans lancement d'une requête météo.
-6. Vérifier que le bouton Charger Météo reste disponible pour une actualisation volontaire ultérieure.
