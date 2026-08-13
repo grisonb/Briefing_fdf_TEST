@@ -1,7 +1,7 @@
 {
   "name": "Briefing FDF TEST",
   "short_name": "Briefing TEST",
-  "description": "Briefing FDF TEST v4.54 — persistance GAAR, météo quotidienne et nouvelle logique visuelle NOTAMs",
+  "description": "Briefing FDF TEST v4.55 — teintes NOTAMs bleu clair et gris pastel",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
