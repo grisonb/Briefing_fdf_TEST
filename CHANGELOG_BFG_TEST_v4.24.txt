@@ -1,25 +1,42 @@
-CHANGELOG CUMULATIF — BFG TEST v4.53
-Date : 2026-08-11
-Base actuelle : TEST v4.52
+CHANGELOG CUMULATIF — BFG TEST v4.54
+Date : 2026-08-13
+Base actuelle : TEST v4.53 / version pérenne v2026.23
 
 RÈGLE DU FICHIER
 - Ce CHANGELOG est cumulatif.
-- Chaque nouvelle version TEST doit conserver l’historique des modifications antérieures et ajouter la nouvelle version en tête ou à la suite.
+- Chaque nouvelle version TEST ou pérenne doit conserver l’historique des modifications antérieures et ajouter la nouvelle version en tête ou à la suite.
 - Les évolutions intermédiaires qui ont ensuite été corrigées ou remplacées restent mentionnées afin de conserver l’historique technique complet.
 
 ===============================================================================
-HISTORIQUE ANTÉRIEUR À v4.36 — repris de la branche validée v2026.19 NG
+HISTORIQUE ANTÉRIEUR À v4.36
 ===============================================================================
 
-Modifications précédemment validées :
-- NOTAMs : ajout du bouton "Annuler sélection".
-- NOTAMs : classement alphabétique des filtres.
-- NOTAMs : ajout des filtres PAPI, UL, CONSTRUCTION, ALTITUDE, SECURITY, NACELLE, AIR START.
-- PDF FDS / GAAR : bouton "Centrer PDF".
-- PDF FDS / GAAR : icône crayon agrandie pour le mode écriture.
-- PDF FDS / GAAR : ajout de la couleur blanche.
-- Carte pélicandromes : point bleu si l’observation contient "Eau".
-- Mode hors ligne : reprise des corrections de robustesse de la v4.31.
+TEST v4.31
+- Branche de robustesse hors ligne / PDF / zoom reprise par les versions suivantes.
+- Les archives disponibles identifient cette base comme « TEST v4.31 hors ligne PDF zoom ».
+
+TEST v4.32 — 2026-07-10
+- PDF FDS / GAAR : suppression des boutons zoom + et - dans les viewers.
+- PDF FDS / GAAR : ajout du bouton « Centrer PDF » à leur place.
+- Mode Écrire PDF : remplacement du bouton texte « Écrire PDF » par une icône crayon.
+- Mode Écrire PDF : ajout de la couleur blanche ; rouge, bleu, vert et noir conservés.
+- Pélicandromes : point bleu au centre lorsque le champ Observations contient « Eau ».
+- Pélicandromes : si le pélicandrome est armé, le point bleu est affiché au centre du point vert.
+- NOTAMs : ajout des filtres PAPI, UL, CONSTRUCTION, ALTITUDE, SECURITY, NACELLE et AIR START.
+
+TEST v4.33 — 2026-07-10
+- PDF FDS / GAAR : agrandissement de l’icône crayon du mode Écrire PDF.
+- Le bouton conserve l’icône crayon lorsque le mode écriture est actif, avec titre/aria-label mis à jour.
+
+TEST v4.34 — 2026-07-10
+- NOTAMs : classement alphabétique des mots-clés dans la liste des filtres.
+- Conservation des filtres ajoutés en v4.32.
+
+TEST v4.35 — 2026-07-10
+- NOTAMs : ajout du bouton « Annuler sélection » juste avant « Annuler surlignage ».
+- « Annuler sélection » décoche tous les NOTAMs sélectionnés et réaffiche la liste complète.
+- Correction du bouton « Annuler surlignage ».
+- Si la pile d’annulation Pencil est vide ou invalide, le dernier surlignage visible est supprimé en secours.
 
 ===============================================================================
 TEST v4.36 — 2026-07-11
@@ -306,8 +323,87 @@ Modifications :
 - Partage METAR/TAF de v4.52 conservé : les données affichées sont incluses dans le partage et restaurées sans requête CheckWX.
 - Chargement équilibré de v4.51 conservé : 8 requêtes simultanées, timeout 15 s et retry récupérable en fin de file.
 
+
 ===============================================================================
-FICHIERS DE LA VERSION ACTUELLE v4.53
+VERSION PÉRENNE v2026.23 — 2026-08-11
+Base : TEST v4.53
+===============================================================================
+
+Reprise fonctionnelle :
+- Reprise intégrale de la TEST v4.53.
+- METAR/TAF : chargement direct vers le proxy NAS, indépendant de l’état d’activation du service worker.
+- METAR/TAF : persistance locale après chargement et réaffichage à la réouverture sans requête automatique.
+- METAR/TAF : intégration dans le partage du briefing et restauration chez le destinataire sans requête CheckWX.
+- METAR/TAF : chargement équilibré conservé avec 8 requêtes simultanées, délai de 15 secondes et nouvelle tentative récupérable en fin de file.
+- NOTAMs, annotations PDF, sauvegarde locale, réseau dégradé et autres fonctions de la branche TEST conservés sans changement fonctionnel.
+
+Adaptations pérennes :
+- Version affichée et interne : 2026.23.
+- Suppression des mentions TEST visibles dans l’interface et le manifeste.
+- Tour de France : forçage TEST désactivé ; la rubrique ne s’affiche que pendant la période opérationnelle prévue.
+- Source GAAR : bfg-v2026.23.
+- Source demande cartes des risques : bfg-v2026.23.
+- Service worker : version 2026.23.
+- Cache PWA : briefing-fdf-v2026-23-meteo-directe-persistance-r1.
+- Aucun fichier NAS à remplacer.
+
+===============================================================================
+TEST v4.54 — 2026-08-13
+Base : TEST v4.53 / version pérenne v2026.23
+===============================================================================
+
+GAAR — diagramme et circuits :
+- Correction de la restauration du diagramme GAAR importé manuellement : en mode GAAR Manuel, le PDF sauvegardé est restauré même si son nom de fichier ne contient pas de date exploitable.
+- Les circuits GAAR de la carte deviennent indépendants du PDF GAAR : ils sont restaurés même si aucun diagramme PDF n’est présent ou si le PDF automatique quotidien n’est plus restaurable.
+- Les snapshots de circuits ignorent désormais les entrées vides ou nulles.
+- Sauvegarde locale automatique après ajout d’un point/circuit manuel, modification d’un point, suppression d’un point ou suppression de tous les circuits.
+- La reconstruction d’un circuit sauvegardé ne déclenche pas de sauvegarde temporaire vide.
+- À l’ouverture de la carte, cadrage automatique sur tous les circuits existants.
+- S’il n’existe qu’un seul circuit, le cadrage se fait uniquement sur ce circuit et ne revient plus à la vue France.
+- S’il n’existe qu’un seul point, centrage local au zoom 10.
+- Les rafraîchissements Leaflet/iPad conservent le cadrage des circuits au lieu de réinitialiser la carte sur toute la France.
+
+METAR / TAF — expiration quotidienne :
+- Les METAR/TAF sauvegardés ne sont restaurés que s’ils ont été chargés le jour courant (heure France) et avant l’heure de déconnexion quotidienne.
+- À l’expiration de la connexion Briefing du soir (23h00), les METAR/TAF affichés sont effacés.
+- L’effacement est répercuté dans la sauvegarde locale afin d’éviter la réapparition d’une météo de la veille au lancement suivant.
+- Si la PWA était en arrière-plan au moment de l’expiration, le contrôle est rejoué au retour au premier plan.
+- Une météo partagée provenant d’une journée précédente n’est pas restaurée comme météo opérationnelle.
+
+NOTAMs — état des boutons :
+- Lors d’un nouvel import ou d’une nouvelle analyse NOTAM, l’affichage repart en mode complet.
+- Lorsque tous les NOTAMs sont affichés, le bouton visible est « Garder la sélection ».
+- « Tout afficher » n’est visible que lorsqu’un filtrage de sélection a réellement été appliqué.
+- Les sélections sauvegardées restent restaurées ; si une sauvegarde impose réellement un filtrage par sélection, l’état « Tout afficher » reste cohérent avec ce filtrage.
+
+NOTAMs — nouvelle logique visuelle :
+- NOTAM non sélectionné : trait latéral bleu à la place du trait jaune.
+- NOTAM à garder : comportement vert conservé.
+- Case « non désirable » : cercle noir à la place du cercle rouge.
+- Case cochée « non désirable » : coche/accent noir.
+- NOTAM « non désirable » : trait latéral noir et fond gris foncé.
+- Texte blanc sur le fond gris foncé afin de conserver la lisibilité.
+- La logique persistante existante reste compatible : un NOTAM classé non désirable reste mémorisé jusqu’à modification de son contenu.
+
+Fichiers modifiés :
+- index.html
+- manifest.json
+- sw.js
+
+Fichier NAS :
+- Aucun fichier NAS à remplacer.
+
+Tests recommandés :
+1. Importer manuellement un diagramme GAAR, créer au moins un circuit, sauvegarder, fermer complètement la PWA puis rouvrir : diagramme et circuits doivent être restaurés.
+2. Tester un circuit unique puis plusieurs circuits : la carte doit cadrer uniquement les circuits présents et ne pas revenir à la vue France.
+3. Ajouter, modifier ou supprimer un point GAAR, fermer puis rouvrir sans appuyer à nouveau sur Sauvegarder : le dernier état doit être conservé.
+4. Charger METAR/TAF et vérifier qu’ils restent restaurés pendant la même journée.
+5. À l’expiration de la connexion du soir, vérifier que la météo disparaît et ne réapparaît pas au prochain lancement.
+6. Importer automatiquement les NOTAMs : lorsque tous sont affichés, « Garder la sélection » doit être visible et « Tout afficher » masqué.
+7. Vérifier les couleurs NOTAM : neutre bleu, garder vert, non désirable noir + gris foncé.
+
+===============================================================================
+FICHIERS DE LA VERSION ACTUELLE v4.54
 ===============================================================================
 
 Fichiers modifiés :
