@@ -5,8 +5,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0">
-    <title>Briefing Fdf TEST v4.55</title>
-    <link rel="manifest" href="./manifest.json?v=4.55">
+    <title>Briefing Fdf TEST v4.56</title>
+    <link rel="manifest" href="./manifest.json?v=4.56">
     <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png?v=4.24">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-title" content="Briefing TEST">
@@ -629,7 +629,7 @@
             margin-bottom: 15px; 
             border-radius: 4px; 
             transition: background-color 0.2s, border-left-color 0.2s, max-height 0.3s ease-out, opacity 0.3s ease-out; 
-            background-color: #f8f9fa;
+            background-color: #f3f8fc;
         }
         .notam-item:has(.notam-checkbox:checked) { 
             border-left-color: #28a745; 
@@ -2174,10 +2174,10 @@
 
     <div class="page-header">
         <div class="page-header-background"></div>
-        <h1 id="main-title">Briefing Fdf TEST v4.55</h1>
+        <h1 id="main-title">Briefing Fdf TEST v4.56</h1>
         <p id="current-time-display"></p>
         <p style="position: relative; z-index: 2; text-align: center; color: #333; font-size: 1em; margin-top: -25px; margin-bottom: 30px;">
-    v<span id="app-version">4.55 TEST - teintes NOTAMs pastel</span>
+    v<span id="app-version">4.56 TEST - fond bleu léger NOTAMs</span>
     <button id="force-update-btn" class="link-button" style="background-color: #34495e; padding: 4px 10px; font-size: 0.8em; margin-left: 10px; vertical-align: middle;">
         Forcer MAJ
     </button>
@@ -2550,7 +2550,7 @@
     <footer>Données : Météo-France, SIA, Windy.com, CheckWX.com. Page non commerciale, à usage personnel.</footer>
     
     <script>
-        const APP_VERSION = "4.55 TEST - teintes NOTAMs pastel";
+        const APP_VERSION = "4.56 TEST - fond bleu léger NOTAMs";
 
         // --- Proxy NAS pour la source de données météo CheckWX ---
         const CHECKWX_PROXY_URL = "https://grisonb.synology.me/briefing-api/get-metar-taf.php";
@@ -4342,7 +4342,7 @@ const tdfStages = [
             }
         }
         window.onload = waitForPdfJsAndInitialize;
-        const BFG_REQUIRED_SW_VERSION_ = '4.55';
+        const BFG_REQUIRED_SW_VERSION_ = '4.56';
 
         function queryBfgControllerVersion_(timeoutMs = 1800) {
             return new Promise((resolve) => {
@@ -4382,7 +4382,7 @@ const tdfStages = [
             }
 
             const registration = await navigator.serviceWorker.register(
-                './sw.js?v=4.55',
+                './sw.js?v=4.56',
                 { updateViaCache: 'none' }
             );
 
@@ -5090,7 +5090,7 @@ const tdfStages = [
         async function requestGaarImportViaNas_() {
             const query = new URLSearchParams();
             query.set('t', String(Date.now()));
-            query.set('source', 'bfg-test-v4.55');
+            query.set('source', 'bfg-test-v4.56');
 
             const url = `${GAAR_IMPORT_REQUEST_API_URL}?${query.toString()}`;
             const response = await fetchWithTimeout_(url, { cache: 'no-store' }, 65000);
@@ -10456,7 +10456,7 @@ window.__notamTextFull = notamInput.value;
 
         function initializePageTitle() {
             const titleElement = document.getElementById('main-title');
-            titleElement.textContent = `Briefing Fdf TEST v4.55 du ${new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}`;
+            titleElement.textContent = `Briefing Fdf TEST v4.56 du ${new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}`;
             const timeDisplay = document.getElementById('current-time-display');
             const updateTime = () => timeDisplay.textContent = new Date().toLocaleTimeString('fr-FR');
             updateTime(); setInterval(updateTime, 1000);
