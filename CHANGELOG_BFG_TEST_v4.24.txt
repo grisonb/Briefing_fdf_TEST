@@ -1,6 +1,6 @@
-CHANGELOG CUMULATIF — BFG TEST v4.54
+CHANGELOG CUMULATIF — BFG TEST v4.55
 Date : 2026-08-13
-Base actuelle : TEST v4.53 / version pérenne v2026.23
+Base actuelle : TEST v4.54
 
 RÈGLE DU FICHIER
 - Ce CHANGELOG est cumulatif.
@@ -402,8 +402,31 @@ Tests recommandés :
 6. Importer automatiquement les NOTAMs : lorsque tous sont affichés, « Garder la sélection » doit être visible et « Tout afficher » masqué.
 7. Vérifier les couleurs NOTAM : neutre bleu, garder vert, non désirable noir + gris foncé.
 
+
 ===============================================================================
-FICHIERS DE LA VERSION ACTUELLE v4.54
+TEST v4.55 — 2026-08-13
+Base : TEST v4.54
+===============================================================================
+
+NOTAMs — ajustement des teintes :
+- NOTAM non sélectionné : le trait latéral devient bleu clair (#7fb3d5), moins soutenu que le bleu principal de l'application.
+- NOTAM « non désirable » : le trait latéral reste noir.
+- NOTAM « non désirable » : le fond gris foncé de la v4.54 est remplacé par un gris pastel plus estompé (#d9dde2).
+- Le texte des NOTAMs non désirables redevient foncé (#2f3439) pour conserver un contraste naturel sur le fond pastel.
+- Les liens présents dans un NOTAM non désirable utilisent un bleu assombri lisible sur le fond pastel.
+- La logique fonctionnelle de sélection/persistance des NOTAMs est inchangée.
+- Toutes les corrections GAAR, météo quotidienne et état des boutons NOTAMs de la v4.54 sont conservées.
+
+Fichiers modifiés :
+- index.html
+- manifest.json
+- sw.js
+
+Fichier NAS :
+- Aucun fichier NAS à remplacer.
+
+===============================================================================
+FICHIERS DE LA VERSION ACTUELLE v4.55
 ===============================================================================
 
 Fichiers modifiés :
