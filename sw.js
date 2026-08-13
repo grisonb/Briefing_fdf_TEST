@@ -1,5 +1,5 @@
-const BFG_SW_VERSION = '4.53';
-const CACHE_NAME = 'briefing-fdf-test-v4.53-meteo-directe-persistance-r1';
+const BFG_SW_VERSION = '4.54';
+const CACHE_NAME = 'briefing-fdf-test-v4.54-gaar-meteo-notams-r1';
 
 const LOCAL_ASSETS = [
   './manifest.json',
