@@ -5,8 +5,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0">
-    <title>Briefing Fdf TEST v4.53</title>
-    <link rel="manifest" href="./manifest.json?v=4.53">
+    <title>Briefing Fdf TEST v4.54</title>
+    <link rel="manifest" href="./manifest.json?v=4.54">
     <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png?v=4.24">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-title" content="Briefing TEST">
@@ -624,7 +624,7 @@
             display: flex;
             gap: 10px;
             align-items: flex-start;
-            border-left: 5px solid var(--sc-yellow); 
+            border-left: 5px solid var(--sc-blue); 
             padding: 15px; 
             margin-bottom: 15px; 
             border-radius: 4px; 
@@ -636,9 +636,13 @@
             background-color: #f0fff4; 
         }
         .notam-item.persistently-hidden-notam {
-            border-left-color: #c62828;
-            background-color: #fff3f3;
+            border-left-color: #111111;
+            background-color: #6c737a;
+            color: #ffffff;
         }
+        .notam-item.persistently-hidden-notam .notam-validity,
+        .notam-item.persistently-hidden-notam .notam-text-content { color: #ffffff; }
+        .notam-item.persistently-hidden-notam a { color: #d9ecff; }
         .notam-checkbox-column {
             display: flex;
             flex-direction: column;
@@ -663,7 +667,7 @@
             border: 3px solid #28a745;
         }
         .notam-checkbox-ring-hide {
-            border: 3px solid #d32f2f;
+            border: 3px solid #111111;
             margin-top: 6px;
         }
         .notam-checkbox,
@@ -679,7 +683,7 @@
             accent-color: #28a745;
         }
         .notam-hide-checkbox {
-            accent-color: #d32f2f;
+            accent-color: #111111;
         }
         .notam-content-wrapper {
             flex-grow: 1;
@@ -2170,10 +2174,10 @@
 
     <div class="page-header">
         <div class="page-header-background"></div>
-        <h1 id="main-title">Briefing Fdf TEST v4.53</h1>
+        <h1 id="main-title">Briefing Fdf TEST v4.54</h1>
         <p id="current-time-display"></p>
         <p style="position: relative; z-index: 2; text-align: center; color: #333; font-size: 1em; margin-top: -25px; margin-bottom: 30px;">
-    v<span id="app-version">4.53 TEST - météo directe + persistance/partage</span>
+    v<span id="app-version">4.54 TEST - persistance GAAR / météo quotidienne / NOTAMs</span>
     <button id="force-update-btn" class="link-button" style="background-color: #34495e; padding: 4px 10px; font-size: 0.8em; margin-left: 10px; vertical-align: middle;">
         Forcer MAJ
     </button>
@@ -2546,7 +2550,7 @@
     <footer>Données : Météo-France, SIA, Windy.com, CheckWX.com. Page non commerciale, à usage personnel.</footer>
     
     <script>
-        const APP_VERSION = "4.53 TEST - météo directe + persistance/partage";
+        const APP_VERSION = "4.54 TEST - persistance GAAR / météo quotidienne / NOTAMs";
 
         // --- Proxy NAS pour la source de données météo CheckWX ---
         const CHECKWX_PROXY_URL = "https://grisonb.synology.me/briefing-api/get-metar-taf.php";
@@ -3034,8 +3038,14 @@ const tdfStages = [
             const exp = Number(localStorage.getItem(CNCASC_TOKEN_EXP_STORAGE_KEY) || 0);
 
             if (!token || !exp || exp <= Date.now()) {
+                const expiredDailySession = Boolean(token && exp && exp <= Date.now());
                 localStorage.removeItem(CNCASC_TOKEN_STORAGE_KEY);
                 localStorage.removeItem(CNCASC_TOKEN_EXP_STORAGE_KEY);
+                // v4.54 : si la session vient d'expirer en fin de journée, la météo
+                // affichée ne doit pas survivre à la déconnexion du briefing.
+                if (expiredDailySession && typeof clearWeatherForDailyLogout_ === 'function') {
+                    clearWeatherForDailyLogout_();
+                }
                 return null;
             }
 
@@ -3056,6 +3066,7 @@ const tdfStages = [
 
             localStorage.setItem(CNCASC_TOKEN_STORAGE_KEY, token);
             localStorage.setItem(CNCASC_TOKEN_EXP_STORAGE_KEY, String(exp));
+            scheduleBfgDailyExpiry_();
             return true;
         }
 
@@ -3063,6 +3074,32 @@ const tdfStages = [
             localStorage.removeItem(CNCASC_TOKEN_STORAGE_KEY);
             localStorage.removeItem(CNCASC_TOKEN_EXP_STORAGE_KEY);
         }
+
+        let bfgDailyWeatherExpiryTimer_ = null;
+
+        function enforceBfgDailyExpiry_() {
+            const token = localStorage.getItem(CNCASC_TOKEN_STORAGE_KEY) || '';
+            const exp = Number(localStorage.getItem(CNCASC_TOKEN_EXP_STORAGE_KEY) || 0);
+            if (!token || !exp || exp > Date.now()) return false;
+            clearCncascToken_();
+            updateCncascAuthUi_();
+            clearWeatherForDailyLogout_();
+            setCncascWarning_('Accès Briefing déconnecté automatiquement en fin de journée. Les METAR/TAF de la journée ont été effacés.');
+            return true;
+        }
+
+        function scheduleBfgDailyExpiry_() {
+            if (bfgDailyWeatherExpiryTimer_ !== null) { clearTimeout(bfgDailyWeatherExpiryTimer_); bfgDailyWeatherExpiryTimer_ = null; }
+            if (enforceBfgDailyExpiry_()) return;
+            const token = localStorage.getItem(CNCASC_TOKEN_STORAGE_KEY) || '';
+            const exp = Number(localStorage.getItem(CNCASC_TOKEN_EXP_STORAGE_KEY) || 0);
+            if (!token || !exp || exp <= Date.now()) return;
+            const delay = Math.max(100, Math.min(exp - Date.now() + 150, 2147483000));
+            bfgDailyWeatherExpiryTimer_ = setTimeout(() => { bfgDailyWeatherExpiryTimer_ = null; enforceBfgDailyExpiry_(); }, delay);
+        }
+
+        window.addEventListener('pageshow', () => setTimeout(enforceBfgDailyExpiry_, 0));
+        document.addEventListener('visibilitychange', () => { if (!document.hidden) enforceBfgDailyExpiry_(); });
 
         function getAutoNotamAirportName_(icao) {
             const map = {
@@ -4305,7 +4342,7 @@ const tdfStages = [
             }
         }
         window.onload = waitForPdfJsAndInitialize;
-        const BFG_REQUIRED_SW_VERSION_ = '4.53';
+        const BFG_REQUIRED_SW_VERSION_ = '4.54';
 
         function queryBfgControllerVersion_(timeoutMs = 1800) {
             return new Promise((resolve) => {
@@ -4345,7 +4382,7 @@ const tdfStages = [
             }
 
             const registration = await navigator.serviceWorker.register(
-                './sw.js?v=4.53',
+                './sw.js?v=4.54',
                 { updateViaCache: 'none' }
             );
 
@@ -5053,7 +5090,7 @@ const tdfStages = [
         async function requestGaarImportViaNas_() {
             const query = new URLSearchParams();
             query.set('t', String(Date.now()));
-            query.set('source', 'bfg-test-v4.53');
+            query.set('source', 'bfg-test-v4.54');
 
             const url = `${GAAR_IMPORT_REQUEST_API_URL}?${query.toString()}`;
             const response = await fetchWithTimeout_(url, { cache: 'no-store' }, 65000);
@@ -5598,6 +5635,7 @@ const tdfStages = [
     // v4.45 : restaurer d’abord les dernières données locales, puis seulement lancer
     // les actualisations automatiques. Cela évite les rubriques vides au démarrage.
     initializeSessionManagement();
+    scheduleBfgDailyExpiry_();
     Promise.resolve(window.__bfgLocalRestorePromise).catch(() => {}).finally(() => {
         initializeRiskMaps();
         if (window.pdfjsLib) {
@@ -5700,6 +5738,22 @@ const tdfStages = [
             if (options.refresh !== false) forceGaarMapRefresh();
         }
 
+        function fitGaarMapToCircuits_() {
+            if (!gaarMap) return false;
+            const circuits = (window.gaarDrawnCircuits || []).filter(c => c && Array.isArray(c.markers) && c.markers.length > 0);
+            const allMarkers = circuits.flatMap(c => c.markers || []);
+            if (!allMarkers.length) return false;
+            try {
+                if (allMarkers.length === 1) {
+                    gaarMap.setView(allMarkers[0].getLatLng(), 10, { animate: false });
+                } else {
+                    const bounds = L.featureGroup(allMarkers).getBounds();
+                    if (bounds && bounds.isValid()) gaarMap.fitBounds(bounds.pad(0.15), { animate: false, maxZoom: 11 });
+                }
+                return true;
+            } catch (error) { console.warn('BFG : cadrage automatique circuits GAAR impossible.', error); return false; }
+        }
+
         function forceGaarMapRefresh() {
             const mapSection = document.getElementById('gaar-map-section');
             const mapDisplay = document.getElementById('gaar-map-display');
@@ -5735,7 +5789,7 @@ const tdfStages = [
                 if (!gaarMap) return;
                 try {
                     gaarMap.invalidateSize(true);
-                    gaarMap.setView([46.2276, 2.2137], 6, { animate: false });
+                    if (!fitGaarMapToCircuits_()) gaarMap.setView([46.2276, 2.2137], 6, { animate: false });
                 } catch (error) {
                     console.error('Erreur rafraîchissement carte GAAR :', error);
                 }
@@ -6076,11 +6130,11 @@ const tdfStages = [
 
             const hideLabel = document.createElement('label');
             hideLabel.className = 'notam-checkbox-ring notam-checkbox-ring-hide';
-            hideLabel.title = 'Ne plus afficher ce NOTAM tant qu’il ne change pas';
+            hideLabel.title = 'Classer ce NOTAM comme non désirable tant qu’il ne change pas';
             const hideCheckbox = document.createElement('input');
             hideCheckbox.type = 'checkbox';
             hideCheckbox.className = 'notam-hide-checkbox';
-            hideCheckbox.setAttribute('aria-label', 'Ne plus afficher ce NOTAM tant qu’il ne change pas');
+            hideCheckbox.setAttribute('aria-label', 'Classer ce NOTAM comme non désirable tant qu’il ne change pas');
             hideLabel.appendChild(hideCheckbox);
 
             checkboxColumn.appendChild(keepLabel);
@@ -7578,7 +7632,7 @@ const tdfStages = [
 
         function recreateGaarCircuitsFromState(savedCircuits) {
             if (!gaarMap || !savedCircuits || savedCircuits.length === 0) return;
-            clearAllCircuits();
+            clearAllCircuits({ save: false });
 
             savedCircuits.forEach(savedCircuit => {
                 const newCircuit = {
@@ -7602,13 +7656,16 @@ const tdfStages = [
                 updatePolygon(circuitIndex);
             });
             if (window.gaarDrawnCircuits.length > 0) {
-                const allMarkers = window.gaarDrawnCircuits.flatMap(c => c.markers);
-                if (allMarkers.length > 0) {
-                    gaarMap.fitBounds(L.featureGroup(allMarkers).getBounds().pad(0.2));
-                }
+                fitGaarMapToCircuits_();
+                setTimeout(() => { try { gaarMap && gaarMap.invalidateSize(true); fitGaarMapToCircuits_(); } catch (_) {} }, 250);
                 document.getElementById('gaar-status').textContent = `Affichage de ${window.gaarDrawnCircuits.length} circuit(s) restauré(s).`;
             }
             updateCircuitControlsVisibility();
+        }
+
+        function scheduleGaarStateSave_(delayMs = 500) {
+            try { scheduleBfgLocalSnapshotSave_(delayMs); }
+            catch (error) { console.warn('BFG : sauvegarde différée des circuits GAAR impossible.', error); }
         }
 
         function createGaarMarker(coord, name, circuitIndex, cityIndex, color) {
@@ -7641,6 +7698,7 @@ const tdfStages = [
                 marker.setTooltipContent(newName.split(',')[0]);
                 marker.closePopup();
                 updatePolygon(circuitIndex);
+                scheduleGaarStateSave_();
                 statusDiv.textContent = `Point mis à jour.`;
             } else {
                 statusDiv.textContent = `Coordonnées introuvables pour "${newName}".`;
@@ -7683,6 +7741,7 @@ const tdfStages = [
                 });
             }
             updateCircuitControlsVisibility();
+            scheduleGaarStateSave_();
             document.getElementById('gaar-status').textContent = `Point supprimé.`;
         };
 
@@ -7804,6 +7863,7 @@ const tdfStages = [
             
             updatePolygon(circuitIndex);
             updateCircuitControlsVisibility();
+            scheduleGaarStateSave_();
         }
 
         function updateCircuitControlsVisibility() {
@@ -7814,14 +7874,17 @@ const tdfStages = [
             }
         }
 
-        function clearAllCircuits() {
+        function clearAllCircuits(options = {}) {
             if (!gaarMap) return;
-            window.gaarDrawnCircuits.forEach(({ polygon, markers }) => {
+            window.gaarDrawnCircuits.forEach((circuit) => {
+                if (!circuit) return;
+                const { polygon, markers } = circuit;
                 if (polygon) gaarMap.removeLayer(polygon);
                 if (markers) markers.forEach(m => gaarMap.removeLayer(m));
             });
             window.gaarDrawnCircuits = [];
             updateCircuitControlsVisibility();
+            if (options.save !== false) scheduleGaarStateSave_();
         }
 
         function resetGaarPdfOnly() {
@@ -8148,13 +8211,29 @@ let activeShareApiBase = SHARE_API_BASE;
 
     window.collectWeatherData = collectWeatherDataSnapshot_;
 
+    function bfgParisDateKeyForWeather_(value = new Date()) {
+        const date = value instanceof Date ? value : new Date(value);
+        if (Number.isNaN(date.getTime())) return '';
+        try {
+            const parts = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Paris', year: 'numeric', month: '2-digit', day: '2-digit' }).formatToParts(date);
+            const byType = Object.fromEntries(parts.map(part => [part.type, part.value]));
+            return `${byType.year || ''}-${byType.month || ''}-${byType.day || ''}`;
+        } catch (_) { return date.toISOString().slice(0, 10); }
+    }
+
+    function isWeatherSnapshotCurrentForToday_(weather) {
+        if (!weather || !weather.savedAt) return false;
+        if (bfgParisHour_() >= BFG_LOGIN_END_HOUR_LOCAL) return false;
+        return bfgParisDateKeyForWeather_(weather.savedAt) === bfgParisDateKeyForWeather_(new Date());
+    }
+
     function restoreWeatherDataSnapshot_(weatherData) {
         if (!weatherData || typeof weatherData !== 'object') return 0;
         let restored = 0;
 
         Object.entries(weatherData).forEach(([icaoRaw, weather]) => {
             const icao = String(icaoRaw || '').trim().toUpperCase();
-            if (!icao || !weather) return;
+            if (!icao || !weather || !isWeatherSnapshotCurrentForToday_(weather)) return;
 
             let container = document.getElementById(`notam-container-${icao}`);
             if (!container) {
@@ -8177,6 +8256,25 @@ let activeShareApiBase = SHARE_API_BASE;
 
     window.restoreWeatherDataSnapshot_ = restoreWeatherDataSnapshot_;
 
+    function clearWeatherForDailyLogout_() {
+        document.querySelectorAll('#notam-display .airport-section-container').forEach(container => {
+            const metar = container.querySelector('.metar-container');
+            const taf = container.querySelector('.taf-container');
+            if (metar) metar.innerHTML = '<h4>METAR</h4><p><i>En attente du chargement manuel.</i></p>';
+            if (taf) taf.innerHTML = '<h4>TAF</h4><p><i>En attente du chargement manuel.</i></p>';
+            delete container.dataset.loaded;
+            delete container.dataset.weatherSavedAt;
+        });
+        const manualDisplay = document.getElementById('manual-metar-display');
+        if (manualDisplay) manualDisplay.innerHTML = '';
+        const weatherBtn = document.getElementById('manual-load-weather-btn');
+        if (weatherBtn) { weatherBtn.disabled = false; weatherBtn.textContent = 'Charger Météo'; }
+        try { checkWeatherValidity(); } catch (_) {}
+        scheduleBfgLocalSnapshotSave_(250);
+    }
+
+    window.clearWeatherForDailyLogout_ = clearWeatherForDailyLogout_;
+
     // ===== Export "portable" (partage/import) =====
     async function buildPortableSessionObject_() {
         const checkedNotamIds = [], highlightedNotams = {}, checkedNotamSignatures = {}, highlightSignatures = {};
@@ -8195,15 +8293,17 @@ let activeShareApiBase = SHARE_API_BASE;
             }
         });
 
-        const gaarMapState = (window.gaarDrawnCircuits || []).map(circuit => ({
-            color: circuit.color,
-            isManual: circuit.isManual,
-            points: (circuit.markers || []).map((marker, index) => ({
-                lat: marker.getLatLng().lat,
-                lng: marker.getLatLng().lng,
-                name: (circuit.cityNames || [])[index]
-            }))
-        }));
+        const gaarMapState = (window.gaarDrawnCircuits || [])
+            .filter(circuit => circuit && Array.isArray(circuit.markers) && circuit.markers.length > 0)
+            .map(circuit => ({
+                color: circuit.color,
+                isManual: circuit.isManual,
+                points: (circuit.markers || []).map((marker, index) => ({
+                    lat: marker.getLatLng().lat,
+                    lng: marker.getLatLng().lng,
+                    name: (circuit.cityNames || [])[index]
+                }))
+            }));
 
         // Capture directe de la météo déjà affichée : aucune requête n'est lancée pour partager.
         const weatherData = collectWeatherDataSnapshot_();
@@ -8538,15 +8638,17 @@ let activeShareApiBase = SHARE_API_BASE;
                 fdsMetaPanel: window.__lastFdsMetaPanelPayload || null,
                 gaarMetaPanel: window.__lastGaarMetaPanelPayload || null,
 
-                gaarMapState: (window.gaarDrawnCircuits || []).map(circuit => ({
-                    color: circuit.color,
-                    isManual: circuit.isManual,
-                    points: (circuit.markers || []).map((marker, index) => ({
-                        lat: marker.getLatLng().lat,
-                        lng: marker.getLatLng().lng,
-                        name: (circuit.cityNames || [])[index]
-                    }))
-                })),
+                gaarMapState: (window.gaarDrawnCircuits || [])
+                    .filter(circuit => circuit && Array.isArray(circuit.markers) && circuit.markers.length > 0)
+                    .map(circuit => ({
+                        color: circuit.color,
+                        isManual: circuit.isManual,
+                        points: (circuit.markers || []).map((marker, index) => ({
+                            lat: marker.getLatLng().lat,
+                            lng: marker.getLatLng().lng,
+                            name: (circuit.cityNames || [])[index]
+                        }))
+                    })),
 
                 supAips: await Promise.all((window.supAipFileObjects || []).map(f => fileToSavable(f))),
 
@@ -8925,9 +9027,10 @@ let activeShareApiBase = SHARE_API_BASE;
             if (infoFds) infoFds.textContent = 'FDS locale de la veille supprimée après 01h00.';
         }
 
-        const restoreSavedGaar = !!data.gaar && shouldRestoreSavedBfgDailyPdf_(data.gaar, 'gaar');
+        const savedGaarIsManual = getGaarMode_() === GAAR_MODE_MANUAL;
+        const restoreSavedGaar = !!data.gaar && (savedGaarIsManual || shouldRestoreSavedBfgDailyPdf_(data.gaar, 'gaar'));
         const hasGaarPdf = restoreSavedGaar;
-        const hasGaarMapState = restoreSavedGaar && data.gaarMapState && data.gaarMapState.length > 0;
+        const hasGaarMapState = !!(data.gaarMapState && data.gaarMapState.length > 0);
 
         if (hasGaarPdf || hasGaarMapState) {
             setGaarMapVisibility(true, { refresh: false });
@@ -8948,7 +9051,7 @@ let activeShareApiBase = SHARE_API_BASE;
         } else if (data.gaar) {
             window.gaarFileObject = null;
             const infoGaar = document.getElementById('pdf-info-gaar');
-            if (infoGaar) infoGaar.textContent = 'GAAR locale de la veille supprimée après 01h00.';
+            if (infoGaar) infoGaar.textContent = 'Diagramme GAAR automatique de la veille non restauré après 01h00. Les circuits sauvegardés restent conservés.';
         }
 
         if (hasGaarMapState) {
@@ -9556,8 +9659,8 @@ window.__notamTextFull = notamInput.value;
 
             function updatePersistentHiddenNotamsVisibility_() {
                 document.querySelectorAll('#notam-display .notam-item').forEach(item => {
-                    const isRedSelected = !!item.querySelector('.notam-hide-checkbox')?.checked;
-                    item.classList.toggle('persistently-hidden-notam', isRedSelected);
+                    const isUndesiredSelected = !!item.querySelector('.notam-hide-checkbox')?.checked;
+                    item.classList.toggle('persistently-hidden-notam', isUndesiredSelected);
                     item.classList.remove('hidden-by-user', 'force-show-hidden');
                 });
             }
@@ -9647,6 +9750,8 @@ window.__notamTextFull = notamInput.value;
             }
 
             window.parseAndDisplayNotams = function(savedState = null) {
+                // v4.54 : tout nouvel import/analyse repart en affichage complet.
+                resetSelectionFilter();
                 const rawText = notamInput.value; if (!rawText.trim()) return;
                 const airportSections = rawText.split(/\n\s*(?=LF[A-Z]{2}\s+-\s+)/);
                 const airportsData = {};
@@ -9710,8 +9815,8 @@ window.__notamTextFull = notamInput.value;
             function applySelectionFilter() {
                 document.querySelectorAll('.notam-item').forEach(item => {
                     const keepChecked = !!item.querySelector('.notam-checkbox')?.checked;
-                    const redChecked = !!item.querySelector('.notam-hide-checkbox')?.checked;
-                    item.classList.toggle('hidden-by-filter', !keepChecked || redChecked);
+                    const undesiredChecked = !!item.querySelector('.notam-hide-checkbox')?.checked;
+                    item.classList.toggle('hidden-by-filter', !keepChecked || undesiredChecked);
                 });
                 filterButtons.forEach(btn => btn.style.display = 'none');
                 showAllButtons.forEach(btn => btn.style.display = 'inline-block');
@@ -10351,7 +10456,7 @@ window.__notamTextFull = notamInput.value;
 
         function initializePageTitle() {
             const titleElement = document.getElementById('main-title');
-            titleElement.textContent = `Briefing Fdf TEST v4.53 du ${new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}`;
+            titleElement.textContent = `Briefing Fdf TEST v4.54 du ${new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}`;
             const timeDisplay = document.getElementById('current-time-display');
             const updateTime = () => timeDisplay.textContent = new Date().toLocaleTimeString('fr-FR');
             updateTime(); setInterval(updateTime, 1000);
