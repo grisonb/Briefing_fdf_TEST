@@ -1,7 +1,7 @@
 {
   "name": "Briefing FDF TEST",
   "short_name": "Briefing TEST",
-  "description": "Briefing FDF TEST v4.53 météo directe + persistance et partage METAR/TAF",
+  "description": "Briefing FDF TEST v4.54 — persistance GAAR, météo quotidienne et nouvelle logique visuelle NOTAMs",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
