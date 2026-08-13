@@ -1,6 +1,6 @@
-CHANGELOG CUMULATIF — BFG TEST v4.55
+CHANGELOG CUMULATIF — BFG TEST v4.56
 Date : 2026-08-13
-Base actuelle : TEST v4.54
+Base actuelle : TEST v4.55
 
 RÈGLE DU FICHIER
 - Ce CHANGELOG est cumulatif.
@@ -425,8 +425,30 @@ Fichiers modifiés :
 Fichier NAS :
 - Aucun fichier NAS à remplacer.
 
+
 ===============================================================================
-FICHIERS DE LA VERSION ACTUELLE v4.55
+TEST v4.56 — 2026-08-13
+Base : TEST v4.55
+===============================================================================
+
+NOTAMs — fond des éléments non sélectionnés :
+- Les NOTAMs non sélectionnés conservent leur trait latéral bleu clair.
+- Leur fond blanc/gris très neutre est remplacé par un bleu très léger (#f3f8fc).
+- L'objectif est de distinguer visuellement les NOTAMs neutres sans donner l'impression qu'ils sont sélectionnés.
+- Les NOTAMs à garder restent verts.
+- Les NOTAMs non désirables conservent le trait noir et le fond gris pastel de la v4.55.
+- Toute la logique fonctionnelle de la v4.55 est inchangée.
+
+Fichiers modifiés :
+- index.html
+- manifest.json
+- sw.js
+
+Fichier NAS :
+- Aucun fichier NAS à remplacer.
+
+===============================================================================
+FICHIERS DE LA VERSION ACTUELLE v4.56
 ===============================================================================
 
 Fichiers modifiés :
