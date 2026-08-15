@@ -1,5 +1,5 @@
-const BFG_SW_VERSION = '4.56';
-const CACHE_NAME = 'briefing-fdf-test-v4.56-notams-bleu-leger-r1';
+const BFG_SW_VERSION = '4.57';
+const CACHE_NAME = 'briefing-fdf-test-v4.57-expiration-silencieuse-r1';
 
 const LOCAL_ASSETS = [
   './manifest.json',
