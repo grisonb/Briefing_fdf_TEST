@@ -1,6 +1,6 @@
-CHANGELOG CUMULATIF — BFG TEST v4.56
+CHANGELOG CUMULATIF — BFG v2026.24
 Date : 2026-08-13
-Base actuelle : TEST v4.55
+Base pérenne : TEST v4.56
 
 RÈGLE DU FICHIER
 - Ce CHANGELOG est cumulatif.
@@ -447,8 +447,40 @@ Fichiers modifiés :
 Fichier NAS :
 - Aucun fichier NAS à remplacer.
 
+
 ===============================================================================
-FICHIERS DE LA VERSION ACTUELLE v4.56
+VERSION PÉRENNE v2026.24 — 2026-08-13
+Base : TEST v4.56
+===============================================================================
+
+Reprise fonctionnelle :
+- Reprise intégrale des corrections TEST v4.54, v4.55 et v4.56.
+- GAAR : diagramme manuel et circuits sauvegardés/restaurés ; circuits indépendants du PDF ; sauvegarde automatique des modifications ; cadrage automatique sur le ou les circuits présents.
+- METAR/TAF : persistance uniquement pendant la journée opérationnelle ; effacement à la déconnexion du soir afin de ne pas restaurer une météo obsolète le lendemain.
+- NOTAMs : état des boutons corrigé après import automatique.
+- NOTAMs à garder : affichage vert conservé.
+- NOTAMs non sélectionnés : trait bleu clair et fond bleu très léger.
+- NOTAMs non désirables : cercle noir, trait noir et fond gris pastel.
+
+Règles pérennes :
+- Version affichée et interne : 2026.24.
+- Suppression des mentions TEST visibles.
+- Tour de France : FORÇAGE TEST DÉSACTIVÉ.
+- Tour de France : affichage uniquement du 04/07/2026 au 26/07/2026 inclus ; en dehors de cette période, la rubrique et son entrée de navigation restent masquées.
+- Source GAAR : bfg-v2026.24.
+- Source demande cartes des risques : bfg-v2026.24.
+- Service worker : version 2026.24.
+- Cache PWA : briefing-fdf-v2026-24-gaar-meteo-notams-r1.
+- Aucun fichier NAS à remplacer.
+
+Contrôles réalisés :
+- Vérification explicite de TDF_FORCE_DISPLAY_OVERRIDE = false.
+- Vérification de la fenêtre de dates Tour de France : 2026-07-04 à 2026-07-27 exclusif.
+- Vérification de l'absence de source bfg-test dans la version pérenne.
+- Vérification syntaxique JavaScript, service worker et manifeste JSON.
+
+===============================================================================
+FICHIERS DE LA VERSION ACTUELLE v2026.24
 ===============================================================================
 
 Fichiers modifiés :
