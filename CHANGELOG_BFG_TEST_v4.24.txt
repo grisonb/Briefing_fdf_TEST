@@ -1,6 +1,6 @@
-CHANGELOG CUMULATIF — BFG v2026.24
-Date : 2026-08-13
-Base pérenne : TEST v4.56
+CHANGELOG CUMULATIF — BFG TEST v4.57
+Date : 2026-08-15
+Base actuelle : TEST v4.56
 
 RÈGLE DU FICHIER
 - Ce CHANGELOG est cumulatif.
@@ -449,38 +449,30 @@ Fichier NAS :
 
 
 ===============================================================================
-VERSION PÉRENNE v2026.24 — 2026-08-13
+TEST v4.57 — 2026-08-15
 Base : TEST v4.56
 ===============================================================================
 
-Reprise fonctionnelle :
-- Reprise intégrale des corrections TEST v4.54, v4.55 et v4.56.
-- GAAR : diagramme manuel et circuits sauvegardés/restaurés ; circuits indépendants du PDF ; sauvegarde automatique des modifications ; cadrage automatique sur le ou les circuits présents.
-- METAR/TAF : persistance uniquement pendant la journée opérationnelle ; effacement à la déconnexion du soir afin de ne pas restaurer une météo obsolète le lendemain.
-- NOTAMs : état des boutons corrigé après import automatique.
-- NOTAMs à garder : affichage vert conservé.
-- NOTAMs non sélectionnés : trait bleu clair et fond bleu très léger.
-- NOTAMs non désirables : cercle noir, trait noir et fond gris pastel.
+Connexion Briefing / METAR-TAF :
+- Au premier lancement du BFG dans la journée, si l'iPad contient encore le jeton expiré de la veille, celui-ci est supprimé silencieusement.
+- Les METAR/TAF périmés restent effacés comme prévu, mais le message « Accès Briefing déconnecté automatiquement en fin de journée. Les METAR/TAF de la journée ont été effacés. » n'est plus affiché au premier lancement de la journée.
+- Le message de déconnexion automatique est conservé lorsqu'une session réellement active dans la page arrive à son échéance du soir.
+- Si la PWA était en arrière-plan au moment de l'échéance, le message reste autorisé au retour au premier plan uniquement si la session avait été active dans cette même page.
+- Toutes les règles d'expiration quotidienne de la météo de la v4.54 sont conservées.
 
-Règles pérennes :
-- Version affichée et interne : 2026.24.
-- Suppression des mentions TEST visibles.
-- Tour de France : FORÇAGE TEST DÉSACTIVÉ.
-- Tour de France : affichage uniquement du 04/07/2026 au 26/07/2026 inclus ; en dehors de cette période, la rubrique et son entrée de navigation restent masquées.
-- Source GAAR : bfg-v2026.24.
-- Source demande cartes des risques : bfg-v2026.24.
-- Service worker : version 2026.24.
-- Cache PWA : briefing-fdf-v2026-24-gaar-meteo-notams-r1.
+Autres fonctions :
+- Toutes les corrections GAAR et NOTAMs des v4.54, v4.55 et v4.56 sont conservées sans modification.
+
+Fichiers modifiés :
+- index.html
+- manifest.json
+- sw.js
+
+Fichier NAS :
 - Aucun fichier NAS à remplacer.
 
-Contrôles réalisés :
-- Vérification explicite de TDF_FORCE_DISPLAY_OVERRIDE = false.
-- Vérification de la fenêtre de dates Tour de France : 2026-07-04 à 2026-07-27 exclusif.
-- Vérification de l'absence de source bfg-test dans la version pérenne.
-- Vérification syntaxique JavaScript, service worker et manifeste JSON.
-
 ===============================================================================
-FICHIERS DE LA VERSION ACTUELLE v2026.24
+FICHIERS DE LA VERSION ACTUELLE v4.57
 ===============================================================================
 
 Fichiers modifiés :
