@@ -5,11 +5,11 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0">
-    <title>Briefing Fdf TEST v4.56</title>
-    <link rel="manifest" href="./manifest.json?v=4.56">
+    <title>Briefing Fdf</title>
+    <link rel="manifest" href="./manifest.json?v=2026.24">
     <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png?v=4.24">
     <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-title" content="Briefing TEST">
+    <meta name="apple-mobile-web-app-title" content="Briefing">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
     <meta name="theme-color" content="#0a2c5a">
 
@@ -1069,7 +1069,7 @@
             font-weight: bold;
         }
 
-        /* --- TOUR DE FRANCE TEST --- */
+        /* --- TOUR DE FRANCE --- */
         #tdf-section .tdf-controls {
             display: flex;
             flex-wrap: wrap;
@@ -2174,10 +2174,10 @@
 
     <div class="page-header">
         <div class="page-header-background"></div>
-        <h1 id="main-title">Briefing Fdf TEST v4.56</h1>
+        <h1 id="main-title">Briefing Fdf</h1>
         <p id="current-time-display"></p>
         <p style="position: relative; z-index: 2; text-align: center; color: #333; font-size: 1em; margin-top: -25px; margin-bottom: 30px;">
-    v<span id="app-version">4.56 TEST - fond bleu léger NOTAMs</span>
+    v<span id="app-version">2026.24</span>
     <button id="force-update-btn" class="link-button" style="background-color: #34495e; padding: 4px 10px; font-size: 0.8em; margin-left: 10px; vertical-align: middle;">
         Forcer MAJ
     </button>
@@ -2550,7 +2550,7 @@
     <footer>Données : Météo-France, SIA, Windy.com, CheckWX.com. Page non commerciale, à usage personnel.</footer>
     
     <script>
-        const APP_VERSION = "4.56 TEST - fond bleu léger NOTAMs";
+        const APP_VERSION = "2026.24";
 
         // --- Proxy NAS pour la source de données météo CheckWX ---
         const CHECKWX_PROXY_URL = "https://grisonb.synology.me/briefing-api/get-metar-taf.php";
@@ -2600,7 +2600,7 @@
 
 
 
-        // --- TOUR DE FRANCE TEST ---
+        // --- TOUR DE FRANCE ---
 // --- DONNÉES TOUR DE FRANCE 2026 ---
 const tdfStages = [
     { stage: 1, type: "C.L.M par équipe", name: "Barcelone > Barcelone", date: "2026-07-04", distance: "19 km", mapUrl: "./tdf2026/stage01.jpg", supAipUrl: null },
@@ -2657,11 +2657,10 @@ const tdfStages = [
             const tdfStartDate = '2026-07-04';
             const tdfHideDate = '2026-07-27';
 
-            // TEST v3.10 : affichage forcé de la fenêtre Tour de France pour tester les SUP AIP.
-            // Pour revenir au comportement opérationnel normal, remettre cette constante à false.
-            // Contrainte conservée : affichage normal uniquement du 04/07/2026 au 26/07/2026 inclus.
-            const TDF_FORCE_DISPLAY_FOR_TEST = true;
-            const shouldShowTdf = TDF_FORCE_DISPLAY_FOR_TEST || (today >= tdfStartDate && today < tdfHideDate);
+            // Version pérenne : aucun forçage de la rubrique Tour de France.
+            // Affichage uniquement du 04/07/2026 au 26/07/2026 inclus.
+            const TDF_FORCE_DISPLAY_OVERRIDE = false;
+            const shouldShowTdf = TDF_FORCE_DISPLAY_OVERRIDE || (today >= tdfStartDate && today < tdfHideDate);
 
             if (!shouldShowTdf) {
                 tdfSection.style.display = 'none';
@@ -4342,7 +4341,7 @@ const tdfStages = [
             }
         }
         window.onload = waitForPdfJsAndInitialize;
-        const BFG_REQUIRED_SW_VERSION_ = '4.56';
+        const BFG_REQUIRED_SW_VERSION_ = '2026.24';
 
         function queryBfgControllerVersion_(timeoutMs = 1800) {
             return new Promise((resolve) => {
@@ -4382,7 +4381,7 @@ const tdfStages = [
             }
 
             const registration = await navigator.serviceWorker.register(
-                './sw.js?v=4.56',
+                './sw.js?v=2026.24',
                 { updateViaCache: 'none' }
             );
 
@@ -5090,7 +5089,7 @@ const tdfStages = [
         async function requestGaarImportViaNas_() {
             const query = new URLSearchParams();
             query.set('t', String(Date.now()));
-            query.set('source', 'bfg-test-v4.56');
+            query.set('source', 'bfg-v2026.24');
 
             const url = `${GAAR_IMPORT_REQUEST_API_URL}?${query.toString()}`;
             const response = await fetchWithTimeout_(url, { cache: 'no-store' }, 65000);
@@ -5470,7 +5469,7 @@ const tdfStages = [
         }
 
         async function requestRiskMapGeneration_() {
-            const response = await fetch(`${BFG_RISK_MAP_REQUEST_URL}?source=bfg-test&v=${Date.now()}`, {
+            const response = await fetch(`${BFG_RISK_MAP_REQUEST_URL}?source=bfg-v2026.24&v=${Date.now()}`, {
                 cache: 'no-store',
                 headers: {
                     'Accept': 'application/json'
@@ -10456,7 +10455,7 @@ window.__notamTextFull = notamInput.value;
 
         function initializePageTitle() {
             const titleElement = document.getElementById('main-title');
-            titleElement.textContent = `Briefing Fdf TEST v4.56 du ${new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}`;
+            titleElement.textContent = `Briefing Fdf du ${new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}`;
             const timeDisplay = document.getElementById('current-time-display');
             const updateTime = () => timeDisplay.textContent = new Date().toLocaleTimeString('fr-FR');
             updateTime(); setInterval(updateTime, 1000);
