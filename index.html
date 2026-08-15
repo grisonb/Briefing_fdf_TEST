@@ -5,11 +5,11 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0">
-    <title>Briefing Fdf</title>
-    <link rel="manifest" href="./manifest.json?v=2026.24">
+    <title>Briefing Fdf TEST v4.57</title>
+    <link rel="manifest" href="./manifest.json?v=4.57">
     <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png?v=4.24">
     <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-title" content="Briefing">
+    <meta name="apple-mobile-web-app-title" content="Briefing TEST">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
     <meta name="theme-color" content="#0a2c5a">
 
@@ -1069,7 +1069,7 @@
             font-weight: bold;
         }
 
-        /* --- TOUR DE FRANCE --- */
+        /* --- TOUR DE FRANCE TEST --- */
         #tdf-section .tdf-controls {
             display: flex;
             flex-wrap: wrap;
@@ -2174,10 +2174,10 @@
 
     <div class="page-header">
         <div class="page-header-background"></div>
-        <h1 id="main-title">Briefing Fdf</h1>
+        <h1 id="main-title">Briefing Fdf TEST v4.57</h1>
         <p id="current-time-display"></p>
         <p style="position: relative; z-index: 2; text-align: center; color: #333; font-size: 1em; margin-top: -25px; margin-bottom: 30px;">
-    v<span id="app-version">2026.24</span>
+    v<span id="app-version">4.57 TEST - expiration météo silencieuse au démarrage</span>
     <button id="force-update-btn" class="link-button" style="background-color: #34495e; padding: 4px 10px; font-size: 0.8em; margin-left: 10px; vertical-align: middle;">
         Forcer MAJ
     </button>
@@ -2550,7 +2550,7 @@
     <footer>Données : Météo-France, SIA, Windy.com, CheckWX.com. Page non commerciale, à usage personnel.</footer>
     
     <script>
-        const APP_VERSION = "2026.24";
+        const APP_VERSION = "4.57 TEST - expiration météo silencieuse au démarrage";
 
         // --- Proxy NAS pour la source de données météo CheckWX ---
         const CHECKWX_PROXY_URL = "https://grisonb.synology.me/briefing-api/get-metar-taf.php";
@@ -2600,7 +2600,7 @@
 
 
 
-        // --- TOUR DE FRANCE ---
+        // --- TOUR DE FRANCE TEST ---
 // --- DONNÉES TOUR DE FRANCE 2026 ---
 const tdfStages = [
     { stage: 1, type: "C.L.M par équipe", name: "Barcelone > Barcelone", date: "2026-07-04", distance: "19 km", mapUrl: "./tdf2026/stage01.jpg", supAipUrl: null },
@@ -2657,10 +2657,11 @@ const tdfStages = [
             const tdfStartDate = '2026-07-04';
             const tdfHideDate = '2026-07-27';
 
-            // Version pérenne : aucun forçage de la rubrique Tour de France.
-            // Affichage uniquement du 04/07/2026 au 26/07/2026 inclus.
-            const TDF_FORCE_DISPLAY_OVERRIDE = false;
-            const shouldShowTdf = TDF_FORCE_DISPLAY_OVERRIDE || (today >= tdfStartDate && today < tdfHideDate);
+            // TEST v3.10 : affichage forcé de la fenêtre Tour de France pour tester les SUP AIP.
+            // Pour revenir au comportement opérationnel normal, remettre cette constante à false.
+            // Contrainte conservée : affichage normal uniquement du 04/07/2026 au 26/07/2026 inclus.
+            const TDF_FORCE_DISPLAY_FOR_TEST = true;
+            const shouldShowTdf = TDF_FORCE_DISPLAY_FOR_TEST || (today >= tdfStartDate && today < tdfHideDate);
 
             if (!shouldShowTdf) {
                 tdfSection.style.display = 'none';
@@ -3075,30 +3076,62 @@ const tdfStages = [
         }
 
         let bfgDailyWeatherExpiryTimer_ = null;
+        let bfgDailyExpiryArmedForCurrentPage_ = false;
 
-        function enforceBfgDailyExpiry_() {
+        function enforceBfgDailyExpiry_(options = {}) {
             const token = localStorage.getItem(CNCASC_TOKEN_STORAGE_KEY) || '';
             const exp = Number(localStorage.getItem(CNCASC_TOKEN_EXP_STORAGE_KEY) || 0);
             if (!token || !exp || exp > Date.now()) return false;
+
             clearCncascToken_();
             updateCncascAuthUi_();
             clearWeatherForDailyLogout_();
-            setCncascWarning_('Accès Briefing déconnecté automatiquement en fin de journée. Les METAR/TAF de la journée ont été effacés.');
+
+            // v4.57 :
+            // - ancien jeton retrouvé au premier lancement de la journée : nettoyage silencieux ;
+            // - session réellement active dans cette page puis arrivée à échéance : message conservé.
+            const shouldNotify = options.notify === true || bfgDailyExpiryArmedForCurrentPage_;
+            if (shouldNotify) {
+                setCncascWarning_('Accès Briefing déconnecté automatiquement en fin de journée. Les METAR/TAF de la journée ont été effacés.');
+            } else {
+                clearCncascWarning_();
+            }
+
+            bfgDailyExpiryArmedForCurrentPage_ = false;
             return true;
         }
 
         function scheduleBfgDailyExpiry_() {
-            if (bfgDailyWeatherExpiryTimer_ !== null) { clearTimeout(bfgDailyWeatherExpiryTimer_); bfgDailyWeatherExpiryTimer_ = null; }
-            if (enforceBfgDailyExpiry_()) return;
+            if (bfgDailyWeatherExpiryTimer_ !== null) {
+                clearTimeout(bfgDailyWeatherExpiryTimer_);
+                bfgDailyWeatherExpiryTimer_ = null;
+            }
+
+            // Au démarrage, un ancien jeton expiré est purgé sans afficher le message de fin de journée.
+            if (enforceBfgDailyExpiry_({ notify: false })) return;
+
             const token = localStorage.getItem(CNCASC_TOKEN_STORAGE_KEY) || '';
             const exp = Number(localStorage.getItem(CNCASC_TOKEN_EXP_STORAGE_KEY) || 0);
             if (!token || !exp || exp <= Date.now()) return;
+
+            // Une session valide existe réellement sur cette page : son expiration pourra être signalée.
+            bfgDailyExpiryArmedForCurrentPage_ = true;
+
             const delay = Math.max(100, Math.min(exp - Date.now() + 150, 2147483000));
-            bfgDailyWeatherExpiryTimer_ = setTimeout(() => { bfgDailyWeatherExpiryTimer_ = null; enforceBfgDailyExpiry_(); }, delay);
+            bfgDailyWeatherExpiryTimer_ = setTimeout(() => {
+                bfgDailyWeatherExpiryTimer_ = null;
+                enforceBfgDailyExpiry_({ notify: true });
+            }, delay);
         }
 
-        window.addEventListener('pageshow', () => setTimeout(enforceBfgDailyExpiry_, 0));
-        document.addEventListener('visibilitychange', () => { if (!document.hidden) enforceBfgDailyExpiry_(); });
+        window.addEventListener('pageshow', () => {
+            setTimeout(() => enforceBfgDailyExpiry_({ notify: bfgDailyExpiryArmedForCurrentPage_ }), 0);
+        });
+        document.addEventListener('visibilitychange', () => {
+            if (!document.hidden) {
+                enforceBfgDailyExpiry_({ notify: bfgDailyExpiryArmedForCurrentPage_ });
+            }
+        });
 
         function getAutoNotamAirportName_(icao) {
             const map = {
@@ -4341,7 +4374,7 @@ const tdfStages = [
             }
         }
         window.onload = waitForPdfJsAndInitialize;
-        const BFG_REQUIRED_SW_VERSION_ = '2026.24';
+        const BFG_REQUIRED_SW_VERSION_ = '4.57';
 
         function queryBfgControllerVersion_(timeoutMs = 1800) {
             return new Promise((resolve) => {
@@ -4381,7 +4414,7 @@ const tdfStages = [
             }
 
             const registration = await navigator.serviceWorker.register(
-                './sw.js?v=2026.24',
+                './sw.js?v=4.57',
                 { updateViaCache: 'none' }
             );
 
@@ -5089,7 +5122,7 @@ const tdfStages = [
         async function requestGaarImportViaNas_() {
             const query = new URLSearchParams();
             query.set('t', String(Date.now()));
-            query.set('source', 'bfg-v2026.24');
+            query.set('source', 'bfg-test-v4.57');
 
             const url = `${GAAR_IMPORT_REQUEST_API_URL}?${query.toString()}`;
             const response = await fetchWithTimeout_(url, { cache: 'no-store' }, 65000);
@@ -5469,7 +5502,7 @@ const tdfStages = [
         }
 
         async function requestRiskMapGeneration_() {
-            const response = await fetch(`${BFG_RISK_MAP_REQUEST_URL}?source=bfg-v2026.24&v=${Date.now()}`, {
+            const response = await fetch(`${BFG_RISK_MAP_REQUEST_URL}?source=bfg-test&v=${Date.now()}`, {
                 cache: 'no-store',
                 headers: {
                     'Accept': 'application/json'
@@ -10455,7 +10488,7 @@ window.__notamTextFull = notamInput.value;
 
         function initializePageTitle() {
             const titleElement = document.getElementById('main-title');
-            titleElement.textContent = `Briefing Fdf du ${new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}`;
+            titleElement.textContent = `Briefing Fdf TEST v4.57 du ${new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}`;
             const timeDisplay = document.getElementById('current-time-display');
             const updateTime = () => timeDisplay.textContent = new Date().toLocaleTimeString('fr-FR');
             updateTime(); setInterval(updateTime, 1000);
