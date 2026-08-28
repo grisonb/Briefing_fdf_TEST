@@ -1,6 +1,6 @@
-CHANGELOG CUMULATIF — BFG TEST v4.58
+CHANGELOG CUMULATIF — BFG TEST v4.59
 Date : 2026-08-28
-Base actuelle : TEST v4.57
+Base actuelle : TEST v4.58
 
 RÈGLE DU FICHIER
 - Ce CHANGELOG est cumulatif.
@@ -501,6 +501,40 @@ Fichiers modifiés :
 
 Fichier NAS :
 - Aucun fichier NAS à remplacer.
+
+===============================================================================
+TEST v4.59 — 2026-08-28
+Base : TEST v4.58
+===============================================================================
+
+AUTORISATION NPF VIA BFG :
+- Le diagnostic de partage localStorage v4.58 est retiré : le test iPad a confirmé que les deux PWA sont isolées.
+- Après validation du mot de passe Briefing, BFG réutilise ce mot de passe uniquement en mémoire pour appeler le pont NAS `npf-docs-api.php?action=bridge-grant`.
+- Le mot de passe n'est jamais enregistré par BFG pour cette fonction.
+- Première utilisation uniquement : BFG affiche un code d'association à 8 chiffres valable 20 minutes.
+- Après l'association initiale avec NPF, les connexions BFG suivantes autorisent automatiquement cette installation NPF jusqu'à minuit.
+- Une panne ou indisponibilité du pont NPF ne bloque jamais la connexion BFG ni l'actualisation CNCASC.
+- BFG conserve localement uniquement l'identifiant non secret de l'association, l'échéance de l'autorisation et, tant qu'il est valide, le code d'association initial.
+
+Fichiers BFG modifiés :
+- index.html
+- manifest.json
+- sw.js
+
+Fichier NAS nécessaire :
+- /web/briefing-api/npf-docs-api.php (version pont BFG / NPF v15.99)
+
+===============================================================================
+FICHIERS DE LA VERSION ACTUELLE v4.59
+===============================================================================
+
+Fichiers modifiés :
+- index.html
+- manifest.json
+- sw.js
+
+Fichier NAS :
+- npf-docs-api.php v15.99 pont BFG / NPF.
 
 ===============================================================================
 FICHIERS DE LA VERSION ACTUELLE v4.58
