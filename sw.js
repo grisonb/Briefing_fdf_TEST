@@ -1,5 +1,5 @@
-const BFG_SW_VERSION = '4.58';
-const CACHE_NAME = 'briefing-fdf-test-v4.58-stockage-partage-npf-r1';
+const BFG_SW_VERSION = '4.59';
+const CACHE_NAME = 'briefing-fdf-test-v4.59-auth-npf-bridge-r1';
 
 const LOCAL_ASSETS = [
   './manifest.json',
