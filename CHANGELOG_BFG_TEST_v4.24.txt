@@ -1,6 +1,6 @@
-CHANGELOG CUMULATIF — BFG TEST v4.57
-Date : 2026-08-15
-Base actuelle : TEST v4.56
+CHANGELOG CUMULATIF — BFG TEST v4.58
+Date : 2026-08-28
+Base actuelle : TEST v4.57
 
 RÈGLE DU FICHIER
 - Ce CHANGELOG est cumulatif.
@@ -472,7 +472,38 @@ Fichier NAS :
 - Aucun fichier NAS à remplacer.
 
 ===============================================================================
-FICHIERS DE LA VERSION ACTUELLE v4.57
+TEST v4.58 — 2026-08-28
+Base : TEST v4.57
+===============================================================================
+
+DIAGNOSTIC BFG / NPF — PARTAGE DE STOCKAGE SUR IPAD :
+- Après une connexion Briefing BFG réussie, BFG écrit une clé de diagnostic dans son localStorage :
+  `npf_bfg_storage_test_v1`.
+- La valeur contient uniquement un marqueur neutre (`OK_BFG_20260828`), la source BFG TEST,
+  la version 4.58 et l'heure d'écriture.
+- Aucun mot de passe n'est enregistré.
+- Aucun jeton CNCASC / NAS n'est copié dans cette clé.
+- Le marqueur persiste après fermeture de BFG afin que NPF TEST puisse tenter de le lire
+  depuis sa propre PWA installée.
+- Aucune logique fonctionnelle BFG n'est modifiée en dehors de ce diagnostic.
+
+PROTOCOLE :
+1. Ouvrir BFG TEST v4.58 depuis son icône PWA.
+2. Se connecter normalement au Briefing.
+3. Fermer BFG.
+4. Ouvrir ensuite NPF TEST équipé du lecteur de diagnostic.
+5. NPF indiquera si `npf_bfg_storage_test_v1` est visible ou non.
+
+Fichiers modifiés :
+- index.html
+- manifest.json
+- sw.js
+
+Fichier NAS :
+- Aucun fichier NAS à remplacer.
+
+===============================================================================
+FICHIERS DE LA VERSION ACTUELLE v4.58
 ===============================================================================
 
 Fichiers modifiés :
