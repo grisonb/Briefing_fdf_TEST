@@ -5,8 +5,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0">
-    <title>Briefing Fdf TEST v4.58</title>
-    <link rel="manifest" href="./manifest.json?v=4.58">
+    <title>Briefing Fdf TEST v4.59</title>
+    <link rel="manifest" href="./manifest.json?v=4.59">
     <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png?v=4.24">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-title" content="Briefing TEST">
@@ -2174,10 +2174,10 @@
 
     <div class="page-header">
         <div class="page-header-background"></div>
-        <h1 id="main-title">Briefing Fdf TEST v4.58</h1>
+        <h1 id="main-title">Briefing Fdf TEST v4.59</h1>
         <p id="current-time-display"></p>
         <p style="position: relative; z-index: 2; text-align: center; color: #333; font-size: 1em; margin-top: -25px; margin-bottom: 30px;">
-    v<span id="app-version">4.58 TEST - diagnostic stockage partagé BFG / NPF</span>
+    v<span id="app-version">4.59 TEST - autorisation NPF via BFG</span>
     <button id="force-update-btn" class="link-button" style="background-color: #34495e; padding: 4px 10px; font-size: 0.8em; margin-left: 10px; vertical-align: middle;">
         Forcer MAJ
     </button>
@@ -2195,6 +2195,7 @@
         </div>
         <p id="cncasc-auth-status">Accès Briefing verrouillé.</p>
         <p id="cncasc-warning" class="cncasc-warning"></p>
+        <p id="bfg-npf-bridge-status" style="margin:10px 0 0 0;font-weight:800;color:#0a2c5a;line-height:1.35;"></p>
     </div>
 
     <div class="session-management" id="session-section">
@@ -2550,7 +2551,7 @@
     <footer>Données : Météo-France, SIA, Windy.com, CheckWX.com. Page non commerciale, à usage personnel.</footer>
     
     <script>
-        const APP_VERSION = "4.58 TEST - diagnostic stockage partagé BFG / NPF";
+        const APP_VERSION = "4.59 TEST - autorisation NPF via BFG";
 
         // --- Proxy NAS pour la source de données météo CheckWX ---
         const CHECKWX_PROXY_URL = "https://grisonb.synology.me/briefing-api/get-metar-taf.php";
@@ -2801,6 +2802,7 @@ const tdfStages = [
         const CNCASC_DISPO_API_URL = 'https://grisonb.synology.me/briefing-api/dispo-cncasc.php';
         const CNCASC_FDF_API_URL = 'https://grisonb.synology.me/briefing-api/get-cncasc-fdf.php';
         const CNCASC_AUTH_API_URL = 'https://grisonb.synology.me/briefing-api/auth-cncasc.php';
+        const NPF_BRIDGE_API_URL = 'https://grisonb.synology.me/briefing-api/npf-docs-api.php';
         const NOTAMS_AUTO_PDF_API_URL = 'https://grisonb.synology.me/briefing-api/get-notams-pdf.php';
         const NOTAMS_GENERATION_REQUEST_API_URL = 'https://grisonb.synology.me/briefing-api/request-notams-generation.php';
         const NOTAMS_GENERATION_STATUS_API_URL = 'https://grisonb.synology.me/briefing-api/get-notams-generation-status.php';
@@ -2885,27 +2887,101 @@ const tdfStages = [
         const CNCASC_TOKEN_EXP_STORAGE_KEY = 'bfg_cncasc_token_exp_v1';
         const BFG_LOGIN_END_HOUR_LOCAL = 23;
 
-        // v4.58 TEST — diagnostic de partage localStorage avec la PWA NPF.
-        // Aucune donnée sensible n'est écrite : ni mot de passe, ni jeton d'authentification.
-        const BFG_NPF_STORAGE_TEST_KEY = 'npf_bfg_storage_test_v1';
-        const BFG_NPF_STORAGE_TEST_MARKER = 'OK_BFG_20260828';
+        // v4.59 — pont d'autorisation BFG -> NPF.
+        // Le mot de passe n'est jamais stocké : il est réutilisé uniquement en mémoire,
+        // juste après la connexion BFG, pour autoriser l'installation NPF associée.
+        const BFG_NPF_BRIDGE_ID_KEY = 'bfgNpfBridgeIdV1';
+        const BFG_NPF_BRIDGE_PAIR_CODE_KEY = 'bfgNpfBridgePairCodeV1';
+        const BFG_NPF_BRIDGE_PAIR_CODE_EXP_KEY = 'bfgNpfBridgePairCodeExpV1';
+        const BFG_NPF_BRIDGE_GRANT_EXP_KEY = 'bfgNpfBridgeGrantExpV1';
 
-        function writeBfgNpfStorageTestMarker_() {
+        function getStoredBfgNpfBridgeId_() {
             try {
-                localStorage.setItem(
-                    BFG_NPF_STORAGE_TEST_KEY,
-                    JSON.stringify({
-                        marker: BFG_NPF_STORAGE_TEST_MARKER,
-                        source: 'BFG_TEST',
-                        version: '4.58',
-                        writtenAt: new Date().toISOString()
-                    })
-                );
-                console.info('[BFG v4.58] Marqueur de test localStorage NPF enregistré.');
+                const value = String(localStorage.getItem(BFG_NPF_BRIDGE_ID_KEY) || '').trim().toLowerCase();
+                return /^[a-f0-9]{32}$/.test(value) ? value : '';
+            } catch (_) {
+                return '';
+            }
+        }
+
+        function updateBfgNpfBridgeStatus_() {
+            const el = document.getElementById('bfg-npf-bridge-status');
+            if (!el) return;
+            let bridgeId = '';
+            let code = '';
+            let codeExp = 0;
+            let grantExp = 0;
+            try {
+                bridgeId = getStoredBfgNpfBridgeId_();
+                code = String(localStorage.getItem(BFG_NPF_BRIDGE_PAIR_CODE_KEY) || '');
+                codeExp = Number(localStorage.getItem(BFG_NPF_BRIDGE_PAIR_CODE_EXP_KEY) || 0);
+                grantExp = Number(localStorage.getItem(BFG_NPF_BRIDGE_GRANT_EXP_KEY) || 0);
+            } catch (_) {}
+
+            if (code && codeExp > Date.now()) {
+                el.textContent = `NPF : association initiale — code ${code} (valable jusqu’à ${new Date(codeExp).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}). Dans NPF : FdS/GAAR > Code BFG.`;
+                return;
+            }
+            if (grantExp > Date.now()) {
+                el.textContent = `NPF : autorisation transmise jusqu’à ${new Date(grantExp).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}.`;
+                return;
+            }
+            if (bridgeId) {
+                el.textContent = 'NPF : association enregistrée. Elle sera autorisée lors de la prochaine connexion Briefing.';
+                return;
+            }
+            el.textContent = 'NPF : non associé. La première connexion Briefing générera un code d’association.';
+        }
+
+        async function grantNpfFromBfgPassword_(password) {
+            const cleanPassword = String(password || '');
+            if (!cleanPassword || !navigator.onLine) {
+                updateBfgNpfBridgeStatus_();
+                return false;
+            }
+
+            const controller = new AbortController();
+            const timer = setTimeout(() => controller.abort(), 8000);
+            try {
+                const bridgeId = getStoredBfgNpfBridgeId_();
+                const response = await fetch(`${NPF_BRIDGE_API_URL}?action=bridge-grant&t=${Date.now()}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ password: cleanPassword, bridgeId }),
+                    cache: 'no-store',
+                    signal: controller.signal
+                });
+                const payload = await response.json().catch(() => null);
+                if (!response.ok || !payload || payload.ok !== true || !payload.bridgeId) {
+                    throw new Error(payload?.message || payload?.error || `HTTP ${response.status}`);
+                }
+
+                const grantExp = Date.parse(String(payload.grantExpiresAt || ''));
+                const pairExp = Date.parse(String(payload.pairingExpiresAt || ''));
+                try {
+                    localStorage.setItem(BFG_NPF_BRIDGE_ID_KEY, String(payload.bridgeId));
+                    if (Number.isFinite(grantExp)) {
+                        localStorage.setItem(BFG_NPF_BRIDGE_GRANT_EXP_KEY, String(grantExp));
+                    }
+                    if (payload.paired === true) {
+                        localStorage.removeItem(BFG_NPF_BRIDGE_PAIR_CODE_KEY);
+                        localStorage.removeItem(BFG_NPF_BRIDGE_PAIR_CODE_EXP_KEY);
+                    } else if (payload.pairingCode) {
+                        localStorage.setItem(BFG_NPF_BRIDGE_PAIR_CODE_KEY, String(payload.pairingCode));
+                        if (Number.isFinite(pairExp)) {
+                            localStorage.setItem(BFG_NPF_BRIDGE_PAIR_CODE_EXP_KEY, String(pairExp));
+                        }
+                    }
+                } catch (_) {}
+                updateBfgNpfBridgeStatus_();
                 return true;
             } catch (error) {
-                console.warn('[BFG v4.58] Impossible d’écrire le marqueur localStorage NPF:', error);
+                console.warn('[BFG -> NPF] Autorisation automatique indisponible:', error);
+                const el = document.getElementById('bfg-npf-bridge-status');
+                if (el) el.textContent = 'NPF : autorisation automatique indisponible. BFG reste fonctionnel.';
                 return false;
+            } finally {
+                clearTimeout(timer);
             }
         }
 
@@ -3639,6 +3715,7 @@ const tdfStages = [
             } else {
                 status.textContent = 'Accès Briefing déconnecté : saisir le code accès puis cliquer sur Connexion.';
             }
+            updateBfgNpfBridgeStatus_();
         }
 
         async function unlockCncascAndSync_() {
@@ -3677,9 +3754,9 @@ const tdfStages = [
                     throw new Error('Jeton CNCASC invalide.');
                 }
 
-                // v4.58 TEST : marqueur neutre pour vérifier si NPF installé
-                // séparément voit le même localStorage.
-                writeBfgNpfStorageTestMarker_();
+                // v4.59 — le même mot de passe, encore uniquement en mémoire,
+                // autorise l'installation NPF associée. Une panne de ce pont ne bloque jamais BFG.
+                await grantNpfFromBfgPassword_(password);
 
                 if (input) input.value = '';
                 clearCncascWarning_();
@@ -4378,6 +4455,7 @@ const tdfStages = [
 
             initPelicModal_();
             updateCncascAuthUi_();
+            updateBfgNpfBridgeStatus_();
 
             // Si une session du jour est encore valide sur cet iPad, les données sont actualisées automatiquement.
             if (getStoredCncascToken_()) {
@@ -4402,7 +4480,7 @@ const tdfStages = [
             }
         }
         window.onload = waitForPdfJsAndInitialize;
-        const BFG_REQUIRED_SW_VERSION_ = '4.58';
+        const BFG_REQUIRED_SW_VERSION_ = '4.59';
 
         function queryBfgControllerVersion_(timeoutMs = 1800) {
             return new Promise((resolve) => {
@@ -4442,7 +4520,7 @@ const tdfStages = [
             }
 
             const registration = await navigator.serviceWorker.register(
-                './sw.js?v=4.58',
+                './sw.js?v=4.59',
                 { updateViaCache: 'none' }
             );
 
@@ -5150,7 +5228,7 @@ const tdfStages = [
         async function requestGaarImportViaNas_() {
             const query = new URLSearchParams();
             query.set('t', String(Date.now()));
-            query.set('source', 'bfg-test-v4.58');
+            query.set('source', 'bfg-test-v4.59');
 
             const url = `${GAAR_IMPORT_REQUEST_API_URL}?${query.toString()}`;
             const response = await fetchWithTimeout_(url, { cache: 'no-store' }, 65000);
@@ -10516,7 +10594,7 @@ window.__notamTextFull = notamInput.value;
 
         function initializePageTitle() {
             const titleElement = document.getElementById('main-title');
-            titleElement.textContent = `Briefing Fdf TEST v4.58 du ${new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}`;
+            titleElement.textContent = `Briefing Fdf TEST v4.59 du ${new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}`;
             const timeDisplay = document.getElementById('current-time-display');
             const updateTime = () => timeDisplay.textContent = new Date().toLocaleTimeString('fr-FR');
             updateTime(); setInterval(updateTime, 1000);
