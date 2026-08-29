@@ -1,7 +1,7 @@
 {
   "name": "Briefing FDF TEST",
   "short_name": "Briefing TEST",
-  "description": "Briefing FDF TEST v4.59 — autorisation NPF via BFG",
+  "description": "Briefing FDF TEST v4.60 — synchronisation locale NOTAM NPF",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
