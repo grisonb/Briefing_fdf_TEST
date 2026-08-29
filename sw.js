@@ -1,5 +1,5 @@
-const BFG_SW_VERSION = '4.60';
-const CACHE_NAME = 'briefing-fdf-test-v4.60-notams-npf-r1';
+const BFG_SW_VERSION = '4.61';
+const CACHE_NAME = 'briefing-fdf-test-v4.61-notams-nas-npf-r1';
 
 const LOCAL_ASSETS = [
   './manifest.json',
@@ -170,7 +170,7 @@ self.addEventListener('activate', (event) => {
     // de l'application, puis seulement supprimer les anciens caches.
     await migratePreviousBfgDataCaches_();
     const keys = await caches.keys();
-    // v4.60 : ne supprimer que les anciens caches applicatifs BFG.
+    // v4.61 : ne supprimer que les anciens caches applicatifs BFG.
     // Le cache local partagé BFG/NPF des NOTAM et les caches NPF doivent rester intacts.
     const oldBfgCaches = keys.filter((key) =>
       key.startsWith('briefing-fdf-test-') && key !== CACHE_NAME
