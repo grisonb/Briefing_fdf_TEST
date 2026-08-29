@@ -5,8 +5,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0">
-    <title>Briefing Fdf TEST v4.59</title>
-    <link rel="manifest" href="./manifest.json?v=4.59">
+    <title>Briefing Fdf TEST v4.60</title>
+    <link rel="manifest" href="./manifest.json?v=4.60">
     <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png?v=4.24">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-title" content="Briefing TEST">
@@ -2174,10 +2174,10 @@
 
     <div class="page-header">
         <div class="page-header-background"></div>
-        <h1 id="main-title">Briefing Fdf TEST v4.59</h1>
+        <h1 id="main-title">Briefing Fdf TEST v4.60</h1>
         <p id="current-time-display"></p>
         <p style="position: relative; z-index: 2; text-align: center; color: #333; font-size: 1em; margin-top: -25px; margin-bottom: 30px;">
-    v<span id="app-version">4.59 TEST - autorisation NPF via BFG</span>
+    v<span id="app-version">4.60 TEST - synchro NOTAM NPF</span>
     <button id="force-update-btn" class="link-button" style="background-color: #34495e; padding: 4px 10px; font-size: 0.8em; margin-left: 10px; vertical-align: middle;">
         Forcer MAJ
     </button>
@@ -2551,7 +2551,7 @@
     <footer>Données : Météo-France, SIA, Windy.com, CheckWX.com. Page non commerciale, à usage personnel.</footer>
     
     <script>
-        const APP_VERSION = "4.59 TEST - autorisation NPF via BFG";
+        const APP_VERSION = "4.60 TEST - synchro NOTAM NPF";
 
         // --- Proxy NAS pour la source de données météo CheckWX ---
         const CHECKWX_PROXY_URL = "https://grisonb.synology.me/briefing-api/get-metar-taf.php";
@@ -4480,7 +4480,7 @@ const tdfStages = [
             }
         }
         window.onload = waitForPdfJsAndInitialize;
-        const BFG_REQUIRED_SW_VERSION_ = '4.59';
+        const BFG_REQUIRED_SW_VERSION_ = '4.60';
 
         function queryBfgControllerVersion_(timeoutMs = 1800) {
             return new Promise((resolve) => {
@@ -4520,7 +4520,7 @@ const tdfStages = [
             }
 
             const registration = await navigator.serviceWorker.register(
-                './sw.js?v=4.59',
+                './sw.js?v=4.60',
                 { updateViaCache: 'none' }
             );
 
@@ -5228,7 +5228,7 @@ const tdfStages = [
         async function requestGaarImportViaNas_() {
             const query = new URLSearchParams();
             query.set('t', String(Date.now()));
-            query.set('source', 'bfg-test-v4.59');
+            query.set('source', 'bfg-test-v4.60');
 
             const url = `${GAAR_IMPORT_REQUEST_API_URL}?${query.toString()}`;
             const response = await fetchWithTimeout_(url, { cache: 'no-store' }, 65000);
@@ -9752,6 +9752,79 @@ window.__notamTextFull = notamInput.value;
                 }
             }
 
+            /* v4.60 — snapshot NOTAM local partagé avec NPF via CacheStorage.
+             * Sur iPad, localStorage/IndexedDB des PWA installées peuvent être isolés ;
+             * CacheStorage est donc le canal local principal. Aucun appel NAS n'est ajouté.
+             */
+            const BFG_NPF_NOTAMS_SHARED_CACHE_NAME_ = 'bfg-npf-shared-notams-v1';
+            const BFG_NPF_NOTAMS_SHARED_LOCAL_KEY_ = 'bfgNpfSharedNotamsV1';
+            const BFG_NPF_NOTAMS_SHARED_URL_PATH_ = '/__bfg_npf_shared__/notams-v1.json';
+            let bfgNpfNotamsSharedPublishTimer_ = null;
+
+            function getBfgNpfNotamsSharedUrl_() {
+                try {
+                    return new URL(BFG_NPF_NOTAMS_SHARED_URL_PATH_, window.location.origin).toString();
+                } catch (_) {
+                    return BFG_NPF_NOTAMS_SHARED_URL_PATH_;
+                }
+            }
+
+            async function publishBfgNpfNotamsSharedSnapshot_() {
+                const notamText = String(window.__notamTextFull || notamInput?.value || '').trim();
+                if (!notamText) return false;
+
+                const payload = {
+                    version: 'bfgNpfNotamsV1',
+                    source: 'BFG',
+                    publishedAt: new Date().toISOString(),
+                    notamsAutoPdfStatus: loadNotamsAutoPdfStatus_() || null,
+                    notamText,
+                    state: readPersistentNotamState_()
+                };
+                const serialized = JSON.stringify(payload);
+                let written = false;
+
+                if ('caches' in window) {
+                    try {
+                        const cache = await caches.open(BFG_NPF_NOTAMS_SHARED_CACHE_NAME_);
+                        await cache.put(
+                            getBfgNpfNotamsSharedUrl_(),
+                            new Response(serialized, {
+                                headers: {
+                                    'Content-Type': 'application/json; charset=utf-8',
+                                    'Cache-Control': 'no-store'
+                                }
+                            })
+                        );
+                        written = true;
+                    } catch (error) {
+                        console.warn('BFG NOTAMS -> NPF : publication CacheStorage impossible.', error);
+                    }
+                }
+
+                // Fallback utile en navigateur/desktop lorsque le Web Storage est partagé.
+                try {
+                    localStorage.setItem(BFG_NPF_NOTAMS_SHARED_LOCAL_KEY_, serialized);
+                    written = true;
+                } catch (_) {}
+
+                return written;
+            }
+
+            function scheduleBfgNpfNotamsSharedPublish_(delayMs = 220) {
+                if (bfgNpfNotamsSharedPublishTimer_ !== null) {
+                    clearTimeout(bfgNpfNotamsSharedPublishTimer_);
+                }
+                bfgNpfNotamsSharedPublishTimer_ = setTimeout(() => {
+                    bfgNpfNotamsSharedPublishTimer_ = null;
+                    publishBfgNpfNotamsSharedSnapshot_().catch(error => {
+                        console.warn('BFG NOTAMS -> NPF : publication locale différée impossible.', error);
+                    });
+                }, Math.max(100, Number(delayMs) || 220));
+            }
+
+            window.publishBfgNpfNotamsSharedSnapshot_ = publishBfgNpfNotamsSharedSnapshot_;
+
             function captureCurrentNotamStateForPersistence_() {
                 const byId = {};
                 document.querySelectorAll('#notam-display .notam-item').forEach(item => {
@@ -9786,6 +9859,7 @@ window.__notamTextFull = notamInput.value;
 
             function persistCurrentNotamState_() {
                 writePersistentNotamState_(captureCurrentNotamStateForPersistence_());
+                scheduleBfgNpfNotamsSharedPublish_(180);
             }
 
             function stateEntryMatchesCurrentNotam_(item, entry) {
@@ -9948,6 +10022,7 @@ window.__notamTextFull = notamInput.value;
                     if (hasCheckedSavedState) applySelectionFilter();
                 }
                 updatePersistentHiddenNotamsVisibility_();
+                scheduleBfgNpfNotamsSharedPublish_(260);
             }
             
             function applySelectionFilter() {
@@ -10594,7 +10669,7 @@ window.__notamTextFull = notamInput.value;
 
         function initializePageTitle() {
             const titleElement = document.getElementById('main-title');
-            titleElement.textContent = `Briefing Fdf TEST v4.59 du ${new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}`;
+            titleElement.textContent = `Briefing Fdf TEST v4.60 du ${new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}`;
             const timeDisplay = document.getElementById('current-time-display');
             const updateTime = () => timeDisplay.textContent = new Date().toLocaleTimeString('fr-FR');
             updateTime(); setInterval(updateTime, 1000);
