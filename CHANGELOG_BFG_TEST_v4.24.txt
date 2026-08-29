@@ -1,6 +1,6 @@
-CHANGELOG CUMULATIF — BFG TEST v4.59
-Date : 2026-08-28
-Base actuelle : TEST v4.58
+CHANGELOG CUMULATIF — BFG TEST v4.60
+Date : 2026-08-29
+Base actuelle : TEST v4.59
 
 RÈGLE DU FICHIER
 - Ce CHANGELOG est cumulatif.
@@ -547,3 +547,39 @@ Fichiers modifiés :
 
 Fichier NAS :
 - Aucun fichier NAS à remplacer.
+
+===============================================================================
+TEST v4.60 — 2026-08-29
+Base : TEST v4.59
+===============================================================================
+
+SYNCHRONISATION LOCALE NOTAM BFG → NPF :
+- Après import/analyse des NOTAM dans BFG, BFG publie automatiquement un snapshot local destiné à NPF.
+- Le snapshot contient le texte complet des NOTAM, l'horodatage du dernier PDF NOTAM automatique et l'état persistant de chaque NOTAM.
+- Les états « garder » et « exclure » sont repris avec l'identifiant/signature stable du NOTAM.
+- Toute modification de sélection/exclusion dans BFG déclenche une republication locale différée du snapshot.
+- NPF n'a pas besoin d'être ouvert au moment de la mise à jour : BFG alimente le stockage local partagé pendant son propre fonctionnement.
+- Sur iPad/PWA, le canal principal retenu est CacheStorage sous l'origine commune grisonb.github.io, afin d'éviter de dépendre du partage de localStorage/IndexedDB entre PWA installées.
+- Un fallback localStorage est conservé pour les navigateurs/environnements où ce stockage est partagé.
+- Aucun nouvel appel NAS n'est ajouté pour cette synchronisation : elle réutilise uniquement les NOTAM déjà chargés dans BFG.
+- Aucun mot de passe, jeton CNCASC ou secret d'authentification n'est copié dans le snapshot NOTAM partagé.
+
+COMPATIBILITÉ NPF :
+- Le snapshot publié utilise le format `bfgNpfNotamsV1`.
+- NPF TEST v16.05 peut le lire localement et n'affiche les NOTAM que si l'horodatage du PDF source correspond au jour en cours.
+- Les choix BFG « garder / exclure » servent d'état initial dans la fenêtre NOTAMS des pélicandromes NPF.
+
+AUTRES FONCTIONS :
+- Autorisation NPF via BFG v4.59 conservée sans modification fonctionnelle.
+- Import automatique NOTAM NAS/VPS conservé.
+- FDS, GAAR, METAR/TAF, partage, sauvegarde et autres fonctions BFG inchangés hors adaptation de version.
+
+Fichiers BFG modifiés :
+- index.html
+- manifest.json
+- sw.js
+
+Fichier NAS :
+- Aucun nouveau fichier NAS à remplacer pour v4.60.
+- Le pont `npf-docs-api.php` de v4.59 reste inchangé.
+
