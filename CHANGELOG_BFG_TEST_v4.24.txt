@@ -1,4 +1,4 @@
-CHANGELOG CUMULATIF — BFG TEST v4.60
+CHANGELOG CUMULATIF — BFG TEST v4.61
 Date : 2026-08-29
 Base actuelle : TEST v4.59
 
@@ -582,4 +582,35 @@ Fichiers BFG modifiés :
 Fichier NAS :
 - Aucun nouveau fichier NAS à remplacer pour v4.60.
 - Le pont `npf-docs-api.php` de v4.59 reste inchangé.
+===============================================================================
+TEST v4.61 — 2026-08-29
+Base : TEST v4.60
+===============================================================================
+
+IMPORT AUTOMATIQUE NOTAM À LA CONNEXION :
+- Lors de la première ouverture nécessitant la saisie du mot de passe Briefing, une authentification réussie déclenche automatiquement l'import NOTAM.
+- BFG lance la génération NATS/VPS existante, télécharge le nouveau PDF, extrait les NOTAM et les sauvegarde localement sans clic sur « Importation Auto ».
+- L'actualisation CNCASC existante reste exécutée avant l'import NOTAM.
+- Une erreur NOTAM ne remet pas en cause l'authentification BFG déjà réussie.
+
+SYNCHRONISATION BFG -> NPF CORRIGÉE POUR iPad :
+- Le partage CacheStorage/localStorage de v4.60 n'est plus le canal principal, car deux PWA installées peuvent être isolées par iPadOS/WebKit.
+- Après authentification, BFG obtient avec le même mot de passe une session courte NPF Docs expirant à minuit ; le mot de passe n'est pas stocké.
+- Après chaque import NOTAM réussi, BFG publie immédiatement le snapshot `bfgNpfNotamsV1` sur le NAS via `npf-docs-api.php?action=notams-publish`.
+- Les changements ultérieurs des cases « garder » / « exclure » republient le snapshot de manière différée et regroupée.
+- Le snapshot NAS contient le texte NOTAM, l'horodatage du PDF et l'état persistant BFG, mais aucun mot de passe ni jeton d'authentification.
+- CacheStorage/localStorage sont conservés uniquement comme secours local navigateur/desktop.
+
+COMPATIBILITÉ NPF :
+- NPF TEST v16.06 récupère automatiquement le snapshot NAS et le stocke dans son propre IndexedDB.
+- NPF peut ensuite afficher les NOTAM hors ligne, sous réserve que le PDF source soit du jour en cours.
+
+Fichiers BFG modifiés :
+- index.html
+- manifest.json
+- sw.js
+
+Fichier NAS nécessaire :
+- `/web/briefing-api/npf-docs-api.php` version v16.06 NOTAM snapshot.
+
 
