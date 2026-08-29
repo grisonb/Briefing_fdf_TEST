@@ -1,7 +1,7 @@
 {
   "name": "Briefing FDF TEST",
   "short_name": "Briefing TEST",
-  "description": "Briefing FDF TEST v4.60 — synchronisation locale NOTAM NPF",
+  "description": "Briefing FDF TEST v4.61 — NOTAM auto + synchronisation NAS vers NPF",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
