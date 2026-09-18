@@ -1,6 +1,6 @@
-CHANGELOG CUMULATIF — BFG TEST v4.62
+CHANGELOG CUMULATIF — BFG TEST v4.64
 Date : 2026-09-18
-Base actuelle : TEST v4.61
+Base actuelle : TEST v4.63
 
 RÈGLE DU FICHIER
 - Ce CHANGELOG est cumulatif.
@@ -690,8 +690,99 @@ Tests techniques effectués avant livraison :
 - Syntaxe PHP vérifiée avec `php -l`.
 - Test local complet du protocole prévu : login -> code 8 chiffres -> création/relecture pont -> claim -> ancien code refusé -> session NPF.
 
+
 ===============================================================================
-FICHIERS DE LA VERSION ACTUELLE v4.62
+TEST v4.63 — 2026-09-18
+Base : TEST v4.62
+===============================================================================
+
+CORRECTION ASSOCIATION NPF — CAUSE IDENTIFIÉE :
+- En v4.62, les boutons d'association dépendaient d'une seconde session « NPF Docs » obtenue à partir du mot de passe BFG.
+- Cette session pouvait ne pas être créée alors que BFG était pourtant correctement authentifié.
+- Conséquence : « Associer NPF » ne pouvait pas produire le code et « Vérifier association » restait désactivé.
+- Cette dépendance était incorrecte par rapport au besoin : une session BFG déjà authentifiée doit suffire pour créer le pont NAS.
+
+NOUVEAU CHEMIN D'AUTHENTIFICATION :
+- « Associer NPF » et « Vérifier association » dépendent désormais uniquement de la session BFG active et du réseau.
+- BFG transmet directement son jeton de session BFG à `npf-docs-api.php` pour `bridge-grant` et `bridge-status`.
+- Le jeton BFG est envoyé en en-tête Authorization et, en secours Synology, dans le corps JSON ; il n'est jamais inscrit dans le fichier pont.
+- `npf-docs-api.php` relit `/web/briefing-api/bfg_auth_config.php` et vérifie le jeton BFG avec le même `token_secret` que `auth-cncasc.php`.
+- La session NPF Docs existante reste conservée uniquement pour la publication du snapshot NOTAM ; elle ne bloque plus l'association NPF.
+
+BOUTONS / DIAGNOSTIC :
+- « Associer NPF » devient actif dès que BFG est authentifié et en ligne.
+- « Vérifier association » devient également actif dès que BFG est authentifié et en ligne.
+- Si aucun pont n'existe encore, le bouton de vérification affiche explicitement qu'il faut d'abord créer l'association.
+- Les diagnostics HTTP/JSON/code/pont/consommation de la v4.62 sont conservés.
+- Ajout de messages distincts pour configuration BFG absente/invalide, secret de session absent, session BFG invalide ou expirée.
+
+PONT NAS / SÉCURITÉ :
+- La génération du code reste aléatoire, exactement 8 chiffres, temporaire et à usage unique.
+- Le code reste stocké uniquement sous forme HMAC dans `npf-auth-bridge-v1.json`.
+- NPF continue de recevoir uniquement son `deviceSecret` et son propre jeton NPF après `bridge-claim`.
+- Les contrôles d'écriture/relecture réelle du fichier pont introduits en v4.62 sont conservés.
+- `bridge-claim` et `bridge-session` restent inchangés pour conserver la compatibilité NPF.
+
+NON-RÉGRESSION :
+- NPF n'est pas modifié.
+- La publication NOTAM BFG -> NAS -> NPF reste inchangée.
+- FdS, GAAR, Pencil, TEMSI, NOTAM, pélicandromes, disponibilités, sauvegarde locale et hors ligne ne sont pas modifiés.
+
+Fichiers BFG modifiés :
+- index.html
+- manifest.json
+- sw.js
+
+Fichier NAS à remplacer :
+- `/web/briefing-api/npf-docs-api.php`
+
+Fichier pont :
+- `/web/briefing-data/npf-auth-bridge-v1.json` reste créé automatiquement lors de la première association.
+
+
+===============================================================================
+TEST v4.64 — 2026-09-18
+Base : TEST v4.63
+===============================================================================
+
+RÉASSOCIATION NPF EXPLICITE — CORRECTION DU CAS « DÉJÀ CONSOMMÉ » :
+- La capture v4.62 a confirmé que le pont NAS existait et était déjà `paired=true` : HTTP 200, JSON valide, pont créé OUI, association consommée OUI, mais aucun nouveau code.
+- Un clic volontaire sur « Associer NPF » signifie désormais toujours « créer une nouvelle association NPF ».
+- BFG envoie `forceRePair: true` uniquement pour ce clic explicite.
+- Le renouvellement quotidien automatique reste `createPairingCode:false` et ne casse jamais une association valide.
+
+CÔTÉ NAS :
+- Si un ancien pont associé existe lors d'une réassociation explicite, son `deviceSecret` est invalidé côté serveur en supprimant son hash, son grant est annulé et le pont est marqué révoqué.
+- Tous les anciens codes encore actifs de ce pont sont invalidés et classés `replaced` dans l'historique HMAC.
+- Un nouveau `bridgeId` distinct est créé.
+- Un nouveau code aléatoire exactement à 8 chiffres est généré et écrit dans `npf-auth-bridge-v1.json` uniquement sous forme HMAC.
+- Après écriture, l'API relit le fichier et vérifie à la fois le nouveau pont/code ET la révocation réelle de l'ancien pont avant de retourner `ok:true`.
+- L'ancien appareil NPF ne peut plus obtenir `bridge-session` avec l'ancien `deviceSecret` après réassociation forcée.
+
+CÔTÉ BFG :
+- Après un clic « Associer NPF », une réponse `paired=true` sans nouveau code est maintenant considérée comme une erreur et non comme un succès.
+- BFG exige un nouveau code valide de 8 chiffres.
+- Si le serveur signale une réassociation, BFG exige aussi `previousBridgeRevoked:true`.
+- « Vérifier association » conserve le fonctionnement v4.63 et reste actif dès que BFG est authentifié et en ligne.
+
+NON-RÉGRESSION :
+- NPF n'est pas modifié.
+- FdS, GAAR, annotations/Pencil, NOTAM, TEMSI, pélicandromes, disponibilités, sauvegardes locales et hors ligne restent inchangés.
+- Publication NOTAM BFG -> NAS -> NPF inchangée.
+
+Fichiers BFG modifiés :
+- index.html
+- manifest.json
+- sw.js
+
+Fichier NAS à remplacer :
+- `/web/briefing-api/npf-docs-api.php`
+
+Fichier pont :
+- `/web/briefing-data/npf-auth-bridge-v1.json` est conservé ; la v4.64 sait remplacer proprement une association déjà consommée.
+
+===============================================================================
+FICHIERS DE LA VERSION ACTUELLE v4.64
 ===============================================================================
 
 Fichiers BFG :
