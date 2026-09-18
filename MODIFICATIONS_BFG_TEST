@@ -1,6 +1,6 @@
-CHANGELOG CUMULATIF — BFG TEST v4.66
+CHANGELOG CUMULATIF — BFG TEST v4.67
 Date : 2026-09-18
-Base actuelle : TEST v4.65
+Base actuelle : TEST v4.66
 
 RÈGLE DU FICHIER
 - Ce CHANGELOG est cumulatif.
@@ -476,14 +476,14 @@ TEST v4.58 — 2026-08-28
 Base : TEST v4.57
 ===============================================================================
 
-DIAGNOSTIC BFG / NPF — PARTAGE DE STOCKAGE SUR IPAD :
+DIAGNOSTIC BFG / NPF-Q400 — PARTAGE DE STOCKAGE SUR IPAD :
 - Après une connexion Briefing BFG réussie, BFG écrit une clé de diagnostic dans son localStorage :
   `npf_bfg_storage_test_v1`.
 - La valeur contient uniquement un marqueur neutre (`OK_BFG_20260828`), la source BFG TEST,
   la version 4.58 et l'heure d'écriture.
 - Aucun mot de passe n'est enregistré.
 - Aucun jeton CNCASC / NAS n'est copié dans cette clé.
-- Le marqueur persiste après fermeture de BFG afin que NPF TEST puisse tenter de le lire
+- Le marqueur persiste après fermeture de BFG afin que NPF-Q400 TEST puisse tenter de le lire
   depuis sa propre PWA installée.
 - Aucune logique fonctionnelle BFG n'est modifiée en dehors de ce diagnostic.
 
@@ -491,8 +491,8 @@ PROTOCOLE :
 1. Ouvrir BFG TEST v4.58 depuis son icône PWA.
 2. Se connecter normalement au Briefing.
 3. Fermer BFG.
-4. Ouvrir ensuite NPF TEST équipé du lecteur de diagnostic.
-5. NPF indiquera si `npf_bfg_storage_test_v1` est visible ou non.
+4. Ouvrir ensuite NPF-Q400 TEST équipé du lecteur de diagnostic.
+5. NPF-Q400 indiquera si `npf_bfg_storage_test_v1` est visible ou non.
 
 Fichiers modifiés :
 - index.html
@@ -507,13 +507,13 @@ TEST v4.59 — 2026-08-28
 Base : TEST v4.58
 ===============================================================================
 
-AUTORISATION NPF VIA BFG :
+AUTORISATION NPF-Q400 VIA BFG :
 - Le diagnostic de partage localStorage v4.58 est retiré : le test iPad a confirmé que les deux PWA sont isolées.
 - Après validation du mot de passe Briefing, BFG réutilise ce mot de passe uniquement en mémoire pour appeler le pont NAS `npf-docs-api.php?action=bridge-grant`.
 - Le mot de passe n'est jamais enregistré par BFG pour cette fonction.
 - Première utilisation uniquement : BFG affiche un code d'association à 8 chiffres valable 20 minutes.
-- Après l'association initiale avec NPF, les connexions BFG suivantes autorisent automatiquement cette installation NPF jusqu'à minuit.
-- Une panne ou indisponibilité du pont NPF ne bloque jamais la connexion BFG ni l'actualisation CNCASC.
+- Après l'association initiale avec NPF-Q400, les connexions BFG suivantes autorisent automatiquement cette installation NPF-Q400 jusqu'à minuit.
+- Une panne ou indisponibilité du pont NPF-Q400 ne bloque jamais la connexion BFG ni l'actualisation CNCASC.
 - BFG conserve localement uniquement l'identifiant non secret de l'association, l'échéance de l'autorisation et, tant qu'il est valide, le code d'association initial.
 
 Fichiers BFG modifiés :
@@ -522,7 +522,7 @@ Fichiers BFG modifiés :
 - sw.js
 
 Fichier NAS nécessaire :
-- /web/briefing-api/npf-docs-api.php (version pont BFG / NPF v15.99)
+- /web/briefing-api/npf-docs-api.php (version pont BFG / NPF-Q400 v15.99)
 
 ===============================================================================
 FICHIERS DE LA VERSION ACTUELLE v4.59
@@ -534,7 +534,7 @@ Fichiers modifiés :
 - sw.js
 
 Fichier NAS :
-- npf-docs-api.php v15.99 pont BFG / NPF.
+- npf-docs-api.php v15.99 pont BFG / NPF-Q400.
 
 ===============================================================================
 FICHIERS DE LA VERSION ACTUELLE v4.58
@@ -553,24 +553,24 @@ TEST v4.60 — 2026-08-29
 Base : TEST v4.59
 ===============================================================================
 
-SYNCHRONISATION LOCALE NOTAM BFG → NPF :
-- Après import/analyse des NOTAM dans BFG, BFG publie automatiquement un snapshot local destiné à NPF.
+SYNCHRONISATION LOCALE NOTAM BFG → NPF-Q400 :
+- Après import/analyse des NOTAM dans BFG, BFG publie automatiquement un snapshot local destiné à NPF-Q400.
 - Le snapshot contient le texte complet des NOTAM, l'horodatage du dernier PDF NOTAM automatique et l'état persistant de chaque NOTAM.
 - Les états « garder » et « exclure » sont repris avec l'identifiant/signature stable du NOTAM.
 - Toute modification de sélection/exclusion dans BFG déclenche une republication locale différée du snapshot.
-- NPF n'a pas besoin d'être ouvert au moment de la mise à jour : BFG alimente le stockage local partagé pendant son propre fonctionnement.
+- NPF-Q400 n'a pas besoin d'être ouvert au moment de la mise à jour : BFG alimente le stockage local partagé pendant son propre fonctionnement.
 - Sur iPad/PWA, le canal principal retenu est CacheStorage sous l'origine commune grisonb.github.io, afin d'éviter de dépendre du partage de localStorage/IndexedDB entre PWA installées.
 - Un fallback localStorage est conservé pour les navigateurs/environnements où ce stockage est partagé.
 - Aucun nouvel appel NAS n'est ajouté pour cette synchronisation : elle réutilise uniquement les NOTAM déjà chargés dans BFG.
 - Aucun mot de passe, jeton CNCASC ou secret d'authentification n'est copié dans le snapshot NOTAM partagé.
 
-COMPATIBILITÉ NPF :
+COMPATIBILITÉ NPF-Q400 :
 - Le snapshot publié utilise le format `bfgNpfNotamsV1`.
-- NPF TEST v16.05 peut le lire localement et n'affiche les NOTAM que si l'horodatage du PDF source correspond au jour en cours.
-- Les choix BFG « garder / exclure » servent d'état initial dans la fenêtre NOTAMS des pélicandromes NPF.
+- NPF-Q400 TEST v16.05 peut le lire localement et n'affiche les NOTAM que si l'horodatage du PDF source correspond au jour en cours.
+- Les choix BFG « garder / exclure » servent d'état initial dans la fenêtre NOTAMS des pélicandromes NPF-Q400.
 
 AUTRES FONCTIONS :
-- Autorisation NPF via BFG v4.59 conservée sans modification fonctionnelle.
+- Autorisation NPF-Q400 via BFG v4.59 conservée sans modification fonctionnelle.
 - Import automatique NOTAM NAS/VPS conservé.
 - FDS, GAAR, METAR/TAF, partage, sauvegarde et autres fonctions BFG inchangés hors adaptation de version.
 
@@ -593,17 +593,17 @@ IMPORT AUTOMATIQUE NOTAM À LA CONNEXION :
 - L'actualisation CNCASC existante reste exécutée avant l'import NOTAM.
 - Une erreur NOTAM ne remet pas en cause l'authentification BFG déjà réussie.
 
-SYNCHRONISATION BFG -> NPF CORRIGÉE POUR iPad :
+SYNCHRONISATION BFG -> NPF-Q400 CORRIGÉE POUR iPad :
 - Le partage CacheStorage/localStorage de v4.60 n'est plus le canal principal, car deux PWA installées peuvent être isolées par iPadOS/WebKit.
-- Après authentification, BFG obtient avec le même mot de passe une session courte NPF Docs expirant à minuit ; le mot de passe n'est pas stocké.
+- Après authentification, BFG obtient avec le même mot de passe une session courte NPF-Q400 Docs expirant à minuit ; le mot de passe n'est pas stocké.
 - Après chaque import NOTAM réussi, BFG publie immédiatement le snapshot `bfgNpfNotamsV1` sur le NAS via `npf-docs-api.php?action=notams-publish`.
 - Les changements ultérieurs des cases « garder » / « exclure » republient le snapshot de manière différée et regroupée.
 - Le snapshot NAS contient le texte NOTAM, l'horodatage du PDF et l'état persistant BFG, mais aucun mot de passe ni jeton d'authentification.
 - CacheStorage/localStorage sont conservés uniquement comme secours local navigateur/desktop.
 
-COMPATIBILITÉ NPF :
-- NPF TEST v16.06 récupère automatiquement le snapshot NAS et le stocke dans son propre IndexedDB.
-- NPF peut ensuite afficher les NOTAM hors ligne, sous réserve que le PDF source soit du jour en cours.
+COMPATIBILITÉ NPF-Q400 :
+- NPF-Q400 TEST v16.06 récupère automatiquement le snapshot NAS et le stocke dans son propre IndexedDB.
+- NPF-Q400 peut ensuite afficher les NOTAM hors ligne, sous réserve que le PDF source soit du jour en cours.
 
 Fichiers BFG modifiés :
 - index.html
@@ -620,14 +620,14 @@ TEST v4.62 — 2026-09-18
 Base : TEST v4.61
 ===============================================================================
 
-ASSOCIATION BFG -> NPF VIA NAS :
-- Suppression de toute hypothèse de stockage navigateur partagé entre BFG et NPF : l'association utilise exclusivement `npf-docs-api.php` et le fichier NAS `briefing-data/npf-auth-bridge-v1.json`.
-- L'association initiale n'est plus créée automatiquement lors de la connexion BFG : elle devient une action explicite via le bouton « Associer NPF ».
-- Après authentification BFG, BFG conserve uniquement la session NPF Docs déjà créée côté NAS ; le mot de passe n'est jamais stocké pour l'association.
-- Le clic « Associer NPF » envoie une requête POST authentifiée par Bearer vers `action=bridge-grant`.
+ASSOCIATION BFG -> NPF-Q400 VIA NAS :
+- Suppression de toute hypothèse de stockage navigateur partagé entre BFG et NPF-Q400 : l'association utilise exclusivement `npf-docs-api.php` et le fichier NAS `briefing-data/npf-auth-bridge-v1.json`.
+- L'association initiale n'est plus créée automatiquement lors de la connexion BFG : elle devient une action explicite via le bouton « Associer NPF-Q400 ».
+- Après authentification BFG, BFG conserve uniquement la session NPF-Q400 Docs déjà créée côté NAS ; le mot de passe n'est jamais stocké pour l'association.
+- Le clic « Associer NPF-Q400 » envoie une requête POST authentifiée par Bearer vers `action=bridge-grant`.
 - Le serveur génère un code exactement à 8 chiffres, aléatoire, temporaire (20 min maximum, sans dépasser la fin de l'autorisation quotidienne) et à usage unique.
 - Le code n'est jamais écrit en clair dans le fichier de pont : seule une clé HMAC du code est enregistrée.
-- NPF continue à consommer le code existant via `action=bridge-claim` et reçoit son propre `deviceSecret` et son jeton NPF ; aucun mot de passe BFG n'est transmis à NPF.
+- NPF-Q400 continue à consommer le code existant via `action=bridge-claim` et reçoit son propre `deviceSecret` et son jeton NPF-Q400 ; aucun mot de passe BFG n'est transmis à NPF-Q400.
 - Une association déjà réalisée est réautorisée silencieusement à chaque nouvelle connexion BFG sans créer de nouveau code.
 
 FIABILISATION DU FICHIER PONT NAS :
@@ -641,16 +641,16 @@ FIABILISATION DU FICHIER PONT NAS :
 CODE À USAGE UNIQUE / DIAGNOSTIC SERVEUR :
 - Ajout d'un historique limité des empreintes HMAC des codes consommés/expirés/remplacés afin de distinguer « code expiré », « code déjà utilisé » et « code remplacé » sans stocker le code en clair.
 - `bridge-claim` vérifie après consommation que le pont est bien marqué associé, que le code a disparu de la liste active et que son état « consumed » a été persisté.
-- Ajout de `action=bridge-status`, accessible uniquement avec une session NPF Docs valide, permettant à BFG de vérifier l'existence du fichier, l'existence du pont, l'état associé/non associé et l'état du code sans exposer de secret.
+- Ajout de `action=bridge-status`, accessible uniquement avec une session NPF-Q400 Docs valide, permettant à BFG de vérifier l'existence du fichier, l'existence du pont, l'état associé/non associé et l'état du code sans exposer de secret.
 
 DIAGNOSTIC BFG VISIBLE :
-- Ajout des boutons « Associer NPF » et « Vérifier association » dans le panneau Accès Briefing.
+- Ajout des boutons « Associer NPF-Q400 » et « Vérifier association » dans le panneau Accès Briefing.
 - Ajout d'un diagnostic visible et console indiquant :
   * BFG authentifié : OUI/NON ;
-  * Demande association NPF envoyée ;
+  * Demande association NPF-Q400 envoyée ;
   * Réponse serveur HTTP ;
   * Réponse JSON valide/invalide ;
-  * Code NPF créé : OUI/NON ;
+  * Code NPF-Q400 créé : OUI/NON ;
   * Pont NAS créé : OUI/NON ;
   * Association consommée : OUI/NON.
 - Aucun jeton complet, mot de passe ou secret d'installation n'est affiché dans ce diagnostic.
@@ -658,7 +658,7 @@ DIAGNOSTIC BFG VISIBLE :
 
 MESSAGES D'ERREUR :
 - Session BFG non authentifiée.
-- Session NPF Docs absente/expirée.
+- Session NPF-Q400 Docs absente/expirée.
 - Erreur réseau ou délai dépassé.
 - Réponse PHP non JSON.
 - Dossier/fichier de pont non accessible en écriture.
@@ -667,9 +667,9 @@ MESSAGES D'ERREUR :
 - Code non généré, expiré, déjà utilisé ou remplacé.
 
 COMPATIBILITÉ / NON-RÉGRESSION :
-- NPF n'est pas modifié dans cette version.
-- `bridge-claim` et `bridge-session` restent compatibles avec le fonctionnement NPF existant.
-- La publication NOTAM BFG -> NAS -> NPF de v4.61 est conservée.
+- NPF-Q400 n'est pas modifié dans cette version.
+- `bridge-claim` et `bridge-session` restent compatibles avec le fonctionnement NPF-Q400 existant.
+- La publication NOTAM BFG -> NAS -> NPF-Q400 de v4.61 est conservée.
 - FdS, Diagramme GAAR, annotations/Pencil, Gmail/Apps Script/NAS, TEMSI, NOTAM, pélicandromes, disponibilité avions, sauvegardes locales et mode hors ligne ne sont pas modifiés hors adaptation de version.
 
 Fichiers BFG modifiés :
@@ -688,7 +688,7 @@ Tests techniques effectués avant livraison :
 - Manifest JSON décodé avec succès.
 - Service Worker vérifié avec Node.js.
 - Syntaxe PHP vérifiée avec `php -l`.
-- Test local complet du protocole prévu : login -> code 8 chiffres -> création/relecture pont -> claim -> ancien code refusé -> session NPF.
+- Test local complet du protocole prévu : login -> code 8 chiffres -> création/relecture pont -> claim -> ancien code refusé -> session NPF-Q400.
 
 
 ===============================================================================
@@ -696,21 +696,21 @@ TEST v4.63 — 2026-09-18
 Base : TEST v4.62
 ===============================================================================
 
-CORRECTION ASSOCIATION NPF — CAUSE IDENTIFIÉE :
-- En v4.62, les boutons d'association dépendaient d'une seconde session « NPF Docs » obtenue à partir du mot de passe BFG.
+CORRECTION ASSOCIATION NPF-Q400 — CAUSE IDENTIFIÉE :
+- En v4.62, les boutons d'association dépendaient d'une seconde session « NPF-Q400 Docs » obtenue à partir du mot de passe BFG.
 - Cette session pouvait ne pas être créée alors que BFG était pourtant correctement authentifié.
-- Conséquence : « Associer NPF » ne pouvait pas produire le code et « Vérifier association » restait désactivé.
+- Conséquence : « Associer NPF-Q400 » ne pouvait pas produire le code et « Vérifier association » restait désactivé.
 - Cette dépendance était incorrecte par rapport au besoin : une session BFG déjà authentifiée doit suffire pour créer le pont NAS.
 
 NOUVEAU CHEMIN D'AUTHENTIFICATION :
-- « Associer NPF » et « Vérifier association » dépendent désormais uniquement de la session BFG active et du réseau.
+- « Associer NPF-Q400 » et « Vérifier association » dépendent désormais uniquement de la session BFG active et du réseau.
 - BFG transmet directement son jeton de session BFG à `npf-docs-api.php` pour `bridge-grant` et `bridge-status`.
 - Le jeton BFG est envoyé en en-tête Authorization et, en secours Synology, dans le corps JSON ; il n'est jamais inscrit dans le fichier pont.
 - `npf-docs-api.php` relit `/web/briefing-api/bfg_auth_config.php` et vérifie le jeton BFG avec le même `token_secret` que `auth-cncasc.php`.
-- La session NPF Docs existante reste conservée uniquement pour la publication du snapshot NOTAM ; elle ne bloque plus l'association NPF.
+- La session NPF-Q400 Docs existante reste conservée uniquement pour la publication du snapshot NOTAM ; elle ne bloque plus l'association NPF-Q400.
 
 BOUTONS / DIAGNOSTIC :
-- « Associer NPF » devient actif dès que BFG est authentifié et en ligne.
+- « Associer NPF-Q400 » devient actif dès que BFG est authentifié et en ligne.
 - « Vérifier association » devient également actif dès que BFG est authentifié et en ligne.
 - Si aucun pont n'existe encore, le bouton de vérification affiche explicitement qu'il faut d'abord créer l'association.
 - Les diagnostics HTTP/JSON/code/pont/consommation de la v4.62 sont conservés.
@@ -719,13 +719,13 @@ BOUTONS / DIAGNOSTIC :
 PONT NAS / SÉCURITÉ :
 - La génération du code reste aléatoire, exactement 8 chiffres, temporaire et à usage unique.
 - Le code reste stocké uniquement sous forme HMAC dans `npf-auth-bridge-v1.json`.
-- NPF continue de recevoir uniquement son `deviceSecret` et son propre jeton NPF après `bridge-claim`.
+- NPF-Q400 continue de recevoir uniquement son `deviceSecret` et son propre jeton NPF-Q400 après `bridge-claim`.
 - Les contrôles d'écriture/relecture réelle du fichier pont introduits en v4.62 sont conservés.
-- `bridge-claim` et `bridge-session` restent inchangés pour conserver la compatibilité NPF.
+- `bridge-claim` et `bridge-session` restent inchangés pour conserver la compatibilité NPF-Q400.
 
 NON-RÉGRESSION :
-- NPF n'est pas modifié.
-- La publication NOTAM BFG -> NAS -> NPF reste inchangée.
+- NPF-Q400 n'est pas modifié.
+- La publication NOTAM BFG -> NAS -> NPF-Q400 reste inchangée.
 - FdS, GAAR, Pencil, TEMSI, NOTAM, pélicandromes, disponibilités, sauvegarde locale et hors ligne ne sont pas modifiés.
 
 Fichiers BFG modifiés :
@@ -745,9 +745,9 @@ TEST v4.64 — 2026-09-18
 Base : TEST v4.63
 ===============================================================================
 
-RÉASSOCIATION NPF EXPLICITE — CORRECTION DU CAS « DÉJÀ CONSOMMÉ » :
+RÉASSOCIATION NPF-Q400 EXPLICITE — CORRECTION DU CAS « DÉJÀ CONSOMMÉ » :
 - La capture v4.62 a confirmé que le pont NAS existait et était déjà `paired=true` : HTTP 200, JSON valide, pont créé OUI, association consommée OUI, mais aucun nouveau code.
-- Un clic volontaire sur « Associer NPF » signifie désormais toujours « créer une nouvelle association NPF ».
+- Un clic volontaire sur « Associer NPF-Q400 » signifie désormais toujours « créer une nouvelle association NPF-Q400 ».
 - BFG envoie `forceRePair: true` uniquement pour ce clic explicite.
 - Le renouvellement quotidien automatique reste `createPairingCode:false` et ne casse jamais une association valide.
 
@@ -757,18 +757,18 @@ CÔTÉ NAS :
 - Un nouveau `bridgeId` distinct est créé.
 - Un nouveau code aléatoire exactement à 8 chiffres est généré et écrit dans `npf-auth-bridge-v1.json` uniquement sous forme HMAC.
 - Après écriture, l'API relit le fichier et vérifie à la fois le nouveau pont/code ET la révocation réelle de l'ancien pont avant de retourner `ok:true`.
-- L'ancien appareil NPF ne peut plus obtenir `bridge-session` avec l'ancien `deviceSecret` après réassociation forcée.
+- L'ancien appareil NPF-Q400 ne peut plus obtenir `bridge-session` avec l'ancien `deviceSecret` après réassociation forcée.
 
 CÔTÉ BFG :
-- Après un clic « Associer NPF », une réponse `paired=true` sans nouveau code est maintenant considérée comme une erreur et non comme un succès.
+- Après un clic « Associer NPF-Q400 », une réponse `paired=true` sans nouveau code est maintenant considérée comme une erreur et non comme un succès.
 - BFG exige un nouveau code valide de 8 chiffres.
 - Si le serveur signale une réassociation, BFG exige aussi `previousBridgeRevoked:true`.
 - « Vérifier association » conserve le fonctionnement v4.63 et reste actif dès que BFG est authentifié et en ligne.
 
 NON-RÉGRESSION :
-- NPF n'est pas modifié.
+- NPF-Q400 n'est pas modifié.
 - FdS, GAAR, annotations/Pencil, NOTAM, TEMSI, pélicandromes, disponibilités, sauvegardes locales et hors ligne restent inchangés.
-- Publication NOTAM BFG -> NAS -> NPF inchangée.
+- Publication NOTAM BFG -> NAS -> NPF-Q400 inchangée.
 
 Fichiers BFG modifiés :
 - index.html
@@ -786,12 +786,12 @@ TEST v4.65 — 2026-09-18
 Base : TEST v4.64
 ===============================================================================
 
-PANNEAU NPF REPLIABLE :
-- Toute la zone d’association NPF dans « Accès Briefing » est maintenant masquée par défaut.
-- Ajout d’un panneau repliable avec une petite flèche native à gauche du titre « Association NPF ».
+PANNEAU NPF-Q400 REPLIABLE :
+- Toute la zone d’association NPF-Q400 dans « Accès Briefing » est maintenant masquée par défaut.
+- Ajout d’un panneau repliable avec une petite flèche native à gauche du titre « Association NPF-Q400 ».
 - Un appui sur le titre déplie/replie la fenêtre.
-- Le panneau contient l’ensemble du bloc NPF : boutons « Associer NPF », « Vérifier association », statut, code à 8 chiffres et diagnostic.
-- Aucun changement fonctionnel sur l’association NPF elle-même.
+- Le panneau contient l’ensemble du bloc NPF-Q400 : boutons « Associer NPF-Q400 », « Vérifier association », statut, code à 8 chiffres et diagnostic.
+- Aucun changement fonctionnel sur l’association NPF-Q400 elle-même.
 - Le diagnostic, le code 8 chiffres et la logique de réassociation v4.64 sont conservés.
 
 NON-RÉGRESSION :
@@ -812,15 +812,15 @@ TEST v4.66 — 2026-09-18
 Base : TEST v4.65
 ===============================================================================
 
-PANNEAU ASSOCIATION NPF :
-- Le panneau principal « Association NPF » reste replié par défaut comme en v4.65.
+PANNEAU ASSOCIATION NPF-Q400 :
+- Le panneau principal « Association NPF-Q400 » reste replié par défaut comme en v4.65.
 - Lorsqu'il est déroulé, le diagnostic est maintenant directement visible.
-- Suppression du second niveau de repli « Diagnostic association NPF » afin d'éviter d'avoir à ouvrir deux fenêtres.
+- Suppression du second niveau de repli « Diagnostic association NPF-Q400 » afin d'éviter d'avoir à ouvrir deux fenêtres.
 
 DIAGNOSTIC :
-- Correction de « Code NPF créé : — » après consommation réussie du code.
+- Correction de « Code NPF-Q400 créé : — » après consommation réussie du code.
 - Si le NAS confirme que l'association a été consommée, le diagnostic affiche désormais :
-  « Code NPF créé : OUI (consommé) ».
+  « Code NPF-Q400 créé : OUI (consommé) ».
 - La vérification d'association mémorise explicitement qu'un code a bien été créé lorsqu'une association consommée est confirmée.
 - Le code à 8 chiffres lui-même reste supprimé après consommation et n'est jamais réaffiché.
 
@@ -837,8 +837,38 @@ Fichiers BFG modifiés :
 Fichier NAS :
 - Aucun changement.
 
+
 ===============================================================================
-FICHIERS DE LA VERSION ACTUELLE v4.66
+TEST v4.67 — 2026-09-18
+Base : TEST v4.66
+===============================================================================
+
+TERMINOLOGIE NPF-Q400 :
+- Le titre du panneau devient « Association NPF-Q400 ».
+- Tous les libellés visibles de BFG qui mentionnaient « NPF » utilisent désormais « NPF-Q400 ».
+- Le bouton devient « Associer NPF-Q400 ».
+- Le diagnostic devient « Diagnostic association NPF-Q400 ».
+- Les lignes de diagnostic deviennent notamment :
+  * « Demande association NPF-Q400 envoyée »
+  * « Code NPF-Q400 créé »
+- Les statuts, aides, messages d'erreur et messages de synchronisation NOTAM utilisent également « NPF-Q400 ».
+- Aucun identifiant technique, nom de clé localStorage, URL d'API ni protocole NAS n'est modifié.
+
+NON-RÉGRESSION :
+- Association, réassociation et vérification NAS inchangées.
+- Aucun changement de npf-docs-api.php.
+- FdS, GAAR, annotations/Pencil, NOTAM, TEMSI, pélicandromes, disponibilité avions, sauvegardes locales et fonctionnement hors ligne inchangés.
+
+Fichiers BFG modifiés :
+- index.html
+- manifest.json
+- sw.js
+
+Fichier NAS :
+- Aucun changement.
+
+===============================================================================
+FICHIERS DE LA VERSION ACTUELLE v4.67
 ===============================================================================
 
 Fichiers BFG :
