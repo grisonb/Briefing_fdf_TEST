@@ -1,6 +1,6 @@
-CHANGELOG CUMULATIF — BFG TEST v4.61
-Date : 2026-08-29
-Base actuelle : TEST v4.59
+CHANGELOG CUMULATIF — BFG TEST v4.62
+Date : 2026-09-18
+Base actuelle : TEST v4.61
 
 RÈGLE DU FICHIER
 - Ce CHANGELOG est cumulatif.
@@ -614,3 +614,93 @@ Fichier NAS nécessaire :
 - `/web/briefing-api/npf-docs-api.php` version v16.06 NOTAM snapshot.
 
 
+
+===============================================================================
+TEST v4.62 — 2026-09-18
+Base : TEST v4.61
+===============================================================================
+
+ASSOCIATION BFG -> NPF VIA NAS :
+- Suppression de toute hypothèse de stockage navigateur partagé entre BFG et NPF : l'association utilise exclusivement `npf-docs-api.php` et le fichier NAS `briefing-data/npf-auth-bridge-v1.json`.
+- L'association initiale n'est plus créée automatiquement lors de la connexion BFG : elle devient une action explicite via le bouton « Associer NPF ».
+- Après authentification BFG, BFG conserve uniquement la session NPF Docs déjà créée côté NAS ; le mot de passe n'est jamais stocké pour l'association.
+- Le clic « Associer NPF » envoie une requête POST authentifiée par Bearer vers `action=bridge-grant`.
+- Le serveur génère un code exactement à 8 chiffres, aléatoire, temporaire (20 min maximum, sans dépasser la fin de l'autorisation quotidienne) et à usage unique.
+- Le code n'est jamais écrit en clair dans le fichier de pont : seule une clé HMAC du code est enregistrée.
+- NPF continue à consommer le code existant via `action=bridge-claim` et reçoit son propre `deviceSecret` et son jeton NPF ; aucun mot de passe BFG n'est transmis à NPF.
+- Une association déjà réalisée est réautorisée silencieusement à chaque nouvelle connexion BFG sans créer de nouveau code.
+
+FIABILISATION DU FICHIER PONT NAS :
+- Correction principale : `npf_bridge_mutate_state()` ne considère plus le callback réussi comme preuve d'écriture du fichier.
+- Contrôle explicite de la création du dossier, de son droit d'écriture, de l'ouverture/verrouillage du fichier, de `ftruncate`, `fwrite`, `fflush` et `fsync` lorsqu'il est disponible.
+- Après écriture, le fichier est relu et le JSON est revalidé avant toute réponse de succès.
+- `bridge-grant` vérifie ensuite que le `bridgeId` est réellement présent dans le fichier relu et, lorsqu'un code est généré, que l'enregistrement correspondant au code est réellement présent.
+- Si l'écriture ou la vérification échoue, l'API renvoie un JSON `ok:false` avec une erreur explicite au lieu d'un faux succès HTTP 200.
+- Un fichier de pont existant mais JSON invalide n'est plus écrasé silencieusement ; l'erreur est signalée.
+
+CODE À USAGE UNIQUE / DIAGNOSTIC SERVEUR :
+- Ajout d'un historique limité des empreintes HMAC des codes consommés/expirés/remplacés afin de distinguer « code expiré », « code déjà utilisé » et « code remplacé » sans stocker le code en clair.
+- `bridge-claim` vérifie après consommation que le pont est bien marqué associé, que le code a disparu de la liste active et que son état « consumed » a été persisté.
+- Ajout de `action=bridge-status`, accessible uniquement avec une session NPF Docs valide, permettant à BFG de vérifier l'existence du fichier, l'existence du pont, l'état associé/non associé et l'état du code sans exposer de secret.
+
+DIAGNOSTIC BFG VISIBLE :
+- Ajout des boutons « Associer NPF » et « Vérifier association » dans le panneau Accès Briefing.
+- Ajout d'un diagnostic visible et console indiquant :
+  * BFG authentifié : OUI/NON ;
+  * Demande association NPF envoyée ;
+  * Réponse serveur HTTP ;
+  * Réponse JSON valide/invalide ;
+  * Code NPF créé : OUI/NON ;
+  * Pont NAS créé : OUI/NON ;
+  * Association consommée : OUI/NON.
+- Aucun jeton complet, mot de passe ou secret d'installation n'est affiché dans ce diagnostic.
+- Vérification automatique périodique pendant la validité d'un code, plus bouton de vérification manuelle.
+
+MESSAGES D'ERREUR :
+- Session BFG non authentifiée.
+- Session NPF Docs absente/expirée.
+- Erreur réseau ou délai dépassé.
+- Réponse PHP non JSON.
+- Dossier/fichier de pont non accessible en écriture.
+- Écriture, synchronisation ou relecture du pont impossible.
+- Pont ou enregistrement de code non retrouvé après écriture.
+- Code non généré, expiré, déjà utilisé ou remplacé.
+
+COMPATIBILITÉ / NON-RÉGRESSION :
+- NPF n'est pas modifié dans cette version.
+- `bridge-claim` et `bridge-session` restent compatibles avec le fonctionnement NPF existant.
+- La publication NOTAM BFG -> NAS -> NPF de v4.61 est conservée.
+- FdS, Diagramme GAAR, annotations/Pencil, Gmail/Apps Script/NAS, TEMSI, NOTAM, pélicandromes, disponibilité avions, sauvegardes locales et mode hors ligne ne sont pas modifiés hors adaptation de version.
+
+Fichiers BFG modifiés :
+- index.html
+- manifest.json
+- sw.js
+
+Fichier NAS à remplacer :
+- `/web/briefing-api/npf-docs-api.php` par la version pont vérifié fournie avec BFG TEST v4.62.
+
+Fichier pont créé/utilisé par le NAS :
+- `/web/briefing-data/npf-auth-bridge-v1.json` (créé automatiquement lors de la première demande d'association si les permissions NAS le permettent).
+
+Tests techniques effectués avant livraison :
+- Syntaxe JavaScript de l'index vérifiée avec Node.js.
+- Manifest JSON décodé avec succès.
+- Service Worker vérifié avec Node.js.
+- Syntaxe PHP vérifiée avec `php -l`.
+- Test local complet du protocole prévu : login -> code 8 chiffres -> création/relecture pont -> claim -> ancien code refusé -> session NPF.
+
+===============================================================================
+FICHIERS DE LA VERSION ACTUELLE v4.62
+===============================================================================
+
+Fichiers BFG :
+- index.html
+- manifest.json
+- sw.js
+
+Fichier NAS :
+- /web/briefing-api/npf-docs-api.php
+
+Fichier créé automatiquement par l’API lors de la première association :
+- /web/briefing-data/npf-auth-bridge-v1.json
