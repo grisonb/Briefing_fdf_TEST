@@ -1,5 +1,5 @@
-const BFG_SW_VERSION = '4.64';
-const CACHE_NAME = 'briefing-fdf-test-v4.64-npf-reassociation-r1';
+const BFG_SW_VERSION = '4.65';
+const CACHE_NAME = 'briefing-fdf-test-v4.65-npf-collapsible-r1';
 
 const LOCAL_ASSETS = [
   './manifest.json',
