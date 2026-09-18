@@ -1,6 +1,6 @@
-CHANGELOG CUMULATIF — BFG TEST v4.64
+CHANGELOG CUMULATIF — BFG TEST v4.66
 Date : 2026-09-18
-Base actuelle : TEST v4.63
+Base actuelle : TEST v4.65
 
 RÈGLE DU FICHIER
 - Ce CHANGELOG est cumulatif.
@@ -782,7 +782,63 @@ Fichier pont :
 - `/web/briefing-data/npf-auth-bridge-v1.json` est conservé ; la v4.64 sait remplacer proprement une association déjà consommée.
 
 ===============================================================================
-FICHIERS DE LA VERSION ACTUELLE v4.64
+TEST v4.65 — 2026-09-18
+Base : TEST v4.64
+===============================================================================
+
+PANNEAU NPF REPLIABLE :
+- Toute la zone d’association NPF dans « Accès Briefing » est maintenant masquée par défaut.
+- Ajout d’un panneau repliable avec une petite flèche native à gauche du titre « Association NPF ».
+- Un appui sur le titre déplie/replie la fenêtre.
+- Le panneau contient l’ensemble du bloc NPF : boutons « Associer NPF », « Vérifier association », statut, code à 8 chiffres et diagnostic.
+- Aucun changement fonctionnel sur l’association NPF elle-même.
+- Le diagnostic, le code 8 chiffres et la logique de réassociation v4.64 sont conservés.
+
+NON-RÉGRESSION :
+- Aucun changement côté NAS / PHP.
+- FdS, GAAR, annotations/Pencil, récupération Gmail/Apps Script/NAS, TEMSI, NOTAM, pélicandromes, disponibilité avions, sauvegardes locales et hors ligne inchangés.
+
+Fichiers BFG modifiés :
+- index.html
+- manifest.json
+- sw.js
+
+Fichier NAS :
+- Aucun changement.
+
+
+===============================================================================
+TEST v4.66 — 2026-09-18
+Base : TEST v4.65
+===============================================================================
+
+PANNEAU ASSOCIATION NPF :
+- Le panneau principal « Association NPF » reste replié par défaut comme en v4.65.
+- Lorsqu'il est déroulé, le diagnostic est maintenant directement visible.
+- Suppression du second niveau de repli « Diagnostic association NPF » afin d'éviter d'avoir à ouvrir deux fenêtres.
+
+DIAGNOSTIC :
+- Correction de « Code NPF créé : — » après consommation réussie du code.
+- Si le NAS confirme que l'association a été consommée, le diagnostic affiche désormais :
+  « Code NPF créé : OUI (consommé) ».
+- La vérification d'association mémorise explicitement qu'un code a bien été créé lorsqu'une association consommée est confirmée.
+- Le code à 8 chiffres lui-même reste supprimé après consommation et n'est jamais réaffiché.
+
+NON-RÉGRESSION :
+- Aucun changement du mécanisme d'association/reassociation v4.64.
+- Aucun changement côté NAS / npf-docs-api.php.
+- FdS, GAAR, annotations/Pencil, NOTAM, TEMSI, pélicandromes, disponibilité avions, sauvegardes locales et fonctionnement hors ligne inchangés.
+
+Fichiers BFG modifiés :
+- index.html
+- manifest.json
+- sw.js
+
+Fichier NAS :
+- Aucun changement.
+
+===============================================================================
+FICHIERS DE LA VERSION ACTUELLE v4.66
 ===============================================================================
 
 Fichiers BFG :
