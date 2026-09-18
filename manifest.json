@@ -1,7 +1,7 @@
 {
   "name": "Briefing FDF TEST",
   "short_name": "Briefing TEST",
-  "description": "Briefing FDF TEST v4.66 — diagnostic association NPF visible dans le panneau",
+  "description": "Briefing FDF TEST v4.67 — libellés Association NPF-Q400",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
