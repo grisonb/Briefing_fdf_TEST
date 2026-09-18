@@ -5,8 +5,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0">
-    <title>Briefing Fdf TEST v4.62</title>
-    <link rel="manifest" href="./manifest.json?v=4.62">
+    <title>Briefing Fdf TEST v4.64</title>
+    <link rel="manifest" href="./manifest.json?v=4.64">
     <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png?v=4.24">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-title" content="Briefing TEST">
@@ -2174,10 +2174,10 @@
 
     <div class="page-header">
         <div class="page-header-background"></div>
-        <h1 id="main-title">Briefing Fdf TEST v4.62</h1>
+        <h1 id="main-title">Briefing Fdf TEST v4.64</h1>
         <p id="current-time-display"></p>
         <p style="position: relative; z-index: 2; text-align: center; color: #333; font-size: 1em; margin-top: -25px; margin-bottom: 30px;">
-    v<span id="app-version">4.62 TEST - association NPF via pont NAS vérifié</span>
+    v<span id="app-version">4.64 TEST - réassociation NPF forcée</span>
     <button id="force-update-btn" class="link-button" style="background-color: #34495e; padding: 4px 10px; font-size: 0.8em; margin-left: 10px; vertical-align: middle;">
         Forcer MAJ
     </button>
@@ -2562,7 +2562,7 @@
     <footer>Données : Météo-France, SIA, Windy.com, CheckWX.com. Page non commerciale, à usage personnel.</footer>
     
     <script>
-        const APP_VERSION = "4.62 TEST - association NPF via pont NAS vérifié";
+        const APP_VERSION = "4.64 TEST - réassociation NPF forcée";
 
         // --- Proxy NAS pour la source de données météo CheckWX ---
         const CHECKWX_PROXY_URL = "https://grisonb.synology.me/briefing-api/get-metar-taf.php";
@@ -2898,16 +2898,17 @@ const tdfStages = [
         const CNCASC_TOKEN_EXP_STORAGE_KEY = 'bfg_cncasc_token_exp_v1';
         const BFG_LOGIN_END_HOUR_LOCAL = 23;
 
-        // v4.62 — pont d'autorisation BFG -> NPF via NAS uniquement.
+        // v4.64 — pont d'autorisation BFG -> NPF via NAS uniquement ; réassociation explicite forcée.
         // BFG et NPF restent deux PWA indépendantes : aucun localStorage/CacheStorage
         // partagé entre les applications n'est utilisé pour l'association.
+        // Le pont est maintenant authentifié directement par le jeton de session BFG existant.
         const BFG_NPF_BRIDGE_ID_KEY = 'bfgNpfBridgeIdV1';
         const BFG_NPF_BRIDGE_PAIR_CODE_KEY = 'bfgNpfBridgePairCodeV1';
         const BFG_NPF_BRIDGE_PAIR_CODE_EXP_KEY = 'bfgNpfBridgePairCodeExpV1';
         const BFG_NPF_BRIDGE_GRANT_EXP_KEY = 'bfgNpfBridgeGrantExpV1';
         const BFG_NPF_BRIDGE_PAIRED_KEY = 'bfgNpfBridgePairedV1';
-        // Session NPF Docs obtenue après authentification BFG ; elle sert au snapshot NOTAM
-        // et, en v4.62, à authentifier les requêtes de pont sans conserver le mot de passe.
+        // Session NPF Docs obtenue après authentification BFG ; elle reste utilisée
+        // uniquement pour le snapshot NOTAM. L'association NPF utilise la session BFG elle-même.
         const BFG_NPF_NOTAMS_NAS_TOKEN_KEY = 'bfgNpfNotamsNasTokenV1';
         const BFG_NPF_NOTAMS_NAS_TOKEN_EXP_KEY = 'bfgNpfNotamsNasTokenExpV1';
 
@@ -3040,17 +3041,25 @@ const tdfStages = [
 
         function updateBfgNpfBridgeButtons_() {
             const authenticated = !!getStoredCncascToken_();
-            const docsSession = getBfgNpfNotamsNasSession_();
+            const online = navigator.onLine;
             const associateBtn = document.getElementById('bfg-npf-associate-btn');
             const checkBtn = document.getElementById('bfg-npf-check-btn');
+
+            // v4.64 : l'association dépend uniquement de la session BFG existante.
+            // La session NPF Docs (utilisée pour les NOTAMs) ne doit plus bloquer ces boutons.
             if (associateBtn) {
-                associateBtn.disabled = !authenticated || !navigator.onLine || !docsSession;
-                associateBtn.title = authenticated && docsSession
+                associateBtn.disabled = !authenticated || !online;
+                associateBtn.title = authenticated
                     ? 'Créer un code NPF à 8 chiffres via le NAS.'
                     : 'Connexion Briefing requise avant association NPF.';
             }
             if (checkBtn) {
-                checkBtn.disabled = !authenticated || !navigator.onLine || !docsSession || !getStoredBfgNpfBridgeId_();
+                // Laisser le bouton disponible même sans bridgeId : un clic explique alors
+                // explicitement qu'aucune association n'a encore été créée.
+                checkBtn.disabled = !authenticated || !online;
+                checkBtn.title = authenticated
+                    ? 'Vérifier l’état de l’association NPF sur le NAS.'
+                    : 'Connexion Briefing requise avant vérification.';
             }
             renderBfgNpfDiagnostic_();
         }
@@ -3086,11 +3095,6 @@ const tdfStages = [
                 updateBfgNpfBridgeButtons_();
                 return;
             }
-            if (!getBfgNpfNotamsNasSession_()) {
-                el.textContent = 'NPF : session NAS d’association absente ou expirée. Déconnecter puis reconnecter BFG pour la renouveler.';
-                updateBfgNpfBridgeButtons_();
-                return;
-            }
             if (code && /^\d{8}$/.test(code) && codeExp > Date.now() && !paired) {
                 setBfgNpfPairCodeDisplay_(code);
                 el.textContent = `NPF : code d’association à saisir dans NPF — valable jusqu’à ${new Date(codeExp).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}.`;
@@ -3119,7 +3123,13 @@ const tdfStages = [
         function bfgNpfFriendlyServerError_(payload, fallback) {
             const err = String(payload?.error || '');
             const map = {
-                bridge_session_required: 'Session BFG/NPF absente ou expirée. Reconnecter BFG.',
+                bridge_session_required: 'Session d’association absente ou expirée.',
+                bfg_auth_config_missing: 'Configuration d’authentification BFG introuvable sur le NAS.',
+                bfg_auth_config_invalid: 'Configuration d’authentification BFG invalide sur le NAS.',
+                bfg_token_secret_missing: 'Secret de validation de session BFG absent sur le NAS.',
+                bfg_session_missing: 'Session BFG absente.',
+                bfg_session_invalid: 'Session BFG invalide : reconnecter l’accès Briefing.',
+                bfg_session_expired: 'Session BFG expirée : reconnecter l’accès Briefing.',
                 bridge_state_dir_unavailable: 'Le dossier briefing-data du NAS ne peut pas être créé.',
                 bridge_state_dir_not_writable: 'Le dossier briefing-data du NAS n’est pas accessible en écriture.',
                 bridge_state_file_not_writable: 'Le fichier de pont NAS existe mais n’est pas accessible en écriture.',
@@ -3134,18 +3144,21 @@ const tdfStages = [
                 bridge_record_verify_failed: 'Le pont NAS existe mais l’association créée n’a pas été retrouvée.',
                 pairing_record_verify_failed: 'Le code a été généré mais son état n’a pas été confirmé dans le pont NAS.',
                 pairing_code_not_generated: 'Le NAS n’a pas généré de code NPF à 8 chiffres.',
+                repair_previous_bridge_not_revoked: 'L’ancienne association NPF n’a pas été invalidée sur le NAS.',
+                repair_new_bridge_not_created: 'Le NAS n’a pas créé la nouvelle association NPF.',
                 pairing_required: 'Association NPF non encore réalisée.'
             };
             return String(payload?.message || map[err] || fallback || err || 'Erreur association NPF.');
         }
 
         async function bfgNpfFetchJson_(action, body, options = {}) {
-            const nasSession = getBfgNpfNotamsNasSession_();
-            if (!nasSession) {
-                const error = new Error('Session BFG/NPF absente ou expirée. Reconnecter BFG.');
-                error.code = 'bridge_session_required';
+            const bfgSession = getStoredCncascToken_();
+            if (!bfgSession || !bfgSession.token) {
+                const error = new Error('Session BFG absente ou expirée. Reconnecter l’accès Briefing.');
+                error.code = 'bfg_session_missing';
                 throw error;
             }
+
             const controller = new AbortController();
             const timer = setTimeout(() => controller.abort(), 10000);
             try {
@@ -3161,20 +3174,31 @@ const tdfStages = [
                     });
                     console.info('[BFG -> NPF] Demande association NPF envoyée');
                 }
+
+                // v4.64 : le NAS valide directement le jeton BFG existant.
+                // Le token est envoyé dans Authorization et également dans le JSON comme
+                // secours pour les configurations Synology qui retireraient cet en-tête.
+                const requestBody = {
+                    ...(body || {}),
+                    bfgSessionToken: String(bfgSession.token)
+                };
+
                 const response = await fetch(`${NPF_BRIDGE_API_URL}?action=${encodeURIComponent(action)}&t=${Date.now()}`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${nasSession.token}`
+                        'Authorization': `Bearer ${bfgSession.token}`
                     },
-                    body: JSON.stringify(body || {}),
+                    body: JSON.stringify(requestBody),
                     cache: 'no-store',
                     signal: controller.signal
                 });
+
                 if (options.updateDiagnostic !== false) {
                     setBfgNpfDiagnostic_({ httpStatus: response.status });
                     console.info('[BFG -> NPF] Réponse serveur HTTP', response.status);
                 }
+
                 const text = await response.text();
                 let payload = null;
                 try {
@@ -3188,6 +3212,7 @@ const tdfStages = [
                     error.code = 'invalid_json';
                     throw error;
                 }
+
                 if (!response.ok || !payload || payload.ok !== true) {
                     const message = bfgNpfFriendlyServerError_(payload, `Erreur HTTP ${response.status}`);
                     if (options.updateDiagnostic !== false) setBfgNpfDiagnostic_({ lastError: message });
@@ -3195,6 +3220,7 @@ const tdfStages = [
                     error.code = payload?.error || `http_${response.status}`;
                     throw error;
                 }
+
                 return { response, payload };
             } catch (error) {
                 if (error?.name === 'AbortError') {
@@ -3256,9 +3282,13 @@ const tdfStages = [
             if (btn) btn.disabled = true;
             try {
                 const bridgeId = getStoredBfgNpfBridgeId_();
+                // v4.64 : un clic volontaire sur « Associer NPF » signifie toujours
+                // « créer une nouvelle association ». Même si le NAS possède déjà un pont
+                // paired=true, l'ancien secret NPF doit être invalidé et un nouveau code créé.
                 const { payload } = await bfgNpfFetchJson_('bridge-grant', {
                     bridgeId,
-                    createPairingCode: true
+                    createPairingCode: true,
+                    forceRePair: true
                 }, { markAssociationRequest: true });
 
                 const bridgeCreated = payload.bridgeStatePersisted === true
@@ -3269,7 +3299,13 @@ const tdfStages = [
                 const codeCreated = paired ? false : (/^\d{8}$/.test(code) && payload.pairingCodeCreated === true);
 
                 if (!bridgeCreated) throw new Error('Le serveur a répondu OK mais le pont NAS n’a pas été confirmé après écriture.');
-                if (!paired && !codeCreated) throw new Error('Le serveur n’a pas créé un code NPF valide de 8 chiffres.');
+                // Un clic explicite doit TOUJOURS revenir avec une association en attente et un nouveau code.
+                // Une réponse paired=true sans code est considérée comme un échec de réassociation.
+                if (paired) throw new Error('Le NAS a conservé l’ancienne association au lieu de créer un nouveau code NPF.');
+                if (!codeCreated) throw new Error('Le serveur n’a pas créé un code NPF valide de 8 chiffres.');
+                if (payload.repairPerformed === true && payload.previousBridgeRevoked !== true) {
+                    throw new Error('L’ancienne association NPF n’a pas été invalidée sur le NAS.');
+                }
 
                 storeBfgNpfGrantPayload_(payload);
                 setBfgNpfDiagnostic_({
@@ -3297,8 +3333,10 @@ const tdfStages = [
             const bridgeId = getStoredBfgNpfBridgeId_();
             if (!bridgeId) {
                 if (!options.silent) {
-                    const msg = 'Aucune association NPF enregistrée dans BFG.';
-                    setBfgNpfDiagnostic_({ bridgeCreated: false, consumed: false, lastError: msg });
+                    const msg = 'Aucune association NPF n’a encore été créée. Cliquer sur « Associer NPF » pour générer le code à 8 chiffres.';
+                    setBfgNpfDiagnostic_({ bridgeCreated: false, codeCreated: false, consumed: false, lastError: msg });
+                    const el = document.getElementById('bfg-npf-bridge-status');
+                    if (el) el.textContent = `NPF : ${msg}`;
                 }
                 return false;
             }
@@ -3362,8 +3400,7 @@ const tdfStages = [
 
         async function refreshExistingNpfBridgeGrant_(options = {}) {
             const bridgeId = getStoredBfgNpfBridgeId_();
-            const nasSession = getBfgNpfNotamsNasSession_();
-            if (!bridgeId || !nasSession || !navigator.onLine || !getStoredCncascToken_()) return false;
+            if (!bridgeId || !navigator.onLine || !getStoredCncascToken_()) return false;
             try {
                 const { payload } = await bfgNpfFetchJson_('bridge-grant', {
                     bridgeId,
@@ -4163,8 +4200,9 @@ const tdfStages = [
                     throw new Error('Jeton CNCASC invalide.');
                 }
 
-                // v4.62 — le mot de passe reste uniquement en mémoire le temps d'obtenir
-                // la session NPF Docs. Aucun code d'association n'est créé automatiquement.
+                // v4.63 — la session NPF Docs reste demandée uniquement pour la publication NOTAM.
+                // L'association NPF n'en dépend plus : elle utilisera directement le jeton BFG déjà stocké.
+                // Aucun code d'association n'est créé automatiquement.
                 const npfDocsAuthorized = await authorizeNpfNotamsNasFromBfgPassword_(password);
                 // Si une association NPF existe déjà, la connexion BFG renouvelle silencieusement
                 // son autorisation quotidienne. Une association initiale reste une action utilisateur.
@@ -4919,7 +4957,7 @@ const tdfStages = [
             }
         }
         window.onload = waitForPdfJsAndInitialize;
-        const BFG_REQUIRED_SW_VERSION_ = '4.62';
+        const BFG_REQUIRED_SW_VERSION_ = '4.64';
 
         function queryBfgControllerVersion_(timeoutMs = 1800) {
             return new Promise((resolve) => {
@@ -4959,7 +4997,7 @@ const tdfStages = [
             }
 
             const registration = await navigator.serviceWorker.register(
-                './sw.js?v=4.62',
+                './sw.js?v=4.64',
                 { updateViaCache: 'none' }
             );
 
@@ -5667,7 +5705,7 @@ const tdfStages = [
         async function requestGaarImportViaNas_() {
             const query = new URLSearchParams();
             query.set('t', String(Date.now()));
-            query.set('source', 'bfg-test-v4.62');
+            query.set('source', 'bfg-test-v4.64');
 
             const url = `${GAAR_IMPORT_REQUEST_API_URL}?${query.toString()}`;
             const response = await fetchWithTimeout_(url, { cache: 'no-store' }, 65000);
@@ -11125,7 +11163,7 @@ window.__notamTextFull = notamInput.value;
 
         function initializePageTitle() {
             const titleElement = document.getElementById('main-title');
-            titleElement.textContent = `Briefing Fdf TEST v4.62 du ${new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}`;
+            titleElement.textContent = `Briefing Fdf TEST v4.64 du ${new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}`;
             const timeDisplay = document.getElementById('current-time-display');
             const updateTime = () => timeDisplay.textContent = new Date().toLocaleTimeString('fr-FR');
             updateTime(); setInterval(updateTime, 1000);
