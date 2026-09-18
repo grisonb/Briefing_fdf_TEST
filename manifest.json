@@ -1,7 +1,7 @@
 {
   "name": "Briefing FDF TEST",
   "short_name": "Briefing TEST",
-  "description": "Briefing FDF TEST v4.61 — NOTAM auto + synchronisation NAS vers NPF",
+  "description": "Briefing FDF TEST v4.62 — association NPF via pont NAS vérifié",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
