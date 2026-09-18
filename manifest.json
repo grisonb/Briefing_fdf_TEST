@@ -1,7 +1,7 @@
 {
   "name": "Briefing FDF TEST",
   "short_name": "Briefing TEST",
-  "description": "Briefing FDF TEST v4.64 — réassociation NPF forcée via pont NAS",
+  "description": "Briefing FDF TEST v4.65 — panneau association NPF repliable",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
