@@ -1,7 +1,7 @@
 {
   "name": "Briefing FDF TEST",
   "short_name": "Briefing TEST",
-  "description": "Briefing FDF TEST v4.70 — mémorisation persistante des SUP AIP",
+  "description": "Briefing FDF TEST v4.71 — SUP AIP persistants avec rendu fiabilisé",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
