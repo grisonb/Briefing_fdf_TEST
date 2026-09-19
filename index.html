@@ -5,8 +5,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0">
-    <title>Briefing Fdf TEST v4.70</title>
-    <link rel="manifest" href="./manifest.json?v=4.70">
+    <title>Briefing Fdf TEST v4.71</title>
+    <link rel="manifest" href="./manifest.json?v=4.71">
     <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png?v=4.24">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-title" content="Briefing TEST">
@@ -734,6 +734,36 @@
         }
 
         .sup-aip-item { margin-bottom: 30px; border-top: 2px solid var(--sc-blue); padding-top: 20px; }
+        .sup-aip-item h3 {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            flex-wrap: wrap;
+        }
+        .sup-aip-delete-btn {
+            margin-left: 10px;
+            min-width: 46px;
+            min-height: 46px;
+            padding: 4px 12px;
+            border-radius: 10px;
+            border: 1px solid #a31515;
+            background: linear-gradient(180deg, #ff8c8c 0%, #e53935 100%);
+            color: #111111;
+            font-size: 2rem;
+            font-weight: 900;
+            line-height: 1;
+            cursor: pointer;
+            box-shadow: 0 1px 0 rgba(255,255,255,0.75) inset, 0 2px 5px rgba(60, 0, 0, 0.18);
+            -webkit-appearance: none;
+            appearance: none;
+        }
+        .sup-aip-delete-btn:hover {
+            background: linear-gradient(180deg, #ff9d9d 0%, #ef5350 100%);
+            transform: translateY(-1px);
+        }
+        .sup-aip-delete-btn:active {
+            transform: translateY(0);
+        }
         
         .dropzone.drag-over { background-color: #fff8e1; border-color: var(--sc-yellow); border-style: dashed; }
         
@@ -2174,10 +2204,10 @@
 
     <div class="page-header">
         <div class="page-header-background"></div>
-        <h1 id="main-title">Briefing Fdf TEST v4.70</h1>
+        <h1 id="main-title">Briefing Fdf TEST v4.71</h1>
         <p id="current-time-display"></p>
         <p style="position: relative; z-index: 2; text-align: center; color: #333; font-size: 1em; margin-top: -25px; margin-bottom: 30px;">
-    v<span id="app-version">4.70 TEST - SUP AIP persistants</span>
+    v<span id="app-version">4.71 TEST - SUP AIP fiabilisés</span>
     <button id="force-update-btn" class="link-button" style="background-color: #34495e; padding: 4px 10px; font-size: 0.8em; margin-left: 10px; vertical-align: middle;">
         Forcer MAJ
     </button>
@@ -2567,7 +2597,7 @@
     <footer>Données : Météo-France, SIA, Windy.com, CheckWX.com. Page non commerciale, à usage personnel.</footer>
     
     <script>
-        const APP_VERSION = "4.70 TEST - SUP AIP persistants";
+        const APP_VERSION = "4.71 TEST - SUP AIP fiabilisés";
 
         // --- Proxy NAS pour la source de données météo CheckWX ---
         const CHECKWX_PROXY_URL = "https://grisonb.synology.me/briefing-api/get-metar-taf.php";
@@ -4967,7 +4997,7 @@ const tdfStages = [
             }
         }
         window.onload = waitForPdfJsAndInitialize;
-        const BFG_REQUIRED_SW_VERSION_ = '4.70';
+        const BFG_REQUIRED_SW_VERSION_ = '4.71';
 
         function queryBfgControllerVersion_(timeoutMs = 1800) {
             return new Promise((resolve) => {
@@ -5007,7 +5037,7 @@ const tdfStages = [
             }
 
             const registration = await navigator.serviceWorker.register(
-                './sw.js?v=4.70',
+                './sw.js?v=4.71',
                 { updateViaCache: 'none' }
             );
 
@@ -5813,7 +5843,7 @@ const tdfStages = [
         async function requestGaarImportViaNas_() {
             const query = new URLSearchParams();
             query.set('t', String(Date.now()));
-            query.set('source', 'bfg-test-v4.70');
+            query.set('source', 'bfg-test-v4.71');
 
             const url = `${GAAR_IMPORT_REQUEST_API_URL}?${query.toString()}`;
             const response = await fetchWithTimeout_(url, { cache: 'no-store' }, 65000);
@@ -7585,6 +7615,7 @@ const tdfStages = [
             let pinchLastLocalX = 0;
             let pinchLastLocalY = 0;
             let pendingPdfScrollAnchor = null;
+            const isSupAipViewer = !!viewerContainer.closest('.sup-aip-item');
 
             const annotationsEnabledForViewer = viewerContainer && (
                 viewerContainer.id === 'pdf-interactive-container-fds' ||
@@ -7782,6 +7813,16 @@ const tdfStages = [
                 });
             }
 
+            function computeSupAipFitScale_(page) {
+                if (!isSupAipViewer || !page) return initialScale;
+                const availableWidth = Math.max(220, (wrapper.clientWidth || viewerContainer.clientWidth || 0) - 24);
+                const baseViewport = page.getViewport({ scale: 1, rotation: 0 });
+                if (!availableWidth || !baseViewport.width) return initialScale;
+                const fitScale = (availableWidth / baseViewport.width) * 0.96;
+                return Math.max(0.6, Math.min(4.2, Math.round(fitScale * 100) / 100));
+            }
+
+
             function resetPdfCanvasState_() {
                 try { ctx.setTransform(1, 0, 0, 1, 0, 0); } catch (error) {}
                 try { ctx.clearRect(0, 0, canvas.width || 1, canvas.height || 1); } catch (error) {}
@@ -7816,6 +7857,26 @@ const tdfStages = [
 
             function forceCleanPdfRerender_(reason = 'manual') {
                 if (!isCurrentPdfHandler_() || !pdfDoc) return;
+
+                if (isSupAipViewer) {
+                    waitForStablePdfLayout_()
+                        .then(() => {
+                            if (!isCurrentPdfHandler_() || !pdfDoc) return null;
+                            return pdfDoc.getPage(pageNum);
+                        })
+                        .then(page => {
+                            if (!page || !isCurrentPdfHandler_()) return;
+                            initialScale = computeSupAipFitScale_(page);
+                            pageRendering = false;
+                            pageNumPending = null;
+                            scale = initialScale;
+                            resetPdfCanvasState_();
+                            renderPage(pageNum, reason);
+                        })
+                        .catch(error => console.warn('BFG SUP AIP : recalage du rendu impossible.', error));
+                    return;
+                }
+
                 pageRendering = false;
                 pageNumPending = null;
                 scale = initialScale;
@@ -8279,15 +8340,32 @@ const tdfStages = [
                 Promise.all([
                     pdfjsLib.getDocument(buffer).promise,
                     annotationReadyPromise
-                ]).then(([pdfDoc_]) => {
+                ]).then(async ([pdfDoc_]) => {
                     if (!isCurrentPdfHandler_()) return;
                     pdfDoc = pdfDoc_;
                     const pageCountEl = controls.querySelector('.page-count');
                     if (pageCountEl) pageCountEl.textContent = pdfDoc.numPages;
                     pageNum = 1;
+
+                    if (isSupAipViewer) {
+                        try {
+                            await waitForStablePdfLayout_();
+                            if (!isCurrentPdfHandler_()) return;
+                            const firstPage = await pdfDoc.getPage(1);
+                            if (!isCurrentPdfHandler_()) return;
+                            initialScale = computeSupAipFitScale_(firstPage);
+                        } catch (error) {
+                            console.warn('BFG SUP AIP : calcul du zoom initial impossible.', error);
+                        }
+                    }
+
                     scale = initialScale;
                     renderPage(pageNum, 'initial');
-                    scheduleCleanPdfRerender_('post-initial', 500);
+                    scheduleCleanPdfRerender_('post-initial', isSupAipViewer ? 700 : 500);
+                    if (isSupAipViewer) {
+                        setTimeout(() => scheduleCleanPdfRerender_('post-restore-repair-1', 0), 1500);
+                        setTimeout(() => scheduleCleanPdfRerender_('post-restore-repair-2', 0), 2800);
+                    }
                     if (callback) callback(file);
                 }).catch(error => {
                     console.warn('BFG PDF : chargement impossible.', error);
@@ -8923,7 +9001,9 @@ const tdfStages = [
             // Les SUP AIP restent donc présents après fermeture/réouverture.
             loadPersistedSupAips_()
                 .then(files => {
-                    if (files.length > 0) return addSupAipFiles(files, { persist: false });
+                    if (files.length > 0) {
+                        setTimeout(() => { void addSupAipFiles(files, { persist: false }); }, 180);
+                    }
                 })
                 .catch(error => console.warn('Restauration persistante SUP AIP impossible :', error));
         }
@@ -11420,7 +11500,7 @@ window.__notamTextFull = notamInput.value;
 
         function initializePageTitle() {
             const titleElement = document.getElementById('main-title');
-            titleElement.textContent = `Briefing Fdf TEST v4.70 du ${new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}`;
+            titleElement.textContent = `Briefing Fdf TEST v4.71 du ${new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}`;
             const timeDisplay = document.getElementById('current-time-display');
             const updateTime = () => timeDisplay.textContent = new Date().toLocaleTimeString('fr-FR');
             updateTime(); setInterval(updateTime, 1000);
