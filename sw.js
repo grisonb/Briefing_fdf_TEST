@@ -1,5 +1,5 @@
-const BFG_SW_VERSION = '4.67';
-const CACHE_NAME = 'briefing-fdf-test-v4.67-npf-q400-labels-r1';
+const BFG_SW_VERSION = '4.68';
+const CACHE_NAME = 'briefing-fdf-test-v4.68-fds-jour-auto-r1';
 
 const LOCAL_ASSETS = [
   './manifest.json',
