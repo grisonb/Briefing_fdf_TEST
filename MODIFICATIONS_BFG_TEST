@@ -1,6 +1,6 @@
-CHANGELOG CUMULATIF — BFG TEST v4.67
-Date : 2026-09-18
-Base actuelle : TEST v4.66
+CHANGELOG CUMULATIF — BFG TEST v4.68
+Date : 2026-09-19
+Base actuelle : TEST v4.67
 
 RÈGLE DU FICHIER
 - Ce CHANGELOG est cumulatif.
@@ -867,8 +867,41 @@ Fichiers BFG modifiés :
 Fichier NAS :
 - Aucun changement.
 
+
 ===============================================================================
-FICHIERS DE LA VERSION ACTUELLE v4.67
+TEST v4.68 — 2026-09-19
+Base : TEST v4.67
+===============================================================================
+
+FDS DU JOUR — CHARGEMENT AUTOMATIQUE AU DÉMARRAGE :
+- Correction du cas où la FDS du jour a été envoyée par mail la veille mais n'a pas encore été importée sur le NAS au moment de l'ouverture de BFG.
+- Jusqu'en v4.67, le démarrage ne faisait qu'interroger le NAS : si le fichier daté du jour n'y était pas encore présent, l'ancienne FDS pouvait rester affichée jusqu'à un clic manuel sur « Actualiser feuille de service ».
+- En v4.68, si le statut NAS ne contient pas encore la FDS du jour, BFG déclenche automatiquement la recherche Gmail/NAS existante.
+- BFG attend ensuite spécifiquement l'apparition de la FDS du jour, puis la charge automatiquement dès qu'elle est disponible.
+- La présence ou la mise à jour d'une FDS du lendemain ne suffit pas à arrêter cette recherche : le démarrage attend bien le document du jour.
+- Le bouton « Actualiser feuille de service » reste disponible pour une actualisation volontaire.
+
+RÉVEIL iPad / PWA :
+- iPadOS peut rouvrir une PWA suspendue depuis la veille sans recharger complètement la page.
+- BFG mémorise désormais la date opérationnelle France de la page en cours.
+- Lors d'un retour au premier plan ou d'un `pageshow`, si le jour a changé, BFG relance automatiquement le contrôle de la FDS du jour.
+- Le contrôle respecte toujours le mode FDS manuel et le mode hors ligne.
+
+NON-RÉGRESSION :
+- Aucune modification des API NAS FDS.
+- Aucun fichier PHP NAS à remplacer.
+- Association NPF-Q400, GAAR, annotations/Pencil, NOTAM, TEMSI, pélicandromes, disponibilité avions, sauvegardes locales et fonctionnement hors ligne inchangés.
+
+Fichiers BFG modifiés :
+- index.html
+- manifest.json
+- sw.js
+
+Fichier NAS :
+- Aucun changement.
+
+===============================================================================
+FICHIERS DE LA VERSION ACTUELLE v4.68
 ===============================================================================
 
 Fichiers BFG :
