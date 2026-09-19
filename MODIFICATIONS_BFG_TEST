@@ -1,6 +1,6 @@
-CHANGELOG CUMULATIF — BFG TEST v4.69
+CHANGELOG CUMULATIF — BFG TEST v4.70
 Date : 2026-09-19
-Base actuelle : TEST v4.68
+Base actuelle : TEST v4.69
 
 RÈGLE DU FICHIER
 - Ce CHANGELOG est cumulatif.
@@ -925,8 +925,38 @@ Fichiers BFG modifiés :
 Fichier NAS :
 - Aucun changement.
 
+
 ===============================================================================
-FICHIERS DE LA VERSION ACTUELLE v4.69
+TEST v4.70 — 2026-09-19
+Base : TEST v4.69
+===============================================================================
+
+SUP AIP — MÉMORISATION PERSISTANTE :
+- Les SUP AIP chargés manuellement sont désormais enregistrés immédiatement dans une base IndexedDB dédiée sur l'iPad.
+- Ils sont restaurés automatiquement à chaque nouvelle ouverture de BFG.
+- Leur conservation ne dépend plus de la sauvegarde générale de session BFG.
+- Ils ne sont plus soumis à la suppression automatique des anciennes sessions.
+- Un SUP AIP reste donc mémorisé jusqu'à suppression volontaire par l'utilisateur.
+- Le bouton « × » d'un SUP AIP supprime désormais à la fois son affichage et sa copie persistante.
+- Le bouton global « Effacer » de BFG vide également cette mémoire persistante, conformément à sa fonction de réinitialisation complète.
+- La restauration d'une ancienne session contenant des SUP AIP permet de les migrer automatiquement vers le nouveau stockage persistant.
+- Le bouton conserve le libellé « Charger SUP AIP » conformément à la v4.69.
+
+NON-RÉGRESSION :
+- FDS automatique v4.68 inchangée.
+- Association NPF-Q400, GAAR, annotations/Pencil, NOTAM, TEMSI, pélicandromes, disponibilité avions, sauvegardes locales et hors ligne inchangés.
+- Aucun changement côté NAS / PHP.
+
+Fichiers BFG modifiés :
+- index.html
+- manifest.json
+- sw.js
+
+Fichier NAS :
+- Aucun changement.
+
+===============================================================================
+FICHIERS DE LA VERSION ACTUELLE v4.70
 ===============================================================================
 
 Fichiers BFG :
