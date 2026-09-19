@@ -5,8 +5,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0">
-    <title>Briefing Fdf TEST v4.67</title>
-    <link rel="manifest" href="./manifest.json?v=4.67">
+    <title>Briefing Fdf TEST v4.68</title>
+    <link rel="manifest" href="./manifest.json?v=4.68">
     <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png?v=4.24">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-title" content="Briefing TEST">
@@ -2174,10 +2174,10 @@
 
     <div class="page-header">
         <div class="page-header-background"></div>
-        <h1 id="main-title">Briefing Fdf TEST v4.67</h1>
+        <h1 id="main-title">Briefing Fdf TEST v4.68</h1>
         <p id="current-time-display"></p>
         <p style="position: relative; z-index: 2; text-align: center; color: #333; font-size: 1em; margin-top: -25px; margin-bottom: 30px;">
-    v<span id="app-version">4.67 TEST - libellés NPF-Q400</span>
+    v<span id="app-version">4.68 TEST - FDS du jour auto</span>
     <button id="force-update-btn" class="link-button" style="background-color: #34495e; padding: 4px 10px; font-size: 0.8em; margin-left: 10px; vertical-align: middle;">
         Forcer MAJ
     </button>
@@ -2567,7 +2567,7 @@
     <footer>Données : Météo-France, SIA, Windy.com, CheckWX.com. Page non commerciale, à usage personnel.</footer>
     
     <script>
-        const APP_VERSION = "4.67 TEST - libellés NPF-Q400";
+        const APP_VERSION = "4.68 TEST - FDS du jour auto";
 
         // --- Proxy NAS pour la source de données météo CheckWX ---
         const CHECKWX_PROXY_URL = "https://grisonb.synology.me/briefing-api/get-metar-taf.php";
@@ -4967,7 +4967,7 @@ const tdfStages = [
             }
         }
         window.onload = waitForPdfJsAndInitialize;
-        const BFG_REQUIRED_SW_VERSION_ = '4.67';
+        const BFG_REQUIRED_SW_VERSION_ = '4.68';
 
         function queryBfgControllerVersion_(timeoutMs = 1800) {
             return new Promise((resolve) => {
@@ -5007,7 +5007,7 @@ const tdfStages = [
             }
 
             const registration = await navigator.serviceWorker.register(
-                './sw.js?v=4.67',
+                './sw.js?v=4.68',
                 { updateViaCache: 'none' }
             );
 
@@ -5476,6 +5476,53 @@ const tdfStages = [
             throw lastError || new Error('Statut feuille de service indisponible après attente');
         }
 
+        async function waitForTodayFdsStatusAtStartup_(initialPayload = null) {
+            // v4.68 : au démarrage, on attend spécifiquement l'apparition de la FDS
+            // du jour. Un changement sans rapport (ex. FDS du lendemain) ne suffit pas.
+            const maxAttempts = 45; // environ 90 secondes
+            const retryGmailAttempts = new Set([8, 20, 32]);
+            const visibleProgressAttempts = new Set([0, 5, 10, 15, 20, 30, 40]);
+            let lastPayload = initialPayload;
+            let lastError = null;
+
+            if (lastPayload) {
+                updateFdsTomorrowButton_(lastPayload);
+                if (getFdsTodayEntry_(lastPayload)) return lastPayload;
+            }
+
+            for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
+                await waitFds_(attempt === 0 ? 2500 : 2000);
+
+                if (retryGmailAttempts.has(attempt)) {
+                    setFdsAutoStatus_('FDS du jour toujours recherchée — relance automatique Gmail/NAS...');
+                    await callFdsGmailRefreshWithoutBlocking_().catch(() => {});
+                }
+
+                try {
+                    lastPayload = await fetchFdsStatus_(Date.now());
+                    updateFdsTomorrowButton_(lastPayload);
+
+                    if (getFdsTodayEntry_(lastPayload)) {
+                        return lastPayload;
+                    }
+
+                    if (visibleProgressAttempts.has(attempt)) {
+                        setFdsAutoStatus_('Recherche automatique de la FDS du jour dans Gmail/NAS...');
+                    }
+                } catch (error) {
+                    lastError = error;
+                    if (visibleProgressAttempts.has(attempt)) {
+                        setFdsAutoStatus_('Recherche automatique FDS : statut NAS temporairement indisponible...', { warning: true });
+                    }
+                }
+            }
+
+            if (lastPayload) return lastPayload;
+            throw lastError || new Error('Statut feuille de service indisponible après attente');
+        }
+
+        let bfgFdsStartupSyncPromise_ = null;
+
         async function actualiserFeuilleServiceDepuisGmail_() {
             const btn = document.getElementById('fds-auto-refresh-btn');
             const originalText = btn ? btn.textContent : '';
@@ -5532,38 +5579,65 @@ const tdfStages = [
         }
 
         async function chargerDerniereFeuilleServiceAuDemarrage_() {
-            if (isBfgOffline_()) {
-                setFdsAutoStatus_('Mode hors ligne : aucune requête NAS FDS lancée. Dernière FDS locale conservée si disponible.', { warning: true });
-                return;
-            }
-            if (getFdsMode_() === FDS_MODE_MANUAL) {
-                setFdsAutoStatus_('Mode FDS manuel : aucune feuille NAS chargée automatiquement. Utiliser Importation manuelle ou repasser en Auto.', { warning: true });
-                return;
-            }
+            if (bfgFdsStartupSyncPromise_) return bfgFdsStartupSyncPromise_;
 
-            try {
-                const statusPayload = await fetchFdsStatus_(Date.now());
-                const todayEntry = getFdsTodayEntry_(statusPayload);
-                const tomorrowEntry = getFdsTomorrowEntry_(statusPayload);
-                if (todayEntry) {
-                    const emailDate = todayEntry.mailDate ? formatFdsMetaDate_(todayEntry.mailDate) : formatFdsMetaDate_(todayEntry.updatedAt);
-                    if (shouldKeepDisplayedFds_(todayEntry)) {
+            bfgFdsStartupSyncPromise_ = (async () => {
+                if (isBfgOffline_()) {
+                    setFdsAutoStatus_('Mode hors ligne : aucune requête NAS FDS lancée. Dernière FDS locale conservée si disponible.', { warning: true });
+                    return;
+                }
+                if (getFdsMode_() === FDS_MODE_MANUAL) {
+                    setFdsAutoStatus_('Mode FDS manuel : aucune feuille NAS chargée automatiquement. Utiliser Importation manuelle ou repasser en Auto.', { warning: true });
+                    return;
+                }
+
+                let statusPayload = null;
+                try {
+                    statusPayload = await fetchFdsStatus_(Date.now());
+                    let todayEntry = getFdsTodayEntry_(statusPayload);
+
+                    // v4.68 : si la FDS du jour n'est pas encore sur le NAS, ne pas
+                    // attendre un clic sur « Actualiser ». On lance automatiquement
+                    // la même recherche Gmail/NAS que le bouton manuel.
+                    if (!todayEntry) {
                         updateFdsTomorrowButton_(statusPayload);
-                        setFdsAutoStatus_(`FDS déjà à jour et conservée à l’écran : ${todayEntry.originalFilename || 'PDF'} — email du ${emailDate}.`);
-                    } else {
-                        await loadFdsPdfFromNas_(statusPayload, Date.now(), todayEntry.dateKey || todayEntry.fileDate, todayEntry);
-                        setFdsAutoStatus_(`FDS du jour chargée : ${todayEntry.originalFilename || 'PDF'} — email du ${emailDate}.`);
+                        setFdsAutoStatus_('FDS du jour absente du NAS — recherche automatique dans Gmail...');
+                        await callFdsGmailRefreshWithoutBlocking_();
+                        setFdsAutoStatus_('Recherche automatique de la FDS du jour — attente de l’import Gmail/NAS...');
+                        statusPayload = await waitForTodayFdsStatusAtStartup_(statusPayload);
+                        todayEntry = getFdsTodayEntry_(statusPayload);
                     }
-                } else {
+
+                    const tomorrowEntry = getFdsTomorrowEntry_(statusPayload);
+
+                    if (todayEntry) {
+                        const emailDate = todayEntry.mailDate ? formatFdsMetaDate_(todayEntry.mailDate) : formatFdsMetaDate_(todayEntry.updatedAt);
+                        if (shouldKeepDisplayedFds_(todayEntry)) {
+                            updateFdsTomorrowButton_(statusPayload);
+                            setFdsAutoStatus_(`FDS du jour déjà à jour : ${todayEntry.originalFilename || 'PDF'} — email du ${emailDate}.`);
+                        } else {
+                            await loadFdsPdfFromNas_(statusPayload, Date.now(), todayEntry.dateKey || todayEntry.fileDate, todayEntry);
+                            setFdsAutoStatus_(`FDS du jour chargée automatiquement : ${todayEntry.originalFilename || 'PDF'} — email du ${emailDate}.`);
+                        }
+                        return;
+                    }
+
                     updateFdsTomorrowButton_(statusPayload);
                     if (tomorrowEntry) {
-                        setFdsAutoStatus_('Aucune FDS du jour disponible. Une FDS du lendemain est disponible mais non affichée automatiquement.', { warning: true });
+                        setFdsAutoStatus_('Aucune FDS du jour trouvée après recherche automatique. Une FDS du lendemain est disponible mais non affichée automatiquement.', { warning: true });
                     } else {
-                        setFdsAutoStatus_('Aucune feuille de service NAS chargée automatiquement. Utiliser Actualiser ou Importation manuelle.', { warning: true });
+                        setFdsAutoStatus_('Aucune FDS du jour trouvée après recherche automatique Gmail/NAS.', { warning: true });
                     }
+                } catch (error) {
+                    console.warn('Recherche automatique FDS au démarrage impossible :', error);
+                    setFdsAutoStatus_('Recherche automatique FDS indisponible. Utiliser Actualiser si nécessaire.', { warning: true });
                 }
-            } catch (error) {
-                setFdsAutoStatus_('Aucune feuille de service NAS chargée automatiquement. Utiliser Actualiser ou Importation manuelle.', { warning: true });
+            })();
+
+            try {
+                return await bfgFdsStartupSyncPromise_;
+            } finally {
+                bfgFdsStartupSyncPromise_ = null;
             }
         }
 
@@ -5586,6 +5660,30 @@ const tdfStages = [
             if (btn) {
                 btn.addEventListener('click', actualiserFeuilleServiceDepuisGmail_);
             }
+
+            // v4.68 : iPadOS peut simplement réveiller la PWA le lendemain sans
+            // recharger index.html. Dans ce cas on doit recontrôler la FDS du jour.
+            if (!window.__bfgFdsLifecycleBound) {
+                window.__bfgFdsLifecycleBound = true;
+                window.__bfgFdsLifecycleDateKey = fdsParisDateKey_(0);
+
+                const refreshFdsIfOperationalDayChanged = () => {
+                    if (document.hidden || isBfgOffline_() || getFdsMode_() === FDS_MODE_MANUAL) return;
+                    const todayKey = fdsParisDateKey_(0);
+                    if (window.__bfgFdsLifecycleDateKey === todayKey) return;
+                    window.__bfgFdsLifecycleDateKey = todayKey;
+                    setFdsAutoStatus_('Nouveau jour détecté — recherche automatique de la FDS du jour...');
+                    void chargerDerniereFeuilleServiceAuDemarrage_();
+                };
+
+                window.addEventListener('pageshow', () => {
+                    setTimeout(refreshFdsIfOperationalDayChanged, 150);
+                });
+                document.addEventListener('visibilitychange', () => {
+                    if (!document.hidden) setTimeout(refreshFdsIfOperationalDayChanged, 150);
+                });
+            }
+
             chargerDerniereFeuilleServiceAuDemarrage_();
         }
 
@@ -5715,7 +5813,7 @@ const tdfStages = [
         async function requestGaarImportViaNas_() {
             const query = new URLSearchParams();
             query.set('t', String(Date.now()));
-            query.set('source', 'bfg-test-v4.67');
+            query.set('source', 'bfg-test-v4.68');
 
             const url = `${GAAR_IMPORT_REQUEST_API_URL}?${query.toString()}`;
             const response = await fetchWithTimeout_(url, { cache: 'no-store' }, 65000);
@@ -11173,7 +11271,7 @@ window.__notamTextFull = notamInput.value;
 
         function initializePageTitle() {
             const titleElement = document.getElementById('main-title');
-            titleElement.textContent = `Briefing Fdf TEST v4.67 du ${new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}`;
+            titleElement.textContent = `Briefing Fdf TEST v4.68 du ${new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}`;
             const timeDisplay = document.getElementById('current-time-display');
             const updateTime = () => timeDisplay.textContent = new Date().toLocaleTimeString('fr-FR');
             updateTime(); setInterval(updateTime, 1000);
