@@ -1,6 +1,6 @@
-CHANGELOG CUMULATIF — BFG TEST v4.68
+CHANGELOG CUMULATIF — BFG TEST v4.69
 Date : 2026-09-19
-Base actuelle : TEST v4.67
+Base actuelle : TEST v4.68
 
 RÈGLE DU FICHIER
 - Ce CHANGELOG est cumulatif.
@@ -900,8 +900,33 @@ Fichiers BFG modifiés :
 Fichier NAS :
 - Aucun changement.
 
+
 ===============================================================================
-FICHIERS DE LA VERSION ACTUELLE v4.68
+TEST v4.69 — 2026-09-19
+Base : TEST v4.68
+===============================================================================
+
+SUP AIP — LIBELLÉ DU BOUTON CONSERVÉ :
+- Après chargement d'un premier SUP AIP, le bouton « Charger SUP AIP » reste affiché avec son libellé d'origine.
+- Il ne se transforme plus en bouton « + ».
+- Le même bouton « Charger SUP AIP » permet toujours d'ajouter d'autres PDF SUP AIP.
+- Le comportement de chargement multiple et la suppression individuelle des SUP AIP restent inchangés.
+
+NON-RÉGRESSION :
+- FDS automatique v4.68 inchangée.
+- Association NPF-Q400, GAAR, annotations/Pencil, NOTAM, TEMSI, pélicandromes, disponibilité avions, sauvegardes locales et fonctionnement hors ligne inchangés.
+- Aucun changement côté NAS / PHP.
+
+Fichiers BFG modifiés :
+- index.html
+- manifest.json
+- sw.js
+
+Fichier NAS :
+- Aucun changement.
+
+===============================================================================
+FICHIERS DE LA VERSION ACTUELLE v4.69
 ===============================================================================
 
 Fichiers BFG :
