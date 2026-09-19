@@ -1,6 +1,6 @@
-CHANGELOG CUMULATIF — BFG TEST v4.70
+CHANGELOG CUMULATIF — BFG TEST v4.71
 Date : 2026-09-19
-Base actuelle : TEST v4.69
+Base actuelle : TEST v4.70
 
 RÈGLE DU FICHIER
 - Ce CHANGELOG est cumulatif.
@@ -955,8 +955,42 @@ Fichiers BFG modifiés :
 Fichier NAS :
 - Aucun changement.
 
+
 ===============================================================================
-FICHIERS DE LA VERSION ACTUELLE v4.70
+TEST v4.71 — 2026-09-19
+Base : TEST v4.70
+===============================================================================
+
+SUP AIP — BOUTON DE SUPPRESSION :
+- Le bouton « X » est légèrement décalé vers la droite pour ne plus être collé au nom du PDF.
+- Son style est renforcé :
+  * fond rouge,
+  * X noir,
+  * police plus grosse et plus grasse.
+
+SUP AIP — FIABILISATION DE L'AFFICHAGE PDF :
+- Correction d'un comportement intermittent où il fallait parfois recharger/importer plusieurs fois un SUP AIP pour obtenir un affichage correct.
+- Les SUP AIP calculent désormais automatiquement un zoom initial ajusté à la largeur réellement disponible du conteneur.
+- Après chargement initial ou restauration persistante, plusieurs rerenders de réparation sont planifiés automatiquement pour laisser le layout iPad/Safari se stabiliser.
+- La restauration persistante des SUP AIP est légèrement différée au lancement afin d'éviter un rendu trop précoce.
+- Cette correction cible en particulier les cas où, après réouverture de BFG, le PDF apparaissait anormalement petit ou mal dimensionné.
+
+NON-RÉGRESSION :
+- La mémorisation persistante des SUP AIP de la v4.70 est conservée.
+- Le bouton « Charger SUP AIP » conserve son libellé.
+- FDS automatique, Association NPF-Q400, GAAR, annotations/Pencil, NOTAM, TEMSI, pélicandromes, disponibilité avions, sauvegardes locales et hors ligne inchangés.
+- Aucun changement côté NAS / PHP.
+
+Fichiers BFG modifiés :
+- index.html
+- manifest.json
+- sw.js
+
+Fichier NAS :
+- Aucun changement.
+
+===============================================================================
+FICHIERS DE LA VERSION ACTUELLE v4.71
 ===============================================================================
 
 Fichiers BFG :
