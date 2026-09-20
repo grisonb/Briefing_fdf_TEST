@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0">
-    <title>Briefing Fdf TEST v4.72</title>
+    <title>Briefing Fdf TEST v4.73</title>
     <link rel="manifest" href="./manifest.json?v=4.72">
     <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png?v=4.24">
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -2204,10 +2204,10 @@
 
     <div class="page-header">
         <div class="page-header-background"></div>
-        <h1 id="main-title">Briefing Fdf TEST v4.72</h1>
+        <h1 id="main-title">Briefing Fdf TEST v4.73</h1>
         <p id="current-time-display"></p>
         <p style="position: relative; z-index: 2; text-align: center; color: #333; font-size: 1em; margin-top: -25px; margin-bottom: 30px;">
-    v<span id="app-version">4.72 TEST - NOTAM SDVFR</span>
+    v<span id="app-version">4.73 TEST - NOTAM SDVFR DATE</span>
     <button id="force-update-btn" class="link-button" style="background-color: #34495e; padding: 4px 10px; font-size: 0.8em; margin-left: 10px; vertical-align: middle;">
         Forcer MAJ
     </button>
@@ -2599,7 +2599,7 @@
     <footer>Données : Météo-France, SIA, Windy.com, CheckWX.com. Page non commerciale, à usage personnel.</footer>
     
     <script>
-        const APP_VERSION = "4.72 TEST - NOTAM SDVFR";
+        const APP_VERSION = "4.73 TEST - NOTAM SDVFR DATE";
 
         // --- Proxy NAS pour la source de données météo CheckWX ---
         const CHECKWX_PROXY_URL = "https://grisonb.synology.me/briefing-api/get-metar-taf.php";
@@ -3900,10 +3900,24 @@ const tdfStages = [
         }
 
         function normalizeSdvfrNotamDescription_(notam) {
+            const monthMap = {
+                JAN: '01', FEB: '02', MAR: '03', APR: '04', MAY: '05', JUN: '06',
+                JUL: '07', AUG: '08', SEP: '09', OCT: '10', NOV: '11', DEC: '12'
+            };
+
+            const normalizeValidityDate = (_, lineStart, marker, year, monthName, day, hour, minute) => {
+                const month = monthMap[String(monthName || '').slice(0, 3).toUpperCase()];
+                if (!month) return _;
+                return `${lineStart}${marker}${String(year).slice(-2)}${month}${String(day).padStart(2, '0')}${hour}${minute}`;
+            };
+
             return String(
                 (notam && (notam.description || notam.raw || notam.rawText || notam.text || notam.message)) || ''
             )
                 .replace(/\r\n?/g, '\n')
+                // SDVFR renvoie notamment : B) 2026 Mar 19 00:00 / C) 2026 Oct 29 23:59.
+                // L'analyseur BFG historique attend le format OACI YYMMDDHHMM.
+                .replace(/(^|\n)(\s*[BC]\)\s*)(\d{4})\s+([A-Za-z]{3,9})\s+(\d{1,2})\s+(\d{2}):(\d{2})/gi, normalizeValidityDate)
                 .trim();
         }
 
@@ -11743,7 +11757,7 @@ window.__notamTextFull = notamInput.value;
 
         function initializePageTitle() {
             const titleElement = document.getElementById('main-title');
-            titleElement.textContent = `Briefing Fdf TEST v4.72 du ${new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}`;
+            titleElement.textContent = `Briefing Fdf TEST v4.73 du ${new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}`;
             const timeDisplay = document.getElementById('current-time-display');
             const updateTime = () => timeDisplay.textContent = new Date().toLocaleTimeString('fr-FR');
             updateTime(); setInterval(updateTime, 1000);
