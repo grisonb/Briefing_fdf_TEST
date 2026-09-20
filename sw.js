@@ -1,5 +1,5 @@
-const BFG_SW_VERSION = '4.79';
-const CACHE_NAME = 'briefing-fdf-test-v4.79-reset-nats-r1';
+const BFG_SW_VERSION = '4.80';
+const CACHE_NAME = 'briefing-fdf-test-v4.80-notam-ui-r1';
 
 const LOCAL_ASSETS = [
   './manifest.json',
