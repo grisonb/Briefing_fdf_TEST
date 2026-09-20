@@ -12,8 +12,8 @@
         }
     </script>
     <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0">
-    <title>Briefing Fdf TEST v4.97</title>
-    <link rel="manifest" href="./manifest.json?v=4.97">
+    <title>Briefing Fdf TEST v4.98</title>
+    <link rel="manifest" href="./manifest.json?v=4.98">
     <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png?v=4.24">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-title" content="Briefing TEST">
@@ -1173,6 +1173,71 @@
             border-radius: 8px;
             box-shadow: 0 2px 8px rgba(0,0,0,0.08);
         }
+        /* v4.98 — Carte France SUP AIP issue des zones temporaires SDVFR. */
+        #sup-aip-map-panel {
+            margin: 0 0 22px 0;
+            padding: 16px;
+            border: 1px solid var(--border-color);
+            border-radius: 10px;
+            background: #f8fafc;
+        }
+        #sup-aip-map-filters {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-wrap: wrap;
+            gap: 10px 14px;
+            margin-bottom: 12px;
+        }
+        #sup-aip-map-filters label {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            font-weight: 800;
+            color: var(--sc-blue);
+        }
+        #sup-aip-map-filters input[type="date"],
+        #sup-aip-map-filters input[type="number"] {
+            width: auto;
+            min-width: 145px;
+            background: #fff;
+            font-weight: 700;
+        }
+        #sup-aip-map-max-fl { min-width: 86px !important; width: 86px !important; }
+        #sup-aip-map-refresh-btn { background-color: #0F2B5B; }
+        #sup-aip-map-status {
+            margin: 8px 0 12px 0;
+            text-align: center;
+            font-weight: 700;
+            color: #475569;
+            min-height: 1.3em;
+        }
+        #sup-aip-map-status.warning { color: #9a3412; }
+        #sup-aip-france-map {
+            width: 100%;
+            height: min(68vh, 720px);
+            min-height: 480px;
+            border: 1px solid #cbd5e1;
+            border-radius: 10px;
+            overflow: hidden;
+            background: #e5e7eb;
+        }
+        .bfg-supaip-popup-title {
+            font-weight: 900;
+            color: var(--sc-blue);
+            margin-bottom: 6px;
+        }
+        .bfg-supaip-popup-row { margin: 3px 0; }
+        .bfg-supaip-popup-link {
+            display: inline-block;
+            margin-top: 8px;
+            font-weight: 800;
+        }
+        @media (max-width: 700px) {
+            #sup-aip-france-map { min-height: 430px; height: 62vh; }
+            #sup-aip-map-filters { justify-content: flex-start; }
+        }
+
         #tdf-sup-aip-link {
             font-weight: 700;
             padding: 10px 18px;
@@ -2267,10 +2332,10 @@
 
     <div class="page-header">
         <div class="page-header-background"></div>
-        <h1 id="main-title">Briefing Fdf TEST v4.97</h1>
+        <h1 id="main-title">Briefing Fdf TEST v4.98</h1>
         <p id="current-time-display"></p>
         <p style="position: relative; z-index: 2; text-align: center; color: #333; font-size: 1em; margin-top: -25px; margin-bottom: 30px;">
-    v<span id="app-version">4.97 TEST - DATES NOTAM</span>
+    v<span id="app-version">4.98 TEST - CARTE SUP AIP</span>
     <button id="force-update-btn" class="link-button" style="background-color: #34495e; padding: 4px 10px; font-size: 0.8em; margin-left: 10px; vertical-align: middle;">
         Forcer MAJ
     </button>
@@ -2643,6 +2708,16 @@
 
     <div id="sup-aip-section" class="pdf-section dropzone">
         <h2>AZBA / SUP AIP</h2>
+        <div id="sup-aip-map-panel">
+            <div id="sup-aip-map-filters">
+                <label>Du <input type="date" id="sup-aip-map-date-from"></label>
+                <label>au <input type="date" id="sup-aip-map-date-to"></label>
+                <label>FL max <input type="number" id="sup-aip-map-max-fl" min="0" max="660" step="5" value="195" inputmode="numeric"></label>
+                <button id="sup-aip-map-refresh-btn" class="link-button" type="button">Actualiser SUP AIP</button>
+            </div>
+            <p id="sup-aip-map-status">Carte SUP AIP non chargée.</p>
+            <div id="sup-aip-france-map" aria-label="Carte de France des SUP AIP"></div>
+        </div>
         <div id="sup-aip-controls" class="pdf-controls">
             <a id="supaip-map-btn" href="https://supaip.fr/" target="_blank" rel="noopener" class="link-button" style="background-color: #0F2B5B;">Carte SUP AIP / AZBA</a>
             <a id="azba-sia-btn" href="https://www.sia.aviation-civile.gouv.fr/schedules" target="_blank" rel="noopener" class="link-button" style="background-color:#2c3e50;">AZBA SIA</a>
@@ -2685,7 +2760,7 @@
     <footer>Données : Météo-France, SIA, Windy.com, SDVFR. Page non commerciale, à usage personnel.</footer>
     
     <script>
-        const APP_VERSION = "4.97 TEST - DATES NOTAM";
+        const APP_VERSION = "4.98 TEST - CARTE SUP AIP";
 
 
         // v4.97 — diagnostic conservé ; plage NOTAM quotidienne et sélection prioritaire. Aucun code d'accès, token ou contenu NOTAM n'est exporté.
@@ -2998,11 +3073,11 @@
                     ? output.value
                     : (bfgDiagPreparedText_ || buildBfgDiagnosticTextSync_());
                 const stamp = new Date().toISOString().replace(/[:.]/g, '-');
-                const filename = `BFG_DIAG_v4.97_${stamp}.txt`;
+                const filename = `BFG_DIAG_v4.98_${stamp}.txt`;
                 const file = new File([text], filename, { type: 'text/plain;charset=utf-8' });
                 if (navigator.share && (!navigator.canShare || navigator.canShare({ files: [file] }))) {
                     try {
-                        await navigator.share({ title: `Diagnostic BFG v4.97`, files: [file] });
+                        await navigator.share({ title: `Diagnostic BFG v4.98`, files: [file] });
                         if (status) status.textContent = 'Diagnostic partagé.';
                         bfgDiagLog_('DIAG', 'Diagnostic partagé via feuille de partage');
                         refreshBfgPreparedDiagnostic_();
@@ -3327,6 +3402,9 @@ const tdfStages = [
         const NOTAMS_GENERATION_STATUS_API_URL = 'https://grisonb.synology.me/briefing-api/get-notams-generation-status.php';
         const SDVFR_NOTAMS_REQUEST_API_URL = 'https://grisonb.synology.me/briefing-api/request-sdvfr-notams.php';
         const SDVFR_NOTAMS_RESULT_API_URL = 'https://grisonb.synology.me/briefing-api/get-sdvfr-notams-result.php';
+        const SDVFR_TEMPORARY_AIRSPACES_URL = 'https://sdvfr-next.skydreamsoft.fr/auto-temporary-airspaces';
+        const BFG_SUPAIP_MAP_CACHE_NAME_ = 'briefing-fdf-supaip-map-v1';
+        const BFG_SUPAIP_MAP_CACHE_PATH_ = '/__bfg_offline__/supaip-temporary-airspaces.json';
         function getSdvfrPelicandromeTargets_() {
             // v4.75 : tous les pélicandromes BFG connus ; LFMT reste explicitement exclu.
             const coords = getPelicGeoCoords_();
@@ -6482,7 +6560,7 @@ const tdfStages = [
             }
         }
         window.onload = waitForPdfJsAndInitialize;
-        const BFG_REQUIRED_SW_VERSION_ = '4.97';
+        const BFG_REQUIRED_SW_VERSION_ = '4.98';
 
         function queryBfgControllerVersion_(timeoutMs = 1800) {
             return new Promise((resolve) => {
@@ -6522,7 +6600,7 @@ const tdfStages = [
             }
 
             const registration = await navigator.serviceWorker.register(
-                './sw.js?v=4.97',
+                './sw.js?v=4.98',
                 { updateViaCache: 'none' }
             );
 
@@ -7907,6 +7985,7 @@ const tdfStages = [
         console.warn("Visionneuse PDF désactivée (pdf.js introuvable).");
     }
     initializeSupAipLoader();
+    initializeSupAipFranceMap_();
     // v4.90 : le parseur NOTAM et sa restauration ont déjà démarré dès DOMContentLoaded.
     // L'appel est idempotent et garantit simplement la présence de la promesse pour la suite.
     initializeBfgNotamsEarly_();
@@ -13327,6 +13406,336 @@ window.__notamTextFull = notamInput.value;
             document.querySelectorAll('.pencil-undo-highlight-action').forEach(button => button.addEventListener('click', undoLastPencilHighlight_));
         }
         
+
+        // ===== v4.98 : CARTE FRANCE SUP AIP / SDVFR =====
+        let bfgSupAipFranceMap_ = null;
+        let bfgSupAipFranceLayer_ = null;
+        let bfgSupAipRawPayload_ = null;
+
+        function bfgTodayIsoDate_() {
+            const d = new Date();
+            const y = d.getFullYear();
+            const m = String(d.getMonth() + 1).padStart(2, '0');
+            const day = String(d.getDate()).padStart(2, '0');
+            return `${y}-${m}-${day}`;
+        }
+
+        function bfgParseFlexibleDate_(value) {
+            if (value === null || value === undefined || value === '') return null;
+            if (value instanceof Date) return Number.isNaN(value.getTime()) ? null : value;
+            if (typeof value === 'number' && Number.isFinite(value)) {
+                const ms = value < 1e12 ? value * 1000 : value;
+                const d = new Date(ms);
+                return Number.isNaN(d.getTime()) ? null : d;
+            }
+            const raw = String(value).trim();
+            if (!raw) return null;
+            const d = new Date(raw);
+            return Number.isNaN(d.getTime()) ? null : d;
+        }
+
+        function bfgPickFirst_(obj, keys) {
+            for (const key of keys) {
+                if (obj && obj[key] !== undefined && obj[key] !== null && obj[key] !== '') return obj[key];
+            }
+            return null;
+        }
+
+        function bfgAltitudeToFl_(value, unitHint = '') {
+            if (value === null || value === undefined || value === '') return null;
+            if (typeof value === 'object') {
+                const v = bfgPickFirst_(value, ['value', 'val', 'altitude', 'level', 'number']);
+                const u = bfgPickFirst_(value, ['unit', 'units', 'uom', 'type']) || unitHint;
+                return bfgAltitudeToFl_(v, u);
+            }
+            const raw = String(value).trim().toUpperCase();
+            if (!raw || raw === 'SFC' || raw === 'GND') return 0;
+            if (raw.includes('UNL')) return 999;
+            const n = Number((raw.match(/-?\d+(?:[.,]\d+)?/) || [])[0]?.replace(',', '.'));
+            if (!Number.isFinite(n)) return null;
+            const unit = String(unitHint || raw).toUpperCase();
+            if (unit.includes('FL')) return n;
+            if (unit.includes('M ') || unit.endsWith('M') || unit.includes('METR')) return (n * 3.28084) / 100;
+            if (unit.includes('FT') || unit.includes('FEET') || n > 660) return n / 100;
+            return n;
+        }
+
+        function bfgParseWktGeometry_(wkt) {
+            if (!wkt || typeof wkt !== 'string') return null;
+            let text = wkt.trim().replace(/^SRID=\d+;/i, '');
+            const typeMatch = text.match(/^(POLYGON|MULTIPOLYGON)\s*/i);
+            if (!typeMatch) return null;
+            const type = typeMatch[1].toUpperCase();
+            text = text.slice(typeMatch[0].length).trim();
+            const parseRing = ring => ring.split(',').map(pair => {
+                const parts = pair.trim().split(/\s+/).map(Number);
+                return parts.length >= 2 && parts.every(Number.isFinite) ? [parts[0], parts[1]] : null;
+            }).filter(Boolean);
+            try {
+                if (type === 'POLYGON') {
+                    const inner = text.replace(/^\(\(/, '').replace(/\)\)$/, '');
+                    const rings = inner.split(/\)\s*,\s*\(/).map(parseRing).filter(r => r.length >= 3);
+                    return rings.length ? { type: 'Polygon', coordinates: rings } : null;
+                }
+                const inner = text.replace(/^\(\(\(/, '').replace(/\)\)\)$/, '');
+                const polygons = inner.split(/\)\)\s*,\s*\(\(/).map(poly => {
+                    return poly.split(/\)\s*,\s*\(/).map(parseRing).filter(r => r.length >= 3);
+                }).filter(poly => poly.length);
+                return polygons.length ? { type: 'MultiPolygon', coordinates: polygons } : null;
+            } catch (_) {
+                return null;
+            }
+        }
+
+        function bfgNormalizeSupAipGeometry_(item) {
+            const candidate = item && (item.geometry || item.geojson || item.geoJson || item.shape || item.wkt || item.polygon);
+            if (!candidate) return null;
+            if (typeof candidate === 'string') {
+                const trimmed = candidate.trim();
+                if (trimmed.startsWith('{')) {
+                    try {
+                        const parsed = JSON.parse(trimmed);
+                        return parsed.geometry || parsed;
+                    } catch (_) {}
+                }
+                return bfgParseWktGeometry_(trimmed);
+            }
+            if (candidate.type && candidate.coordinates) return candidate;
+            if (candidate.geometry && candidate.geometry.type) return candidate.geometry;
+            if (Array.isArray(candidate)) {
+                return { type: 'Polygon', coordinates: [candidate] };
+            }
+            return null;
+        }
+
+        function bfgExtractSupAipItems_(payload) {
+            if (Array.isArray(payload)) return payload;
+            if (!payload || typeof payload !== 'object') return [];
+            for (const key of ['features', 'airspaces', 'temporaryAirspaces', 'autoTemporaryAirspaces', 'items', 'results', 'data']) {
+                if (Array.isArray(payload[key])) return payload[key];
+                if (payload[key] && Array.isArray(payload[key].features)) return payload[key].features;
+            }
+            return [];
+        }
+
+        function bfgNormalizeSupAipItem_(item, index) {
+            const p = item && item.properties && typeof item.properties === 'object' ? { ...item, ...item.properties } : (item || {});
+            const label = String(bfgPickFirst_(p, ['label', 'name', 'title', 'reference', 'code', 'identifier', 'id']) || `SUP AIP ${index + 1}`).trim();
+            const typeText = String(bfgPickFirst_(p, ['airspaceType', 'category', 'kind', 'type', 'sourceType', 'source']) || '').trim();
+            const allText = `${typeText} ${label} ${String(bfgPickFirst_(p, ['description', 'text', 'comment']) || '')}`.toUpperCase();
+            if (!(allText.includes('SUPAIP') || allText.includes('SUP AIP') || allText.includes('AIP SUP'))) return null;
+            const geometry = (item && item.type === 'Feature' && item.geometry) ? item.geometry : bfgNormalizeSupAipGeometry_(p);
+            if (!geometry) return null;
+
+            const start = bfgParseFlexibleDate_(bfgPickFirst_(p, ['validFrom', 'validityStart', 'startDate', 'dateStart', 'from', 'begin', 'start', 'effectiveFrom']));
+            const end = bfgParseFlexibleDate_(bfgPickFirst_(p, ['validTo', 'validityEnd', 'endDate', 'dateEnd', 'to', 'end', 'finish', 'effectiveTo']));
+            const lowerRaw = bfgPickFirst_(p, ['lowerLimit', 'lower', 'floor', 'bottom', 'minAltitude', 'lowerAltitude']);
+            const upperRaw = bfgPickFirst_(p, ['upperLimit', 'upper', 'ceiling', 'top', 'maxAltitude', 'upperAltitude']);
+            const lowerUnit = bfgPickFirst_(p, ['lowerUnit', 'floorUnit', 'altitudeUnit', 'unit']) || '';
+            const upperUnit = bfgPickFirst_(p, ['upperUnit', 'ceilingUnit', 'altitudeUnit', 'unit']) || '';
+            const lowerFl = bfgAltitudeToFl_(lowerRaw, lowerUnit);
+            const upperFl = bfgAltitudeToFl_(upperRaw, upperUnit);
+            const directPdf = String(bfgPickFirst_(p, ['pdfUrl', 'documentUrl', 'documentURL', 'url', 'href']) || '').trim();
+            const description = String(bfgPickFirst_(p, ['description', 'text', 'comment', 'remarks']) || '').trim();
+            return { item: p, label, typeText: typeText || 'SUP AIP', geometry, start, end, lowerRaw, upperRaw, lowerFl, upperFl, directPdf, description };
+        }
+
+        function bfgBuildOfficialSupAipPdf_(zone) {
+            if (zone.directPdf && /^https?:\/\//i.test(zone.directPdf)) return zone.directPdf;
+            const haystack = `${zone.label} ${zone.description}`;
+            const match = haystack.match(/(?:SUP\s*AIP|AIP\s*SUP)(\s+AIRAC)?\s*(\d{1,3})\s*\/\s*(\d{2,4})/i);
+            if (!match) return '';
+            const isAirac = Boolean(match[1]);
+            const number = String(Number(match[2])).padStart(3, '0');
+            let year = Number(match[3]);
+            if (year < 100) year += 2000;
+            if (!Number.isFinite(year)) return '';
+            const filename = isAirac ? `lf_sup_a_${year}_${number}_fr.pdf` : `lf_sup_${year}_${number}_fr.pdf`;
+            return `https://www.sia.aviation-civile.gouv.fr/media/store/documents/file/l/f/${filename}`;
+        }
+
+        function bfgFormatDateFr_(date) {
+            if (!(date instanceof Date) || Number.isNaN(date.getTime())) return 'Non précisée';
+            return date.toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+        }
+
+        function bfgFormatAltitude_(raw, fl) {
+            if (raw !== null && raw !== undefined && raw !== '') {
+                if (typeof raw === 'object') {
+                    const val = bfgPickFirst_(raw, ['value', 'val', 'altitude', 'level']);
+                    const unit = bfgPickFirst_(raw, ['unit', 'units', 'uom']) || '';
+                    if (val !== null) return `${val}${unit ? ' ' + unit : ''}`;
+                }
+                return String(raw);
+            }
+            return Number.isFinite(fl) ? `FL ${Math.round(fl)}` : 'Non précisé';
+        }
+
+        async function bfgReadSupAipMapCache_() {
+            if (!('caches' in window)) return null;
+            try {
+                const cache = await caches.open(BFG_SUPAIP_MAP_CACHE_NAME_);
+                const res = await cache.match(BFG_SUPAIP_MAP_CACHE_PATH_);
+                if (!res) return null;
+                return await res.json();
+            } catch (_) {
+                return null;
+            }
+        }
+
+        async function bfgWriteSupAipMapCache_(payload) {
+            if (!('caches' in window)) return;
+            try {
+                const cache = await caches.open(BFG_SUPAIP_MAP_CACHE_NAME_);
+                const body = JSON.stringify({ savedAt: new Date().toISOString(), payload });
+                await cache.put(BFG_SUPAIP_MAP_CACHE_PATH_, new Response(body, { headers: { 'Content-Type': 'application/json' } }));
+            } catch (error) {
+                console.warn('BFG SUP AIP : cache carte impossible.', error);
+            }
+        }
+
+        async function bfgFetchSupAipTemporaryAirspaces_(force = false) {
+            if (!force && bfgSupAipRawPayload_) return bfgSupAipRawPayload_;
+            if (navigator.onLine) {
+                try {
+                    const response = await fetch(SDVFR_TEMPORARY_AIRSPACES_URL, {
+                        method: 'GET',
+                        cache: 'no-store',
+                        credentials: 'include',
+                        headers: { 'Accept': 'application/json' }
+                    });
+                    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                    const contentType = String(response.headers.get('content-type') || '').toLowerCase();
+                    if (!contentType.includes('json')) throw new Error('Réponse SDVFR non JSON');
+                    const payload = await response.json();
+                    bfgSupAipRawPayload_ = payload;
+                    await bfgWriteSupAipMapCache_(payload);
+                    return payload;
+                } catch (error) {
+                    console.warn('BFG SUP AIP : accès direct SDVFR impossible, tentative cache.', error);
+                }
+            }
+            const cached = await bfgReadSupAipMapCache_();
+            if (cached && cached.payload) {
+                bfgSupAipRawPayload_ = cached.payload;
+                return cached.payload;
+            }
+            throw new Error(navigator.onLine
+                ? 'Données SUP AIP SDVFR indisponibles depuis BFG.'
+                : 'Aucune carte SUP AIP mémorisée pour le mode hors ligne.');
+        }
+
+        function bfgSupAipZoneMatchesFilters_(zone) {
+            const fromInput = document.getElementById('sup-aip-map-date-from');
+            const toInput = document.getElementById('sup-aip-map-date-to');
+            const maxFlInput = document.getElementById('sup-aip-map-max-fl');
+            const from = fromInput && fromInput.value ? new Date(`${fromInput.value}T00:00:00`) : null;
+            const to = toInput && toInput.value ? new Date(`${toInput.value}T23:59:59.999`) : null;
+            const maxFl = maxFlInput && maxFlInput.value !== '' ? Number(maxFlInput.value) : null;
+            if (from && zone.end && zone.end < from) return false;
+            if (to && zone.start && zone.start > to) return false;
+            // Un FL max représente l'altitude maximale envisagée : toute zone dont le plancher
+            // est au-dessus de ce FL est sans incidence pour cette plage verticale.
+            if (Number.isFinite(maxFl) && Number.isFinite(zone.lowerFl) && zone.lowerFl > maxFl) return false;
+            return true;
+        }
+
+        function bfgSupAipPopupHtml_(zone) {
+            const pdf = bfgBuildOfficialSupAipPdf_(zone);
+            const desc = zone.description ? `<div class="bfg-supaip-popup-row">${escapeHtml_(zone.description)}</div>` : '';
+            const pdfLink = pdf ? `<a class="bfg-supaip-popup-link" href="${escapeHtml_(pdf)}" target="_blank" rel="noopener">Ouvrir le PDF officiel SIA</a>` : '';
+            return `<div class="bfg-supaip-popup-title">${escapeHtml_(zone.label)}</div>` +
+                `<div class="bfg-supaip-popup-row"><strong>Type :</strong> ${escapeHtml_(zone.typeText || 'SUP AIP')}</div>` +
+                `<div class="bfg-supaip-popup-row"><strong>Validité :</strong> ${escapeHtml_(bfgFormatDateFr_(zone.start))} → ${escapeHtml_(bfgFormatDateFr_(zone.end))}</div>` +
+                `<div class="bfg-supaip-popup-row"><strong>Plancher :</strong> ${escapeHtml_(bfgFormatAltitude_(zone.lowerRaw, zone.lowerFl))}</div>` +
+                `<div class="bfg-supaip-popup-row"><strong>Plafond :</strong> ${escapeHtml_(bfgFormatAltitude_(zone.upperRaw, zone.upperFl))}</div>` +
+                desc + pdfLink;
+        }
+
+        function bfgRenderSupAipFranceMap_() {
+            if (!bfgSupAipFranceMap_ || !bfgSupAipRawPayload_ || !window.L) return;
+            if (bfgSupAipFranceLayer_) {
+                bfgSupAipFranceLayer_.remove();
+                bfgSupAipFranceLayer_ = null;
+            }
+            const status = document.getElementById('sup-aip-map-status');
+            const rawItems = bfgExtractSupAipItems_(bfgSupAipRawPayload_);
+            const normalized = rawItems.map(bfgNormalizeSupAipItem_).filter(Boolean);
+            const selected = normalized.filter(bfgSupAipZoneMatchesFilters_);
+            const group = L.featureGroup();
+            selected.forEach(zone => {
+                try {
+                    const layer = L.geoJSON({ type: 'Feature', geometry: zone.geometry, properties: {} }, {
+                        style: { color: '#b000b5', weight: 2, fillColor: '#d946ef', fillOpacity: 0.18 }
+                    });
+                    layer.bindPopup(bfgSupAipPopupHtml_(zone), { maxWidth: 360 });
+                    layer.addTo(group);
+                } catch (error) {
+                    console.warn('BFG SUP AIP : géométrie ignorée.', error, zone.label);
+                }
+            });
+            group.addTo(bfgSupAipFranceMap_);
+            bfgSupAipFranceLayer_ = group;
+            if (status) {
+                status.classList.remove('warning');
+                status.textContent = `${selected.length} zone(s) SUP AIP affichée(s) sur ${normalized.length} reconnue(s).`;
+            }
+            if (selected.length && group.getBounds().isValid()) {
+                bfgSupAipFranceMap_.fitBounds(group.getBounds().pad(0.08), { maxZoom: 8 });
+            } else {
+                bfgSupAipFranceMap_.fitBounds([[41.0, -5.5], [51.5, 9.8]]);
+            }
+        }
+
+        async function bfgLoadAndRenderSupAipMap_(force = false) {
+            const status = document.getElementById('sup-aip-map-status');
+            const button = document.getElementById('sup-aip-map-refresh-btn');
+            try {
+                if (button) button.disabled = true;
+                if (status) {
+                    status.classList.remove('warning');
+                    status.textContent = force ? 'Actualisation des zones SUP AIP SDVFR...' : 'Chargement des zones SUP AIP SDVFR...';
+                }
+                bfgSupAipRawPayload_ = await bfgFetchSupAipTemporaryAirspaces_(force);
+                bfgRenderSupAipFranceMap_();
+            } catch (error) {
+                if (status) {
+                    status.classList.add('warning');
+                    status.textContent = `Carte SUP AIP indisponible : ${error.message || error}`;
+                }
+            } finally {
+                if (button) button.disabled = false;
+            }
+        }
+
+        function initializeSupAipFranceMap_() {
+            const mapElement = document.getElementById('sup-aip-france-map');
+            if (!mapElement || !window.L || bfgSupAipFranceMap_) return;
+            const today = bfgTodayIsoDate_();
+            const fromInput = document.getElementById('sup-aip-map-date-from');
+            const toInput = document.getElementById('sup-aip-map-date-to');
+            const maxFlInput = document.getElementById('sup-aip-map-max-fl');
+            const refreshBtn = document.getElementById('sup-aip-map-refresh-btn');
+            if (fromInput && !fromInput.value) fromInput.value = today;
+            if (toInput && !toInput.value) toInput.value = today;
+
+            bfgSupAipFranceMap_ = L.map(mapElement, { zoomControl: true, preferCanvas: true });
+            bfgSupAipFranceMap_.fitBounds([[41.0, -5.5], [51.5, 9.8]]);
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                maxZoom: 18,
+                attribution: '&copy; OpenStreetMap contributors'
+            }).addTo(bfgSupAipFranceMap_);
+
+            const rerender = () => bfgRenderSupAipFranceMap_();
+            fromInput?.addEventListener('change', rerender);
+            toInput?.addEventListener('change', rerender);
+            maxFlInput?.addEventListener('change', rerender);
+            maxFlInput?.addEventListener('input', rerender);
+            refreshBtn?.addEventListener('click', () => bfgLoadAndRenderSupAipMap_(true));
+            setTimeout(() => bfgSupAipFranceMap_?.invalidateSize(false), 100);
+            bfgLoadAndRenderSupAipMap_(false);
+        }
+
         function initializeManualMetarFetch() {
             const fetchBtn = document.getElementById('manual-metar-fetch-btn'), input = document.getElementById('manual-icao-input'), display = document.getElementById('manual-metar-display');
             const handleFetch = () => {
@@ -13347,7 +13756,7 @@ window.__notamTextFull = notamInput.value;
 
         function initializePageTitle() {
             const titleElement = document.getElementById('main-title');
-            titleElement.textContent = `Briefing Fdf TEST v4.97 du ${new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}`;
+            titleElement.textContent = `Briefing Fdf TEST v4.98 du ${new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}`;
             const timeDisplay = document.getElementById('current-time-display');
             const updateTime = () => timeDisplay.textContent = new Date().toLocaleTimeString('fr-FR');
             updateTime(); setInterval(updateTime, 1000);
