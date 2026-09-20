@@ -1,7 +1,7 @@
 {
   "name": "Briefing FDF TEST",
   "short_name": "Briefing TEST",
-  "description": "Briefing FDF TEST v4.84 — premier focus corrigé, météo SDVFR seule et liens SUP AIP AIRAC corrigés",
+  "description": "Briefing FDF TEST v4.85 — clavier iPad visible dès le premier tap et météo SDVFR fraîche protégée des restaurations anciennes",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
