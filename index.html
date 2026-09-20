@@ -12,7 +12,7 @@
         }
     </script>
     <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0">
-    <title>Briefing Fdf TEST v4.86</title>
+    <title>Briefing Fdf TEST v4.87</title>
     <link rel="manifest" href="./manifest.json?v=4.85">
     <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png?v=4.24">
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -2233,10 +2233,10 @@
 
     <div class="page-header">
         <div class="page-header-background"></div>
-        <h1 id="main-title">Briefing Fdf TEST v4.86</h1>
+        <h1 id="main-title">Briefing Fdf TEST v4.87</h1>
         <p id="current-time-display"></p>
         <p style="position: relative; z-index: 2; text-align: center; color: #333; font-size: 1em; margin-top: -25px; margin-bottom: 30px;">
-    v<span id="app-version">4.86 TEST - PERSISTANCE NOTAM / ACCES</span>
+    v<span id="app-version">4.87 TEST - PERSISTANCE NOTAM SDVFR</span>
     <button id="force-update-btn" class="link-button" style="background-color: #34495e; padding: 4px 10px; font-size: 0.8em; margin-left: 10px; vertical-align: middle;">
         Forcer MAJ
     </button>
@@ -2634,7 +2634,7 @@
     <footer>Données : Météo-France, SIA, Windy.com, SDVFR. Page non commerciale, à usage personnel.</footer>
     
     <script>
-        const APP_VERSION = "4.86 TEST - PERSISTANCE NOTAM / ACCES";
+        const APP_VERSION = "4.87 TEST - PERSISTANCE NOTAM SDVFR";
 
         // v4.84 : CheckWX désactivé temporairement. SDVFR est la seule source météo active.
         // Ce verrou interdit tout appel réseau CheckWX, même si un ancien chemin de secours était invoqué.
@@ -2942,11 +2942,21 @@ const tdfStages = [
 
         function saveBfgNotamQuickCache_() {
             try {
-                const nats = String(bfgNotamSourceTexts_.NATS || '').trim();
-                const sdvfr = String(bfgNotamSourceTexts_.SDVFR || '').trim();
+                const existing = loadBfgNotamQuickCache_();
+                const daily = loadSdvfrDailyCache_();
+                const nats = String(bfgNotamSourceTexts_.NATS || (existing && existing.sources && existing.sources.NATS) || '').trim();
+                // v4.87 : ne jamais remplacer un SDVFR du jour valide par une valeur vide issue
+                // d'une restauration générale plus ancienne. Le cache quotidien SDVFR est prioritaire.
+                const sdvfr = String(
+                    (daily && daily.rawText) ||
+                    bfgNotamSourceTexts_.SDVFR ||
+                    (existing && existing.sources && existing.sources.SDVFR) ||
+                    ''
+                ).trim();
                 if (!nats && !sdvfr) return false;
+                if (sdvfr) bfgNotamSourceTexts_.SDVFR = sdvfr;
                 localStorage.setItem(BFG_NOTAM_QUICK_CACHE_KEY_, JSON.stringify({
-                    version: 1,
+                    version: 2,
                     day: bfgTodayLocalKey_(),
                     savedAt: new Date().toISOString(),
                     sources: { NATS: nats, SDVFR: sdvfr }
@@ -2985,12 +2995,19 @@ const tdfStages = [
 
         function restoreBfgNotamQuickCache_() {
             const cached = loadBfgNotamQuickCache_();
-            if (!cached) return false;
-            // Ne jamais écraser une source déjà restaurée avec une valeur vide.
-            if (cached.sources.NATS) bfgNotamSourceTexts_.NATS = cached.sources.NATS;
-            if (cached.sources.SDVFR) bfgNotamSourceTexts_.SDVFR = cached.sources.SDVFR;
+            const daily = loadSdvfrDailyCache_();
+            if (!cached && !daily) return false;
+            // v4.87 : pour SDVFR, le cache quotidien du jour est la référence.
+            // Il répare également un éventuel cache rapide v4.86 vidé par une restauration locale.
+            if (cached && cached.sources.NATS) bfgNotamSourceTexts_.NATS = cached.sources.NATS;
+            const sdvfr = String((daily && daily.rawText) || (cached && cached.sources.SDVFR) || '').trim();
+            if (sdvfr) bfgNotamSourceTexts_.SDVFR = sdvfr;
             const rendered = renderCombinedBfgNotamSources_();
-            if (rendered) setBfgNotamLoadingBanner_(false);
+            if (rendered) {
+                setBfgNotamLoadingBanner_(false);
+                // Réécrit le cache rapide avec la valeur SDVFR autoritaire si nécessaire.
+                saveBfgNotamQuickCache_();
+            }
             return rendered;
         }
 
@@ -3069,7 +3086,7 @@ const tdfStages = [
             return result;
         }
 
-        function restoreBfgNotamSources_(sourcePayload, legacyCombinedText = '') {
+        function restoreBfgNotamSources_(sourcePayload, legacyCombinedText = '', options = {}) {
             const explicit = sourcePayload && typeof sourcePayload === 'object' ? sourcePayload : null;
             let nats = explicit ? String(explicit.NATS || explicit.nats || '').trim() : '';
             let defaultNotams = explicit ? String(explicit.SDVFR || explicit.sdvfr || explicit.NOTAM || '').trim() : '';
@@ -3083,10 +3100,27 @@ const tdfStages = [
 
             if (!isBfgNatsV479ResetDone_()) nats = '';
 
+            if (options.preserveTodaySdvfr === true) {
+                // v4.87 : une sauvegarde générale de session ne doit jamais écraser le cache
+                // SDVFR du jour déjà restauré. Priorité : cache quotidien -> cache rapide -> écran courant.
+                const daily = loadSdvfrDailyCache_();
+                const quick = loadBfgNotamQuickCache_();
+                const protectedSdvfr = String(
+                    (daily && daily.rawText) ||
+                    (quick && quick.sources && quick.sources.SDVFR) ||
+                    bfgNotamSourceTexts_.SDVFR ||
+                    ''
+                ).trim();
+                if (protectedSdvfr) defaultNotams = protectedSdvfr;
+            }
+
             bfgNotamSourceTexts_.NATS = nats;
-            bfgNotamSourceTexts_.SDVFR = defaultNotams;
+            // Ne jamais vider une source SDVFR déjà valide lors d'une restauration locale.
+            if (defaultNotams || options.preserveTodaySdvfr !== true) {
+                bfgNotamSourceTexts_.SDVFR = defaultNotams;
+            }
             updateBfgNotamSourceUi_();
-            return { NATS: nats, SDVFR: defaultNotams };
+            return { NATS: nats, SDVFR: String(bfgNotamSourceTexts_.SDVFR || '').trim() };
         }
 
         function renderCombinedBfgNotamSources_(savedState = null) {
@@ -5737,7 +5771,7 @@ const tdfStages = [
             }
         }
         window.onload = waitForPdfJsAndInitialize;
-        const BFG_REQUIRED_SW_VERSION_ = '4.86';
+        const BFG_REQUIRED_SW_VERSION_ = '4.87';
 
         function queryBfgControllerVersion_(timeoutMs = 1800) {
             return new Promise((resolve) => {
@@ -5777,7 +5811,7 @@ const tdfStages = [
             }
 
             const registration = await navigator.serviceWorker.register(
-                './sw.js?v=4.86',
+                './sw.js?v=4.87',
                 { updateViaCache: 'none' }
             );
 
@@ -7162,7 +7196,7 @@ const tdfStages = [
     }
     initializeSupAipLoader();
     initializeNotamParser();
-    // v4.86 : réafficher immédiatement les NOTAM du jour avant la restauration lourde et les appels réseau.
+    // v4.87 : réafficher immédiatement les NOTAM SDVFR du jour avant la restauration lourde ; le cache quotidien reste prioritaire.
     restoreBfgNotamQuickCache_();
     initializeManualMetarFetch();
     initializeForeFlightButton();
@@ -10845,7 +10879,7 @@ let activeShareApiBase = SHARE_API_BASE;
 
         const savedNotamsAreToday_ = bfgParisDateKeyForWeather_(data.savedAt) === bfgParisDateKeyForWeather_(new Date());
         if ((data.notamSources || data.notamText) && savedNotamsAreToday_) {
-            const restoredSources = restoreBfgNotamSources_(data.notamSources || null, data.notamText || '');
+            const restoredSources = restoreBfgNotamSources_(data.notamSources || null, data.notamText || '', { preserveTodaySdvfr: true });
             if (restoredSources.NATS || restoredSources.SDVFR) {
                 renderCombinedBfgNotamSources_(data.notamState || null);
                 saveBfgNotamQuickCache_();
@@ -12438,7 +12472,7 @@ window.__notamTextFull = notamInput.value;
 
         function initializePageTitle() {
             const titleElement = document.getElementById('main-title');
-            titleElement.textContent = `Briefing Fdf TEST v4.86 du ${new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}`;
+            titleElement.textContent = `Briefing Fdf TEST v4.87 du ${new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}`;
             const timeDisplay = document.getElementById('current-time-display');
             const updateTime = () => timeDisplay.textContent = new Date().toLocaleTimeString('fr-FR');
             updateTime(); setInterval(updateTime, 1000);
