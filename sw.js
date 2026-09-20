@@ -1,5 +1,5 @@
-const BFG_SW_VERSION = '4.73';
-const CACHE_NAME = 'briefing-fdf-test-v4.73-sdvfr-date-r1';
+const BFG_SW_VERSION = '4.74';
+const CACHE_NAME = 'briefing-fdf-test-v4.74-sdvfr-pelic-filter-r1';
 
 const LOCAL_ASSETS = [
   './manifest.json',
