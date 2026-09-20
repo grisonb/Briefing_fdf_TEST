@@ -5,8 +5,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0">
-    <title>Briefing Fdf TEST v4.81</title>
-    <link rel="manifest" href="./manifest.json?v=4.81">
+    <title>Briefing Fdf TEST v4.82</title>
+    <link rel="manifest" href="./manifest.json?v=4.82">
     <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png?v=4.24">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-title" content="Briefing TEST">
@@ -2147,10 +2147,11 @@
             display: block;
         }
         .cncasc-warning.success {
-            background: #0b6f34;
-            border-color: #084f25;
-            color: #ffffff;
-            box-shadow: 0 2px 8px rgba(11, 111, 52, 0.22);
+            /* v4.82 : confirmation discrète, légèrement plus soutenue que le fond connecté (#e9f8ef). */
+            background: #d8f0e1;
+            border-color: #9fd6b4;
+            color: #185c35;
+            box-shadow: 0 2px 6px rgba(24, 92, 53, 0.12);
         }
         .briefing-sensitive-hidden {
             display: none !important;
@@ -2204,10 +2205,10 @@
 
     <div class="page-header">
         <div class="page-header-background"></div>
-        <h1 id="main-title">Briefing Fdf TEST v4.81</h1>
+        <h1 id="main-title">Briefing Fdf TEST v4.82</h1>
         <p id="current-time-display"></p>
         <p style="position: relative; z-index: 2; text-align: center; color: #333; font-size: 1em; margin-top: -25px; margin-bottom: 30px;">
-    v<span id="app-version">4.81 TEST - LIENS SUP AIP ETENDUS</span>
+    v<span id="app-version">4.82 TEST - STABILITE NAVIGATION + SUP AIP</span>
     <button id="force-update-btn" class="link-button" style="background-color: #34495e; padding: 4px 10px; font-size: 0.8em; margin-left: 10px; vertical-align: middle;">
         Forcer MAJ
     </button>
@@ -2604,7 +2605,7 @@
     <footer>Données : Météo-France, SIA, Windy.com, CheckWX.com. Page non commerciale, à usage personnel.</footer>
     
     <script>
-        const APP_VERSION = "4.81 TEST - LIENS SUP AIP ETENDUS";
+        const APP_VERSION = "4.82 TEST - STABILITE NAVIGATION + SUP AIP";
 
         // --- Proxy NAS pour la source de données météo CheckWX ---
         const CHECKWX_PROXY_URL = "https://grisonb.synology.me/briefing-api/get-metar-taf.php";
@@ -4857,7 +4858,7 @@ const tdfStages = [
                 } catch (weatherError) {
                     console.warn('Chargement météo de connexion incomplet.', weatherError);
                 }
-                setCncascWarning_('NOTAM et METAR/TAF chargés.');
+                setCncascWarning_('NOTAM et METAR/TAF chargés.', { success: true });
             } catch (error) {
                 clearCncascToken_();
                 updateCncascAuthUi_();
@@ -5598,7 +5599,7 @@ const tdfStages = [
             }
         }
         window.onload = waitForPdfJsAndInitialize;
-        const BFG_REQUIRED_SW_VERSION_ = '4.81';
+        const BFG_REQUIRED_SW_VERSION_ = '4.82';
 
         function queryBfgControllerVersion_(timeoutMs = 1800) {
             return new Promise((resolve) => {
@@ -5638,7 +5639,7 @@ const tdfStages = [
             }
 
             const registration = await navigator.serviceWorker.register(
-                './sw.js?v=4.81',
+                './sw.js?v=4.82',
                 { updateViaCache: 'none' }
             );
 
@@ -6951,13 +6952,40 @@ const tdfStages = [
 
 
 
+        // v4.82 : le retour en haut n'est autorisé que pendant le tout premier affichage.
+        // Dès que l'utilisateur interagit avec la page, les rappels différés sont annulés.
+        let bfgStartupTopLockActive_ = true;
+        const bfgStartupTopTimers_ = [];
+
+        function cancelBfgStartupTopLock_() {
+            if (!bfgStartupTopLockActive_) return;
+            bfgStartupTopLockActive_ = false;
+            while (bfgStartupTopTimers_.length) {
+                clearTimeout(bfgStartupTopTimers_.pop());
+            }
+        }
+
         function forceBriefingStartAtTop() {
-    // iPad/PWA : certains rendus PDF/iframes ou la restauration NOTAM
-    // peuvent provoquer un scroll automatique vers TEMSI/NOTAM.
-    window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
-    document.documentElement.scrollTop = 0;
-    document.body.scrollTop = 0;
-}
+            if (!bfgStartupTopLockActive_) return;
+            window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
+            document.documentElement.scrollTop = 0;
+            document.body.scrollTop = 0;
+        }
+
+        function scheduleBfgInitialTopLock_() {
+            [0, 300, 1200].forEach(delay => {
+                bfgStartupTopTimers_.push(setTimeout(forceBriefingStartAtTop, delay));
+            });
+        }
+
+        ['pointerdown', 'touchstart', 'wheel'].forEach(eventName => {
+            window.addEventListener(eventName, cancelBfgStartupTopLock_, { passive: true, capture: true });
+        });
+        window.addEventListener('keydown', event => {
+            if (['ArrowDown', 'ArrowUp', 'PageDown', 'PageUp', 'Home', 'End', ' '].includes(event.key)) {
+                cancelBfgStartupTopLock_();
+            }
+        }, true);
 
         function initializePage() {
     forceBriefingStartAtTop();
@@ -7003,10 +7031,8 @@ const tdfStages = [
     initializeGaarMapControls();
     initializeTdfViewer();
 
-    // Forçage accueil : au chargement initial, on revient toujours au début.
-    setTimeout(forceBriefingStartAtTop, 0);
-    setTimeout(forceBriefingStartAtTop, 300);
-    setTimeout(forceBriefingStartAtTop, 1200);
+    // v4.82 : stabilisation uniquement au tout premier affichage ; annulée dès interaction utilisateur.
+    scheduleBfgInitialTopLock_();
 
     setInterval(checkWeatherValidity, 60000); // Vérifie la validité des METARs et TAFs chaque minute
 }
@@ -7514,15 +7540,17 @@ const tdfStages = [
             
             const textElement = document.createElement('div');
             textElement.className = 'notam-text-content';
-            // v4.81 : liens SUP AIP reconnus dans les formulations NATS et NOTAM françaises.
-            // Exemples : AIP SUP 118/26, SUP 118/26, SUP AIP 014/26, SUP AIP AIRAC 014/26.
-            const supAipRegex = /\b(?:(?:AIP\s+SUP)|(?:SUP\s+AIP(?:\s+AIRAC)?)|SUP)\s+(\d{1,3})\/(\d{2})\b/gi;
+            // v4.82 : toutes les formulations sont normalisées en interne comme une référence SUP AIP.
+            // NATS : « AIP SUP 118/26 ». FR : « SUP AIP 014/26 » ou « SUP AIP AIRAC 014/26 ».
+            // Le libellé original du NOTAM est conservé à l'écran ; seul numéro/année sert à construire le PDF SIA.
+            const supAipRegex = /\b(?:AIP\s+SUP(?:\s+AIRAC)?|SUP\s+AIP(?:\s+AIRAC)?|SUP)\s+(\d{1,3})\/(\d{2})\b/gi;
             let linkifiedText = notamText.replace(supAipRegex, (match, supNumber, twoDigitYear) => {
                 const fullYear = `20${twoDigitYear}`;
                 const paddedNumber = supNumber.padStart(3, '0');
+                const normalizedSupAip = `SUP AIP ${paddedNumber}/${twoDigitYear}`;
                 const baseUrl = "https://www.sia.aviation-civile.gouv.fr/media/store/documents/file/l/f/";
                 const pdfUrl = (fullYear === '2025') ? `${baseUrl}lf_sup_a_${fullYear}_${paddedNumber}_fr.pdf` : `${baseUrl}lf_sup_${fullYear}_${paddedNumber}_fr.pdf`;
-                return `<a href="${pdfUrl}" class="sup-aip-link" target="_blank" title="Ouvrir le PDF du SUP AIP ${match}">${match}</a>`;
+                return `<a href="${pdfUrl}" class="sup-aip-link" target="_blank" title="Ouvrir le PDF du ${normalizedSupAip}">${match}</a>`;
             });
             textElement.innerHTML = linkifiedText.replace(/\s+([B-G]\))/g, '<br>$1');
             contentWrapper.appendChild(textElement);
@@ -10791,9 +10819,7 @@ let activeShareApiBase = SHARE_API_BASE;
                 return false;
             });
             if (loadedFromLink) {
-                setTimeout(forceBriefingStartAtTop, 0);
-                setTimeout(forceBriefingStartAtTop, 300);
-                setTimeout(forceBriefingStartAtTop, 1200);
+                // v4.82 : pas de nouveau scroll forcé après restauration ; le verrou initial unique suffit.
                 return;
             }
             if (hasShareParam) {
@@ -10817,10 +10843,8 @@ let activeShareApiBase = SHARE_API_BASE;
 
             await restoreLocalSession_();
 
-            // Après restauration automatique d'un briefing, on force l'accueil au début.
-            setTimeout(forceBriefingStartAtTop, 0);
-            setTimeout(forceBriefingStartAtTop, 300);
-            setTimeout(forceBriefingStartAtTop, 1200);
+            // v4.82 : ne jamais reprogrammer un retour en haut après la restauration locale.
+            // Si l'utilisateur a déjà commencé à naviguer, sa position est conservée.
         } catch (error) {
             sessionStatus.textContent = `Erreur DB: ${error.message || error}`;
         }
@@ -12224,7 +12248,7 @@ window.__notamTextFull = notamInput.value;
 
         function initializePageTitle() {
             const titleElement = document.getElementById('main-title');
-            titleElement.textContent = `Briefing Fdf TEST v4.81 du ${new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}`;
+            titleElement.textContent = `Briefing Fdf TEST v4.82 du ${new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}`;
             const timeDisplay = document.getElementById('current-time-display');
             const updateTime = () => timeDisplay.textContent = new Date().toLocaleTimeString('fr-FR');
             updateTime(); setInterval(updateTime, 1000);
