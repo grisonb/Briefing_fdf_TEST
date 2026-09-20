@@ -1,5 +1,5 @@
-const BFG_SW_VERSION = '4.81';
-const CACHE_NAME = 'briefing-fdf-test-v4.81-supaip-links-r1';
+const BFG_SW_VERSION = '4.82';
+const CACHE_NAME = 'briefing-fdf-test-v4.82-navigation-supaip-r1';
 
 const LOCAL_ASSETS = [
   './manifest.json',
