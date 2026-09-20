@@ -12,8 +12,8 @@
         }
     </script>
     <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0">
-    <title>Briefing Fdf TEST v4.95</title>
-    <link rel="manifest" href="./manifest.json?v=4.95">
+    <title>Briefing Fdf TEST v4.97</title>
+    <link rel="manifest" href="./manifest.json?v=4.97">
     <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png?v=4.24">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-title" content="Briefing TEST">
@@ -1030,9 +1030,9 @@
         .taf-toggle-btn { background-color: var(--sc-blue); color: white; border: none; padding: 5px 10px; font-size: 0.8em; cursor: pointer; border-radius: 4px; margin-left: 10px; vertical-align: middle; }
         .metar-taf-refresh-btn { margin-left: 10px; background: none; border: 1px solid #ccc; cursor: pointer; border-radius: 50%; width: 24px; height: 24px; font-size: 14px; line-height: 22px; vertical-align: middle; padding: 0; }
         .metar-taf-refresh-btn:hover { background-color: #e9ecef; }
-        .metar-taf-container { border: 1px solid #e0e0e0; background-color: #fdfdfd; padding: 15px; margin-top: 10px; border-radius: 5px; font-size: 0.9em; }
+        .metar-taf-container { border: 1px solid #e0e0e0; background-color: #fdfdfd; padding: 15px; margin-top: 10px; border-radius: 5px; font-size: 1em; }
         .metar-taf-container h4 { margin: 0 0 5px 0; color: var(--sc-blue); font-size: 1em; display: flex; align-items: center; }
-        .metar-taf-container pre { white-space: pre-wrap; word-wrap: break-word; font-family: monospace; background-color: #e9ecef; padding: 10px; border-radius: 4px; margin: 0; font-size: 1.2em; }
+        .metar-taf-container pre { white-space: pre-wrap; word-wrap: break-word; font-family: monospace; background-color: #e9ecef; padding: 10px; border-radius: 4px; margin: 0; font-size: 1.3em; line-height: 1.35; }
         .metar-taf-container .error-msg { color: var(--sc-red); font-style: italic; }
         
         .metar-age-display {
@@ -2267,10 +2267,10 @@
 
     <div class="page-header">
         <div class="page-header-background"></div>
-        <h1 id="main-title">Briefing Fdf TEST v4.95</h1>
+        <h1 id="main-title">Briefing Fdf TEST v4.97</h1>
         <p id="current-time-display"></p>
         <p style="position: relative; z-index: 2; text-align: center; color: #333; font-size: 1em; margin-top: -25px; margin-bottom: 30px;">
-    v<span id="app-version">4.95 TEST - PLAGE VALIDITE NOTAM ET COMMANDES</span>
+    v<span id="app-version">4.97 TEST - DATES NOTAM</span>
     <button id="force-update-btn" class="link-button" style="background-color: #34495e; padding: 4px 10px; font-size: 0.8em; margin-left: 10px; vertical-align: middle;">
         Forcer MAJ
     </button>
@@ -2592,7 +2592,7 @@
             </div>
             <div class="notam-controls-row">
                 <button class="link-button save-pdf-action">Sauvegarder en Pdf</button>
-                <button id="manual-load-weather-btn" class="link-button" style="background-color: #16a085; padding: 8px 15px; font-size: 1em;">Actualiser Météo</button>
+                <button id="manual-load-weather-btn" class="link-button" style="background-color: #16a085;">Actualiser Météo</button>
             </div>
         </div>
         <p id="notam-download-status" style="text-align:center;font-weight:700;margin:8px 0 4px;">Dernier téléchargement NOTAM : —</p>
@@ -2685,10 +2685,10 @@
     <footer>Données : Météo-France, SIA, Windy.com, SDVFR. Page non commerciale, à usage personnel.</footer>
     
     <script>
-        const APP_VERSION = "4.95 TEST - PLAGE VALIDITE NOTAM ET COMMANDES";
+        const APP_VERSION = "4.97 TEST - DATES NOTAM";
 
 
-        // v4.95 — diagnostic conservé ; plage de validité NOTAM par dates + disposition des commandes. Aucun code d'accès, token ou contenu NOTAM n'est exporté.
+        // v4.97 — diagnostic conservé ; plage NOTAM quotidienne et sélection prioritaire. Aucun code d'accès, token ou contenu NOTAM n'est exporté.
         const BFG_DIAG_STARTED_AT_ = new Date();
         const BFG_DIAG_MAX_ENTRIES_ = 1600;
         const bfgDiagEntries_ = [];
@@ -2998,11 +2998,11 @@
                     ? output.value
                     : (bfgDiagPreparedText_ || buildBfgDiagnosticTextSync_());
                 const stamp = new Date().toISOString().replace(/[:.]/g, '-');
-                const filename = `BFG_DIAG_v4.95_${stamp}.txt`;
+                const filename = `BFG_DIAG_v4.97_${stamp}.txt`;
                 const file = new File([text], filename, { type: 'text/plain;charset=utf-8' });
                 if (navigator.share && (!navigator.canShare || navigator.canShare({ files: [file] }))) {
                     try {
-                        await navigator.share({ title: `Diagnostic BFG v4.95`, files: [file] });
+                        await navigator.share({ title: `Diagnostic BFG v4.97`, files: [file] });
                         if (status) status.textContent = 'Diagnostic partagé.';
                         bfgDiagLog_('DIAG', 'Diagnostic partagé via feuille de partage');
                         refreshBfgPreparedDiagnostic_();
@@ -6482,7 +6482,7 @@ const tdfStages = [
             }
         }
         window.onload = waitForPdfJsAndInitialize;
-        const BFG_REQUIRED_SW_VERSION_ = '4.95';
+        const BFG_REQUIRED_SW_VERSION_ = '4.97';
 
         function queryBfgControllerVersion_(timeoutMs = 1800) {
             return new Promise((resolve) => {
@@ -6522,7 +6522,7 @@ const tdfStages = [
             }
 
             const registration = await navigator.serviceWorker.register(
-                './sw.js?v=4.95',
+                './sw.js?v=4.97',
                 { updateViaCache: 'none' }
             );
 
@@ -12157,6 +12157,41 @@ window.__notamTextFull = notamInput.value;
                 return `${year}-${month}-${day}`;
             }
 
+            const NOTAM_VALIDITY_RANGE_STORAGE_KEY_ = 'briefingFdfNotamValidityRangeV1';
+
+            function persistNotamValidityRange_() {
+                if (!notamValidFromInput || !notamValidToInput) return;
+                const todayValue = getLocalDateInputValue_();
+                try {
+                    localStorage.setItem(NOTAM_VALIDITY_RANGE_STORAGE_KEY_, JSON.stringify({
+                        day: todayValue,
+                        from: notamValidFromInput.value || todayValue,
+                        to: notamValidToInput.value || todayValue
+                    }));
+                } catch (_) {}
+            }
+
+            function restoreNotamValidityRangeForToday_() {
+                if (!notamValidFromInput || !notamValidToInput) return;
+                const todayValue = getLocalDateInputValue_();
+                let restored = false;
+                try {
+                    const saved = JSON.parse(localStorage.getItem(NOTAM_VALIDITY_RANGE_STORAGE_KEY_) || 'null');
+                    if (saved && saved.day === todayValue && /^\d{4}-\d{2}-\d{2}$/.test(saved.from || '') && /^\d{4}-\d{2}-\d{2}$/.test(saved.to || '')) {
+                        notamValidFromInput.value = saved.from;
+                        notamValidToInput.value = saved.to;
+                        restored = true;
+                    }
+                } catch (_) {}
+
+                // v4.97 : au premier lancement d'une nouvelle journée, la plage revient toujours à aujourd'hui -> aujourd'hui.
+                if (!restored) {
+                    notamValidFromInput.value = todayValue;
+                    notamValidToInput.value = todayValue;
+                    persistNotamValidityRange_();
+                }
+            }
+
             function normalizeNotamValidityRange_(changedInput = null) {
                 const todayValue = getLocalDateInputValue_();
                 if (notamValidFromInput && !notamValidFromInput.value) notamValidFromInput.value = todayValue;
@@ -12170,11 +12205,17 @@ window.__notamTextFull = notamInput.value;
             }
 
             function initializeNotamValidityRange_() {
+                restoreNotamValidityRangeForToday_();
                 normalizeNotamValidityRange_();
+                persistNotamValidityRange_();
                 [notamValidFromInput, notamValidToInput].forEach(input => {
                     if (!input) return;
                     input.addEventListener('change', () => {
+                        // v4.97 : toute modification de la plage de validité repasse en affichage complet.
+                        // Le mode « Garder la Sélection » reste disponible, mais doit être réactivé volontairement après le changement de date.
+                        resetSelectionFilter({ persist: true });
                         normalizeNotamValidityRange_(input);
+                        persistNotamValidityRange_();
                         applyLiveFilters();
                     });
                 });
@@ -12189,21 +12230,26 @@ window.__notamTextFull = notamInput.value;
                 const rangeEnd = new Date(`${toValue}T23:59:59.999Z`);
 
                 document.querySelectorAll('#notam-display .notam-item').forEach(item => {
+                    // v4.97 : un NOTAM sélectionné en vert reste toujours visible,
+                    // même s'il est hors de la plage de dates ou correspond à un mot-clé masqué.
+                    const keepChecked = !!item.querySelector('.notam-checkbox')?.checked;
                     let shouldBeHidden = false;
 
-                    const notamStart = item.dataset.startDate ? new Date(item.dataset.startDate) : null;
-                    const notamEnd = item.dataset.endDate ? new Date(item.dataset.endDate) : null;
-                    if (notamStart && notamEnd && !(notamStart <= rangeEnd && notamEnd >= rangeStart)) {
-                        shouldBeHidden = true;
-                    }
-
-                    if (activeKeywords.length > 0 && !shouldBeHidden) {
-                        const itemText = item.__bfgRawNotamText
-                            || item.querySelector('.notam-text-content')?.innerText
-                            || item.textContent
-                            || '';
-                        if (activeKeywords.some(keyword => notamMatchesFilteredKeyword_(itemText, keyword))) {
+                    if (!keepChecked) {
+                        const notamStart = item.dataset.startDate ? new Date(item.dataset.startDate) : null;
+                        const notamEnd = item.dataset.endDate ? new Date(item.dataset.endDate) : null;
+                        if (notamStart && notamEnd && !(notamStart <= rangeEnd && notamEnd >= rangeStart)) {
                             shouldBeHidden = true;
+                        }
+
+                        if (activeKeywords.length > 0 && !shouldBeHidden) {
+                            const itemText = item.__bfgRawNotamText
+                                || item.querySelector('.notam-text-content')?.innerText
+                                || item.textContent
+                                || '';
+                            if (activeKeywords.some(keyword => notamMatchesFilteredKeyword_(itemText, keyword))) {
+                                shouldBeHidden = true;
+                            }
                         }
                     }
 
@@ -12696,6 +12742,9 @@ window.__notamTextFull = notamInput.value;
                     }
                     updatePersistentHiddenNotamsVisibility_();
                     persistCurrentNotamState_();
+                    // v4.97 : rendre immédiatement visible un NOTAM sélectionné même hors plage,
+                    // et le remettre sous le filtre de dates s'il est désélectionné.
+                    applyLiveFilters();
                     return;
                 }
                 if (target.matches('.notam-hide-checkbox')) {
@@ -13298,7 +13347,7 @@ window.__notamTextFull = notamInput.value;
 
         function initializePageTitle() {
             const titleElement = document.getElementById('main-title');
-            titleElement.textContent = `Briefing Fdf TEST v4.95 du ${new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}`;
+            titleElement.textContent = `Briefing Fdf TEST v4.97 du ${new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}`;
             const timeDisplay = document.getElementById('current-time-display');
             const updateTime = () => timeDisplay.textContent = new Date().toLocaleTimeString('fr-FR');
             updateTime(); setInterval(updateTime, 1000);
