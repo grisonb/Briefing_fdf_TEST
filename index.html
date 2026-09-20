@@ -12,7 +12,7 @@
         }
     </script>
     <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0">
-    <title>Briefing Fdf TEST v4.90</title>
+    <title>Briefing Fdf TEST v4.91</title>
     <link rel="manifest" href="./manifest.json?v=4.85">
     <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png?v=4.24">
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -2233,10 +2233,10 @@
 
     <div class="page-header">
         <div class="page-header-background"></div>
-        <h1 id="main-title">Briefing Fdf TEST v4.90</h1>
+        <h1 id="main-title">Briefing Fdf TEST v4.91</h1>
         <p id="current-time-display"></p>
         <p style="position: relative; z-index: 2; text-align: center; color: #333; font-size: 1em; margin-top: -25px; margin-bottom: 30px;">
-    v<span id="app-version">4.90 TEST - NOTAM IMMEDIATS</span>
+    v<span id="app-version">4.91 TEST - DIAGNOSTIC BFG</span>
     <button id="force-update-btn" class="link-button" style="background-color: #34495e; padding: 4px 10px; font-size: 0.8em; margin-left: 10px; vertical-align: middle;">
         Forcer MAJ
     </button>
@@ -2271,6 +2271,17 @@
                 </div>
             </details>
         </div>
+        <details id="bfg-diagnostic-panel" style="margin-top:12px;padding-top:10px;border-top:1px solid #d7dee8;">
+            <summary style="cursor:pointer;font-weight:800;color:#0a2c5a;line-height:1.35;user-select:none;">Diagnostic BFG</summary>
+            <div style="margin-top:12px;">
+                <div class="cncasc-auth-row" style="margin-top:0;">
+                    <button id="bfg-diag-show-btn" type="button" class="link-button" style="background-color:#6c757d;">Afficher diagnostic</button>
+                    <button id="bfg-diag-export-btn" type="button" class="link-button" style="background-color:#0a2c5a;">Exporter diagnostic</button>
+                </div>
+                <p id="bfg-diag-status" style="margin:8px 0 0 0;font-weight:700;color:#34495e;"></p>
+                <textarea id="bfg-diag-output" aria-label="Diagnostic BFG" style="display:none;min-height:280px;margin-top:10px;font:12px/1.4 monospace;white-space:pre;overflow:auto;"></textarea>
+            </div>
+        </details>
     </div>
 
     <div class="session-management" id="session-section">
@@ -2634,7 +2645,286 @@
     <footer>Données : Météo-France, SIA, Windy.com, SDVFR. Page non commerciale, à usage personnel.</footer>
     
     <script>
-        const APP_VERSION = "4.90 TEST - NOTAM IMMEDIATS";
+        const APP_VERSION = "4.91 TEST - DIAGNOSTIC BFG";
+
+
+        // v4.91 — diagnostic BFG exportable. Aucun code d'accès, token ou contenu NOTAM n'est exporté.
+        const BFG_DIAG_STARTED_AT_ = new Date();
+        const BFG_DIAG_MAX_ENTRIES_ = 1600;
+        const bfgDiagEntries_ = [];
+        let bfgDiagEditorDirty_ = false;
+        let bfgDiagPreparedText_ = '';
+        let bfgDiagPrepareInFlight_ = false;
+
+        function bfgDiagSafeData_(value) {
+            if (value == null) return '';
+            try {
+                const seen = new WeakSet();
+                return JSON.stringify(value, (key, val) => {
+                    if (/token|password|secret|code/i.test(String(key || ''))) return '[masqué]';
+                    if (typeof val === 'string' && val.length > 500) return `${val.slice(0, 500)}…[${val.length} caractères]`;
+                    if (typeof val === 'object' && val !== null) {
+                        if (seen.has(val)) return '[circulaire]';
+                        seen.add(val);
+                    }
+                    if (val instanceof Error) return { name: val.name, message: val.message, stack: val.stack || '' };
+                    return val;
+                });
+            } catch (_) {
+                try { return String(value); } catch (_) { return '[illisible]'; }
+            }
+        }
+
+        function bfgDiagLog_(category, message, data = null) {
+            const now = new Date();
+            const elapsed = Math.max(0, Math.round(performance.now ? performance.now() : (now - BFG_DIAG_STARTED_AT_)));
+            bfgDiagEntries_.push({
+                iso: now.toISOString(),
+                elapsed,
+                category: String(category || 'INFO'),
+                message: String(message || ''),
+                data: data == null ? '' : bfgDiagSafeData_(data)
+            });
+            if (bfgDiagEntries_.length > BFG_DIAG_MAX_ENTRIES_) {
+                bfgDiagEntries_.splice(0, bfgDiagEntries_.length - BFG_DIAG_MAX_ENTRIES_);
+            }
+        }
+
+        function bfgDiagTextSize_(text) {
+            try { return new Blob([String(text || '')]).size; }
+            catch (_) { return String(text || '').length; }
+        }
+
+        function bfgDiagFormatBytes_(bytes) {
+            const n = Number(bytes || 0);
+            if (!Number.isFinite(n) || n <= 0) return '0 o';
+            if (n < 1024) return `${Math.round(n)} o`;
+            if (n < 1024 * 1024) return `${(n / 1024).toFixed(1)} Ko`;
+            return `${(n / (1024 * 1024)).toFixed(2)} Mo`;
+        }
+
+        async function buildBfgDiagnosticText_() {
+            const lines = [];
+            const push = (label, value = '') => lines.push(`${label}${value === '' ? '' : ` ${value}`}`);
+            push('DIAGNOSTIC BFG');
+            push('Version :', APP_VERSION);
+            push('Généré :', new Date().toLocaleString('fr-FR'));
+            push('Démarrage :', BFG_DIAG_STARTED_AT_.toLocaleString('fr-FR'));
+            push('URL :', `${location.origin}${location.pathname}`);
+            push('En ligne :', navigator.onLine ? 'OUI' : 'NON');
+            push('Visibilité :', document.visibilityState || 'inconnue');
+            push('Mode standalone :', (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) || navigator.standalone ? 'OUI' : 'NON');
+            push('User-Agent :', navigator.userAgent || '');
+            lines.push('');
+            lines.push('=== ETAT NOTAM ===');
+            try { push('Source affichée :', typeof getBfgDisplayedNotamSource_ === 'function' ? getBfgDisplayedNotamSource_() : 'indisponible'); } catch (_) { push('Source affichée :', 'erreur'); }
+            try { push('NATS sélectionné :', typeof isBfgUseNatsNotamSource_ === 'function' && isBfgUseNatsNotamSource_() ? 'OUI' : 'NON'); } catch (_) {}
+            try { push('NOTAM visibles DOM :', document.querySelectorAll('#notam-display .notam-item').length); } catch (_) {}
+            try { push('Texte SDVFR mémoire :', bfgDiagFormatBytes_(bfgDiagTextSize_(bfgNotamSourceTexts_ && bfgNotamSourceTexts_.SDVFR))); } catch (_) { push('Texte SDVFR mémoire :', 'indisponible'); }
+            try { push('Texte NATS mémoire :', bfgDiagFormatBytes_(bfgDiagTextSize_(bfgNotamSourceTexts_ && bfgNotamSourceTexts_.NATS))); } catch (_) { push('Texte NATS mémoire :', 'indisponible'); }
+            try {
+                const daily = typeof loadSdvfrDailyCache_ === 'function' ? loadSdvfrDailyCache_() : null;
+                push('localStorage SDVFR :', daily ? `OK | ${bfgDiagFormatBytes_(bfgDiagTextSize_(daily.rawText))} | ${daily.savedAt || ''} | jour ${daily.day || ''}` : 'ABSENT/INVALIDE');
+            } catch (e) { push('localStorage SDVFR :', `ERREUR ${e && e.message || e}`); }
+            try {
+                const quick = typeof loadBfgNotamQuickCache_ === 'function' ? loadBfgNotamQuickCache_() : null;
+                const nats = quick && quick.sources ? quick.sources.NATS : '';
+                push('Cache rapide NATS :', quick ? `OK | ${bfgDiagFormatBytes_(bfgDiagTextSize_(nats))} | ${quick.savedAt || ''}` : 'ABSENT/INVALIDE');
+            } catch (e) { push('Cache rapide NATS :', `ERREUR ${e && e.message || e}`); }
+            try {
+                const indexed = typeof loadBfgSdvfrNotamIndexedDb_ === 'function' ? await loadBfgSdvfrNotamIndexedDb_() : null;
+                push('IndexedDB SDVFR :', indexed ? `OK | ${bfgDiagFormatBytes_(bfgDiagTextSize_(indexed.rawText))} | ${indexed.savedAt || ''} | jour ${indexed.day || ''}` : 'ABSENT/INVALIDE');
+            } catch (e) { push('IndexedDB SDVFR :', `ERREUR ${e && e.message || e}`); }
+            try {
+                const cacheRec = typeof loadBfgSdvfrNotamCacheStorage_ === 'function' ? await loadBfgSdvfrNotamCacheStorage_() : null;
+                push('CacheStorage SDVFR :', cacheRec ? `OK | ${bfgDiagFormatBytes_(bfgDiagTextSize_(cacheRec.rawText))} | ${cacheRec.savedAt || ''} | jour ${cacheRec.day || ''}` : 'ABSENT/INVALIDE');
+            } catch (e) { push('CacheStorage SDVFR :', `ERREUR ${e && e.message || e}`); }
+            try {
+                if (navigator.storage && navigator.storage.estimate) {
+                    const est = await navigator.storage.estimate();
+                    push('Stockage navigateur :', `${bfgDiagFormatBytes_(est.usage || 0)} utilisés / ${bfgDiagFormatBytes_(est.quota || 0)} quota`);
+                }
+            } catch (e) { push('Stockage navigateur :', `ERREUR ${e && e.message || e}`); }
+            lines.push('');
+            lines.push('=== SERVICE WORKER / CACHES ===');
+            try {
+                push('Contrôleur SW :', navigator.serviceWorker && navigator.serviceWorker.controller ? (navigator.serviceWorker.controller.scriptURL || 'présent') : 'ABSENT');
+                if ('caches' in window) {
+                    const names = await caches.keys();
+                    push('Caches :', names.join(' | ') || 'aucun');
+                }
+            } catch (e) { push('Service worker/caches :', `ERREUR ${e && e.message || e}`); }
+            lines.push('');
+            lines.push('=== METEO ===');
+            try {
+                const weatherNodes = Array.from(document.querySelectorAll('#notam-display .airport-section-container[data-icao]'));
+                const loaded = weatherNodes.filter(n => n.dataset.loaded === 'true');
+                push('Terrains météo chargés :', `${loaded.length}/${weatherNodes.length}`);
+                const sources = {};
+                loaded.forEach(n => { const s = n.dataset.weatherSource || 'inconnue'; sources[s] = (sources[s] || 0) + 1; });
+                push('Sources météo :', Object.entries(sources).map(([k,v]) => `${k}:${v}`).join(' | ') || 'aucune');
+            } catch (e) { push('Météo :', `ERREUR ${e && e.message || e}`); }
+            lines.push('');
+            lines.push('=== CHRONOLOGIE ===');
+            bfgDiagEntries_.forEach(entry => {
+                const time = new Date(entry.iso).toLocaleTimeString('fr-FR', {hour:'2-digit', minute:'2-digit', second:'2-digit', fractionalSecondDigits:3});
+                lines.push(`${time} +${String(entry.elapsed).padStart(6,' ')} ms [${entry.category}] ${entry.message}${entry.data ? ` | ${entry.data}` : ''}`);
+            });
+            return lines.join('\n');
+        }
+
+        async function refreshBfgPreparedDiagnostic_() {
+            if (bfgDiagPrepareInFlight_) return bfgDiagPreparedText_;
+            bfgDiagPrepareInFlight_ = true;
+            try {
+                bfgDiagPreparedText_ = await buildBfgDiagnosticText_();
+                return bfgDiagPreparedText_;
+            } catch (_) {
+                return bfgDiagPreparedText_;
+            } finally {
+                bfgDiagPrepareInFlight_ = false;
+            }
+        }
+
+        function buildBfgDiagnosticTextSync_() {
+            const lines = [];
+            lines.push('DIAGNOSTIC BFG');
+            lines.push(`Version : ${APP_VERSION}`);
+            lines.push(`Généré : ${new Date().toLocaleString('fr-FR')}`);
+            lines.push(`En ligne : ${navigator.onLine ? 'OUI' : 'NON'}`);
+            try { lines.push(`Source NOTAM affichée : ${typeof getBfgDisplayedNotamSource_ === 'function' ? getBfgDisplayedNotamSource_() : 'indisponible'}`); } catch (_) {}
+            try { lines.push(`NOTAM visibles DOM : ${document.querySelectorAll('#notam-display .notam-item').length}`); } catch (_) {}
+            try { lines.push(`Texte SDVFR mémoire : ${bfgDiagFormatBytes_(bfgDiagTextSize_(bfgNotamSourceTexts_ && bfgNotamSourceTexts_.SDVFR))}`); } catch (_) {}
+            try {
+                const raw = localStorage.getItem('briefingFdfSdvfrDailyNotamsV1') || '';
+                lines.push(`localStorage SDVFR brut : ${raw ? bfgDiagFormatBytes_(bfgDiagTextSize_(raw)) : 'ABSENT'}`);
+            } catch (e) { lines.push(`localStorage SDVFR : ERREUR ${e && e.message || e}`); }
+            lines.push('');
+            lines.push('=== CHRONOLOGIE ===');
+            bfgDiagEntries_.forEach(entry => {
+                const d = new Date(entry.iso);
+                const ms = String(d.getMilliseconds()).padStart(3, '0');
+                const time = `${d.toLocaleTimeString('fr-FR', {hour:'2-digit', minute:'2-digit', second:'2-digit'})}.${ms}`;
+                lines.push(`${time} +${String(entry.elapsed).padStart(6,' ')} ms [${entry.category}] ${entry.message}${entry.data ? ` | ${entry.data}` : ''}`);
+            });
+            return lines.join('\n');
+        }
+
+        async function showBfgDiagnostic_() {
+            const status = document.getElementById('bfg-diag-status');
+            const output = document.getElementById('bfg-diag-output');
+            if (status) status.textContent = 'Diagnostic en cours…';
+            try {
+                const text = await buildBfgDiagnosticText_();
+                bfgDiagPreparedText_ = text;
+                if (output) {
+                    output.value = text;
+                    output.style.display = 'block';
+                    bfgDiagEditorDirty_ = false;
+                }
+                if (status) status.textContent = 'Diagnostic affiché. Vous pouvez le modifier avant export.';
+                return text;
+            } catch (error) {
+                bfgDiagLog_('DIAG', 'Erreur génération diagnostic', { message: error && error.message || String(error) });
+                if (status) status.textContent = `Erreur diagnostic : ${error && error.message || error}`;
+                throw error;
+            }
+        }
+
+        function downloadBfgDiagnosticFallback_(text, filename) {
+            const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+            setTimeout(() => URL.revokeObjectURL(url), 1500);
+        }
+
+        async function exportBfgDiagnostic_() {
+            const status = document.getElementById('bfg-diag-status');
+            const output = document.getElementById('bfg-diag-output');
+            if (status) status.textContent = 'Ouverture du partage…';
+            try {
+                // Important iPadOS : ne pas attendre une lecture IndexedDB entre le tap utilisateur et navigator.share(),
+                // sinon Safari peut perdre l'activation utilisateur et refuser la feuille de partage.
+                const text = bfgDiagEditorDirty_ && output && output.value.trim()
+                    ? output.value
+                    : (bfgDiagPreparedText_ || buildBfgDiagnosticTextSync_());
+                const stamp = new Date().toISOString().replace(/[:.]/g, '-');
+                const filename = `BFG_DIAG_v4.91_${stamp}.txt`;
+                const file = new File([text], filename, { type: 'text/plain;charset=utf-8' });
+                if (navigator.share && (!navigator.canShare || navigator.canShare({ files: [file] }))) {
+                    try {
+                        await navigator.share({ title: `Diagnostic BFG v4.91`, files: [file] });
+                        if (status) status.textContent = 'Diagnostic partagé.';
+                        bfgDiagLog_('DIAG', 'Diagnostic partagé via feuille de partage');
+                        refreshBfgPreparedDiagnostic_();
+                        return;
+                    } catch (shareError) {
+                        if (shareError && shareError.name === 'AbortError') {
+                            if (status) status.textContent = 'Partage annulé.';
+                            return;
+                        }
+                        bfgDiagLog_('DIAG', 'Partage natif indisponible, téléchargement de secours', { message: shareError && shareError.message || String(shareError) });
+                    }
+                }
+                downloadBfgDiagnosticFallback_(text, filename);
+                if (status) status.textContent = 'Diagnostic exporté en fichier .txt.';
+                refreshBfgPreparedDiagnostic_();
+            } catch (error) {
+                if (status) status.textContent = `Export impossible : ${error && error.message || error}`;
+                bfgDiagLog_('DIAG', 'Erreur export diagnostic', { message: error && error.message || String(error) });
+            }
+        }
+
+        function initializeBfgDiagnosticUi_() {
+            const showBtn = document.getElementById('bfg-diag-show-btn');
+            const exportBtn = document.getElementById('bfg-diag-export-btn');
+            const output = document.getElementById('bfg-diag-output');
+            if (showBtn && !showBtn.dataset.bound) {
+                showBtn.dataset.bound = '1';
+                showBtn.addEventListener('click', () => showBfgDiagnostic_());
+            }
+            if (exportBtn && !exportBtn.dataset.bound) {
+                exportBtn.dataset.bound = '1';
+                exportBtn.addEventListener('click', () => exportBfgDiagnostic_());
+            }
+            if (output && !output.dataset.bound) {
+                output.dataset.bound = '1';
+                output.addEventListener('input', () => { bfgDiagEditorDirty_ = true; });
+            }
+            if (!window.__bfgDiagBackgroundRefreshStarted) {
+                window.__bfgDiagBackgroundRefreshStarted = true;
+                setTimeout(() => refreshBfgPreparedDiagnostic_(), 1200);
+                setInterval(() => refreshBfgPreparedDiagnostic_(), 10000);
+            }
+        }
+
+        window.addEventListener('error', event => {
+            bfgDiagLog_('JS-ERROR', event.message || 'Erreur JavaScript', {
+                source: event.filename ? String(event.filename).split('/').pop() : '',
+                line: event.lineno || 0,
+                column: event.colno || 0
+            });
+        }, true);
+        window.addEventListener('unhandledrejection', event => {
+            const reason = event.reason;
+            bfgDiagLog_('PROMISE', 'Promesse rejetée non interceptée', { message: reason && reason.message || String(reason || '') });
+        });
+        window.addEventListener('online', () => bfgDiagLog_('RESEAU', 'Passage en ligne'));
+        window.addEventListener('offline', () => bfgDiagLog_('RESEAU', 'Passage hors ligne'));
+        document.addEventListener('visibilitychange', () => bfgDiagLog_('PAGE', `Visibilité ${document.visibilityState}`));
+        let bfgDiagLastScrollLogAt_ = 0;
+        window.addEventListener('scroll', () => {
+            const now = Date.now();
+            if (now - bfgDiagLastScrollLogAt_ < 500) return;
+            bfgDiagLastScrollLogAt_ = now;
+            bfgDiagLog_('SCROLL', 'Position fenêtre', { y: Math.round(window.scrollY || 0) });
+        }, { passive: true });
+        bfgDiagLog_('BOOT', 'Script BFG chargé', { readyState: document.readyState, online: navigator.onLine });
 
         // v4.84 : CheckWX désactivé temporairement. SDVFR est la seule source météo active.
         // Ce verrou interdit tout appel réseau CheckWX, même si un ancien chemin de secours était invoqué.
@@ -2955,6 +3245,7 @@ const tdfStages = [
 
         async function saveBfgSdvfrNotamCacheStorage_(rawText, savedAt = new Date().toISOString()) {
             const text = String(rawText || '').trim();
+            bfgDiagLog_('NOTAM-CACHE', 'Écriture CacheStorage SDVFR demandée', { bytes: bfgDiagTextSize_(text), savedAt });
             if (!text || !('caches' in window)) return false;
             const payload = {
                 version: 1,
@@ -2972,6 +3263,7 @@ const tdfStages = [
                     }
                 })
             );
+            bfgDiagLog_('NOTAM-CACHE', 'Écriture CacheStorage SDVFR OK', { bytes: bfgDiagTextSize_(text), savedAt });
             return true;
         }
 
@@ -2982,7 +3274,11 @@ const tdfStages = [
                 const response = await cache.match(getBfgSdvfrNotamCacheUrl_());
                 if (!response) return null;
                 const payload = await response.json();
-                if (!payload || payload.day !== bfgTodayLocalKey_() || !String(payload.rawText || '').trim()) return null;
+                if (!payload || payload.day !== bfgTodayLocalKey_() || !String(payload.rawText || '').trim()) {
+                    bfgDiagLog_('NOTAM-CACHE', 'Lecture CacheStorage SDVFR : absent ou invalide', { day: payload && payload.day || '' });
+                    return null;
+                }
+                bfgDiagLog_('NOTAM-CACHE', 'Lecture CacheStorage SDVFR OK', { bytes: bfgDiagTextSize_(payload.rawText), savedAt: payload.savedAt || '' });
                 return payload;
             } catch (error) {
                 console.warn('Lecture CacheStorage NOTAM SDVFR indisponible:', error);
@@ -3016,6 +3312,7 @@ const tdfStages = [
 
         async function saveBfgSdvfrNotamIndexedDb_(rawText, savedAt = new Date().toISOString()) {
             const text = String(rawText || '').trim();
+            bfgDiagLog_('NOTAM-IDB', 'Écriture IndexedDB SDVFR demandée', { bytes: bfgDiagTextSize_(text), savedAt });
             if (!text) return false;
             let db;
             try {
@@ -3033,6 +3330,7 @@ const tdfStages = [
                     tx.onerror = () => reject(tx.error || new Error('Ecriture IndexedDB NOTAM SDVFR impossible'));
                     tx.onabort = () => reject(tx.error || new Error('Ecriture IndexedDB NOTAM SDVFR interrompue'));
                 });
+                bfgDiagLog_('NOTAM-IDB', 'Écriture IndexedDB SDVFR OK', { bytes: bfgDiagTextSize_(text), savedAt });
                 return true;
             } finally {
                 if (db) db.close();
@@ -3049,7 +3347,11 @@ const tdfStages = [
                     request.onsuccess = () => resolve(request.result || null);
                     request.onerror = () => reject(request.error || new Error('Lecture IndexedDB NOTAM SDVFR impossible'));
                 });
-                if (!record || record.day !== bfgTodayLocalKey_() || !String(record.rawText || '').trim()) return null;
+                if (!record || record.day !== bfgTodayLocalKey_() || !String(record.rawText || '').trim()) {
+                    bfgDiagLog_('NOTAM-IDB', 'Lecture IndexedDB SDVFR : absent ou invalide', { day: record && record.day || '' });
+                    return null;
+                }
+                bfgDiagLog_('NOTAM-IDB', 'Lecture IndexedDB SDVFR OK', { bytes: bfgDiagTextSize_(record.rawText), savedAt: record.savedAt || '' });
                 return record;
             } catch (error) {
                 console.warn('Lecture IndexedDB NOTAM SDVFR indisponible:', error);
@@ -3076,6 +3378,7 @@ const tdfStages = [
         }
 
         async function restoreBfgSdvfrPersistentCache_() {
+            bfgDiagLog_('NOTAM-RESTORE', 'Début restauration persistante SDVFR');
             // v4.89 : lire les deux stockages asynchrones avant de laisser démarrer les actualisations réseau.
             const [indexed, cacheStorage] = await Promise.all([
                 loadBfgSdvfrNotamIndexedDb_(),
@@ -3092,7 +3395,11 @@ const tdfStages = [
             });
             const chosen = candidates[0] || null;
             const rawText = String(chosen && chosen.rawText || '').trim();
-            if (!rawText) return false;
+            bfgDiagLog_('NOTAM-RESTORE', 'Candidats cache SDVFR évalués', { indexed: !!indexed, cacheStorage: !!cacheStorage, localStorage: !!legacy, chosenSavedAt: chosen && chosen.savedAt || '', bytes: bfgDiagTextSize_(rawText) });
+            if (!rawText) {
+                bfgDiagLog_('NOTAM-RESTORE', 'Aucun cache SDVFR du jour exploitable');
+                return false;
+            }
 
             bfgNotamSourceTexts_.SDVFR = rawText;
 
@@ -3118,6 +3425,7 @@ const tdfStages = [
                 if (rendered) setBfgNotamLoadingBanner_(false);
             }
             updateNotamDownloadStatus_();
+            bfgDiagLog_('NOTAM-RESTORE', 'Restauration persistante SDVFR terminée', { bytes: bfgDiagTextSize_(rawText), visible: hasDisplayedBfgNotams_() });
             return true;
         }
 
@@ -3178,6 +3486,7 @@ const tdfStages = [
         }
 
         function setBfgNotamLoadingBanner_(visible, message = 'NOTAMs en téléchargement...', options = {}) {
+            bfgDiagLog_('NOTAM-UI', `Bandeau téléchargement ${visible ? 'AFFICHÉ' : 'MASQUÉ'}`, { message: String(message || ''), error: !!options.error });
             const banner = document.getElementById('notam-loading-banner');
             if (!banner) return;
             banner.textContent = String(message || 'NOTAMs en téléchargement...');
@@ -3188,12 +3497,14 @@ const tdfStages = [
         function restoreBfgNotamQuickCache_() {
             const cached = loadBfgNotamQuickCache_();
             const daily = loadSdvfrDailyCache_();
+            bfgDiagLog_('NOTAM-RESTORE', 'Restauration rapide évaluée', { quickNats: !!(cached && cached.sources && cached.sources.NATS), localSdvfr: !!(daily && daily.rawText), localSdvfrBytes: bfgDiagTextSize_(daily && daily.rawText || '') });
             if (!cached && !daily) return false;
             if (cached && cached.sources.NATS) bfgNotamSourceTexts_.NATS = cached.sources.NATS;
             const sdvfr = String((daily && daily.rawText) || '').trim();
             if (sdvfr) bfgNotamSourceTexts_.SDVFR = sdvfr;
             const rendered = renderCombinedBfgNotamSources_();
             if (rendered) setBfgNotamLoadingBanner_(false);
+            bfgDiagLog_('NOTAM-RESTORE', 'Restauration rapide terminée', { rendered, visible: hasDisplayedBfgNotams_() });
             return rendered;
         }
 
@@ -3225,6 +3536,7 @@ const tdfStages = [
         function rememberBfgNotamSourceText_(source, text) {
             const normalizedSource = source === BFG_NOTAM_SOURCE_SDVFR_ ? BFG_NOTAM_SOURCE_SDVFR_ : BFG_NOTAM_SOURCE_NATS_;
             const value = String(text || '').trim();
+            bfgDiagLog_('NOTAM-MEM', 'Mise à jour source NOTAM', { source: normalizedSource, bytes: bfgDiagTextSize_(value) });
             if (value) bfgNotamSourceTexts_[normalizedSource] = value;
             updateBfgNotamSourceUi_();
             return value;
@@ -3313,14 +3625,17 @@ const tdfStages = [
             const source = getBfgDisplayedNotamSource_();
             const rawText = String(bfgNotamSourceTexts_[source] || '').trim();
             if (!rawText) {
+                bfgDiagLog_('NOTAM-RENDER', 'Rendu annulé : source vide', { source });
                 updateBfgNotamSourceUi_();
                 return false;
             }
+            bfgDiagLog_('NOTAM-RENDER', 'Début rendu NOTAM', { source, bytes: bfgDiagTextSize_(rawText) });
             const displayedText = tagBfgNotamHeadersWithSource_(rawText, source);
             notamInput.value = displayedText;
             window.__notamTextFull = displayedText;
             window.parseAndDisplayNotams(savedState);
             updateBfgNotamSourceUi_();
+            bfgDiagLog_('NOTAM-RENDER', 'Fin rendu NOTAM', { source, visibleItems: document.querySelectorAll('#notam-display .notam-item').length });
             return true;
         }
 
@@ -3369,6 +3684,7 @@ const tdfStages = [
             const text = String(rawText || '').trim();
             if (!text) return;
             const savedAt = new Date().toISOString();
+            bfgDiagLog_('NOTAM-SAVE', 'Sauvegarde SDVFR du jour demandée', { bytes: bfgDiagTextSize_(text), savedAt });
 
             // Cache localStorage minimal de secours : une seule copie du texte, aucun payload SDVFR complet.
             try {
@@ -3385,9 +3701,11 @@ const tdfStages = [
             // Persistance principale hors ligne : IndexedDB + CacheStorage dédié.
             // Les deux écritures sont indépendantes du quota localStorage et indépendantes du cache applicatif BFG.
             saveBfgSdvfrNotamIndexedDb_(text, savedAt).catch(error => {
+                bfgDiagLog_('NOTAM-IDB', 'Échec écriture IndexedDB SDVFR', { message: error && error.message || String(error) });
                 console.warn('Persistance IndexedDB NOTAM SDVFR impossible:', error);
             });
             saveBfgSdvfrNotamCacheStorage_(text, savedAt).catch(error => {
+                bfgDiagLog_('NOTAM-CACHE', 'Échec écriture CacheStorage SDVFR', { message: error && error.message || String(error) });
                 console.warn('Persistance CacheStorage NOTAM SDVFR impossible:', error);
             });
             updateNotamDownloadStatus_();
@@ -5012,6 +5330,7 @@ const tdfStages = [
         }
 
         async function importAutomaticNotamsFromNas_(event) {
+            bfgDiagLog_('NATS', 'Import NATS démarré', { userAction: !!event, displayedSource: (() => { try { return getBfgDisplayedNotamSource_(); } catch (_) { return ''; } })() });
             if (event) {
                 event.preventDefault();
                 event.stopPropagation();
@@ -5970,6 +6289,7 @@ const tdfStages = [
         let bfgNotamEarlyRestorePromise_ = null;
 
         function initializeBfgNotamsEarly_() {
+            bfgDiagLog_('NOTAM-BOOT', 'initializeBfgNotamsEarly_ appelé', { readyState: document.readyState });
             if (bfgNotamEarlyRestorePromise_) return bfgNotamEarlyRestorePromise_;
 
             if (!bfgNotamParserInitializedEarly_) {
@@ -5978,8 +6298,12 @@ const tdfStages = [
             }
 
             // Secours synchrone immédiat, puis restauration autoritaire IndexedDB/CacheStorage.
-            restoreBfgNotamQuickCache_();
-            bfgNotamEarlyRestorePromise_ = restoreBfgSdvfrPersistentCache_().catch(error => {
+            const quickRendered = restoreBfgNotamQuickCache_();
+            bfgDiagLog_('NOTAM-BOOT', 'Restauration rapide exécutée', { quickRendered, visibleItems: document.querySelectorAll('#notam-display .notam-item').length });
+            bfgNotamEarlyRestorePromise_ = restoreBfgSdvfrPersistentCache_().then(restored => {
+                bfgDiagLog_('NOTAM-BOOT', 'Restauration persistante résolue', { restored, visibleItems: document.querySelectorAll('#notam-display .notam-item').length });
+                return restored;
+            }).catch(error => {
                 console.warn('Restauration anticipée NOTAM SDVFR impossible:', error);
                 return false;
             });
@@ -5988,8 +6312,14 @@ const tdfStages = [
         }
 
         if (document.readyState === 'loading') {
-            document.addEventListener('DOMContentLoaded', initializeBfgNotamsEarly_, { once: true });
+            document.addEventListener('DOMContentLoaded', () => {
+                bfgDiagLog_('BOOT', 'DOMContentLoaded');
+                initializeBfgDiagnosticUi_();
+                initializeBfgNotamsEarly_();
+            }, { once: true });
         } else {
+            bfgDiagLog_('BOOT', 'DOM déjà prêt lors de l’initialisation anticipée');
+            initializeBfgDiagnosticUi_();
             initializeBfgNotamsEarly_();
         }
 
@@ -6008,7 +6338,7 @@ const tdfStages = [
             }
         }
         window.onload = waitForPdfJsAndInitialize;
-        const BFG_REQUIRED_SW_VERSION_ = '4.90';
+        const BFG_REQUIRED_SW_VERSION_ = '4.91';
 
         function queryBfgControllerVersion_(timeoutMs = 1800) {
             return new Promise((resolve) => {
@@ -7410,6 +7740,7 @@ const tdfStages = [
         }, true);
 
         function initializePage() {
+    bfgDiagLog_('BOOT', 'initializePage démarré', { readyState: document.readyState, online: navigator.onLine });
     forceBriefingStartAtTop();
     const appVersionEl = document.getElementById('app-version');
     if (appVersionEl) appVersionEl.textContent = APP_VERSION;
@@ -7455,6 +7786,7 @@ const tdfStages = [
         initializeAbeDispo();
     });
 
+    initializeBfgDiagnosticUi_();
     initializeHelpTooltips();
     initializeGaarMapControls();
     initializeTdfViewer();
@@ -12719,7 +13051,7 @@ window.__notamTextFull = notamInput.value;
 
         function initializePageTitle() {
             const titleElement = document.getElementById('main-title');
-            titleElement.textContent = `Briefing Fdf TEST v4.90 du ${new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}`;
+            titleElement.textContent = `Briefing Fdf TEST v4.91 du ${new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}`;
             const timeDisplay = document.getElementById('current-time-display');
             const updateTime = () => timeDisplay.textContent = new Date().toLocaleTimeString('fr-FR');
             updateTime(); setInterval(updateTime, 1000);
