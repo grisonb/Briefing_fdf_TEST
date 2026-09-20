@@ -1,7 +1,7 @@
 {
   "name": "Briefing FDF TEST",
   "short_name": "Briefing TEST",
-  "description": "Briefing FDF TEST v4.94 — mémoire explicite Garder la sélection séparée SDVFR / NATS",
+  "description": "Briefing FDF TEST v4.95 — plage de validité NOTAM par calendrier, commandes réorganisées et scroll Garder la Sélection corrigé",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
