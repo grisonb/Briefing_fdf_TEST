@@ -5,15 +5,15 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <script>
-        // v4.83 : BFG gère lui-même la position initiale.
+        // v4.84 : BFG gère lui-même la position initiale ; premier focus utilisateur protégé.
         // Empêche le navigateur/PWA de restaurer une ancienne position de scroll pendant le démarrage.
         if ('scrollRestoration' in history) {
             history.scrollRestoration = 'manual';
         }
     </script>
     <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0">
-    <title>Briefing Fdf TEST v4.83</title>
-    <link rel="manifest" href="./manifest.json?v=4.83">
+    <title>Briefing Fdf TEST v4.84</title>
+    <link rel="manifest" href="./manifest.json?v=4.84">
     <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png?v=4.24">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-title" content="Briefing TEST">
@@ -2212,10 +2212,10 @@
 
     <div class="page-header">
         <div class="page-header-background"></div>
-        <h1 id="main-title">Briefing Fdf TEST v4.83</h1>
+        <h1 id="main-title">Briefing Fdf TEST v4.84</h1>
         <p id="current-time-display"></p>
         <p style="position: relative; z-index: 2; text-align: center; color: #333; font-size: 1em; margin-top: -25px; margin-bottom: 30px;">
-    v<span id="app-version">4.83 TEST - STABILITE SCROLL</span>
+    v<span id="app-version">4.84 TEST - CONNEXION / METEO / SUP AIP</span>
     <button id="force-update-btn" class="link-button" style="background-color: #34495e; padding: 4px 10px; font-size: 0.8em; margin-left: 10px; vertical-align: middle;">
         Forcer MAJ
     </button>
@@ -2609,12 +2609,14 @@
     
     <button id="back-to-top-btn" title="Retour en haut" aria-label="Retour en haut">↑</button>
 
-    <footer>Données : Météo-France, SIA, Windy.com, CheckWX.com. Page non commerciale, à usage personnel.</footer>
+    <footer>Données : Météo-France, SIA, Windy.com, SDVFR. Page non commerciale, à usage personnel.</footer>
     
     <script>
-        const APP_VERSION = "4.83 TEST - STABILITE SCROLL";
+        const APP_VERSION = "4.84 TEST - CONNEXION / METEO / SUP AIP";
 
-        // --- Proxy NAS pour la source de données météo CheckWX ---
+        // v4.84 : CheckWX désactivé temporairement. SDVFR est la seule source météo active.
+        // Ce verrou interdit tout appel réseau CheckWX, même si un ancien chemin de secours était invoqué.
+        const CHECKWX_ENABLED_ = false;
         const CHECKWX_PROXY_URL = "https://grisonb.synology.me/briefing-api/get-metar-taf.php";
         // v4.51 : compromis entre le lancement massif initial et la file trop restrictive de la v4.50.
         // v4.52 : persistance automatique et partage du snapshot METAR/TAF sans requête de restauration.
@@ -3717,55 +3719,52 @@ const tdfStages = [
 
             if (guardedInputs.length === 0) return;
 
+            // v4.84 : le garde-fou ne vaut que tant que l'utilisateur n'a encore rien touché.
+            // Le premier toucher réel sur un champ doit donc être accepté immédiatement.
+            let userHasInteracted_ = false;
+            const markUserInteraction_ = () => { userHasInteracted_ = true; };
+            document.addEventListener('pointerdown', markUserInteraction_, { capture: true, passive: true, once: true });
+            document.addEventListener('touchstart', markUserInteraction_, { capture: true, passive: true, once: true });
+            document.addEventListener('mousedown', markUserInteraction_, { capture: true, passive: true, once: true });
+            document.addEventListener('keydown', markUserInteraction_, { capture: true, once: true });
+
             guardedInputs.forEach((input) => {
                 input.removeAttribute('autofocus');
                 input.autofocus = false;
+                input.removeAttribute('readonly');
+                input.disabled = false;
 
-                if (input.id === 'cncasc-password-input') {
-                    input.removeAttribute('readonly');
-                    input.disabled = false;
+                const focusFromRealTap_ = () => {
+                    userHasInteracted_ = true;
+                    // Le champ étant déjà focusé avant le focus natif Safari/iPadOS,
+                    // le navigateur n'a pas à déplacer la page une première fois.
+                    try { input.focus({ preventScroll: true }); }
+                    catch (_) { input.focus(); }
+                };
+
+                if (window.PointerEvent) {
+                    input.addEventListener('pointerdown', focusFromRealTap_, { passive: true });
+                } else {
+                    input.addEventListener('touchstart', focusFromRealTap_, { passive: true });
+                    input.addEventListener('mousedown', focusFromRealTap_);
                 }
 
-                let allowFocusUntil = 0;
-
-                const markUserTypingIntent = () => {
-                    allowFocusUntil = Date.now() + 1600;
-                    if (input.id === 'cncasc-password-input') {
-                        input.removeAttribute('readonly');
-                        input.disabled = false;
-                    }
+                const blurIfAutomaticStartupFocus_ = () => {
+                    if (!userHasInteracted_ && document.activeElement === input) input.blur();
                 };
 
-                const blurIfAutomaticStartupFocus = () => {
-                    if (Date.now() > allowFocusUntil && document.activeElement === input) {
-                        input.blur();
-                    }
-                };
-
-                input.addEventListener('pointerdown', markUserTypingIntent, { passive: true });
-                input.addEventListener('touchstart', markUserTypingIntent, { passive: true });
-                input.addEventListener('mousedown', markUserTypingIntent);
-                input.addEventListener('focus', () => {
-                    // Ne pas considérer un focus automatique Safari/PWA comme une intention de saisie.
-                    // Seul un pointerdown/touchstart/mousedown préalable autorise le clavier.
-                    if (Date.now() > allowFocusUntil) {
-                        window.setTimeout(blurIfAutomaticStartupFocus, 0);
-                        window.setTimeout(blurIfAutomaticStartupFocus, 80);
-                    }
-                });
-
-                window.setTimeout(blurIfAutomaticStartupFocus, 0);
-                window.setTimeout(blurIfAutomaticStartupFocus, 50);
-                window.setTimeout(blurIfAutomaticStartupFocus, 300);
-                window.setTimeout(blurIfAutomaticStartupFocus, 1000);
+                // Ces contrôles empêchent toujours un focus automatique au chargement,
+                // mais deviennent inactifs dès le premier geste de l'utilisateur.
+                window.setTimeout(blurIfAutomaticStartupFocus_, 0);
+                window.setTimeout(blurIfAutomaticStartupFocus_, 50);
+                window.setTimeout(blurIfAutomaticStartupFocus_, 300);
+                window.setTimeout(blurIfAutomaticStartupFocus_, 1000);
 
                 window.addEventListener('pageshow', () => {
-                    if (input.id === 'cncasc-password-input') {
-                        input.removeAttribute('readonly');
-                        input.disabled = false;
+                    if (!userHasInteracted_) {
+                        window.setTimeout(blurIfAutomaticStartupFocus_, 50);
+                        window.setTimeout(blurIfAutomaticStartupFocus_, 300);
                     }
-                    window.setTimeout(blurIfAutomaticStartupFocus, 50);
-                    window.setTimeout(blurIfAutomaticStartupFocus, 300);
                 });
             });
         }
@@ -4292,7 +4291,7 @@ const tdfStages = [
                 const loaded = applySdvfrWeatherFromPayload_(payload);
                 return loaded.has(target.icao);
             } catch (error) {
-                console.warn(`SDVFR météo ${icao} indisponible, secours CheckWX.`, error);
+                console.warn(`SDVFR météo ${icao} indisponible ; CheckWX est désactivé.`, error);
                 return false;
             }
         }
@@ -4833,16 +4832,13 @@ const tdfStages = [
                 // v4.80 : NATS reste actualisé automatiquement en arrière-plan, sans détail dans le statut de connexion.
                 await importAutomaticNotamsFromNas_(null);
 
-                // La source NOTAM opérationnelle fournit aussi METAR/TAF ; CheckWX ne complète que les terrains manquants.
+                // v4.84 : météo de connexion exclusivement via SDVFR. CheckWX est désactivé.
                 try {
                     const weatherPayload = await ensureSdvfrAllData_({ force: false, statusElement: document.getElementById('notam-sdvfr-import-status') });
-                    const loadedIcaos = applySdvfrWeatherFromPayload_(weatherPayload);
-                    const containers = Array.from(document.querySelectorAll('#notam-display .airport-section-container')).filter(c => Boolean(c.dataset.icao));
-                    const fallback = containers.filter(c => !loadedIcaos.has(c.dataset.icao));
-                    await Promise.all(fallback.map(c => fetchAndDisplayWeather(c.dataset.icao, c)));
+                    applySdvfrWeatherFromPayload_(weatherPayload);
                     checkWeatherValidity();
                 } catch (weatherError) {
-                    console.warn('Chargement météo de connexion incomplet.', weatherError);
+                    console.warn('Chargement météo SDVFR de connexion incomplet ; aucun secours CheckWX.', weatherError);
                 }
                 setCncascWarning_('NOTAM et METAR/TAF chargés.', { success: true });
             } catch (error) {
@@ -5585,7 +5581,7 @@ const tdfStages = [
             }
         }
         window.onload = waitForPdfJsAndInitialize;
-        const BFG_REQUIRED_SW_VERSION_ = '4.83';
+        const BFG_REQUIRED_SW_VERSION_ = '4.84';
 
         function queryBfgControllerVersion_(timeoutMs = 1800) {
             return new Promise((resolve) => {
@@ -5625,7 +5621,7 @@ const tdfStages = [
             }
 
             const registration = await navigator.serviceWorker.register(
-                './sw.js?v=4.83',
+                './sw.js?v=4.84',
                 { updateViaCache: 'none' }
             );
 
@@ -7539,16 +7535,19 @@ const tdfStages = [
             
             const textElement = document.createElement('div');
             textElement.className = 'notam-text-content';
-            // v4.82 : toutes les formulations sont normalisées en interne comme une référence SUP AIP.
-            // NATS : « AIP SUP 118/26 ». FR : « SUP AIP 014/26 » ou « SUP AIP AIRAC 014/26 ».
-            // Le libellé original du NOTAM est conservé à l'écran ; seul numéro/année sert à construire le PDF SIA.
-            const supAipRegex = /\b(?:AIP\s+SUP(?:\s+AIRAC)?|SUP\s+AIP(?:\s+AIRAC)?|SUP)\s+(\d{1,3})\/(\d{2})\b/gi;
-            let linkifiedText = notamText.replace(supAipRegex, (match, supNumber, twoDigitYear) => {
+            // v4.84 : le mot AIRAC doit être conservé pour choisir le vrai nom du PDF SIA.
+            // SUP AIP classique : lf_sup_YYYY_NNN_fr.pdf ; SUP AIP AIRAC : lf_sup_a_YYYY_NNN_fr.pdf.
+            // Le libellé original du NOTAM reste affiché tel quel.
+            const supAipRegex = /\b((?:AIP\s+SUP|SUP\s+AIP)(?:\s+AIRAC)?|SUP)\s+(\d{1,3})\/(\d{2})\b/gi;
+            let linkifiedText = notamText.replace(supAipRegex, (match, supLabel, supNumber, twoDigitYear) => {
                 const fullYear = `20${twoDigitYear}`;
                 const paddedNumber = supNumber.padStart(3, '0');
-                const normalizedSupAip = `SUP AIP ${paddedNumber}/${twoDigitYear}`;
+                const isAirac = /\bAIRAC\b/i.test(supLabel);
+                const normalizedSupAip = `SUP AIP${isAirac ? ' AIRAC' : ''} ${paddedNumber}/${twoDigitYear}`;
                 const baseUrl = "https://www.sia.aviation-civile.gouv.fr/media/store/documents/file/l/f/";
-                const pdfUrl = (fullYear === '2025') ? `${baseUrl}lf_sup_a_${fullYear}_${paddedNumber}_fr.pdf` : `${baseUrl}lf_sup_${fullYear}_${paddedNumber}_fr.pdf`;
+                const pdfUrl = isAirac
+                    ? `${baseUrl}lf_sup_a_${fullYear}_${paddedNumber}_fr.pdf`
+                    : `${baseUrl}lf_sup_${fullYear}_${paddedNumber}_fr.pdf`;
                 return `<a href="${pdfUrl}" class="sup-aip-link" target="_blank" title="Ouvrir le PDF du ${normalizedSupAip}">${match}</a>`;
             });
             textElement.innerHTML = linkifiedText.replace(/\s+([B-G]\))/g, '<br>$1');
@@ -7576,6 +7575,16 @@ const tdfStages = [
 
             if (!metarContainer || !tafContainer) {
                 return { icao, ok: false, metarOk: false, tafOk: false };
+            }
+
+            // v4.84 : verrou absolu CheckWX OFF. Aucun fetch vers le proxy n'est autorisé.
+            if (!CHECKWX_ENABLED_) {
+                const hasMetar = Boolean(metarContainer.querySelector('pre'));
+                const hasTaf = Boolean(tafContainer.querySelector('pre'));
+                if (!hasMetar) metarContainer.innerHTML = '<h4>METAR</h4><p><i>Non disponible via SDVFR.</i></p>';
+                if (!hasTaf) tafContainer.innerHTML = '<h4>TAF</h4><p><i>Non disponible via SDVFR.</i></p>';
+                airportContainer.classList.remove('weather-refreshing');
+                return { icao, ok: hasMetar || hasTaf, metarOk: hasMetar, tafOk: hasTaf, checkwxDisabled: true };
             }
 
             function getWeatherHtmlWithoutRefreshWarning_(container) {
@@ -7647,6 +7656,7 @@ const tdfStages = [
             }
 
             async function fetchCheckwxAttempt_(type, icao, attempt) {
+                if (!CHECKWX_ENABLED_) throw new Error('CheckWX désactivé');
                 // v4.53 : appel réseau direct vers le proxy NAS, totalement indépendant
                 // de l'état d'activation ou de la version du service worker.
                 const proxyUrl = `${CHECKWX_PROXY_URL}?type=${encodeURIComponent(type.toLowerCase())}&icao=${encodeURIComponent(icao)}&v=${Date.now()}&attempt=${attempt}`;
@@ -11098,17 +11108,15 @@ window.__notamTextFull = notamInput.value;
                     .filter(container => Boolean(container.dataset.icao));
 
                 try {
-                    let sdvfrLoaded = new Set();
                     try {
+                        // v4.84 : actualisation météo SDVFR uniquement ; CheckWX est totalement désactivé.
                         // Important v4.77 : l'actualisation météo ne modifie PAS le cache quotidien des NOTAMs.
                         const payload = await fetchSdvfrTargetsOnce_(getSdvfrPelicandromeTargets_());
-                        sdvfrLoaded = applySdvfrWeatherFromPayload_(payload);
+                        applySdvfrWeatherFromPayload_(payload);
                     } catch (error) {
-                        console.warn('Météo SDVFR indisponible, secours CheckWX.', error);
+                        console.warn('Météo SDVFR indisponible ; aucun secours CheckWX.', error);
                     }
 
-                    const fallbackContainers = airportContainers.filter(container => !sdvfrLoaded.has(container.dataset.icao));
-                    await Promise.all(fallbackContainers.map(container => fetchAndDisplayWeather(container.dataset.icao, container)));
                     checkWeatherValidity();
                     return true;
                 } finally {
@@ -11679,7 +11687,12 @@ window.__notamTextFull = notamInput.value;
                     const icao = airportContainer.dataset.icao;
                     if (icao) {
                         const loadedFromSdvfr = await refreshSdvfrWeatherForIcao_(icao, airportContainer);
-                        if (!loadedFromSdvfr) await fetchAndDisplayWeather(icao, airportContainer);
+                        if (!loadedFromSdvfr) {
+                            const metarContainer = airportContainer.querySelector('.metar-container');
+                            const tafContainer = airportContainer.querySelector('.taf-container');
+                            if (metarContainer && !metarContainer.querySelector('pre')) metarContainer.innerHTML = '<h4>METAR</h4><p><i>Non disponible via SDVFR.</i></p>';
+                            if (tafContainer && !tafContainer.querySelector('pre')) tafContainer.innerHTML = '<h4>TAF</h4><p><i>Non disponible via SDVFR.</i></p>';
+                        }
                     }
                 }
 
@@ -12235,7 +12248,10 @@ window.__notamTextFull = notamInput.value;
                 icaos.forEach(icao => {
                     const airportContainer = createAirportSectionElement(icao, icao);
                     display.appendChild(airportContainer);
-                    fetchAndDisplayWeather(icao, airportContainer);
+                    const metarContainer = airportContainer.querySelector('.metar-container');
+                    const tafContainer = airportContainer.querySelector('.taf-container');
+                    if (metarContainer) metarContainer.innerHTML = '<h4>METAR</h4><p><i>Recherche manuelle indisponible : CheckWX est désactivé.</i></p>';
+                    if (tafContainer) tafContainer.innerHTML = '<h4>TAF</h4><p><i>Recherche manuelle indisponible : CheckWX est désactivé.</i></p>';
                 });
             };
             fetchBtn.addEventListener('click', handleFetch);
@@ -12244,7 +12260,7 @@ window.__notamTextFull = notamInput.value;
 
         function initializePageTitle() {
             const titleElement = document.getElementById('main-title');
-            titleElement.textContent = `Briefing Fdf TEST v4.83 du ${new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}`;
+            titleElement.textContent = `Briefing Fdf TEST v4.84 du ${new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}`;
             const timeDisplay = document.getElementById('current-time-display');
             const updateTime = () => timeDisplay.textContent = new Date().toLocaleTimeString('fr-FR');
             updateTime(); setInterval(updateTime, 1000);
