@@ -1,5 +1,5 @@
-const BFG_SW_VERSION = '4.87';
-const CACHE_NAME = 'briefing-fdf-test-v4.87-sdvfr-persistence-r1';
+const BFG_SW_VERSION = '4.88';
+const CACHE_NAME = 'briefing-fdf-test-v4.88-sdvfr-indexeddb-r1';
 
 const LOCAL_ASSETS = [
   './manifest.json',
