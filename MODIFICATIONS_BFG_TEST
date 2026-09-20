@@ -1,3 +1,39 @@
+CHANGELOG CUMULATIF — BFG TEST v4.79
+Date : 2026-09-20
+Base actuelle : TEST v4.78
+
+===============================================================================
+TEST v4.79 — 2026-09-20
+Base : TEST v4.78
+===============================================================================
+
+CORRECTION CRITIQUE — PURGE UNIQUE DU NATS HÉRITÉ
+- Diagnostic confirmé : la v4.78 séparait correctement NATS et SDVFR pour les nouvelles sauvegardes, mais pouvait encore restaurer un contenu NATS déjà contaminé par une sauvegarde v4.77/v4.78.
+- Ajout d'une migration unique v4.79 : tant qu'un nouveau PDF NATS n'a pas été téléchargé et extrait avec succès, tout NATS restauré depuis les anciennes sauvegardes est ignoré.
+- Le cache SDVFR du jour est conservé ; seule la partie NATS héritée est rejetée.
+- Si une session Briefing est déjà authentifiée au démarrage, BFG lance automatiquement une nouvelle génération/téléchargement NATS.
+- Si BFG n'est pas encore authentifié, la connexion Briefing déclenche comme auparavant l'import NATS ; le marqueur de migration n'est validé qu'après extraction effective d'un PDF NATS non vide.
+- En cas d'échec réseau ou de génération, le marqueur n'est pas posé : BFG retentera à la prochaine ouverture/connexion.
+- Après migration réussie, les ouvertures suivantes utilisent de nouveau la sauvegarde NATS séparée normale.
+
+VALIDATION DES SOURCES
+- Le bloc « ... - NATS » doit provenir exclusivement du nouveau PDF NATS téléchargé par le circuit historique NAS/VPS.
+- Le bloc « ... - SDVFR » continue de provenir de /features/on-tap et du cache SDVFR quotidien.
+- L'affichage simultané terrain par terrain est conservé.
+- Les identifiants persistants conservent leur préfixe NATS/SDVFR ; sélections, masquages et surlignages restent indépendants.
+
+FILTRES / MÉTÉO
+- Filtre GRUE conservé en plus de CRANE.
+- Aucun changement météo : SDVFR prioritaire, CHECKWX indiqué uniquement en secours, actualisation globale automatique si un METAR dépasse 35 minutes.
+
+SERVEUR / VPS
+- Aucun changement PHP NAS.
+- Aucun changement fonctionnel du worker SDVFR ; le fichier fourni est identique à v4.78.
+
+===============================================================================
+HISTORIQUE CUMULATIF PRÉCÉDENT
+===============================================================================
+
 CHANGELOG CUMULATIF — BFG TEST v4.78
 Date : 2026-09-20
 Base actuelle : TEST v4.77
