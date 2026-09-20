@@ -1,42 +1,162 @@
-CHANGELOG CUMULATIF — BFG TEST v4.73
+CHANGELOG CUMULATIF — BFG TEST v4.75
 Date : 2026-09-20
-Base actuelle : TEST v4.71
+Base actuelle : TEST v4.74
 
 RÈGLE DU FICHIER
 - Ce CHANGELOG est cumulatif.
-- Chaque nouvelle version TEST ou pérenne doit conserver l’historique des modifications antérieures et ajouter la nouvelle version en tête ou à la suite.
-- Les évolutions intermédiaires qui ont ensuite été corrigées ou remplacées restent mentionnées afin de conserver l’historique technique complet.
+- Chaque nouvelle version TEST ou pérenne doit conserver l’historique des modifications antérieures.
+- Les évolutions intermédiaires corrigées ou remplacées restent mentionnées pour conserver l’historique technique.
+- Les archives plus anciennes retrouvées dans la bibliothèque sont reprises ci-dessous ; lorsque seul le nom de l’archive est disponible, cela est indiqué comme tel.
 
 ===============================================================================
-HISTORIQUE ANTÉRIEUR À v4.36
+ARCHIVES BFG ANTÉRIEURES RETROUVÉES — v3.65 À v3.98
 ===============================================================================
 
-TEST v4.31
-- Branche de robustesse hors ligne / PDF / zoom reprise par les versions suivantes.
-- Les archives disponibles identifient cette base comme « TEST v4.31 hors ligne PDF zoom ».
+TEST v3.65 — GAAR automatique
+- Automatisation de récupération GAAR avec fichiers NAS dédiés.
 
-TEST v4.32 — 2026-07-10
-- PDF FDS / GAAR : suppression des boutons zoom + et - dans les viewers.
-- PDF FDS / GAAR : ajout du bouton « Centrer PDF » à leur place.
-- Mode Écrire PDF : remplacement du bouton texte « Écrire PDF » par une icône crayon.
-- Mode Écrire PDF : ajout de la couleur blanche ; rouge, bleu, vert et noir conservés.
-- Pélicandromes : point bleu au centre lorsque le champ Observations contient « Eau ».
-- Pélicandromes : si le pélicandrome est armé, le point bleu est affiché au centre du point vert.
-- NOTAMs : ajout des filtres PAPI, UL, CONSTRUCTION, ALTITUDE, SECURITY, NACELLE et AIR START.
+TEST v3.66 — carte GAAR intégrée
+- Intégration de la carte/circuits GAAR dans BFG.
 
-TEST v4.33 — 2026-07-10
-- PDF FDS / GAAR : agrandissement de l’icône crayon du mode Écrire PDF.
-- Le bouton conserve l’icône crayon lorsque le mode écriture est actif, avec titre/aria-label mis à jour.
+TEST v3.67 à v3.75 — TEMSI / hors ligne / NAS
+- v3.67 : activation TEMSI et cache.
+- v3.68 : nettoyage local iPad.
+- v3.69 : suppression de l’échéance TEMSI 00 UTC.
+- v3.70 : TEMSI du jour sans échéance future.
+- v3.71 : logique TEMSI/FDS/GAAR autour du changement de jour.
+- v3.72 : GAAR du jour strict.
+- v3.73 : TEMSI pérenne + GAAR strict.
+- v3.74 : menu TEMSI limité aux échéances du jour.
+- v3.75 : récupération TEMSI NAS/AEROWEB.
 
-TEST v4.34 — 2026-07-10
-- NOTAMs : classement alphabétique des mots-clés dans la liste des filtres.
-- Conservation des filtres ajoutés en v4.32.
+TEST v3.76 à v3.81 — FDF / CNCASC
+- Intégration des données FDF CNCASC.
+- Évolutions successives de l’interface, des tableaux, de leur lisibilité, des statuts et de l’affichage sans scroll.
 
-TEST v4.35 — 2026-07-10
-- NOTAMs : ajout du bouton « Annuler sélection » juste avant « Annuler surlignage ».
-- « Annuler sélection » décoche tous les NOTAMs sélectionnés et réaffiche la liste complète.
-- Correction du bouton « Annuler surlignage ».
-- Si la pile d’annulation Pencil est vide ou invalide, le dernier surlignage visible est supprimé en secours.
+TEST v3.82 à v3.88 — TEMSI/FDS/accès Briefing/actualisation globale
+- v3.82 : TEMSI depuis le NAS.
+- v3.83 : diagnostic du script TEMSI puis correction.
+- v3.84 : attente FDS renforcée.
+- v3.85 : accès Briefing protégé.
+- v3.86 : date du PDF NOTAM mémorisée.
+- v3.87 : correction du texte GAAR.
+- v3.88 : actualisation globale du Briefing.
+
+TEST v3.89 à v3.92 — NOTAM / METAR-TAF
+- v3.89 : gestion des NOTAMs d’aérodromes permanents.
+- v3.90 : diagnostic CheckWX.
+- v3.91 : proxy CheckWX.
+- v3.92 : affichage brut METAR/TAF via proxy CheckWX.
+
+TEST v3.93 à v3.98 — cartes risques / FDS / SYNERGI
+- v3.93 : forcer la mise à jour des cartes de risques.
+- v3.94 : robustesse FDS + forçage cartes de risques.
+- v3.95 : FDS silencieuse.
+- v3.96 : bouton unique cartes de risques.
+- v3.97 : harmonisation des boutons cartes de risques.
+- v3.98 : FDS silencieuse + raccourci SYNERGI ; base stable retenue pour la série suivante.
+
+===============================================================================
+TEST v4.03 À v4.24 — HISTORIQUE RETROUVÉ
+===============================================================================
+
+TEST v4.03 — rollback stable
+- Retour à la base v3.98 après essais Pencil problématiques.
+- Accès Briefing de nouveau fonctionnel.
+
+TEST v4.04 à v4.13 — Apple Pencil NOTAMs
+- Abandon de la sélection native iPadOS au Pencil.
+- Création d’un surligneur BFG spécifique Apple Pencil.
+- Distinction scroll/sélection : appui immobile court pour sélectionner, mouvement vertical pour scroller.
+- Verrouillage du surlignage à une seule ligne.
+- Suppression d’un surlignage par tap.
+- v4.13 retenue comme base Pencil fonctionnelle.
+
+TEST v4.14 à v4.18 — accès Briefing / partage
+- v4.14 : connexion valable jusqu’à 23h00 + dernier partage mémorisé.
+- v4.15 : correction affichage version et champ Accès Briefing.
+- v4.16 à v4.18 : essais d’authentification POST simplifiée/form-urlencoded/text/plain.
+- Diagnostic final : Synology peut remplacer les réponses d’erreur JSON par une page HTML.
+
+TEST v4.19 — authentification GET
+- Passage à GET code=... pour éviter le POST intercepté par Synology.
+
+TEST v4.20 — authentification NAS robuste
+- auth-cncasc.php renvoie HTTP 200 avec JSON ok:false en cas d’erreur.
+- Suppression du « Failed to fetch » dû aux pages HTML 401 Synology.
+- Validation du hash sha256(password_salt . code).
+
+TEST v4.21 — partage compact
+- Suppression des grands panneaux de partage.
+- Affichage compact « Code de partage généré : BFG-xxxx-xx ».
+- Mémorisation locale du code sur l’iPad créateur.
+
+TEST v4.22 — sauvegarde / partage / clavier iPad
+- Message de sauvegarde maintenu après action.
+- Code de partage maintenu sur la ligne d’état.
+- Suppression de l’ouverture automatique du clavier au chargement de BFG.
+
+TEST v4.23 — persistance NOTAMs
+- Mémorisation locale des NOTAMs cochés et surlignés par identité stable.
+- Restauration si le NOTAM revient identique ; abandon de l’état si son contenu change.
+
+TEST v4.24 — GAAR via relais NAS
+- « Actualiser feuille GAAR » passe par BFG -> NAS -> Apps Script -> Gmail -> NAS -> BFG.
+- Ajout de /web/briefing-api/request-gaar-import.php.
+- Zoom GAAR par défaut réduit de 1.30 à 1.20.
+- Le dernier code de partage n’est affiché que le jour de sa création.
+- Début de la règle imposant un changelog dans chaque pack.
+
+===============================================================================
+TEST v4.25 À v4.35 — HISTORIQUE RETROUVÉ
+===============================================================================
+
+TEST v4.25 — annotations PDF FDS/GAAR
+- Bandeau « Actualisation globale terminée » en vert soutenu.
+- Mode « Écrire PDF » au Pencil pour FDS/GAAR.
+- Boutons Annuler trait et Effacer page ; annotations visuelles sans modification du PDF source.
+
+TEST v4.26 — gomme et couleurs
+- Ajout d’une gomme.
+- Couleurs d’annotation rouge, bleu, vert et noir.
+
+TEST v4.27 — épaisseur de trait
+- Curseur « Trait » de 1 à 10 par pas de 0,5.
+- Carrés de couleur uniformisés.
+
+TEST v4.28 — SUP AIP
+- Ajout du bouton « Carte SUP AIP » ouvrant supaip.fr.
+- « Ouvrir ForeFlight » devient « ForeFlight ».
+
+TEST v4.29 — regroupement AZBA / SUP AIP
+- Rubrique unique « AZBA / SUP AIP ».
+- Boutons « Carte SUP AIP / AZBA », « AZBA SIA », « ForeFlight », « Charger SUP AIP ».
+
+TEST v4.30 — fiabilisation rendu PDF FDS/GAAR
+- Reset complet avant nouveau rendu, rotation forcée à 0°, suppression des anciennes transformations CSS.
+- Attente d’une largeur stable, rerender au retour réseau/arrière-plan/resize/orientation.
+- Détection d’un rendu anormalement petit et bouton « Réafficher PDF ».
+
+TEST v4.31 — hors ligne renforcé / zoom PDF
+- Détection du hors ligne au démarrage et réduction des appels réseau inutiles.
+- Conservation/restauration locale renforcée FDS/GAAR/cartes de risques.
+- Zoom tactile amorti ; pas des boutons +/- réduit.
+
+TEST v4.32 — Centrer PDF / crayon / eau / filtres NOTAM
+- Remplacement des boutons zoom par « Centrer PDF ».
+- Icône crayon et ajout de la couleur blanche.
+- Point bleu sur les pélicandromes dont l’observation contient « Eau ».
+- Filtres PAPI, UL, CONSTRUCTION, ALTITUDE, SECURITY, NACELLE, AIR START.
+
+TEST v4.33 — icône crayon agrandie
+- Icône crayon plus lisible et conservée lorsque le mode écriture est actif.
+
+TEST v4.34 — filtres NOTAM alphabétiques
+- Classement alphabétique des mots-clés.
+
+TEST v4.35 — annulation sélection/surlignage
+- Ajout du bouton « Annuler sélection ».
+- Correction « Annuler surlignage » avec mécanisme de secours.
 
 ===============================================================================
 TEST v4.36 — 2026-07-11
@@ -1081,10 +1201,80 @@ Fichiers NAS / VPS :
 - Aucun changement.
 
 ===============================================================================
-FICHIERS DE LA VERSION ACTUELLE v4.73
+TEST v4.74 — 2026-09-20
+Base : TEST v4.73
 ===============================================================================
 
-Fichiers BFG :
+NOTAMS SDVFR — GÉNÉRALISATION AUX PÉLICANDROMES :
+- SDVFR appliqué aux 27 pélicandromes BFG.
+- LFMT supprimé du périmètre SDVFR : Montpellier n’est pas un pélicandrome.
+- Le flux NATS reste inchangé et disponible en parallèle.
+
+FILTRES MOTS-CLÉS :
+- Les filtres SDVFR travaillent sur le texte brut du NOTAM.
+- Normalisation casse, accents, ponctuation et espaces avant comparaison.
+- Les filtres date + mots-clés sont réappliqués après restauration des états persistants.
+
+Fichiers BFG modifiés :
 - index.html
 - manifest.json
 - sw.js
+
+NAS / VPS :
+- Aucun changement.
+
+===============================================================================
+TEST v4.75 — 2026-09-20
+Base : TEST v4.74
+===============================================================================
+
+COMPARAISON NOTAMS NATS / SDVFR :
+- Ajout d’un bouton unique de bascule « Comparer : afficher SDVFR/NATS ».
+- Les jeux NATS et SDVFR restent séparés en mémoire ; aucune fusion des sources.
+- Une fois les deux sources chargées, la bascule est immédiate et ne nécessite pas un nouveau téléchargement.
+- Si la source demandée n’est pas encore chargée, BFG déclenche automatiquement son acquisition.
+- Les mêmes filtres date/mots-clés, sélections, masquages persistants et surlignages sont réappliqués après chaque bascule.
+- Les boutons d’acquisition deviennent « Actualiser NATS » et « Actualiser SDVFR ».
+- LFMT reste exclu du périmètre SDVFR.
+
+METAR / TAF SDVFR :
+- Le worker VPS exploite maintenant nearestMetar et nearestTaf déjà présents dans la réponse /features/on-tap.
+- Aucun nouvel endpoint SDVFR n’est nécessaire.
+- Pour chaque terrain, le worker vérifie que l’OACI contenu dans le bulletin correspond au terrain demandé avant transmission à BFG.
+- Les chaînes METAR/TAF brutes SDVFR sont affichées dans les conteneurs météo BFG existants.
+- Le bouton « Charger Météo » utilise SDVFR en priorité.
+- CheckWX est conservé comme secours pour les terrains ne disposant d’aucune météo SDVFR ou en cas d’échec du relais.
+- Le bouton de rafraîchissement individuel tente également SDVFR en premier puis CheckWX en secours.
+- Une récupération SDVFR sert simultanément aux NOTAMs et à la météo, sans lancer 54 requêtes météo supplémentaires.
+
+SERVEUR :
+- Modification du worker VPS bfg-sdvfr-worker.py pour transmettre metar/taf dans chaque entrée airports[].
+- Aucun changement des quatre endpoints PHP NAS : update-sdvfr-notams-result.php conserve déjà le tableau airports complet.
+- Les identifiants SDVFR restent uniquement sur le VPS.
+
+Fichiers BFG modifiés :
+- index.html
+- manifest.json
+- sw.js
+
+Fichier VPS à remplacer :
+- /home/ubuntu/bfg-worker/bfg-sdvfr-worker.py
+
+Après remplacement du worker :
+- redémarrer bfg-sdvfr-worker.service.
+
+Contrôles avant livraison :
+- syntaxe JavaScript inline de l’index ;
+- manifeste JSON ;
+- syntaxe du service worker ;
+- compilation Python du worker.
+
+===============================================================================
+FICHIERS DE LA VERSION ACTUELLE v4.75
+===============================================================================
+
+- 1_Modifications_v4.75.txt
+- 2_Index_v4.75.txt
+- 3_Manifest_v4.75.txt
+- 4_Sw_v4.75.txt
+- 5_bfg-sdvfr-worker_v4.75.txt
