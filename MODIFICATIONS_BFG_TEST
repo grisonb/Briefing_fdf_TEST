@@ -1,3 +1,51 @@
+CHANGELOG CUMULATIF — BFG TEST v4.78
+Date : 2026-09-20
+Base actuelle : TEST v4.77
+
+===============================================================================
+TEST v4.78 — 2026-09-20
+Base : TEST v4.77
+===============================================================================
+
+CORRECTION CRITIQUE — SÉPARATION RÉELLE DES SOURCES NOTAM
+- Correction du défaut de restauration de la v4.77 : le texte NATS + SDVFR combiné ne doit plus être réinjecté comme s’il provenait entièrement de NATS.
+- Les textes bruts NATS et SDVFR sont désormais sauvegardés dans deux champs distincts : NATS et SDVFR.
+- Le texte combiné NATS + SDVFR reste uniquement un format d’affichage et de compatibilité ; il n’est plus la référence servant à déterminer la source après restauration.
+- À la restauration locale ou d’un briefing partagé, BFG recharge d’abord les deux sources séparées puis reconstruit l’affichage simultané.
+- Compatibilité avec les sauvegardes v4.77 : si un ancien texte combiné porte les suffixes « - NATS » / « - SDVFR », BFG le resépare automatiquement avant affichage.
+- Compatibilité avec les sauvegardes plus anciennes : un texte sans suffixe de source reste considéré comme NATS, comme dans le fonctionnement historique de BFG.
+- Les identifiants persistants conservent le préfixe de source NATS/SDVFR ; sélections, masquages et surlignages restent donc indépendants entre les deux sources.
+
+FILTRES NOTAM
+- Ajout du mot-clé français « GRUE ».
+- Le filtre anglais « CRANE » est conservé.
+- La normalisation existante casse/accents/ponctuation reste inchangée.
+
+AFFICHAGE DE VALIDATION
+- Affichage simultané conservé terrain par terrain : « ... - NATS » puis « ... - SDVFR ».
+- Le contenu NATS provient du PDF NATS extrait par le circuit historique NAS/VPS.
+- Le contenu SDVFR provient du relais SDVFR /features/on-tap.
+- Le cache quotidien SDVFR de la v4.77 est conservé.
+
+MÉTÉO
+- Aucun changement fonctionnel par rapport à v4.77.
+- SDVFR reste prioritaire ; « CHECKWX » n’apparaît qu’en secours.
+- Actualisation météo globale automatique conservée lorsqu’un METAR dépasse 35 minutes.
+
+SERVEUR / VPS
+- Aucun changement PHP NAS.
+- Aucun changement fonctionnel du worker SDVFR ; le fichier fourni est identique fonctionnellement à v4.77.
+
+VALIDATION
+- Syntaxe JavaScript inline : OK.
+- Manifest JSON : OK.
+- Service worker JavaScript : OK.
+- Worker Python : compilation OK.
+
+===============================================================================
+HISTORIQUE CUMULATIF PRÉCÉDENT
+===============================================================================
+
 CHANGELOG CUMULATIF — BFG TEST v4.77
 Date : 2026-09-20
 Base actuelle : TEST v4.76
