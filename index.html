@@ -12,7 +12,7 @@
         }
     </script>
     <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0">
-    <title>Briefing Fdf TEST v4.89</title>
+    <title>Briefing Fdf TEST v4.90</title>
     <link rel="manifest" href="./manifest.json?v=4.85">
     <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png?v=4.24">
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -2233,10 +2233,10 @@
 
     <div class="page-header">
         <div class="page-header-background"></div>
-        <h1 id="main-title">Briefing Fdf TEST v4.89</h1>
+        <h1 id="main-title">Briefing Fdf TEST v4.90</h1>
         <p id="current-time-display"></p>
         <p style="position: relative; z-index: 2; text-align: center; color: #333; font-size: 1em; margin-top: -25px; margin-bottom: 30px;">
-    v<span id="app-version">4.89 TEST - NOTAM SDVFR OFFLINE</span>
+    v<span id="app-version">4.90 TEST - NOTAM IMMEDIATS</span>
     <button id="force-update-btn" class="link-button" style="background-color: #34495e; padding: 4px 10px; font-size: 0.8em; margin-left: 10px; vertical-align: middle;">
         Forcer MAJ
     </button>
@@ -2634,7 +2634,7 @@
     <footer>Données : Météo-France, SIA, Windy.com, SDVFR. Page non commerciale, à usage personnel.</footer>
     
     <script>
-        const APP_VERSION = "4.89 TEST - NOTAM SDVFR OFFLINE";
+        const APP_VERSION = "4.90 TEST - NOTAM IMMEDIATS";
 
         // v4.84 : CheckWX désactivé temporairement. SDVFR est la seule source météo active.
         // Ce verrou interdit tout appel réseau CheckWX, même si un ancien chemin de secours était invoqué.
@@ -5963,6 +5963,36 @@ const tdfStages = [
         });
 
         // --- CORE INITIALIZATION ---
+        // v4.90 : les NOTAM SDVFR sont initialisés dès DOMContentLoaded, sans attendre window.onload
+        // ni le chargement de PDF.js depuis le CDN. La restauration locale/hors ligne peut donc
+        // s'afficher immédiatement, même si les bibliothèques PDF sont lentes ou indisponibles.
+        let bfgNotamParserInitializedEarly_ = false;
+        let bfgNotamEarlyRestorePromise_ = null;
+
+        function initializeBfgNotamsEarly_() {
+            if (bfgNotamEarlyRestorePromise_) return bfgNotamEarlyRestorePromise_;
+
+            if (!bfgNotamParserInitializedEarly_) {
+                initializeNotamParser();
+                bfgNotamParserInitializedEarly_ = true;
+            }
+
+            // Secours synchrone immédiat, puis restauration autoritaire IndexedDB/CacheStorage.
+            restoreBfgNotamQuickCache_();
+            bfgNotamEarlyRestorePromise_ = restoreBfgSdvfrPersistentCache_().catch(error => {
+                console.warn('Restauration anticipée NOTAM SDVFR impossible:', error);
+                return false;
+            });
+            window.__bfgNotamPersistentRestorePromise = bfgNotamEarlyRestorePromise_;
+            return bfgNotamEarlyRestorePromise_;
+        }
+
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', initializeBfgNotamsEarly_, { once: true });
+        } else {
+            initializeBfgNotamsEarly_();
+        }
+
         let pdfJsWaitAttempts = 0;
         function waitForPdfJsAndInitialize() {
             if (window.pdfjsLib) {
@@ -5978,7 +6008,7 @@ const tdfStages = [
             }
         }
         window.onload = waitForPdfJsAndInitialize;
-        const BFG_REQUIRED_SW_VERSION_ = '4.89';
+        const BFG_REQUIRED_SW_VERSION_ = '4.90';
 
         function queryBfgControllerVersion_(timeoutMs = 1800) {
             return new Promise((resolve) => {
@@ -6018,7 +6048,7 @@ const tdfStages = [
             }
 
             const registration = await navigator.serviceWorker.register(
-                './sw.js?v=4.89',
+                './sw.js?v=4.90',
                 { updateViaCache: 'none' }
             );
 
@@ -7402,19 +7432,15 @@ const tdfStages = [
         console.warn("Visionneuse PDF désactivée (pdf.js introuvable).");
     }
     initializeSupAipLoader();
-    initializeNotamParser();
-    // v4.88 : secours synchrone localStorage puis restauration IndexedDB autoritaire avant la restauration générale.
-    restoreBfgNotamQuickCache_();
-    window.__bfgNotamPersistentRestorePromise = restoreBfgSdvfrPersistentCache_().catch(error => {
-        console.warn('Restauration IndexedDB NOTAM SDVFR impossible:', error);
-        return false;
-    });
+    // v4.90 : le parseur NOTAM et sa restauration ont déjà démarré dès DOMContentLoaded.
+    // L'appel est idempotent et garantit simplement la présence de la promesse pour la suite.
+    initializeBfgNotamsEarly_();
     initializeManualMetarFetch();
     initializeForeFlightButton();
 
-    // v4.89 : aucune actualisation réseau ne démarre avant la fin de la restauration locale générale
-    // ET de la restauration NOTAM SDVFR dédiée. Cela évite la fenêtre NOTAM vide au démarrage
-    // et garantit que le hors-ligne a la priorité avant toute tentative réseau.
+    // v4.90 : les NOTAM ont déjà commencé leur restauration dès DOMContentLoaded.
+    // Les actualisations réseau attendent toujours la restauration locale générale ET la restauration
+    // NOTAM dédiée, afin qu'aucun appel réseau ne puisse vider/remplacer l'affichage local au démarrage.
     initializeSessionManagement();
     scheduleBfgDailyExpiry_();
     Promise.allSettled([
@@ -12693,7 +12719,7 @@ window.__notamTextFull = notamInput.value;
 
         function initializePageTitle() {
             const titleElement = document.getElementById('main-title');
-            titleElement.textContent = `Briefing Fdf TEST v4.89 du ${new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}`;
+            titleElement.textContent = `Briefing Fdf TEST v4.90 du ${new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}`;
             const timeDisplay = document.getElementById('current-time-display');
             const updateTime = () => timeDisplay.textContent = new Date().toLocaleTimeString('fr-FR');
             updateTime(); setInterval(updateTime, 1000);
