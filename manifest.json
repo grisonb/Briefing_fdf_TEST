@@ -1,7 +1,7 @@
 {
   "name": "Briefing FDF TEST",
   "short_name": "Briefing TEST",
-  "description": "Briefing FDF TEST v4.78 — NOTAMs NATS/SDVFR séparés en stockage, affichage simultané, filtre GRUE, météo SDVFR/CheckWX",
+  "description": "Briefing FDF TEST v4.79 — réinitialisation unique du cache NATS, sources NATS/SDVFR séparées, filtre GRUE, météo SDVFR/CheckWX",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
