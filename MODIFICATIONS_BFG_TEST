@@ -1,4 +1,4 @@
-CHANGELOG CUMULATIF — BFG TEST v4.72
+CHANGELOG CUMULATIF — BFG TEST v4.73
 Date : 2026-09-20
 Base actuelle : TEST v4.71
 
@@ -1046,3 +1046,45 @@ Fichier NAS :
 
 Fichier créé automatiquement par l’API lors de la première association :
 - /web/briefing-data/npf-auth-bridge-v1.json
+
+
+===============================================================================
+TEST v4.73 — 2026-09-20
+Base : TEST v4.72
+===============================================================================
+
+NOTAMS SDVFR — CORRECTION DU FILTRE « VALIDES AUJOURD’HUI » :
+- Correction de la conversion des dates de validité B) / C) fournies par SDVFR.
+- SDVFR renvoie ces dates sous une forme lisible telle que `B) 2026 Mar 19 00:00` et `C) 2026 Oct 29 23:59`, alors que l’analyseur historique BFG attend `B) 2603190000` / `C) 2610292359`.
+- Les lignes B) et C) SDVFR sont désormais normalisées localement au format OACI YYMMDDHHMM avant passage dans l’analyseur BFG.
+- Le filtre déjà existant « Afficher uniquement les NOTAMs valides aujourd’hui » peut donc de nouveau déterminer correctement les dates de début et de fin et masquer les NOTAMs futurs.
+- Les NOTAMs permanents (`C) PERM`) restent inchangés et continuent d’être gérés par l’analyseur existant.
+- Les filtres par mots-clés, la sélection, le masquage persistant et le flux NATS restent inchangés.
+
+VALIDATION ATTENDUE :
+- Avec le filtre de date coché, un NOTAM LFML dont B) est postérieur à aujourd’hui ne doit plus être affiché.
+- Un NOTAM actif aujourd’hui doit rester affiché.
+- En décochant le filtre de date, les NOTAMs futurs doivent redevenir visibles.
+
+NON-RÉGRESSION :
+- Aucun changement côté NAS ou VPS.
+- Aucun changement du service `bfg-sdvfr-worker.service`.
+- Aucun changement du flux NATS.
+- Le test SDVFR reste limité à LFML + LFMT dans cette version.
+
+Fichiers BFG modifiés :
+- index.html
+- manifest.json
+- sw.js
+
+Fichiers NAS / VPS :
+- Aucun changement.
+
+===============================================================================
+FICHIERS DE LA VERSION ACTUELLE v4.73
+===============================================================================
+
+Fichiers BFG :
+- index.html
+- manifest.json
+- sw.js
