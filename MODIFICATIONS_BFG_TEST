@@ -1,3 +1,49 @@
+TEST v4.95 — 2026-09-20
+Base : TEST v4.94
+===============================================================================
+
+NOTAM — PLAGE DE VALIDITÉ PAR CALENDRIER
+- Remplacement de la case « Afficher uniquement les NOTAMs valides aujourd'hui » par deux cellules de date natives : « Valables du [date] au [date] ».
+- Les deux dates sont initialisées par défaut sur la date du jour à chaque ouverture de BFG.
+- Un toucher sur une cellule ouvre le sélecteur/calendrier natif iPadOS.
+- La plage est inclusive : le premier jour est pris depuis 00:00:00 et le dernier jusqu'à 23:59:59.999.
+- Un NOTAM est affiché dès lors que sa période de validité chevauche au moins une partie de la plage choisie.
+- Si la date de début devient postérieure à la date de fin, la seconde borne est automatiquement réalignée pour conserver une plage cohérente.
+- Les filtres par mots-clés continuent de s'appliquer en complément de la plage de dates.
+
+NOTAM — COMMANDES
+- Première ligne : « Actualiser NOTAM » / « Garder la Sélection » ou « Tout Afficher » / « Annuler Sélection » / « Annuler Surlignage ».
+- Deuxième ligne : « Sauvegarder en Pdf » / « Actualiser Météo ».
+- Majuscules harmonisées selon cette présentation.
+- « Annuler Sélection » est désormais rouge.
+- « Sauvegarder en Pdf » reste disponible indépendamment de l'état du filtre « Garder la Sélection » et exporte les NOTAM actuellement visibles.
+
+CORRECTION SCROLL « GARDER LA SÉLECTION »
+- Suppression du scroll automatique vers le dernier NOTAM conservé.
+- Après activation volontaire de « Garder la Sélection », la vue est repositionnée sur le premier terrain de la liste NOTAM, LFTW dans l'ordre BFG.
+- La restauration automatique du mode mémorisé reste sans scroll.
+
+NON-RÉGRESSION
+- Mémoire explicite « Garder la Sélection » séparée SDVFR / NATS conservée.
+- Triple persistance SDVFR localStorage + IndexedDB + CacheStorage conservée.
+- SDVFR reste la source NOTAM affichée par défaut ; NATS uniquement sur sélection explicite.
+- CheckWX reste désactivé.
+- Correction SUP AIP / SUP AIP AIRAC conservée.
+- Diagnostic BFG conservé.
+- Service worker aligné sur v4.95 avec nouveau cache briefing-fdf-test-v4.95-notam-date-range-controls-r1.
+
+Contrôles avant livraison :
+- syntaxe JavaScript inline ;
+- manifeste JSON ;
+- syntaxe du service worker ;
+- cohérence des versions actives v4.95 ;
+- absence de l'ancien filtre checkbox « aujourd'hui » ;
+- initialisation des deux dates sur le jour courant ;
+- filtrage inclusif par chevauchement de période ;
+- ordre et libellés des boutons ;
+- « Annuler Sélection » rouge ;
+- scroll « Garder la Sélection » vers le premier terrain et non vers le dernier NOTAM.
+
 TEST v4.94 — 2026-09-20
 Base : TEST v4.93
 ===============================================================================
