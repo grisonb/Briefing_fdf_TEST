@@ -1,3 +1,32 @@
+TEST v4.90 — 2026-09-20
+Base : TEST v4.89
+===============================================================================
+
+NOTAM SDVFR — RESTAURATION IMMÉDIATE INDÉPENDANTE DE PDF.JS
+- Diagnostic v4.89 : toute l'initialisation de BFG restait déclenchée par `window.onload`, puis attendait jusqu'à 5 s la disponibilité de PDF.js chargé depuis cdnjs.
+- Conséquence : la restauration locale des NOTAM pouvait elle aussi être retardée à chaque réouverture ; hors ligne, l'absence de PDF.js externe retardait encore le démarrage local.
+- v4.90 initialise désormais le parseur NOTAM dès `DOMContentLoaded`, sans attendre `window.onload` ni PDF.js.
+- Le cache rapide local est relu immédiatement, puis la restauration autoritaire IndexedDB / CacheStorage démarre aussitôt.
+- La promesse de restauration NOTAM est réutilisée ensuite par l'initialisation générale : aucun double parseur ni double restauration n'est créé.
+- Les actualisations réseau continuent d'attendre la fin des restaurations locales avant de démarrer.
+- PDF.js reste nécessaire uniquement aux modules PDF ; son absence ou sa lenteur ne bloque plus l'affichage des NOTAM mémorisés.
+- La triple persistance SDVFR de v4.89 (localStorage léger + IndexedDB + CacheStorage dédié) est conservée.
+
+NON-RÉGRESSION
+- SDVFR reste la source NOTAM affichée par défaut ; NATS uniquement sur sélection explicite.
+- CheckWX reste désactivé.
+- Correction SUP AIP / SUP AIP AIRAC conservée.
+- Gestion du champ code accès et stabilité du scroll conservées.
+
+Contrôles avant livraison :
+- syntaxe JavaScript inline ;
+- manifeste JSON ;
+- syntaxe du service worker ;
+- cohérence des versions actives v4.90 ;
+- changelog cumulatif conservé.
+
+===============================================================================
+
 TEST v4.89 — 2026-09-20
 Base : TEST v4.88
 ===============================================================================
