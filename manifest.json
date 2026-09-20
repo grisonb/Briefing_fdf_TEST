@@ -1,7 +1,7 @@
 {
   "name": "Briefing FDF TEST",
   "short_name": "Briefing TEST",
-  "description": "Briefing FDF TEST v4.82 — navigation stabilisée, confirmation verte et liens SUP AIP normalisés",
+  "description": "Briefing FDF TEST v4.83 — scroll de démarrage stabilisé et navigation non sollicitée supprimée",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
