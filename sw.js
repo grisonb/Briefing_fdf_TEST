@@ -1,5 +1,5 @@
-const BFG_SW_VERSION = '4.78';
-const CACHE_NAME = 'briefing-fdf-test-v4.78-notams-source-separee-grue-r1';
+const BFG_SW_VERSION = '4.79';
+const CACHE_NAME = 'briefing-fdf-test-v4.79-reset-nats-r1';
 
 const LOCAL_ASSETS = [
   './manifest.json',
