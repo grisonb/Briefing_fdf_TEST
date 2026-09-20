@@ -1,5 +1,5 @@
-const BFG_SW_VERSION = '4.86';
-const CACHE_NAME = 'briefing-fdf-test-v4.86-notam-persistence-access-r2';
+const BFG_SW_VERSION = '4.87';
+const CACHE_NAME = 'briefing-fdf-test-v4.87-sdvfr-persistence-r1';
 
 const LOCAL_ASSETS = [
   './manifest.json',
