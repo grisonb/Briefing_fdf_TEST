@@ -1,3 +1,36 @@
+TEST v4.94 — 2026-09-20
+Base : TEST v4.93
+===============================================================================
+
+NOTAM — MÉMOIRE EXPLICITE « GARDER LA SÉLECTION » PAR SOURCE
+- v4.93 a confirmé la restauration immédiate et hors ligne des NOTAM SDVFR, mais désactivait volontairement la restauration du filtre « Garder la sélection ».
+- v4.94 mémorise désormais explicitement l'état ON/OFF de « Garder la sélection » au lieu de le déduire de la présence de NOTAM cochés.
+- La préférence est indépendante pour SDVFR et NATS : SDVFR peut être en affichage complet pendant que NATS conserve « Garder la sélection », et inversement.
+- Si des NOTAM sont cochés sans que « Garder la sélection » soit actif, les coches restent mémorisées mais tous les NOTAM valides restent affichés à la réouverture.
+- Si l'utilisateur active « Garder la sélection », ce mode est restauré à la réouverture pour la source concernée.
+- Le bouton « Tout afficher » désactive et mémorise explicitement le mode pour la source courante.
+- « Annuler sélection » désactive également « Garder la sélection » pour la source courante.
+- Si le mode était mémorisé mais qu'aucun NOTAM sélectionné n'est encore restaurable (NOTAM disparu ou modifié), BFG désactive automatiquement le filtre afin d'éviter un écran vide.
+- SDVFR reste la source NOTAM affichée par défaut à chaque ouverture ; le choix NATS reste temporaire, mais son propre état « Garder la sélection » est retrouvé lorsqu'on le sélectionne.
+- Le diagnostic BFG indique maintenant séparément « Garder sélection SDVFR » et « Garder sélection NATS ».
+
+NON-RÉGRESSION
+- Triple persistance SDVFR localStorage + IndexedDB + CacheStorage conservée.
+- Restauration hors ligne des NOTAM conservée.
+- Coches, masquages volontaires et surlignages persistants conservés par source.
+- CheckWX reste désactivé.
+- Correction SUP AIP / SUP AIP AIRAC conservée.
+- Service worker aligné sur v4.94 avec nouveau cache briefing-fdf-test-v4.94-keep-selection-by-source-r1.
+
+Contrôles avant livraison :
+- syntaxe JavaScript inline ;
+- manifeste JSON ;
+- syntaxe du service worker ;
+- cohérence des versions actives v4.94 ;
+- aucune déduction automatique du filtre à partir des coches ;
+- restauration du filtre sans scroll automatique ;
+- état séparé SDVFR / NATS.
+
 TEST v4.93 — 2026-09-20
 Base : TEST v4.92
 ===============================================================================
