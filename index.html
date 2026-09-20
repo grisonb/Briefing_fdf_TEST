@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0">
-    <title>Briefing Fdf TEST v4.76</title>
+    <title>Briefing Fdf TEST v4.77</title>
     <link rel="manifest" href="./manifest.json?v=4.72">
     <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png?v=4.24">
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -2204,10 +2204,10 @@
 
     <div class="page-header">
         <div class="page-header-background"></div>
-        <h1 id="main-title">Briefing Fdf TEST v4.76</h1>
+        <h1 id="main-title">Briefing Fdf TEST v4.77</h1>
         <p id="current-time-display"></p>
         <p style="position: relative; z-index: 2; text-align: center; color: #333; font-size: 1em; margin-top: -25px; margin-bottom: 30px;">
-    v<span id="app-version">4.76 TEST - NATS/SDVFR + METEO SDVFR</span>
+    v<span id="app-version">4.77 TEST - NATS + SDVFR SIMULTANES + METEO</span>
     <button id="force-update-btn" class="link-button" style="background-color: #34495e; padding: 4px 10px; font-size: 0.8em; margin-left: 10px; vertical-align: middle;">
         Forcer MAJ
     </button>
@@ -2450,11 +2450,10 @@
             <span id="nats-help-icon" class="help-icon" title="Comment utiliser NATS ?">?</span>
             <button id="notam-auto-import-btn" type="button" class="link-button" style="background-color: #16a085;">Actualiser NATS</button>
             <button id="notam-sdvfr-import-btn" type="button" class="link-button" style="background-color: #2980b9;">Actualiser SDVFR</button>
-            <button id="notam-source-toggle-btn" type="button" class="link-button" style="background-color: #34495e;">Comparer : afficher SDVFR</button>
             <a href="https://nats-uk.ead-it.com/fwf-nats/restricted/user/ino/brief_aerodrome.faces?menuId=C920E9BB76441A9AE05341741DC25BDD" target="_blank" class="link-button" style="background-color: #8e44ad;">Accéder au Briefing NATS</a>
             <button id="pdf-load-notam-btn" class="link-button" style="background-color: #2c3e50;">Importation manuelle</button>
             <input type="file" id="pdf-input-notam" accept="application/pdf">
-            <p id="notam-source-status" style="font-weight:600;">Source affichée : NATS</p>
+            <p id="notam-source-status" style="font-weight:600;">NOTAMs affichés simultanément : NATS + SDVFR</p>
             <p id="notam-auto-import-status"></p>
             <p id="notam-sdvfr-import-status"></p>
         </div>
@@ -2503,7 +2502,7 @@
                     <!-- Rempli dynamiquement par JS -->
                 </div>
             </div>
-            <button id="manual-load-weather-btn" class="link-button" style="background-color: #16a085; padding: 8px 15px; font-size: 1em;">Charger Météo</button>
+            <button id="manual-load-weather-btn" class="link-button" style="background-color: #16a085; padding: 8px 15px; font-size: 1em;">Actualiser Météo</button>
         </div>
         
         <div id="notam-controls-top" class="notam-controls">
@@ -2601,7 +2600,7 @@
     <footer>Données : Météo-France, SIA, Windy.com, SDVFR, CheckWX.com. Page non commerciale, à usage personnel.</footer>
     
     <script>
-        const APP_VERSION = "4.76 TEST - NATS/SDVFR + METEO SDVFR";
+        const APP_VERSION = "4.77 TEST - NATS + SDVFR SIMULTANES + METEO";
 
         // --- Proxy NAS pour la source de données météo CheckWX ---
         const CHECKWX_PROXY_URL = "https://grisonb.synology.me/briefing-api/get-metar-taf.php";
@@ -2872,33 +2871,28 @@ const tdfStages = [
                 }));
         }
 
-        // v4.75 — comparaison instantanée NATS / SDVFR.
-        // Les deux textes restent séparés en mémoire : aucune fusion des sources.
+        // v4.77 — comparaison visuelle simultanée NATS + SDVFR, terrain par terrain.
         const BFG_NOTAM_SOURCE_NATS_ = 'NATS';
         const BFG_NOTAM_SOURCE_SDVFR_ = 'SDVFR';
         const bfgNotamSourceTexts_ = { NATS: '', SDVFR: '' };
-        let bfgDisplayedNotamSource_ = BFG_NOTAM_SOURCE_NATS_;
         let bfgSdvfrLatestResult_ = null;
         let bfgSdvfrAllDataPromise_ = null;
+        const BFG_SDVFR_DAILY_CACHE_KEY_ = 'briefingFdfSdvfrDailyNotamsV1';
+        let bfgWeatherRefreshInProgress_ = false;
+        let bfgLastAutoWeatherRefreshAt_ = 0;
+        const BFG_AUTO_WEATHER_REFRESH_COOLDOWN_MS_ = 5 * 60 * 1000;
+
+        function bfgTodayLocalKey_() {
+            const d = new Date();
+            return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+        }
 
         function updateBfgNotamSourceUi_() {
-            const button = document.getElementById('notam-source-toggle-btn');
             const status = document.getElementById('notam-source-status');
-            const displayed = bfgDisplayedNotamSource_ === BFG_NOTAM_SOURCE_SDVFR_
-                ? BFG_NOTAM_SOURCE_SDVFR_
-                : BFG_NOTAM_SOURCE_NATS_;
-            const other = displayed === BFG_NOTAM_SOURCE_NATS_
-                ? BFG_NOTAM_SOURCE_SDVFR_
-                : BFG_NOTAM_SOURCE_NATS_;
-
-            if (button) {
-                button.textContent = `Comparer : afficher ${other}`;
-                button.title = `Basculer vers les NOTAMs ${other} sans mélanger les deux sources.`;
-            }
             if (status) {
                 const natsReady = !!String(bfgNotamSourceTexts_.NATS || '').trim();
                 const sdvfrReady = !!String(bfgNotamSourceTexts_.SDVFR || '').trim();
-                status.textContent = `Source affichée : ${displayed} — NATS ${natsReady ? 'prêt' : 'non chargé'} / SDVFR ${sdvfrReady ? 'prêt' : 'non chargé'}`;
+                status.textContent = `NOTAMs affichés simultanément — NATS ${natsReady ? 'prêt' : 'non chargé'} / SDVFR ${sdvfrReady ? 'prêt' : 'non chargé'}`;
             }
         }
 
@@ -2910,23 +2904,55 @@ const tdfStages = [
             return value;
         }
 
-        function renderBfgNotamSource_(source) {
-            const normalizedSource = source === BFG_NOTAM_SOURCE_SDVFR_ ? BFG_NOTAM_SOURCE_SDVFR_ : BFG_NOTAM_SOURCE_NATS_;
-            const rawText = String(bfgNotamSourceTexts_[normalizedSource] || '').trim();
-            if (!rawText) return false;
+        function tagBfgNotamHeadersWithSource_(text, source) {
+            const suffix = source === BFG_NOTAM_SOURCE_SDVFR_ ? 'SDVFR' : 'NATS';
+            return String(text || '').trim().replace(/^(LF[A-Z]{2}\s+-\s+[^\n]+)$/gm, (line) => {
+                const cleaned = line.replace(/\s+-\s+(?:NATS|SDVFR)\s*$/i, '');
+                return `${cleaned} - ${suffix}`;
+            });
+        }
 
+        function renderCombinedBfgNotamSources_() {
             const notamInput = document.getElementById('notam-input');
             if (!notamInput || typeof window.parseAndDisplayNotams !== 'function') return false;
-
-            // Important : le parser ne supprime que les NOTAMs des terrains présents dans le texte.
-            // On vide donc explicitement le jeu précédent avant chaque bascule de source.
-            document.querySelectorAll('#notam-display .notam-item').forEach(item => item.remove());
-            notamInput.value = rawText;
-            window.__notamTextFull = rawText;
-            bfgDisplayedNotamSource_ = normalizedSource;
+            const parts = [];
+            if (String(bfgNotamSourceTexts_.NATS || '').trim()) {
+                parts.push(tagBfgNotamHeadersWithSource_(bfgNotamSourceTexts_.NATS, BFG_NOTAM_SOURCE_NATS_));
+            }
+            if (String(bfgNotamSourceTexts_.SDVFR || '').trim()) {
+                parts.push(tagBfgNotamHeadersWithSource_(bfgNotamSourceTexts_.SDVFR, BFG_NOTAM_SOURCE_SDVFR_));
+            }
+            const combined = parts.join('\n\n').trim();
+            if (!combined) return false;
+            notamInput.value = combined;
+            window.__notamTextFull = combined;
             window.parseAndDisplayNotams();
             updateBfgNotamSourceUi_();
             return true;
+        }
+
+        function loadSdvfrDailyCache_() {
+            try {
+                const parsed = JSON.parse(localStorage.getItem(BFG_SDVFR_DAILY_CACHE_KEY_) || 'null');
+                if (!parsed || parsed.day !== bfgTodayLocalKey_() || !String(parsed.rawText || '').trim()) return null;
+                return parsed;
+            } catch (_) {
+                return null;
+            }
+        }
+
+        function saveSdvfrDailyCache_(rawText, resultPayload) {
+            try {
+                localStorage.setItem(BFG_SDVFR_DAILY_CACHE_KEY_, JSON.stringify({
+                    version: 1,
+                    day: bfgTodayLocalKey_(),
+                    savedAt: new Date().toISOString(),
+                    rawText: String(rawText || ''),
+                    resultPayload: resultPayload || null
+                }));
+            } catch (error) {
+                console.warn('Cache quotidien NOTAM SDVFR indisponible:', error);
+            }
         }
         const NOTAMS_AUTO_STATUS_STORAGE_KEY = 'briefingFdfNotamsAutoPdfStatus';
         const FDS_GMAIL_REFRESH_URL = 'https://script.google.com/macros/s/AKfycbwjw2i5AcY9UT31sRvz1sTessKF4k1EUHMo0KW4Tga-mLTeBhup0IN98dXnAJSoqq_LDQ/exec';
@@ -4069,10 +4095,10 @@ const tdfStages = [
             const tafContainer = airportContainer.querySelector('.taf-container');
 
             if (metarRaw && metarContainer) {
-                metarContainer.innerHTML = `<h4>METAR <small style="font-weight:normal;margin-left:6px;">SDVFR</small></h4><pre>${escapeBfgWeatherText_(metarRaw)}</pre>`;
+                metarContainer.innerHTML = `<h4>METAR</h4><pre>${escapeBfgWeatherText_(metarRaw)}</pre>`;
             }
             if (tafRaw && tafContainer) {
-                tafContainer.innerHTML = `<h4>TAF <small style="font-weight:normal;margin-left:6px;">SDVFR</small></h4><pre>${escapeBfgWeatherText_(tafRaw)}</pre>`;
+                tafContainer.innerHTML = `<h4>TAF</h4><pre>${escapeBfgWeatherText_(tafRaw)}</pre>`;
             }
 
             const loaded = !!(metarRaw || tafRaw);
@@ -4114,14 +4140,27 @@ const tdfStages = [
         async function ensureSdvfrAllData_(options = {}) {
             const force = options.force === true;
             const statusElement = options.statusElement || null;
-            if (!force && bfgSdvfrLatestResult_) return bfgSdvfrLatestResult_;
+
+            if (!force) {
+                const cached = loadSdvfrDailyCache_();
+                if (cached) {
+                    rememberBfgNotamSourceText_(BFG_NOTAM_SOURCE_SDVFR_, cached.rawText);
+                    bfgSdvfrLatestResult_ = cached.resultPayload || null;
+                    if (statusElement) statusElement.textContent = `SDVFR : NOTAMs du jour restaurés (${cached.savedAt ? new Date(cached.savedAt).toLocaleTimeString('fr-FR', {hour:'2-digit', minute:'2-digit'}) : 'cache local'}).`;
+                    return bfgSdvfrLatestResult_ || { airports: [], status: 'cached', totalNotams: 0 };
+                }
+                if (bfgSdvfrLatestResult_ && String(bfgNotamSourceTexts_.SDVFR || '').trim()) return bfgSdvfrLatestResult_;
+            }
             if (bfgSdvfrAllDataPromise_) return bfgSdvfrAllDataPromise_;
 
             bfgSdvfrAllDataPromise_ = (async () => {
                 const resultPayload = await fetchSdvfrTargetsOnce_(getSdvfrPelicandromeTargets_(), statusElement);
                 bfgSdvfrLatestResult_ = resultPayload;
                 const rawText = buildBfgNotamTextFromSdvfrResult_(resultPayload);
-                if (rawText.trim()) rememberBfgNotamSourceText_(BFG_NOTAM_SOURCE_SDVFR_, rawText);
+                if (rawText.trim()) {
+                    rememberBfgNotamSourceText_(BFG_NOTAM_SOURCE_SDVFR_, rawText);
+                    saveSdvfrDailyCache_(rawText, resultPayload);
+                }
                 return resultPayload;
             })();
 
@@ -4176,7 +4215,7 @@ const tdfStages = [
                 if (!rawText) throw new Error('Aucun NOTAM exploitable reçu pour les pélicandromes.');
 
                 applySdvfrWeatherFromPayload_(resultPayload);
-                if (!renderBfgNotamSource_(BFG_NOTAM_SOURCE_SDVFR_)) {
+                if (!renderCombinedBfgNotamSources_()) {
                     throw new Error('Analyseur NOTAM BFG indisponible.');
                 }
 
@@ -4564,8 +4603,12 @@ const tdfStages = [
 
                 await extractTextFromPdf(pdfFile, pdfInfoElement);
                 rememberBfgNotamSourceText_(BFG_NOTAM_SOURCE_NATS_, notamInput ? notamInput.value : '');
-                bfgDisplayedNotamSource_ = BFG_NOTAM_SOURCE_NATS_;
-                updateBfgNotamSourceUi_();
+                try {
+                    await ensureSdvfrAllData_({ force: false, statusElement: document.getElementById('notam-sdvfr-import-status') });
+                } catch (error) {
+                    console.warn('SDVFR quotidien indisponible pendant import NATS:', error);
+                }
+                renderCombinedBfgNotamSources_();
 
                 const count = document.querySelectorAll('#notam-display .notam-item').length;
 
@@ -5422,7 +5465,7 @@ const tdfStages = [
             }
         }
         window.onload = waitForPdfJsAndInitialize;
-        const BFG_REQUIRED_SW_VERSION_ = '4.76';
+        const BFG_REQUIRED_SW_VERSION_ = '4.77';
 
         function queryBfgControllerVersion_(timeoutMs = 1800) {
             return new Promise((resolve) => {
@@ -5462,7 +5505,7 @@ const tdfStages = [
             }
 
             const registration = await navigator.serviceWorker.register(
-                './sw.js?v=4.76',
+                './sw.js?v=4.77',
                 { updateViaCache: 'none' }
             );
 
@@ -7205,14 +7248,17 @@ const tdfStages = [
             }
         }
 
-        function createAirportSectionElement(icao, fullName) {
+        function createAirportSectionElement(icao, fullName, source = BFG_NOTAM_SOURCE_NATS_) {
+            const normalizedSource = source === BFG_NOTAM_SOURCE_SDVFR_ ? BFG_NOTAM_SOURCE_SDVFR_ : BFG_NOTAM_SOURCE_NATS_;
             const airportContainer = document.createElement('div');
-            airportContainer.id = `notam-container-${icao}`;
+            airportContainer.id = normalizedSource === BFG_NOTAM_SOURCE_SDVFR_ ? `notam-container-${icao}-SDVFR` : `notam-container-${icao}`;
             airportContainer.className = 'airport-section-container';
             airportContainer.dataset.icao = icao;
+            airportContainer.dataset.notamSource = normalizedSource;
 
             const airportTitle = document.createElement('h3');
-            airportTitle.textContent = `${fullName} `;
+            const baseFullName = String(fullName || icao).replace(/\s+-\s+(?:NATS|SDVFR)\s*$/i, '');
+            airportTitle.textContent = `${baseFullName} - ${normalizedSource} `;
 
             const tafToggleButton = document.createElement('button');
             tafToggleButton.textContent = 'Afficher TAF';
@@ -7240,6 +7286,12 @@ const tdfStages = [
             airportContainer.appendChild(airportTitle);
             airportContainer.appendChild(metarContainer);
             airportContainer.appendChild(tafContainer);
+            if (normalizedSource === BFG_NOTAM_SOURCE_SDVFR_) {
+                tafToggleButton.style.display = 'none';
+                refreshButton.style.display = 'none';
+                metarContainer.style.display = 'none';
+                tafContainer.style.display = 'none';
+            }
             return airportContainer;
         }
 
@@ -7268,10 +7320,12 @@ const tdfStages = [
             return hashStringForNotamState_(notamText);
         }
 
-        function createNotamItemElement(notamText, icao) {
+        function createNotamItemElement(notamText, icao, source = BFG_NOTAM_SOURCE_NATS_) {
             const validity = parseNotamValidity(notamText);
+            const normalizedSource = source === BFG_NOTAM_SOURCE_SDVFR_ ? BFG_NOTAM_SOURCE_SDVFR_ : BFG_NOTAM_SOURCE_NATS_;
             const itemContainer = document.createElement('div');
             itemContainer.className = 'notam-item';
+            itemContainer.dataset.notamSource = normalizedSource;
             if (validity.start) itemContainer.dataset.startDate = validity.start.toISOString();
             if (validity.end) itemContainer.dataset.endDate = validity.end.toISOString();
 
@@ -7280,19 +7334,19 @@ const tdfStages = [
             const notamNumber = notamNumberMatch ? notamNumberMatch[1].replace('/', '-') : null;
 
             if (notamNumber) {
-                itemContainer.dataset.notamId = `${icao}-${notamNumber}`;
+                itemContainer.dataset.notamId = `${normalizedSource}-${icao}-${notamNumber}`;
             } else {
                 const bMatch = notamText.match(/B\)\s*(\d{10})/);
                 const cMatch = notamText.match(/C\)\s*(\d{10}|PERM)/);
                 if (bMatch && cMatch) {
-                    itemContainer.dataset.notamId = `${icao}-${bMatch[1]}-${cMatch[1]}`;
+                    itemContainer.dataset.notamId = `${normalizedSource}-${icao}-${bMatch[1]}-${cMatch[1]}`;
                 }
             }
 
             itemContainer.dataset.notamSignature = createNotamStableSignature_(notamText);
             itemContainer.__bfgRawNotamText = String(notamText || '');
             if (!itemContainer.dataset.notamId) {
-                itemContainer.dataset.notamId = `${icao}-SIG-${itemContainer.dataset.notamSignature}`;
+                itemContainer.dataset.notamId = `${normalizedSource}-${icao}-SIG-${itemContainer.dataset.notamSignature}`;
             }
 
             const checkboxColumn = document.createElement('div');
@@ -7538,7 +7592,7 @@ const tdfStages = [
             function displayWeatherResult_(container, label, result, previousHtml) {
                 if (result.ok) {
                     const display = formatWeatherReportForDisplay_(result.json, label);
-                    container.innerHTML = `<h4>${label}</h4><pre>${escapeWeatherText_(display)}</pre>`;
+                    container.innerHTML = `<h4>${label} <small style="font-weight:normal;margin-left:6px;">CHECKWX</small></h4><pre>${escapeWeatherText_(display)}</pre>`;
                     return;
                 }
 
@@ -9257,36 +9311,6 @@ const tdfStages = [
                 notamSdvfrImportBtn.addEventListener('click', (event) => importSdvfrNotams_(event));
             }
 
-            const notamSourceToggleBtn = document.getElementById('notam-source-toggle-btn');
-            if (notamSourceToggleBtn) {
-                notamSourceToggleBtn.addEventListener('click', async (event) => {
-                    event.preventDefault();
-                    const targetSource = bfgDisplayedNotamSource_ === BFG_NOTAM_SOURCE_NATS_
-                        ? BFG_NOTAM_SOURCE_SDVFR_
-                        : BFG_NOTAM_SOURCE_NATS_;
-
-                    notamSourceToggleBtn.disabled = true;
-                    try {
-                        if (targetSource === BFG_NOTAM_SOURCE_SDVFR_ && !String(bfgNotamSourceTexts_.SDVFR || '').trim()) {
-                            const statusElement = document.getElementById('notam-sdvfr-import-status');
-                            const resultPayload = await ensureSdvfrAllData_({ force: false, statusElement });
-                            applySdvfrWeatherFromPayload_(resultPayload);
-                        }
-
-                        if (targetSource === BFG_NOTAM_SOURCE_NATS_ && !String(bfgNotamSourceTexts_.NATS || '').trim()) {
-                            await importAutomaticNotamsFromNas_(null);
-                        } else if (!renderBfgNotamSource_(targetSource)) {
-                            throw new Error(`Source ${targetSource} non disponible.`);
-                        }
-                    } catch (error) {
-                        const statusElement = document.getElementById('notam-source-status');
-                        if (statusElement) statusElement.textContent = `Comparaison impossible : ${error.message || error}`;
-                    } finally {
-                        notamSourceToggleBtn.disabled = false;
-                        updateBfgNotamSourceUi_();
-                    }
-                });
-            }
             updateBfgNotamSourceUi_();
 
             document.getElementById('pdf-load-notam-btn').addEventListener('click', () => document.getElementById('pdf-input-notam').click());
@@ -9682,7 +9706,7 @@ let activeShareApiBase = SHARE_API_BASE;
         const manualDisplay = document.getElementById('manual-metar-display');
         if (manualDisplay) manualDisplay.innerHTML = '';
         const weatherBtn = document.getElementById('manual-load-weather-btn');
-        if (weatherBtn) { weatherBtn.disabled = false; weatherBtn.textContent = 'Charger Météo'; }
+        if (weatherBtn) { weatherBtn.disabled = false; weatherBtn.textContent = 'Actualiser Météo'; }
         try { checkWeatherValidity(); } catch (_) {}
         scheduleBfgLocalSnapshotSave_(250);
     }
@@ -10483,7 +10507,6 @@ let activeShareApiBase = SHARE_API_BASE;
             if (data.notamText && typeof window.parseAndDisplayNotams === "function") {
                 window.parseAndDisplayNotams(data.notamState || null);
                 rememberBfgNotamSourceText_(BFG_NOTAM_SOURCE_NATS_, data.notamText);
-                bfgDisplayedNotamSource_ = BFG_NOTAM_SOURCE_NATS_;
                 updateBfgNotamSourceUi_();
             }
         }
@@ -10766,6 +10789,7 @@ window.__notamTextFull = notamInput.value;
 
         function checkWeatherValidity() {
             const now = new Date();
+            let hasMetarOlderThan35Minutes = false;
 
             // Check METARs
             document.querySelectorAll('.metar-container').forEach(container => {
@@ -10801,6 +10825,7 @@ window.__notamTextFull = notamInput.value;
                     
                     ageSpan.textContent = `${Math.round(ageInMinutes)} min`;
                     ageSpan.style.color = (ageInMinutes <= 35) ? '#28a745' : 'var(--sc-red)';
+                    if (ageInMinutes > 35) hasMetarOlderThan35Minutes = true;
 
                 } else {
                     ageSpan.textContent = '';
@@ -10842,6 +10867,18 @@ window.__notamTextFull = notamInput.value;
                     warningSpan.remove();
                 }
             });
+            if (hasMetarOlderThan35Minutes && !bfgWeatherRefreshInProgress_) {
+                const nowMs = Date.now();
+                if (nowMs - bfgLastAutoWeatherRefreshAt_ >= BFG_AUTO_WEATHER_REFRESH_COOLDOWN_MS_) {
+                    bfgLastAutoWeatherRefreshAt_ = nowMs;
+                    setTimeout(() => {
+                        if (typeof window.refreshAllWeather_ === 'function') {
+                            window.refreshAllWeather_('auto').catch(error => console.warn('Actualisation météo automatique impossible:', error));
+                        }
+                    }, 0);
+                }
+            }
+
         }
 
         function initializeNotamParser() { 
@@ -10896,45 +10933,46 @@ window.__notamTextFull = notamInput.value;
             ];
 
             const manualLoadWeatherBtn = document.getElementById('manual-load-weather-btn');
-            if (manualLoadWeatherBtn) {
-                const defaultWeatherButtonText = manualLoadWeatherBtn.textContent || 'Charger Météo';
-                manualLoadWeatherBtn.disabled = false;
-                manualLoadWeatherBtn.textContent = defaultWeatherButtonText;
 
-                manualLoadWeatherBtn.addEventListener('click', async () => {
+            async function refreshAllWeather_(reason = 'manual') {
+                if (bfgWeatherRefreshInProgress_) return false;
+                bfgWeatherRefreshInProgress_ = true;
+                const defaultWeatherButtonText = 'Actualiser Météo';
+                if (manualLoadWeatherBtn) {
                     manualLoadWeatherBtn.disabled = true;
-                    const airportContainers = Array.from(document.querySelectorAll('#notam-display .airport-section-container'))
-                        .filter(container => Boolean(container.dataset.icao));
+                    manualLoadWeatherBtn.textContent = reason === 'auto' ? 'Actualisation météo auto…' : 'Actualisation météo…';
+                }
+                const airportContainers = Array.from(document.querySelectorAll('#notam-display .airport-section-container'))
+                    .filter(container => container.dataset.notamSource !== BFG_NOTAM_SOURCE_SDVFR_ && Boolean(container.dataset.icao));
 
+                try {
                     let sdvfrLoaded = new Set();
                     try {
-                        manualLoadWeatherBtn.textContent = `Chargement météo SDVFR…`;
-                        const payload = await ensureSdvfrAllData_({ force: true });
+                        // Important v4.77 : l'actualisation météo ne modifie PAS le cache quotidien des NOTAMs.
+                        const payload = await fetchSdvfrTargetsOnce_(getSdvfrPelicandromeTargets_());
                         sdvfrLoaded = applySdvfrWeatherFromPayload_(payload);
                     } catch (error) {
                         console.warn('Météo SDVFR indisponible, secours CheckWX.', error);
                     }
 
                     const fallbackContainers = airportContainers.filter(container => !sdvfrLoaded.has(container.dataset.icao));
-                    let completedFallback = 0;
-                    const totalFallback = fallbackContainers.length;
-
-                    if (totalFallback > 0) {
-                        manualLoadWeatherBtn.textContent = `Secours CheckWX 0/${totalFallback}…`;
-                        const tasks = fallbackContainers.map(async (container) => {
-                            try {
-                                return await fetchAndDisplayWeather(container.dataset.icao, container);
-                            } finally {
-                                completedFallback += 1;
-                                manualLoadWeatherBtn.textContent = `Secours CheckWX ${completedFallback}/${totalFallback}…`;
-                            }
-                        });
-                        await Promise.allSettled(tasks);
+                    await Promise.all(fallbackContainers.map(container => fetchAndDisplayWeather(container.dataset.icao, container)));
+                    checkWeatherValidity();
+                    return true;
+                } finally {
+                    bfgWeatherRefreshInProgress_ = false;
+                    if (manualLoadWeatherBtn) {
+                        manualLoadWeatherBtn.disabled = false;
+                        manualLoadWeatherBtn.textContent = defaultWeatherButtonText;
                     }
+                }
+            }
+            window.refreshAllWeather_ = refreshAllWeather_;
 
-                    manualLoadWeatherBtn.disabled = false;
-                    manualLoadWeatherBtn.textContent = defaultWeatherButtonText;
-                });
+            if (manualLoadWeatherBtn) {
+                manualLoadWeatherBtn.disabled = false;
+                manualLoadWeatherBtn.textContent = 'Actualiser Météo';
+                manualLoadWeatherBtn.addEventListener('click', () => refreshAllWeather_('manual'));
             }
 
             function setupKeywordFilterDropdown() {
@@ -10972,11 +11010,11 @@ window.__notamTextFull = notamInput.value;
             }
 
             function renderInitialAirportSections() {
-                notamDisplay.innerHTML = ''; 
+                notamDisplay.innerHTML = '';
                 predefinedIcaoOrder.forEach(icao => {
                     const fullName = icaoToFullName[icao] || `${icao} - INCONNU`;
-                    const airportContainer = createAirportSectionElement(icao, fullName);
-                    notamDisplay.appendChild(airportContainer);
+                    notamDisplay.appendChild(createAirportSectionElement(icao, fullName, BFG_NOTAM_SOURCE_NATS_));
+                    notamDisplay.appendChild(createAirportSectionElement(icao, fullName, BFG_NOTAM_SOURCE_SDVFR_));
                 });
             }
 
@@ -11289,6 +11327,7 @@ window.__notamTextFull = notamInput.value;
                 // v4.54 : tout nouvel import/analyse repart en affichage complet.
                 resetSelectionFilter();
                 const rawText = notamInput.value; if (!rawText.trim()) return;
+                document.querySelectorAll('#notam-display .notam-item').forEach(item => item.remove());
                 const airportSections = rawText.split(/\n\s*(?=LF[A-Z]{2}\s+-\s+)/);
                 const airportsData = {};
                 airportSections.forEach(section => {
@@ -11319,16 +11358,18 @@ window.__notamTextFull = notamInput.value;
                 
                 Object.keys(airportsData).forEach(airportName => {
                     const icao = airportName.split(' ')[0];
-                    let container = document.getElementById(`notam-container-${icao}`);
+                    const sourceMatch = airportName.match(/\s+-\s+(NATS|SDVFR)\s*$/i);
+                    const source = sourceMatch && sourceMatch[1].toUpperCase() === 'SDVFR' ? BFG_NOTAM_SOURCE_SDVFR_ : BFG_NOTAM_SOURCE_NATS_;
+                    const containerId = source === BFG_NOTAM_SOURCE_SDVFR_ ? `notam-container-${icao}-SDVFR` : `notam-container-${icao}`;
+                    let container = document.getElementById(containerId);
                     if (!container) {
-                        const fullName = icaoToFullName[icao] || airportName;
-                        container = createAirportSectionElement(icao, fullName);
+                        const fullName = icaoToFullName[icao] || airportName.replace(/\s+-\s+(?:NATS|SDVFR)\s*$/i, '');
+                        container = createAirportSectionElement(icao, fullName, source);
                         notamDisplay.appendChild(container);
                     }
-                    container.querySelectorAll('.notam-item').forEach(item => item.remove());
                     const tafContainer = container.querySelector('.taf-container');
                     (airportsData[airportName] || []).forEach(notamText => {
-                        const notamEl = createNotamItemElement(notamText, icao);
+                        const notamEl = createNotamItemElement(notamText, icao, source);
                         tafContainer.insertAdjacentElement('afterend', notamEl);
                     });
                 });
@@ -11997,7 +12038,7 @@ window.__notamTextFull = notamInput.value;
 
         function initializePageTitle() {
             const titleElement = document.getElementById('main-title');
-            titleElement.textContent = `Briefing Fdf TEST v4.76 du ${new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}`;
+            titleElement.textContent = `Briefing Fdf TEST v4.77 du ${new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}`;
             const timeDisplay = document.getElementById('current-time-display');
             const updateTime = () => timeDisplay.textContent = new Date().toLocaleTimeString('fr-FR');
             updateTime(); setInterval(updateTime, 1000);
