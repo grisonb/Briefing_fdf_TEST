@@ -1,3 +1,31 @@
+TEST v4.89 — 2026-09-20
+Base : TEST v4.88
+===============================================================================
+
+NOTAM SDVFR — RESTAURATION AVANT RÉSEAU / HORS LIGNE RENFORCÉ
+- Correction structurelle : l'initialisation réseau attend désormais la fin de la restauration NOTAM SDVFR dédiée.
+- Les NOTAM SDVFR du jour sont restaurés et rendus avant le lancement des actualisations CNCASC, météo ou NATS.
+- Ajout d'une troisième copie persistante dans un CacheStorage dédié `briefing-fdf-sdvfr-notams-offline-v1`.
+- Ce cache NOTAM dédié n'est pas supprimé lors du remplacement du cache applicatif du service worker.
+- Au démarrage, BFG compare localStorage, IndexedDB et CacheStorage et restaure la copie valide la plus récente du jour.
+- La meilleure copie retrouvée répare automatiquement les deux autres stockages.
+- Chaque nouvelle récupération SDVFR sauvegarde désormais le texte NOTAM dans les trois stockages.
+- L'effacement local BFG supprime également le CacheStorage NOTAM dédié.
+- SDVFR reste la source affichée par défaut ; NATS reste invisible sauf sélection explicite.
+
+NON-RÉGRESSION
+- CheckWX reste désactivé.
+- Correction SUP AIP / SUP AIP AIRAC conservée.
+- Gestion du champ code accès et stabilité du scroll conservées.
+
+Contrôles avant livraison :
+- syntaxe JavaScript inline ;
+- manifeste JSON ;
+- syntaxe du service worker ;
+- cohérence des versions actives v4.89.
+
+===============================================================================
+
 TEST v4.88 — 2026-09-20
 Base : TEST v4.87
 ===============================================================================
