@@ -1,6 +1,6 @@
-CHANGELOG CUMULATIF — BFG TEST v4.71
-Date : 2026-09-19
-Base actuelle : TEST v4.70
+CHANGELOG CUMULATIF — BFG TEST v4.72
+Date : 2026-09-20
+Base actuelle : TEST v4.71
 
 RÈGLE DU FICHIER
 - Ce CHANGELOG est cumulatif.
@@ -989,8 +989,51 @@ Fichiers BFG modifiés :
 Fichier NAS :
 - Aucun changement.
 
+
 ===============================================================================
-FICHIERS DE LA VERSION ACTUELLE v4.71
+TEST v4.72 — 2026-09-20
+Base : TEST v4.71
+===============================================================================
+
+NOTAMS — PREMIÈRE INTÉGRATION SDVFR DANS BFG TEST :
+- Ajout d’un bouton séparé « SDVFR TEST LFML/LFMT » dans la zone d’importation NOTAM.
+- Le flux NATS existant « Importation Auto » reste entièrement conservé et inchangé.
+- Cette première intégration BFG est volontairement limitée aux deux terrains déjà validés côté relais :
+  * LFML — Marseille Provence ;
+  * LFMT — Montpellier Méditerranée.
+- BFG envoie la demande au NAS via `request-sdvfr-notams.php` avec le jeton BFG existant.
+- Le service VPS `bfg-sdvfr-worker.service` détecte la demande, ouvre une session SDVFR et interroge `/features/on-tap`.
+- BFG interroge ensuite `get-sdvfr-notams-result.php` jusqu’à réception d’un résultat `success` ou `partial`.
+- Les objets NOTAM SDVFR (`code` / `label` / `description`) sont convertis localement au format texte déjà compris par l’analyseur NOTAM BFG.
+- Une ligne Q synthétique est ajoutée lorsque SDVFR ne fournit pas de ligne Q, afin de conserver l’analyseur BFG existant sans le réécrire.
+- Le numéro NOTAM est extrait du code SDVFR (ex. `LFFA-A1642/26` → `A1642/26`) afin de conserver les identifiants persistants des NOTAMs.
+- Les dates B) / C) et le texte E) reçus de SDVFR restent utilisés par le filtre de validité et les filtres existants.
+- Lors de ce test SDVFR, les anciens `.notam-item` affichés sont supprimés avant insertion pour éviter tout mélange avec un précédent jeu NATS.
+- Après intégration, la sauvegarde locale BFG et la publication du snapshot NOTAM pour NPF-Q400 sont relancées comme pour l’import existant.
+- Un statut dédié affiche l’attente du relais VPS, la récupération en cours, le nombre de NOTAMs reçus ou l’erreur éventuelle.
+
+CIBLE DE VALIDATION :
+- Vérifier sur BFG TEST que le clic sur « SDVFR TEST LFML/LFMT » affiche les NOTAMs LFML et LFMT.
+- Vérifier le nombre affiché par rapport au `totalNotams` retourné par le relais.
+- Vérifier les filtres par date, mots-clés, sélection, masquage persistant, METAR/TAF et export/snapshot NPF-Q400.
+- Une fois ce flux validé, l’étape suivante sera d’étendre la demande SDVFR aux terrains opérationnels voulus et de décider du remplacement éventuel du flux NATS.
+
+NON-RÉGRESSION :
+- Aucun changement du flux NATS automatique existant.
+- Aucun changement FDS, GAAR, TEMSI, pélicandromes, FDF CNCASC, disponibilité avions, NPF-Q400, SUP AIP ou PDF/annotations.
+- Aucun nouveau fichier PHP NAS : les quatre endpoints SDVFR déjà installés sont réutilisés.
+- Aucun changement du worker VPS : le service SDVFR déjà validé est réutilisé.
+
+Fichiers BFG modifiés :
+- index.html
+- manifest.json
+- sw.js
+
+Fichiers NAS / VPS :
+- Aucun changement supplémentaire pour v4.72.
+
+===============================================================================
+FICHIERS DE LA VERSION ACTUELLE v4.72
 ===============================================================================
 
 Fichiers BFG :
