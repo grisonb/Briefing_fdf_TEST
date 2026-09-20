@@ -1,7 +1,7 @@
 {
   "name": "Briefing FDF TEST",
   "short_name": "Briefing TEST",
-  "description": "Briefing FDF TEST v4.88 — NOTAM SDVFR persistés dans IndexedDB pour restauration immédiate et hors ligne",
+  "description": "Briefing FDF TEST v4.89 — restauration NOTAM SDVFR bloquante avant réseau et triple persistance hors ligne",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
