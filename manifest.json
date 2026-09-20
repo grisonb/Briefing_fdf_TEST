@@ -1,7 +1,7 @@
 {
   "name": "Briefing FDF TEST",
   "short_name": "Briefing TEST",
-  "description": "Briefing FDF TEST v4.75 — comparaison NOTAM NATS/SDVFR + METAR/TAF SDVFR",
+  "description": "Briefing FDF TEST v4.76 — comparaison NOTAM NATS/SDVFR + METAR/TAF SDVFR",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
