@@ -1,3 +1,75 @@
+TEST v4.97 — 2026-09-20
+Base : TEST v4.96
+===============================================================================
+
+PLAGE DE VALIDITÉ NOTAM — REMISE À ZÉRO QUOTIDIENNE
+- La plage choisie est mémorisée uniquement pour la journée civile en cours.
+- Une réouverture de BFG le même jour conserve la plage éventuellement choisie par l'utilisateur.
+- Au premier lancement d'une nouvelle journée, les deux cellules reviennent automatiquement à la date du jour : « aujourd'hui → aujourd'hui ».
+- La plage est normalisée si la date de début devient postérieure à la date de fin.
+
+NOTAM SÉLECTIONNÉS — VISIBILITÉ PRIORITAIRE
+- Un NOTAM sélectionné en vert reste toujours visible, même s'il est hors de la plage de validité courante.
+- Cette priorité s'applique aussi aux préfiltres mots-clés afin qu'un NOTAM explicitement sélectionné ne disparaisse pas de l'affichage.
+- Si le NOTAM est désélectionné, il redevient immédiatement soumis à la plage de dates et aux préfiltres normaux.
+- Les sélections persistantes de la veille sont conservées : un NOTAM futur sélectionné reste donc visible le lendemain même après le retour automatique de la plage à la date du jour.
+
+NON-RÉGRESSION
+- Mémoire explicite « Garder la Sélection » séparée SDVFR / NATS conservée.
+- SDVFR reste la source NOTAM par défaut ; NATS reste optionnel.
+- Triple persistance SDVFR localStorage + IndexedDB + CacheStorage conservée.
+- Ordre et style des boutons NOTAM de v4.96 conservés.
+- CheckWX reste désactivé.
+- Diagnostic BFG conservé.
+- Service worker aligné sur v4.97 avec nouveau cache briefing-fdf-test-v4.97-notam-daily-range-r1.
+
+Contrôles avant livraison :
+- syntaxe JavaScript inline ;
+- manifeste JSON ;
+- syntaxe du service worker ;
+- cohérence des versions actives v4.97 ;
+- plage même jour persistante / nouvelle journée réinitialisée ;
+- NOTAM sélectionné hors plage toujours visible ;
+- désélection => retour immédiat sous filtre normal.
+
+TEST v4.96 — 2026-09-20
+Base : TEST v4.95
+===============================================================================
+
+INTERFACE NOTAM / MÉTÉO
+- Le bouton « Actualiser Météo » utilise désormais exactement la même taille, hauteur, padding et typographie que les autres boutons de commande NOTAM.
+- Sa couleur verte et son fonctionnement SDVFR uniquement sont conservés.
+
+PLAGE DE VALIDITÉ NOTAM
+- Toute modification de la date de début ou de fin désactive automatiquement le mode « Garder la Sélection ».
+- BFG repasse immédiatement en affichage complet (« Tout Afficher ») avant d'appliquer la nouvelle plage de dates.
+- La préférence mémorisée « Garder la Sélection » est mise à OFF pour la source courante ; l'utilisateur peut la réactiver volontairement après le changement de dates.
+- Les sélections, masquages volontaires et surlignages mémorisés ne sont pas supprimés.
+
+METAR / TAF
+- Taille de police augmentée pour améliorer la lisibilité sur iPad.
+- Texte brut METAR/TAF porté à 1,3 em avec interligne 1,35.
+- Mise en page, actualisation individuelle ↻ et actualisation globale SDVFR inchangées.
+
+NON-RÉGRESSION
+- Ordre et libellés des boutons NOTAM de v4.95 conservés.
+- « Annuler Sélection » reste rouge.
+- Calendriers natifs de plage de validité conservés.
+- Mémoire explicite « Garder la Sélection » séparée SDVFR / NATS conservée.
+- Triple persistance SDVFR localStorage + IndexedDB + CacheStorage conservée.
+- CheckWX reste désactivé.
+- Diagnostic BFG conservé.
+- Service worker aligné sur v4.96 avec nouveau cache briefing-fdf-test-v4.96-weather-notam-ui-r1.
+
+Contrôles avant livraison :
+- syntaxe JavaScript inline ;
+- manifeste JSON ;
+- syntaxe du service worker ;
+- cohérence des versions actives v4.96 ;
+- taille du bouton « Actualiser Météo » harmonisée ;
+- changement de date => sortie de « Garder la Sélection » ;
+- police METAR/TAF agrandie.
+
 TEST v4.95 — 2026-09-20
 Base : TEST v4.94
 ===============================================================================
