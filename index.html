@@ -5,8 +5,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0">
-    <title>Briefing Fdf TEST v4.71</title>
-    <link rel="manifest" href="./manifest.json?v=4.71">
+    <title>Briefing Fdf TEST v4.72</title>
+    <link rel="manifest" href="./manifest.json?v=4.72">
     <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png?v=4.24">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-title" content="Briefing TEST">
@@ -2204,10 +2204,10 @@
 
     <div class="page-header">
         <div class="page-header-background"></div>
-        <h1 id="main-title">Briefing Fdf TEST v4.71</h1>
+        <h1 id="main-title">Briefing Fdf TEST v4.72</h1>
         <p id="current-time-display"></p>
         <p style="position: relative; z-index: 2; text-align: center; color: #333; font-size: 1em; margin-top: -25px; margin-bottom: 30px;">
-    v<span id="app-version">4.71 TEST - SUP AIP fiabilisés</span>
+    v<span id="app-version">4.72 TEST - NOTAM SDVFR</span>
     <button id="force-update-btn" class="link-button" style="background-color: #34495e; padding: 4px 10px; font-size: 0.8em; margin-left: 10px; vertical-align: middle;">
         Forcer MAJ
     </button>
@@ -2449,10 +2449,12 @@
         <div class="pdf-controls">
             <span id="nats-help-icon" class="help-icon" title="Comment utiliser NATS ?">?</span>
             <button id="notam-auto-import-btn" type="button" class="link-button" style="background-color: #16a085;">Importation Auto</button>
+            <button id="notam-sdvfr-import-btn" type="button" class="link-button" style="background-color: #2980b9;">SDVFR TEST LFML/LFMT</button>
             <a href="https://nats-uk.ead-it.com/fwf-nats/restricted/user/ino/brief_aerodrome.faces?menuId=C920E9BB76441A9AE05341741DC25BDD" target="_blank" class="link-button" style="background-color: #8e44ad;">Accéder au Briefing NATS</a>
             <button id="pdf-load-notam-btn" class="link-button" style="background-color: #2c3e50;">Importation manuelle</button>
             <input type="file" id="pdf-input-notam" accept="application/pdf">
             <p id="notam-auto-import-status"></p>
+            <p id="notam-sdvfr-import-status"></p>
         </div>
         
         <div id="nats-help-tooltip" class="help-tooltip" style="display: none;">
@@ -2597,7 +2599,7 @@
     <footer>Données : Météo-France, SIA, Windy.com, CheckWX.com. Page non commerciale, à usage personnel.</footer>
     
     <script>
-        const APP_VERSION = "4.71 TEST - SUP AIP fiabilisés";
+        const APP_VERSION = "4.72 TEST - NOTAM SDVFR";
 
         // --- Proxy NAS pour la source de données météo CheckWX ---
         const CHECKWX_PROXY_URL = "https://grisonb.synology.me/briefing-api/get-metar-taf.php";
@@ -2852,6 +2854,12 @@ const tdfStages = [
         const NOTAMS_AUTO_PDF_API_URL = 'https://grisonb.synology.me/briefing-api/get-notams-pdf.php';
         const NOTAMS_GENERATION_REQUEST_API_URL = 'https://grisonb.synology.me/briefing-api/request-notams-generation.php';
         const NOTAMS_GENERATION_STATUS_API_URL = 'https://grisonb.synology.me/briefing-api/get-notams-generation-status.php';
+        const SDVFR_NOTAMS_REQUEST_API_URL = 'https://grisonb.synology.me/briefing-api/request-sdvfr-notams.php';
+        const SDVFR_NOTAMS_RESULT_API_URL = 'https://grisonb.synology.me/briefing-api/get-sdvfr-notams-result.php';
+        const SDVFR_NOTAMS_TEST_TARGETS = [
+            { icao: 'LFML', lat: 43.436633, lon: 5.215119, halfLat: 0.015, halfLon: 0.018 },
+            { icao: 'LFMT', lat: 43.576194, lon: 3.963014, halfLat: 0.015, halfLon: 0.018 }
+        ];
         const NOTAMS_AUTO_STATUS_STORAGE_KEY = 'briefingFdfNotamsAutoPdfStatus';
         const FDS_GMAIL_REFRESH_URL = 'https://script.google.com/macros/s/AKfycbwjw2i5AcY9UT31sRvz1sTessKF4k1EUHMo0KW4Tga-mLTeBhup0IN98dXnAJSoqq_LDQ/exec';
         const FDS_STATUS_API_URL = 'https://grisonb.synology.me/briefing-api/get-feuille-service-status.php';
@@ -3716,7 +3724,7 @@ const tdfStages = [
 
         function getAutoNotamAirportName_(icao) {
             const map = {
-                'LFTW':'LFTW - NIMES GARONS', 'LFML':'LFML - MARSEILLE PROVENCE', 'LFTH':'LFTH - TOULON HYERES',
+                'LFTW':'LFTW - NIMES GARONS', 'LFML':'LFML - MARSEILLE PROVENCE', 'LFMT':'LFMT - MONTPELLIER MEDITERRANEE', 'LFTH':'LFTH - TOULON HYERES',
                 'LFMD':'LFMD - CANNES MANDELIEU', 'LFHO':'LFHO - AUBENAS ARDECHE MERIDIONALE', 'LFLU':'LFLU - VALENCE CHABEUIL',
                 'LFMH':'LFMH - ST ETIENNE BOUTHEON', 'LFMU':'LFMU - BEZIERS VIAS', 'LFMP':'LFMP - PERPIGNAN RIVESALTES',
                 'LFMK':'LFMK - CARCASSONNE SALVAZA', 'LFCR':'LFCR - RODEZ', 'LFCC':'LFCC - CAHORS LALBENQUE', 'LFBD':'LFBD - BORDEAUX MERIGNAC',
@@ -3785,6 +3793,236 @@ const tdfStages = [
 
         function sleepNotamsAuto_(ms) {
             return new Promise(resolve => setTimeout(resolve, ms));
+        }
+
+        async function requestSdvfrNotams_(token) {
+            const response = await fetch(SDVFR_NOTAMS_REQUEST_API_URL, {
+                method: 'POST',
+                cache: 'no-store',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Accept': 'application/json',
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    targets: SDVFR_NOTAMS_TEST_TARGETS
+                })
+            });
+
+            const payload = await response.json().catch(() => null);
+
+            if (!response.ok || !payload || payload.ok !== true || !payload.requestId) {
+                const message = payload && (payload.message || payload.error)
+                    ? (payload.message || payload.error)
+                    : `HTTP ${response.status}`;
+                throw new Error(message);
+            }
+
+            return payload;
+        }
+
+        async function getSdvfrNotamsResult_(requestId, token) {
+            const url = `${SDVFR_NOTAMS_RESULT_API_URL}?requestId=${encodeURIComponent(requestId)}`;
+            const response = await fetch(url, {
+                method: 'GET',
+                cache: 'no-store',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Accept': 'application/json'
+                }
+            });
+
+            const payload = await response.json().catch(() => null);
+
+            if (!response.ok || !payload) {
+                const message = payload && (payload.message || payload.error)
+                    ? (payload.message || payload.error)
+                    : `HTTP ${response.status}`;
+                throw new Error(message);
+            }
+
+            return payload;
+        }
+
+        async function waitForSdvfrNotams_(requestId, token, statusElement) {
+            const startedAt = Date.now();
+            const timeoutMs = 60000;
+            const pollMs = 1500;
+
+            while (Date.now() - startedAt < timeoutMs) {
+                const payload = await getSdvfrNotamsResult_(requestId, token);
+                const status = String(payload.status || '').toLowerCase();
+
+                if (statusElement) {
+                    if (!status || status === 'waiting' || status === 'pending') {
+                        statusElement.textContent = 'SDVFR : demande en attente du relais VPS...';
+                    } else if (status === 'running') {
+                        statusElement.textContent = 'SDVFR : récupération des NOTAMs en cours...';
+                    } else if (status === 'success' || status === 'partial') {
+                        statusElement.textContent = `SDVFR : ${payload.totalNotams || 0} NOTAM(s) reçu(s).`;
+                    } else if (status === 'error') {
+                        statusElement.textContent = `SDVFR : erreur${payload.error ? ' — ' + payload.error : ''}`;
+                    }
+                }
+
+                if (status === 'success' || status === 'partial') {
+                    return payload;
+                }
+
+                if (status === 'error') {
+                    throw new Error(payload.error || payload.message || 'Échec de la récupération SDVFR.');
+                }
+
+                await sleepNotamsAuto_(pollMs);
+            }
+
+            throw new Error('Délai dépassé : aucun résultat SDVFR reçu.');
+        }
+
+        function extractSdvfrNotamNumber_(notam, index) {
+            const candidates = [
+                notam && notam.code,
+                notam && notam.label,
+                notam && notam.number,
+                notam && notam.id
+            ];
+
+            for (const candidate of candidates) {
+                const text = String(candidate || '').toUpperCase();
+                const match = text.match(/(?:^|[-\s])([A-Z]\d{4}\/\d{2})(?:$|\s)/);
+                if (match) return match[1];
+                const looseMatch = text.match(/([A-Z]\d{4}\/\d{2})/);
+                if (looseMatch) return looseMatch[1];
+            }
+
+            const yy = String(new Date().getUTCFullYear()).slice(-2);
+            return `Z${String(index + 1).padStart(4, '0')}/${yy}`;
+        }
+
+        function normalizeSdvfrNotamDescription_(notam) {
+            return String(
+                (notam && (notam.description || notam.raw || notam.rawText || notam.text || notam.message)) || ''
+            )
+                .replace(/\r\n?/g, '\n')
+                .trim();
+        }
+
+        function buildBfgNotamTextFromSdvfrResult_(payload) {
+            const airports = Array.isArray(payload && payload.airports) ? payload.airports : [];
+            const sections = [];
+
+            airports.forEach((airport) => {
+                const icao = String(airport && airport.icao || '').trim().toUpperCase();
+                if (!/^[A-Z]{4}$/.test(icao)) return;
+
+                const notams = Array.isArray(airport.notams) ? airport.notams : [];
+                const blocks = [];
+
+                notams.forEach((notam, index) => {
+                    const description = normalizeSdvfrNotamDescription_(notam);
+                    if (!description) return;
+
+                    const number = extractSdvfrNotamNumber_(notam, index);
+                    const hasQLine = /(^|\n)\s*Q\)/i.test(description);
+                    const qLine = `Q) ${icao}/QXXXX/IV/NBO/A/000/999/0000N00000E005`;
+
+                    blocks.push([
+                        number,
+                        hasQLine ? '' : qLine,
+                        description
+                    ].filter(Boolean).join('\n'));
+                });
+
+                if (!blocks.length) return;
+
+                sections.push(
+                    `${getAutoNotamAirportName_(icao)}\n${blocks.join('\n')}`
+                );
+            });
+
+            return sections.join('\n\n');
+        }
+
+        async function importSdvfrNotams_(event) {
+            if (event) {
+                event.preventDefault();
+                event.stopPropagation();
+            }
+
+            const button = document.getElementById('notam-sdvfr-import-btn');
+            const statusElement = document.getElementById('notam-sdvfr-import-status');
+            const notamInput = document.getElementById('notam-input');
+            const tokenInfo = getStoredCncascToken_();
+
+            if (!tokenInfo) {
+                if (statusElement) {
+                    statusElement.textContent = "SDVFR : accès verrouillé — déverrouiller d'abord l'accès Briefing.";
+                    statusElement.classList.add('warning');
+                }
+                return;
+            }
+
+            try {
+                if (button) button.disabled = true;
+                if (statusElement) {
+                    statusElement.classList.remove('warning');
+                    statusElement.textContent = 'SDVFR : envoi de la demande LFML + LFMT...';
+                }
+
+                const requestPayload = await requestSdvfrNotams_(tokenInfo.token);
+
+                if (statusElement) {
+                    statusElement.textContent = `SDVFR : demande ${requestPayload.requestId} enregistrée.`;
+                }
+
+                const resultPayload = await waitForSdvfrNotams_(requestPayload.requestId, tokenInfo.token, statusElement);
+                const rawText = buildBfgNotamTextFromSdvfrResult_(resultPayload);
+
+                if (!rawText.trim()) {
+                    throw new Error('Aucun NOTAM exploitable reçu pour LFML/LFMT.');
+                }
+
+                // Le test SDVFR remplace le jeu de NOTAM actuellement affiché pour éviter
+                // de mélanger d'anciens NOTAM NATS avec les deux terrains de validation.
+                document.querySelectorAll('#notam-display .notam-item').forEach(item => item.remove());
+
+                if (notamInput) {
+                    notamInput.value = rawText;
+                }
+
+                if (typeof window.parseAndDisplayNotams !== 'function') {
+                    throw new Error('Analyseur NOTAM BFG indisponible.');
+                }
+
+                window.parseAndDisplayNotams();
+
+                const displayedCount = document.querySelectorAll('#notam-display .notam-item').length;
+                const sourceCount = Number(resultPayload.totalNotams || 0);
+
+                if (typeof window.performBfgLocalSave_ === 'function') {
+                    await window.performBfgLocalSave_();
+                }
+
+                if (typeof window.publishBfgNpfNotamsSharedSnapshot_ === 'function') {
+                    await window.publishBfgNpfNotamsSharedSnapshot_().catch(error => {
+                        console.warn('BFG SDVFR -> NAS : publication NPF-Q400 impossible.', error);
+                    });
+                }
+
+                if (statusElement) {
+                    const partial = String(resultPayload.status || '').toLowerCase() === 'partial';
+                    const suffix = partial ? ' — résultat partiel' : '';
+                    statusElement.textContent = `SDVFR : ${displayedCount}/${sourceCount} NOTAM(s) intégrés dans BFG${suffix}.`;
+                }
+            } catch (error) {
+                console.error('Erreur import SDVFR NOTAMs:', error);
+                if (statusElement) {
+                    statusElement.classList.add('warning');
+                    statusElement.textContent = `SDVFR : import impossible — ${error.message || error}`;
+                }
+            } finally {
+                if (button) button.disabled = false;
+            }
         }
 
         function restoreNotamAutoScroll_(scrollTop) {
@@ -4997,7 +5235,7 @@ const tdfStages = [
             }
         }
         window.onload = waitForPdfJsAndInitialize;
-        const BFG_REQUIRED_SW_VERSION_ = '4.71';
+        const BFG_REQUIRED_SW_VERSION_ = '4.72';
 
         function queryBfgControllerVersion_(timeoutMs = 1800) {
             return new Promise((resolve) => {
@@ -5037,7 +5275,7 @@ const tdfStages = [
             }
 
             const registration = await navigator.serviceWorker.register(
-                './sw.js?v=4.71',
+                './sw.js?v=4.72',
                 { updateViaCache: 'none' }
             );
 
@@ -5843,7 +6081,7 @@ const tdfStages = [
         async function requestGaarImportViaNas_() {
             const query = new URLSearchParams();
             query.set('t', String(Date.now()));
-            query.set('source', 'bfg-test-v4.71');
+            query.set('source', 'bfg-test-v4.72');
 
             const url = `${GAAR_IMPORT_REQUEST_API_URL}?${query.toString()}`;
             const response = await fetchWithTimeout_(url, { cache: 'no-store' }, 65000);
@@ -8826,6 +9064,11 @@ const tdfStages = [
                 notamAutoImportBtn.addEventListener('click', (event) => importAutomaticNotamsFromNas_(event));
             }
 
+            const notamSdvfrImportBtn = document.getElementById('notam-sdvfr-import-btn');
+            if (notamSdvfrImportBtn) {
+                notamSdvfrImportBtn.addEventListener('click', (event) => importSdvfrNotams_(event));
+            }
+
             document.getElementById('pdf-load-notam-btn').addEventListener('click', () => document.getElementById('pdf-input-notam').click());
             document.getElementById('pdf-input-notam').addEventListener('change', (e) => notamHandler(e.target.files));
             setupDropzone('notam-pdf-dropzone', notamHandler);
@@ -10383,7 +10626,7 @@ window.__notamTextFull = notamInput.value;
             const filterButtons = document.querySelectorAll('.filter-action'), showAllButtons = document.querySelectorAll('.show-all-action'), savePdfButtons = document.querySelectorAll('.save-pdf-action');
             const predefinedIcaoOrder = ['LFTW', 'LFMU', 'LFMP', 'LFMK', 'LFML', 'LFTH', 'LFMD', 'LFKB', 'LFKC', 'LFKJ', 'LFKF', 'LFCC', 'LFCR', 'LFHO', 'LFLU', 'LFMH', 'LFBP', 'LFBM', 'LFBD', 'LFBL', 'LFBN', 'LFLX', 'LFJR', 'LFRV', 'LFGJ', 'LFSG', 'LFAQ'];
             const icaoToFullName = {
-                'LFTW':'LFTW - NIMES GARONS', 'LFML':'LFML - MARSEILLE PROVENCE', 'LFTH':'LFTH - TOULON HYERES', 
+                'LFTW':'LFTW - NIMES GARONS', 'LFML':'LFML - MARSEILLE PROVENCE', 'LFMT':'LFMT - MONTPELLIER MEDITERRANEE', 'LFTH':'LFTH - TOULON HYERES', 
                 'LFMD':'LFMD - CANNES MANDELIEU', 'LFHO':'LFHO - AUBENAS ARDECHE MERIDIONALE', 'LFLU':'LFLU - VALENCE CHABEUIL', 
                 'LFMH':'LFMH - ST ETIENNE BOUTHEON', 'LFMU':'LFMU - BEZIERS VIAS', 'LFMP':'LFMP - PERPIGNAN RIVESALTES', 
                 'LFMK':'LFMK - CARCASSONNE SALVAZA', 'LFCR':'LFCR - RODEZ', 'LFCC':'LFCC - CAHORS LALBENQUE', 'LFBD':'LFBD - BORDEAUX MERIGNAC', 
@@ -11500,7 +11743,7 @@ window.__notamTextFull = notamInput.value;
 
         function initializePageTitle() {
             const titleElement = document.getElementById('main-title');
-            titleElement.textContent = `Briefing Fdf TEST v4.71 du ${new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}`;
+            titleElement.textContent = `Briefing Fdf TEST v4.72 du ${new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}`;
             const timeDisplay = document.getElementById('current-time-display');
             const updateTime = () => timeDisplay.textContent = new Date().toLocaleTimeString('fr-FR');
             updateTime(); setInterval(updateTime, 1000);
