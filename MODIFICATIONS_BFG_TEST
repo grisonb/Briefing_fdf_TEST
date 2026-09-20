@@ -1,3 +1,35 @@
+TEST v4.83 — 2026-09-20
+Base : TEST v4.82
+===============================================================================
+
+STABILITÉ DU SCROLL / DÉMARRAGE :
+- Désactivation de la restauration native de position du navigateur/PWA via history.scrollRestoration = manual.
+- Suppression des trois rappels de retour en haut à 0 / 300 / 1200 ms ; une seule stabilisation initiale instantanée est conservée.
+- Le retour initial est forcé sans animation même si la page utilise scroll-behavior: smooth pour la navigation volontaire.
+
+NOTAM — SUPPRESSION DES SCROLLS DE FOND :
+- L'actualisation NATS automatique au démarrage ne mémorise plus puis ne réimpose plus la position verticale de la fenêtre.
+- Suppression des restaurations différées répétées pendant les différentes étapes de génération, téléchargement et extraction NATS.
+- La restauration des NOTAM cochés/filtrés réapplique l'état sans scroll automatique vers le dernier NOTAM visible.
+- Le scroll vers le dernier NOTAM reste conservé uniquement lorsque l'utilisateur clique lui-même sur « Garder la sélection ».
+
+RESTAURATION DE SESSION :
+- La restauration d'une session locale ou d'un briefing partagé ne force plus automatiquement un déplacement vers la Feuille de Service.
+- Les navigations volontaires par le bandeau, les boutons GAAR et le visualiseur SUP AIP conservent leur scroll explicite.
+
+NON-RÉGRESSION :
+- Fonctionnement NATS / SDVFR de v4.82 conservé.
+- Confirmation verte de connexion et liens SUP AIP normalisés conservés.
+- Aucune modification NAS/VPS ni du worker SDVFR.
+
+Contrôles avant livraison :
+- syntaxe des scripts JavaScript inline ;
+- manifeste JSON ;
+- syntaxe du service worker ;
+- cohérence des versions actives v4.83.
+
+===============================================================================
+
 TEST v4.82 — 2026-09-20
 Base : TEST v4.81
 ===============================================================================
