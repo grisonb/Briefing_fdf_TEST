@@ -1,7 +1,7 @@
 {
   "name": "Briefing FDF TEST",
   "short_name": "Briefing TEST",
-  "description": "Briefing FDF TEST v4.81 — liens SUP AIP étendus dans les NOTAMs, NATS optionnel et météo actualisée",
+  "description": "Briefing FDF TEST v4.82 — navigation stabilisée, confirmation verte et liens SUP AIP normalisés",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
