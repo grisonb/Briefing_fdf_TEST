@@ -1,3 +1,46 @@
+TEST v4.98 — 2026-09-20
+Base : TEST v4.97
+===============================================================================
+
+CARTE FRANCE SUP AIP — VERSION 1
+- Ajout d'une carte de France directement dans la rubrique « AZBA / SUP AIP ».
+- La carte utilise Leaflet et un fond OpenStreetMap ; l'affichage initial cadre la France métropolitaine.
+- Source prévue : endpoint SDVFR Next `/auto-temporary-airspaces`, avec lecture tolérante des formats GeoJSON/WKT et des principaux noms de champs possibles.
+- La version 1 affiche uniquement les zones reconnues comme SUP AIP ; la couche AZBA/RTBA dynamique reste réservée à la version 2.
+
+FILTRES DE CARTE
+- Deux calendriers natifs « Du / au » permettent de choisir la période à afficher ; par défaut les deux dates sont celles du jour.
+- Ajout d'une cellule « FL max » (FL195 par défaut).
+- Une zone est conservée si sa période de validité recoupe la période choisie et si son plancher n'est pas au-dessus du FL maximum choisi.
+- La carte est recalculée immédiatement lors d'un changement de date ou de FL.
+
+INFORMATIONS AU TAP
+- Un appui sur une zone ouvre une fiche avec référence/nom, type, période de validité, plancher et plafond lorsque ces données sont disponibles.
+- Lorsque la référence SUP AIP est reconnue, la fiche propose « Ouvrir le PDF officiel SIA ».
+- Les deux conventions SIA sont prises en charge : SUP AIP classique `lf_sup_YYYY_NNN_fr.pdf` et SUP AIP AIRAC `lf_sup_a_YYYY_NNN_fr.pdf`.
+
+ACTUALISATION / HORS LIGNE
+- Bouton « Actualiser SUP AIP » pour forcer une nouvelle récupération SDVFR.
+- Le dernier payload de zones correctement reçu est mémorisé dans un CacheStorage dédié afin de pouvoir réafficher la dernière carte disponible si le réseau est absent.
+- Si SDVFR refuse l'accès direct depuis la PWA (authentification/CORS), un message explicite est affiché dans la carte au lieu d'un écran vide.
+
+NON-RÉGRESSION
+- Boutons historiques « Carte SUP AIP / AZBA », « AZBA SIA », « ForeFlight » et chargeur manuel de PDF SUP AIP conservés.
+- Toute la logique NOTAM/METAR/TAF validée en v4.97 est inchangée.
+- SDVFR reste la source NOTAM par défaut ; NATS reste optionnel ; CheckWX reste désactivé.
+- Diagnostic BFG conservé.
+- Service worker aligné sur v4.98 avec nouveau cache `briefing-fdf-test-v4.98-supaip-map-v1-r1`.
+
+Contrôles avant livraison :
+- syntaxe JavaScript inline ;
+- manifeste JSON ;
+- syntaxe du service worker ;
+- cohérence des versions actives v4.98 ;
+- présence des contrôles période / FL max ;
+- filtrage temporel et vertical ;
+- ouverture fiche zone + construction du PDF SIA ;
+- maintien de la couche AZBA dynamique hors de cette version 1.
+
 TEST v4.97 — 2026-09-20
 Base : TEST v4.96
 ===============================================================================
