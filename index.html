@@ -4,9 +4,16 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script>
+        // v4.83 : BFG gère lui-même la position initiale.
+        // Empêche le navigateur/PWA de restaurer une ancienne position de scroll pendant le démarrage.
+        if ('scrollRestoration' in history) {
+            history.scrollRestoration = 'manual';
+        }
+    </script>
     <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0">
-    <title>Briefing Fdf TEST v4.82</title>
-    <link rel="manifest" href="./manifest.json?v=4.82">
+    <title>Briefing Fdf TEST v4.83</title>
+    <link rel="manifest" href="./manifest.json?v=4.83">
     <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png?v=4.24">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-title" content="Briefing TEST">
@@ -2205,10 +2212,10 @@
 
     <div class="page-header">
         <div class="page-header-background"></div>
-        <h1 id="main-title">Briefing Fdf TEST v4.82</h1>
+        <h1 id="main-title">Briefing Fdf TEST v4.83</h1>
         <p id="current-time-display"></p>
         <p style="position: relative; z-index: 2; text-align: center; color: #333; font-size: 1em; margin-top: -25px; margin-bottom: 30px;">
-    v<span id="app-version">4.82 TEST - STABILITE NAVIGATION + SUP AIP</span>
+    v<span id="app-version">4.83 TEST - STABILITE SCROLL</span>
     <button id="force-update-btn" class="link-button" style="background-color: #34495e; padding: 4px 10px; font-size: 0.8em; margin-left: 10px; vertical-align: middle;">
         Forcer MAJ
     </button>
@@ -2605,7 +2612,7 @@
     <footer>Données : Météo-France, SIA, Windy.com, CheckWX.com. Page non commerciale, à usage personnel.</footer>
     
     <script>
-        const APP_VERSION = "4.82 TEST - STABILITE NAVIGATION + SUP AIP";
+        const APP_VERSION = "4.83 TEST - STABILITE SCROLL";
 
         // --- Proxy NAS pour la source de données météo CheckWX ---
         const CHECKWX_PROXY_URL = "https://grisonb.synology.me/briefing-api/get-metar-taf.php";
@@ -4355,21 +4362,9 @@ const tdfStages = [
             }
         }
 
-        function restoreNotamAutoScroll_(scrollTop) {
-            if (!Number.isFinite(scrollTop)) return;
-
-            const restore = () => {
-                try {
-                    window.scrollTo({ top: scrollTop, left: 0, behavior: 'auto' });
-                } catch (error) {
-                    window.scrollTo(0, scrollTop);
-                }
-            };
-
-            restore();
-            setTimeout(restore, 0);
-            setTimeout(restore, 250);
-        }
+        // v4.83 : l'import NOTAM automatique ne pilote plus la position verticale de la page.
+        // Les anciens rappels différés pouvaient réimposer plusieurs secondes plus tard une position
+        // mémorisée au démarrage et provoquer un scroll non demandé pendant l'utilisation.
 
         function extractNotamsPdfTimestampIso_(generationStatusPayload) {
             const outputTail = String((generationStatusPayload && generationStatusPayload.outputTail) || '');
@@ -4665,9 +4660,6 @@ const tdfStages = [
                 event.stopPropagation();
             }
 
-            const scrollTopBeforeAutoImport = window.pageYOffset || document.documentElement.scrollTop || document.body.scrollTop || 0;
-            restoreNotamAutoScroll_(scrollTopBeforeAutoImport);
-
             const status = document.getElementById('notam-auto-import-status');
             const button = document.getElementById('notam-auto-import-btn');
             const info = document.getElementById('pdf-info-notam');
@@ -4684,18 +4676,15 @@ const tdfStages = [
                 if (button) button.disabled = true;
 
                 setNotamsAutoStatus_(status, 'Demande de génération NOTAM envoyée au NAS...');
-                restoreNotamAutoScroll_(scrollTopBeforeAutoImport);
 
                 const requestPayload = await requestNotamsGeneration_(tokenInfo.token);
 
                 setNotamsAutoStatus_(status, `Demande ${requestPayload.requestId} enregistrée. Attente du service NOTAM VPS...`);
-                restoreNotamAutoScroll_(scrollTopBeforeAutoImport);
 
                 const generationStatusPayload = await waitForNotamsGeneration_(requestPayload.requestId, tokenInfo.token, status);
                 const pdfTimestampIso = extractNotamsPdfTimestampIso_(generationStatusPayload);
                 const pdfTimestampText = formatNotamsAutoPdfTimestamp_(generationStatusPayload);
                 rememberNotamsAutoPdfTimestamp_(pdfTimestampText, pdfTimestampIso);
-                restoreNotamAutoScroll_(scrollTopBeforeAutoImport);
 
                 const pdfFile = await fetchLatestNotamsPdfFromNas_(tokenInfo.token);
 
@@ -4706,7 +4695,6 @@ const tdfStages = [
                 const pdfInfoElement = info || document.createElement('p');
 
                 setNotamsAutoStatus_(status, 'Nouveau PDF NOTAM reçu. Extraction du texte en cours...', { timestampText: pdfTimestampText });
-                restoreNotamAutoScroll_(scrollTopBeforeAutoImport);
 
                 window.__bfgSuppressNotamParseAfterPdfExtraction = true;
                 try {
@@ -4750,7 +4738,6 @@ const tdfStages = [
                     });
                 }
 
-                restoreNotamAutoScroll_(scrollTopBeforeAutoImport);
                 return true;
             } catch (error) {
                 console.error('Erreur import auto NOTAMs:', error);
@@ -4758,7 +4745,6 @@ const tdfStages = [
                 setNotamsAutoStatus_(status, `Importation automatique impossible : ${error.message || error}`, { warning: true });
                 return false;
             } finally {
-                restoreNotamAutoScroll_(scrollTopBeforeAutoImport);
                 if (button) button.disabled = false;
             }
         }
@@ -5599,7 +5585,7 @@ const tdfStages = [
             }
         }
         window.onload = waitForPdfJsAndInitialize;
-        const BFG_REQUIRED_SW_VERSION_ = '4.82';
+        const BFG_REQUIRED_SW_VERSION_ = '4.83';
 
         function queryBfgControllerVersion_(timeoutMs = 1800) {
             return new Promise((resolve) => {
@@ -5639,7 +5625,7 @@ const tdfStages = [
             }
 
             const registration = await navigator.serviceWorker.register(
-                './sw.js?v=4.82',
+                './sw.js?v=4.83',
                 { updateViaCache: 'none' }
             );
 
@@ -6952,8 +6938,8 @@ const tdfStages = [
 
 
 
-        // v4.82 : le retour en haut n'est autorisé que pendant le tout premier affichage.
-        // Dès que l'utilisateur interagit avec la page, les rappels différés sont annulés.
+        // v4.83 : une seule stabilisation initiale, instantanée, puis aucun rappel différé.
+        // La restauration native du navigateur est désactivée dans <head>.
         let bfgStartupTopLockActive_ = true;
         const bfgStartupTopTimers_ = [];
 
@@ -6965,17 +6951,30 @@ const tdfStages = [
             }
         }
 
+        function setBriefingWindowScrollInstant_(top = 0) {
+            const root = document.documentElement;
+            const previousInlineBehavior = root.style.scrollBehavior;
+            root.style.scrollBehavior = 'auto';
+            try {
+                window.scrollTo(0, Math.max(0, Number(top) || 0));
+                root.scrollTop = Math.max(0, Number(top) || 0);
+                document.body.scrollTop = Math.max(0, Number(top) || 0);
+            } finally {
+                if (previousInlineBehavior) root.style.scrollBehavior = previousInlineBehavior;
+                else root.style.removeProperty('scroll-behavior');
+            }
+        }
+
         function forceBriefingStartAtTop() {
             if (!bfgStartupTopLockActive_) return;
-            window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
-            document.documentElement.scrollTop = 0;
-            document.body.scrollTop = 0;
+            setBriefingWindowScrollInstant_(0);
         }
 
         function scheduleBfgInitialTopLock_() {
-            [0, 300, 1200].forEach(delay => {
-                bfgStartupTopTimers_.push(setTimeout(forceBriefingStartAtTop, delay));
-            });
+            const timer = setTimeout(() => {
+                bfgStartupTopLockActive_ = false;
+            }, 0);
+            bfgStartupTopTimers_.push(timer);
         }
 
         ['pointerdown', 'touchstart', 'wheel'].forEach(eventName => {
@@ -7031,7 +7030,7 @@ const tdfStages = [
     initializeGaarMapControls();
     initializeTdfViewer();
 
-    // v4.82 : stabilisation uniquement au tout premier affichage ; annulée dès interaction utilisateur.
+    // v4.83 : une seule stabilisation initiale ; aucun rappel différé susceptible de reprendre la main ensuite.
     scheduleBfgInitialTopLock_();
 
     setInterval(checkWeatherValidity, 60000); // Vérifie la validité des METARs et TAFs chaque minute
@@ -9956,8 +9955,7 @@ let activeShareApiBase = SHARE_API_BASE;
             throw new Error("Fichier de session invalide ou version non supportée.");
         }
 
-        // IMPORTANT UX : on revient sur la Feuille de Service après import
-        const fdsSection = document.getElementById('fds-section');
+        // v4.83 : la restauration d'une session ne déplace plus la fenêtre.
 
         // ===== FDS =====
         if (portable.fds) {
@@ -10008,10 +10006,7 @@ let activeShareApiBase = SHARE_API_BASE;
         // Restauration du snapshot partagé uniquement : aucune requête météo.
         restoreWeatherDataSnapshot_(portable.weatherData);
 
-        // Revenir sur la feuille de service (évite les scrolls auto vers Windy)
-        if (fdsSection) {
-            requestAnimationFrame(() => fdsSection.scrollIntoView({ block: 'start' }));
-        }
+        // Position verticale conservée : aucune navigation automatique après restauration.
     }
 
     function buildShareUrl(shareId) {
@@ -10819,7 +10814,7 @@ let activeShareApiBase = SHARE_API_BASE;
                 return false;
             });
             if (loadedFromLink) {
-                // v4.82 : pas de nouveau scroll forcé après restauration ; le verrou initial unique suffit.
+                // v4.83 : aucune navigation automatique après restauration ; la position reste sous contrôle utilisateur.
                 return;
             }
             if (hasShareParam) {
@@ -10843,8 +10838,7 @@ let activeShareApiBase = SHARE_API_BASE;
 
             await restoreLocalSession_();
 
-            // v4.82 : ne jamais reprogrammer un retour en haut après la restauration locale.
-            // Si l'utilisateur a déjà commencé à naviguer, sa position est conservée.
+            // v4.83 : aucune restauration locale ne doit programmer de déplacement de fenêtre.
         } catch (error) {
             sessionStatus.textContent = `Erreur DB: ${error.message || error}`;
         }
@@ -11576,14 +11570,14 @@ window.__notamTextFull = notamInput.value;
                 if (savedState) {
                     const hasCheckedSavedState = applySavedNotamState_(savedState);
                     persistCurrentNotamState_();
-                    if (hasCheckedSavedState) applySelectionFilter();
+                    if (hasCheckedSavedState) applySelectionFilter(false);
                 }
                 updatePersistentHiddenNotamsVisibility_();
                 applyLiveFilters();
                 scheduleBfgNpfNotamsSharedPublish_(260);
             }
             
-            function applySelectionFilter() {
+            function applySelectionFilter(scrollToLastVisible = true) {
                 document.querySelectorAll('.notam-item').forEach(item => {
                     const keepChecked = !!item.querySelector('.notam-checkbox')?.checked;
                     const undesiredChecked = !!item.querySelector('.notam-hide-checkbox')?.checked;
@@ -11593,10 +11587,12 @@ window.__notamTextFull = notamInput.value;
                 showAllButtons.forEach(btn => btn.style.display = 'inline-block');
                 savePdfButtons.forEach(btn => btn.style.display = 'inline-block');
                 
-                const visibleNotams = document.querySelectorAll('#notam-display .notam-item:not(.hidden-by-filter):not(.hidden-by-prefilter)');
-                if (visibleNotams.length > 0) {
-                    const lastVisibleNotam = visibleNotams[visibleNotams.length - 1];
-                    lastVisibleNotam.scrollIntoView({ behavior: 'smooth', block: 'end', inline: 'nearest' });
+                if (scrollToLastVisible) {
+                    const visibleNotams = document.querySelectorAll('#notam-display .notam-item:not(.hidden-by-filter):not(.hidden-by-prefilter)');
+                    if (visibleNotams.length > 0) {
+                        const lastVisibleNotam = visibleNotams[visibleNotams.length - 1];
+                        lastVisibleNotam.scrollIntoView({ behavior: 'smooth', block: 'end', inline: 'nearest' });
+                    }
                 }
             }
 
@@ -11637,7 +11633,7 @@ window.__notamTextFull = notamInput.value;
             }
 
             (document.getElementById('notam-parse-btn') || {}).addEventListener('click', () => window.parseAndDisplayNotams());
-            filterButtons.forEach(b => b.addEventListener('click', applySelectionFilter));
+            filterButtons.forEach(b => b.addEventListener('click', () => applySelectionFilter(true)));
             showAllButtons.forEach(b => b.addEventListener('click', resetSelectionFilter));
             savePdfButtons.forEach(b => b.addEventListener('click', generateNotamPdf));
             document.querySelectorAll('.clear-notam-selection-action').forEach(button => button.addEventListener('click', clearNotamSelection_));
@@ -12248,7 +12244,7 @@ window.__notamTextFull = notamInput.value;
 
         function initializePageTitle() {
             const titleElement = document.getElementById('main-title');
-            titleElement.textContent = `Briefing Fdf TEST v4.82 du ${new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}`;
+            titleElement.textContent = `Briefing Fdf TEST v4.83 du ${new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}`;
             const timeDisplay = document.getElementById('current-time-display');
             const updateTime = () => timeDisplay.textContent = new Date().toLocaleTimeString('fr-FR');
             updateTime(); setInterval(updateTime, 1000);
