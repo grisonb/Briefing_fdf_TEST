@@ -1,6 +1,6 @@
-CHANGELOG CUMULATIF — BFG TEST v4.75
+CHANGELOG CUMULATIF — BFG TEST v4.76
 Date : 2026-09-20
-Base actuelle : TEST v4.74
+Base actuelle : TEST v4.75
 
 RÈGLE DU FICHIER
 - Ce CHANGELOG est cumulatif.
@@ -1270,19 +1270,21 @@ Contrôles avant livraison :
 - compilation Python du worker.
 
 ===============================================================================
-CORRECTIF v4.75 — 2026-09-20
+TEST v4.76 — 2026-09-20
+Base : TEST v4.75
 ===============================================================================
 
 CORRECTION CONNEXION BFG :
 - Correction d’une référence JavaScript erronée : BFG_NOTAM_SOURCE_SDVFR -> BFG_NOTAM_SOURCE_SDVFR_.
 - Cette erreur interrompait l’initialisation JavaScript avant l’attachement du bouton de connexion BFG.
 - Aucun changement du mécanisme d’authentification NAS lui-même.
+- Worker VPS : fonctionnement identique à la version météo de v4.75 ; seul l’habillage de version est aligné sur v4.76.
 
 CORRECTIONS DE NON-RÉGRESSION :
-- Libellés visibles corrigés de v4.74 vers v4.75.
+- Libellés visibles corrigés vers v4.76.
 - LFMT rétabli dans les deux tables générales de noms d’aérodromes.
 - LFMT reste exclu uniquement du périmètre SDVFR pélicandromes.
-- Cache du service worker v4.75 révisé en r2 pour forcer la prise en compte de l’index corrigé.
+- Version du service worker alignée sur v4.76 ; URL d’enregistrement et contrôle de version alignés ; nouveau cache v4.76 r1.
 
 VALIDATION :
 - Syntaxe de tous les scripts JavaScript inline : OK.
@@ -1291,11 +1293,11 @@ VALIDATION :
 - Worker Python : compilation OK.
 
 ===============================================================================
-FICHIERS DE LA VERSION ACTUELLE v4.75
+FICHIERS DE LA VERSION ACTUELLE v4.76
 ===============================================================================
 
-- 1_Modifications_v4.75.txt
-- 2_Index_v4.75.txt
-- 3_Manifest_v4.75.txt
-- 4_Sw_v4.75.txt
-- 5_bfg-sdvfr-worker_v4.75.txt
+- 1_Modifications_v4.76.txt
+- 2_Index_v4.76.txt
+- 3_Manifest_v4.76.txt
+- 4_Sw_v4.76.txt
+- 5_bfg-sdvfr-worker_v4.76.txt
