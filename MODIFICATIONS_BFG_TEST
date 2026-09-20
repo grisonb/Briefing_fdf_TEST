@@ -1,3 +1,36 @@
+TEST v4.92 — 2026-09-20
+Base : TEST v4.91
+===============================================================================
+
+DIAGNOSTIC AFFICHAGE NOTAM
+- Le stockage NOTAM de v4.91 est conservé sans modification : les diagnostics ont confirmé la restauration SDVFR depuis localStorage, IndexedDB et CacheStorage, y compris hors ligne.
+- Le diagnostic distingue désormais : NOTAM présents dans le DOM, réellement affichés, masqués par filtre, masqués par préfiltre, masqués par CSS/section et actuellement présents dans le viewport.
+- Ajout de l'état de la zone NOTAM elle-même : display, visibility et hauteur rendue.
+- Ajout d'un MutationObserver de diagnostic sur la zone NOTAM : toute modification de structure, classe, style ou attribut hidden déclenche un instantané d'affichage dans la chronologie.
+- Les événements NOTAM-RENDER et NOTAM-BOOT enregistrent désormais l'instantané complet d'affichage au lieu d'un simple nombre d'éléments DOM.
+
+SERVICE WORKER
+- Correction de l'URL d'enregistrement restée à sw.js?v=4.90 dans la v4.91.
+- Enregistrement désormais forcé sur sw.js?v=4.92.
+- Version interne du service worker : 4.92.
+- Nouveau cache applicatif : briefing-fdf-test-v4.92-notam-display-diag-r1.
+
+NON-RÉGRESSION
+- SDVFR reste la source NOTAM affichée par défaut ; NATS uniquement sur sélection explicite.
+- Triple persistance NOTAM SDVFR de v4.91 conservée.
+- CheckWX reste désactivé.
+- Correction SUP AIP / SUP AIP AIRAC conservée.
+- Aucun contenu brut NOTAM, code d'accès ou token n'est ajouté au diagnostic.
+
+Contrôles avant livraison :
+- syntaxe JavaScript inline ;
+- manifeste JSON ;
+- syntaxe du service worker ;
+- cohérence des versions actives v4.92 ;
+- enregistrement du service worker sur sw.js?v=4.92 ;
+- référence manifeste alignée sur manifest.json?v=4.92 ;
+- présence des compteurs d'affichage NOTAM et de l'observateur de mutations.
+
 TEST v4.91 — 2026-09-20
 Base : TEST v4.90
 ===============================================================================
