@@ -12,7 +12,7 @@
         }
     </script>
     <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0">
-    <title>Briefing Fdf TEST v4.88</title>
+    <title>Briefing Fdf TEST v4.89</title>
     <link rel="manifest" href="./manifest.json?v=4.85">
     <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png?v=4.24">
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -2233,10 +2233,10 @@
 
     <div class="page-header">
         <div class="page-header-background"></div>
-        <h1 id="main-title">Briefing Fdf TEST v4.88</h1>
+        <h1 id="main-title">Briefing Fdf TEST v4.89</h1>
         <p id="current-time-display"></p>
         <p style="position: relative; z-index: 2; text-align: center; color: #333; font-size: 1em; margin-top: -25px; margin-bottom: 30px;">
-    v<span id="app-version">4.88 TEST - NOTAM SDVFR INDEXEDDB</span>
+    v<span id="app-version">4.89 TEST - NOTAM SDVFR OFFLINE</span>
     <button id="force-update-btn" class="link-button" style="background-color: #34495e; padding: 4px 10px; font-size: 0.8em; margin-left: 10px; vertical-align: middle;">
         Forcer MAJ
     </button>
@@ -2634,7 +2634,7 @@
     <footer>Données : Météo-France, SIA, Windy.com, SDVFR. Page non commerciale, à usage personnel.</footer>
     
     <script>
-        const APP_VERSION = "4.88 TEST - NOTAM SDVFR INDEXEDDB";
+        const APP_VERSION = "4.89 TEST - NOTAM SDVFR OFFLINE";
 
         // v4.84 : CheckWX désactivé temporairement. SDVFR est la seule source météo active.
         // Ce verrou interdit tout appel réseau CheckWX, même si un ancien chemin de secours était invoqué.
@@ -2937,11 +2937,63 @@ const tdfStages = [
         }
 
 
-        // v4.88 — persistance NOTAM SDVFR dédiée dans IndexedDB.
+        // v4.89 — persistance NOTAM SDVFR renforcée : localStorage + IndexedDB + CacheStorage dédié.
         // Le texte NOTAM du jour ne dépend plus du quota localStorage pour rester disponible hors ligne.
         const BFG_SDVFR_NOTAM_DB_NAME_ = 'BriefingFdfSdvfrNotamsV1';
         const BFG_SDVFR_NOTAM_DB_STORE_ = 'dailyNotams';
         const BFG_SDVFR_NOTAM_DB_KEY_ = 'currentDay';
+        // v4.89 — troisième copie indépendante dans CacheStorage.
+        // Ce cache porte un nom dédié, volontairement distinct du cache du service worker :
+        // une mise à jour de BFG ne doit jamais supprimer les NOTAM SDVFR hors ligne du jour.
+        const BFG_SDVFR_NOTAM_CACHE_NAME_ = 'briefing-fdf-sdvfr-notams-offline-v1';
+        const BFG_SDVFR_NOTAM_CACHE_PATH_ = '/__bfg_offline__/sdvfr-notams-current.json';
+
+        function getBfgSdvfrNotamCacheUrl_() {
+            try { return new URL(BFG_SDVFR_NOTAM_CACHE_PATH_, window.location.origin).toString(); }
+            catch (_) { return BFG_SDVFR_NOTAM_CACHE_PATH_; }
+        }
+
+        async function saveBfgSdvfrNotamCacheStorage_(rawText, savedAt = new Date().toISOString()) {
+            const text = String(rawText || '').trim();
+            if (!text || !('caches' in window)) return false;
+            const payload = {
+                version: 1,
+                day: bfgTodayLocalKey_(),
+                savedAt: String(savedAt || new Date().toISOString()),
+                rawText: text
+            };
+            const cache = await caches.open(BFG_SDVFR_NOTAM_CACHE_NAME_);
+            await cache.put(
+                getBfgSdvfrNotamCacheUrl_(),
+                new Response(JSON.stringify(payload), {
+                    headers: {
+                        'Content-Type': 'application/json; charset=utf-8',
+                        'Cache-Control': 'no-store'
+                    }
+                })
+            );
+            return true;
+        }
+
+        async function loadBfgSdvfrNotamCacheStorage_() {
+            if (!('caches' in window)) return null;
+            try {
+                const cache = await caches.open(BFG_SDVFR_NOTAM_CACHE_NAME_);
+                const response = await cache.match(getBfgSdvfrNotamCacheUrl_());
+                if (!response) return null;
+                const payload = await response.json();
+                if (!payload || payload.day !== bfgTodayLocalKey_() || !String(payload.rawText || '').trim()) return null;
+                return payload;
+            } catch (error) {
+                console.warn('Lecture CacheStorage NOTAM SDVFR indisponible:', error);
+                return null;
+            }
+        }
+
+        async function clearBfgSdvfrNotamCacheStorage_() {
+            if (!('caches' in window)) return;
+            await caches.delete(BFG_SDVFR_NOTAM_CACHE_NAME_).catch(() => false);
+        }
 
         function openBfgSdvfrNotamDb_() {
             return new Promise((resolve, reject) => {
@@ -3024,23 +3076,43 @@ const tdfStages = [
         }
 
         async function restoreBfgSdvfrPersistentCache_() {
-            const indexed = await loadBfgSdvfrNotamIndexedDb_();
+            // v4.89 : lire les deux stockages asynchrones avant de laisser démarrer les actualisations réseau.
+            const [indexed, cacheStorage] = await Promise.all([
+                loadBfgSdvfrNotamIndexedDb_(),
+                loadBfgSdvfrNotamCacheStorage_()
+            ]);
             const legacy = loadSdvfrDailyCache_();
-            const indexedMs = Date.parse(String(indexed && indexed.savedAt || ''));
-            const legacyMs = Date.parse(String(legacy && legacy.savedAt || ''));
-            const chosen = indexed && (!legacy || !Number.isFinite(legacyMs) || !Number.isFinite(indexedMs) || indexedMs >= legacyMs)
-                ? indexed
-                : legacy;
+            const candidates = [indexed, cacheStorage, legacy].filter(item =>
+                item && item.day === bfgTodayLocalKey_() && String(item.rawText || '').trim()
+            );
+            candidates.sort((a, b) => {
+                const ams = Date.parse(String(a.savedAt || ''));
+                const bms = Date.parse(String(b.savedAt || ''));
+                return (Number.isFinite(bms) ? bms : 0) - (Number.isFinite(ams) ? ams : 0);
+            });
+            const chosen = candidates[0] || null;
             const rawText = String(chosen && chosen.rawText || '').trim();
             if (!rawText) return false;
 
             bfgNotamSourceTexts_.SDVFR = rawText;
-            // Migration v4.88 : un ancien cache localStorage valide est copié une fois dans IndexedDB.
-            if (!indexed || chosen === legacy) {
-                saveBfgSdvfrNotamIndexedDb_(rawText, chosen && chosen.savedAt).catch(error => {
-                    console.warn('Migration NOTAM SDVFR vers IndexedDB impossible:', error);
-                });
-            }
+
+            // Réparer automatiquement les trois copies à partir de la meilleure disponible.
+            const savedAt = String(chosen && chosen.savedAt || new Date().toISOString());
+            saveBfgSdvfrNotamIndexedDb_(rawText, savedAt).catch(error => {
+                console.warn('Réparation IndexedDB NOTAM SDVFR impossible:', error);
+            });
+            saveBfgSdvfrNotamCacheStorage_(rawText, savedAt).catch(error => {
+                console.warn('Réparation CacheStorage NOTAM SDVFR impossible:', error);
+            });
+            try {
+                localStorage.setItem(BFG_SDVFR_DAILY_CACHE_KEY_, JSON.stringify({
+                    version: 2,
+                    day: bfgTodayLocalKey_(),
+                    savedAt,
+                    rawText
+                }));
+            } catch (_) {}
+
             if (getBfgDisplayedNotamSource_() === BFG_NOTAM_SOURCE_SDVFR_) {
                 const rendered = renderCombinedBfgNotamSources_();
                 if (rendered) setBfgNotamLoadingBanner_(false);
@@ -3310,9 +3382,13 @@ const tdfStages = [
                 console.warn('Cache localStorage NOTAM SDVFR indisponible ; IndexedDB reste prioritaire:', error);
             }
 
-            // Persistance principale hors ligne : IndexedDB, indépendante du quota localStorage.
+            // Persistance principale hors ligne : IndexedDB + CacheStorage dédié.
+            // Les deux écritures sont indépendantes du quota localStorage et indépendantes du cache applicatif BFG.
             saveBfgSdvfrNotamIndexedDb_(text, savedAt).catch(error => {
                 console.warn('Persistance IndexedDB NOTAM SDVFR impossible:', error);
+            });
+            saveBfgSdvfrNotamCacheStorage_(text, savedAt).catch(error => {
+                console.warn('Persistance CacheStorage NOTAM SDVFR impossible:', error);
             });
             updateNotamDownloadStatus_();
         }
@@ -5902,7 +5978,7 @@ const tdfStages = [
             }
         }
         window.onload = waitForPdfJsAndInitialize;
-        const BFG_REQUIRED_SW_VERSION_ = '4.88';
+        const BFG_REQUIRED_SW_VERSION_ = '4.89';
 
         function queryBfgControllerVersion_(timeoutMs = 1800) {
             return new Promise((resolve) => {
@@ -5942,7 +6018,7 @@ const tdfStages = [
             }
 
             const registration = await navigator.serviceWorker.register(
-                './sw.js?v=4.88',
+                './sw.js?v=4.89',
                 { updateViaCache: 'none' }
             );
 
@@ -7336,11 +7412,15 @@ const tdfStages = [
     initializeManualMetarFetch();
     initializeForeFlightButton();
 
-    // v4.45 : restaurer d’abord les dernières données locales, puis seulement lancer
-    // les actualisations automatiques. Cela évite les rubriques vides au démarrage.
+    // v4.89 : aucune actualisation réseau ne démarre avant la fin de la restauration locale générale
+    // ET de la restauration NOTAM SDVFR dédiée. Cela évite la fenêtre NOTAM vide au démarrage
+    // et garantit que le hors-ligne a la priorité avant toute tentative réseau.
     initializeSessionManagement();
     scheduleBfgDailyExpiry_();
-    Promise.resolve(window.__bfgLocalRestorePromise).catch(() => {}).finally(() => {
+    Promise.allSettled([
+        Promise.resolve(window.__bfgLocalRestorePromise),
+        Promise.resolve(window.__bfgNotamPersistentRestorePromise)
+    ]).finally(() => {
         initializeRiskMaps();
         if (window.pdfjsLib) {
             initializeFeuilleServiceAuto();
@@ -11099,6 +11179,7 @@ let activeShareApiBase = SHARE_API_BASE;
         await clearBfgLocalCaches_();
         await clearPersistedSupAips_().catch(error => console.warn('Effacement persistant SUP AIP impossible :', error));
         await clearBfgSdvfrNotamIndexedDb_().catch(error => console.warn('Effacement IndexedDB NOTAM SDVFR impossible :', error));
+        await clearBfgSdvfrNotamCacheStorage_().catch(error => console.warn('Effacement CacheStorage NOTAM SDVFR impossible :', error));
 
         // Remise à zéro des préférences qui peuvent forcer un ancien état local.
         localStorage.removeItem('briefingFdfDoNotAutoRestore');
@@ -12612,7 +12693,7 @@ window.__notamTextFull = notamInput.value;
 
         function initializePageTitle() {
             const titleElement = document.getElementById('main-title');
-            titleElement.textContent = `Briefing Fdf TEST v4.88 du ${new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}`;
+            titleElement.textContent = `Briefing Fdf TEST v4.89 du ${new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}`;
             const timeDisplay = document.getElementById('current-time-display');
             const updateTime = () => timeDisplay.textContent = new Date().toLocaleTimeString('fr-FR');
             updateTime(); setInterval(updateTime, 1000);
