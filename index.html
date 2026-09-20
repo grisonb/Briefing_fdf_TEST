@@ -12,8 +12,8 @@
         }
     </script>
     <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0">
-    <title>Briefing Fdf TEST v4.93</title>
-    <link rel="manifest" href="./manifest.json?v=4.93">
+    <title>Briefing Fdf TEST v4.94</title>
+    <link rel="manifest" href="./manifest.json?v=4.94">
     <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png?v=4.24">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-title" content="Briefing TEST">
@@ -2233,10 +2233,10 @@
 
     <div class="page-header">
         <div class="page-header-background"></div>
-        <h1 id="main-title">Briefing Fdf TEST v4.93</h1>
+        <h1 id="main-title">Briefing Fdf TEST v4.94</h1>
         <p id="current-time-display"></p>
         <p style="position: relative; z-index: 2; text-align: center; color: #333; font-size: 1em; margin-top: -25px; margin-bottom: 30px;">
-    v<span id="app-version">4.93 TEST - RESTAURATION NOTAM SANS FILTRE SELECTION</span>
+    v<span id="app-version">4.94 TEST - MEMOIRE GARDER SELECTION PAR SOURCE</span>
     <button id="force-update-btn" class="link-button" style="background-color: #34495e; padding: 4px 10px; font-size: 0.8em; margin-left: 10px; vertical-align: middle;">
         Forcer MAJ
     </button>
@@ -2645,10 +2645,10 @@
     <footer>Données : Météo-France, SIA, Windy.com, SDVFR. Page non commerciale, à usage personnel.</footer>
     
     <script>
-        const APP_VERSION = "4.93 TEST - RESTAURATION NOTAM SANS FILTRE SELECTION";
+        const APP_VERSION = "4.94 TEST - MEMOIRE GARDER SELECTION PAR SOURCE";
 
 
-        // v4.93 — diagnostic conservé ; la restauration ne réactive plus automatiquement « Garder la sélection ». Aucun code d'accès, token ou contenu NOTAM n'est exporté.
+        // v4.94 — diagnostic conservé ; « Garder la sélection » est mémorisé explicitement par source SDVFR/NATS. Aucun code d'accès, token ou contenu NOTAM n'est exporté.
         const BFG_DIAG_STARTED_AT_ = new Date();
         const BFG_DIAG_MAX_ENTRIES_ = 1600;
         const bfgDiagEntries_ = [];
@@ -2803,6 +2803,11 @@
             try { push('Source affichée :', typeof getBfgDisplayedNotamSource_ === 'function' ? getBfgDisplayedNotamSource_() : 'indisponible'); } catch (_) { push('Source affichée :', 'erreur'); }
             try { push('NATS sélectionné :', typeof isBfgUseNatsNotamSource_ === 'function' && isBfgUseNatsNotamSource_() ? 'OUI' : 'NON'); } catch (_) {}
             try {
+                const keepState = typeof readNotamKeepSelectionState_ === 'function' ? readNotamKeepSelectionState_() : { SDVFR: false, NATS: false };
+                push('Garder sélection SDVFR :', keepState.SDVFR ? 'OUI' : 'NON');
+                push('Garder sélection NATS :', keepState.NATS ? 'OUI' : 'NON');
+            } catch (_) {}
+            try {
                 const vs = getBfgNotamVisibilitySnapshot_();
                 push('NOTAM présents DOM :', vs.total);
                 push('NOTAM réellement affichés :', vs.rendered);
@@ -2953,11 +2958,11 @@
                     ? output.value
                     : (bfgDiagPreparedText_ || buildBfgDiagnosticTextSync_());
                 const stamp = new Date().toISOString().replace(/[:.]/g, '-');
-                const filename = `BFG_DIAG_v4.93_${stamp}.txt`;
+                const filename = `BFG_DIAG_v4.94_${stamp}.txt`;
                 const file = new File([text], filename, { type: 'text/plain;charset=utf-8' });
                 if (navigator.share && (!navigator.canShare || navigator.canShare({ files: [file] }))) {
                     try {
-                        await navigator.share({ title: `Diagnostic BFG v4.93`, files: [file] });
+                        await navigator.share({ title: `Diagnostic BFG v4.94`, files: [file] });
                         if (status) status.textContent = 'Diagnostic partagé.';
                         bfgDiagLog_('DIAG', 'Diagnostic partagé via feuille de partage');
                         refreshBfgPreparedDiagnostic_();
@@ -6437,7 +6442,7 @@ const tdfStages = [
             }
         }
         window.onload = waitForPdfJsAndInitialize;
-        const BFG_REQUIRED_SW_VERSION_ = '4.93';
+        const BFG_REQUIRED_SW_VERSION_ = '4.94';
 
         function queryBfgControllerVersion_(timeoutMs = 1800) {
             return new Promise((resolve) => {
@@ -6477,7 +6482,7 @@ const tdfStages = [
             }
 
             const registration = await navigator.serviceWorker.register(
-                './sw.js?v=4.93',
+                './sw.js?v=4.94',
                 { updateViaCache: 'none' }
             );
 
@@ -12138,6 +12143,36 @@ window.__notamTextFull = notamInput.value;
 
             const NOTAM_PERSISTENT_STATE_STORAGE_KEY_ = 'briefingFdfPersistentNotamStateV1';
 
+            // v4.94 — l'état « Garder la sélection » est mémorisé explicitement par source.
+            // Il ne doit jamais être déduit du simple fait que certains NOTAM sont cochés.
+            const NOTAM_KEEP_SELECTION_STORAGE_KEY_ = 'briefingFdfKeepSelectionBySourceV1';
+
+            function readNotamKeepSelectionState_() {
+                try {
+                    const raw = localStorage.getItem(NOTAM_KEEP_SELECTION_STORAGE_KEY_);
+                    const parsed = raw ? JSON.parse(raw) : null;
+                    return {
+                        SDVFR: !!(parsed && parsed.SDVFR),
+                        NATS: !!(parsed && parsed.NATS)
+                    };
+                } catch (_) {
+                    return { SDVFR: false, NATS: false };
+                }
+            }
+
+            function isNotamKeepSelectionEnabledForSource_(source = getBfgDisplayedNotamSource_()) {
+                const state = readNotamKeepSelectionState_();
+                return source === BFG_NOTAM_SOURCE_NATS_ ? state.NATS === true : state.SDVFR === true;
+            }
+
+            function setNotamKeepSelectionEnabledForSource_(enabled, source = getBfgDisplayedNotamSource_()) {
+                const state = readNotamKeepSelectionState_();
+                const key = source === BFG_NOTAM_SOURCE_NATS_ ? 'NATS' : 'SDVFR';
+                state[key] = enabled === true;
+                try { localStorage.setItem(NOTAM_KEEP_SELECTION_STORAGE_KEY_, JSON.stringify(state)); } catch (_) {}
+                bfgDiagLog_('NOTAM-FILTER', 'Mémoire Garder la sélection mise à jour', { source: key, enabled: state[key] });
+            }
+
             function findNotamItemById_(id) {
                 if (!id) return null;
                 if (window.CSS && CSS.escape) {
@@ -12404,8 +12439,9 @@ window.__notamTextFull = notamInput.value;
             }
 
             window.parseAndDisplayNotams = function(savedState = null) {
-                // v4.54 : tout nouvel import/analyse repart en affichage complet.
-                resetSelectionFilter();
+                // v4.94 : le rendu repart techniquement en affichage complet, sans modifier
+                // la préférence mémorisée « Garder la sélection » de la source courante.
+                resetSelectionFilter({ persist: false });
                 const rawText = notamInput.value; if (!rawText.trim()) return;
                 configureAirportSectionsForDisplayedSource_();
                 document.querySelectorAll('#notam-display .notam-item').forEach(item => item.remove());
@@ -12468,21 +12504,21 @@ window.__notamTextFull = notamInput.value;
                 if (savedState) {
                     const hasCheckedSavedState = applySavedNotamState_(savedState);
                     persistCurrentNotamState_();
-                    // v4.93 : restaurer les coches/surlignages/masquages persistants sans
-                    // réactiver automatiquement le mode « Garder la sélection ». Ce filtre
-                    // reste une action volontaire valable uniquement pour la session courante.
-                    resetSelectionFilter();
-                    bfgDiagLog_('NOTAM-FILTER', 'Etat NOTAM restauré sans réactiver Garder la sélection', {
+                    // v4.94 : les coches/surlignages/masquages sont restaurés indépendamment
+                    // de la préférence explicite « Garder la sélection » de la source courante.
+                    bfgDiagLog_('NOTAM-FILTER', 'Etat NOTAM sauvegardé restauré', {
                         checkedRestored: !!hasCheckedSavedState,
+                        keepSelectionStored: isNotamKeepSelectionEnabledForSource_(),
                         ...getBfgNotamVisibilitySnapshot_()
                     });
                 }
                 updatePersistentHiddenNotamsVisibility_();
                 applyLiveFilters();
+                restoreSelectionFilterForDisplayedSource_();
                 scheduleBfgNpfNotamsSharedPublish_(260);
             }
             
-            function applySelectionFilter(scrollToLastVisible = true) {
+            function applySelectionFilter(scrollToLastVisible = true, options = {}) {
                 document.querySelectorAll('.notam-item').forEach(item => {
                     const keepChecked = !!item.querySelector('.notam-checkbox')?.checked;
                     const undesiredChecked = !!item.querySelector('.notam-hide-checkbox')?.checked;
@@ -12491,6 +12527,9 @@ window.__notamTextFull = notamInput.value;
                 filterButtons.forEach(btn => btn.style.display = 'none');
                 showAllButtons.forEach(btn => btn.style.display = 'inline-block');
                 savePdfButtons.forEach(btn => btn.style.display = 'inline-block');
+                if (options.persist !== false) {
+                    setNotamKeepSelectionEnabledForSource_(true);
+                }
                 
                 if (scrollToLastVisible) {
                     const visibleNotams = document.querySelectorAll('#notam-display .notam-item:not(.hidden-by-filter):not(.hidden-by-prefilter)');
@@ -12501,11 +12540,41 @@ window.__notamTextFull = notamInput.value;
                 }
             }
 
-            function resetSelectionFilter() {
+            function resetSelectionFilter(options = {}) {
                 document.querySelectorAll('.hidden-by-filter').forEach(item => item.classList.remove('hidden-by-filter'));
                 showAllButtons.forEach(btn => btn.style.display = 'none');
                 savePdfButtons.forEach(btn => btn.style.display = 'none');
                 filterButtons.forEach(btn => btn.style.display = 'inline-block');
+                if (options.persist !== false) {
+                    setNotamKeepSelectionEnabledForSource_(false);
+                }
+            }
+
+            function restoreSelectionFilterForDisplayedSource_() {
+                const source = getBfgDisplayedNotamSource_();
+                const shouldKeep = isNotamKeepSelectionEnabledForSource_(source);
+                if (!shouldKeep) {
+                    resetSelectionFilter({ persist: false });
+                    return false;
+                }
+
+                const checkedCount = document.querySelectorAll('#notam-display .notam-checkbox:checked').length;
+                if (checkedCount <= 0) {
+                    // Si tous les NOTAM précédemment sélectionnés ont disparu/changé,
+                    // ne jamais restaurer un écran vide : désactiver proprement le filtre.
+                    setNotamKeepSelectionEnabledForSource_(false, source);
+                    resetSelectionFilter({ persist: false });
+                    bfgDiagLog_('NOTAM-FILTER', 'Garder la sélection annulé : aucune sélection restaurable', { source });
+                    return false;
+                }
+
+                applySelectionFilter(false, { persist: false });
+                bfgDiagLog_('NOTAM-FILTER', 'Garder la sélection restauré', {
+                    source,
+                    checkedCount,
+                    ...getBfgNotamVisibilitySnapshot_()
+                });
+                return true;
             }
 
             function clearNotamSelection_() {
@@ -12538,8 +12607,8 @@ window.__notamTextFull = notamInput.value;
             }
 
             (document.getElementById('notam-parse-btn') || {}).addEventListener('click', () => window.parseAndDisplayNotams());
-            filterButtons.forEach(b => b.addEventListener('click', () => applySelectionFilter(true)));
-            showAllButtons.forEach(b => b.addEventListener('click', resetSelectionFilter));
+            filterButtons.forEach(b => b.addEventListener('click', () => applySelectionFilter(true, { persist: true })));
+            showAllButtons.forEach(b => b.addEventListener('click', () => resetSelectionFilter({ persist: true })));
             savePdfButtons.forEach(b => b.addEventListener('click', generateNotamPdf));
             document.querySelectorAll('.clear-notam-selection-action').forEach(button => button.addEventListener('click', clearNotamSelection_));
             document.getElementById('notam-date-filter-cb').addEventListener('change', applyLiveFilters);
@@ -13157,7 +13226,7 @@ window.__notamTextFull = notamInput.value;
 
         function initializePageTitle() {
             const titleElement = document.getElementById('main-title');
-            titleElement.textContent = `Briefing Fdf TEST v4.93 du ${new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}`;
+            titleElement.textContent = `Briefing Fdf TEST v4.94 du ${new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}`;
             const timeDisplay = document.getElementById('current-time-display');
             const updateTime = () => timeDisplay.textContent = new Date().toLocaleTimeString('fr-FR');
             updateTime(); setInterval(updateTime, 1000);
