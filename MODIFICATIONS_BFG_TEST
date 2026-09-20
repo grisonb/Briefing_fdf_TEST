@@ -1,3 +1,35 @@
+TEST v4.87 — 2026-09-20
+Base : TEST v4.86
+===============================================================================
+
+CORRECTION CRITIQUE — NOTAM SDVFR QUI DISPARAISSAIENT A LA REOUVERTURE :
+- Diagnostic v4.86 : le cache rapide pouvait réafficher correctement les NOTAM SDVFR au tout début, puis la restauration générale de session exécutée ensuite appelait restoreBfgNotamSources_() et remplaçait la source SDVFR par celle de la sauvegarde générale.
+- Si cette sauvegarde contenait une source SDVFR vide ou plus ancienne, les NOTAM déjà visibles disparaissaient de nouveau.
+- La sauvegarde rapide effectuée juste après pouvait alors propager ce mauvais état et écraser le cache rapide valide.
+- v4.87 rend le cache quotidien SDVFR du jour prioritaire sur la sauvegarde générale de session.
+- Ordre de priorité SDVFR lors d'une restauration locale : cache quotidien SDVFR du jour, puis cache rapide du jour, puis source déjà présente à l'écran, puis seulement la sauvegarde générale.
+- Une restauration locale ne peut plus remplacer un SDVFR du jour non vide par une valeur vide.
+- saveBfgNotamQuickCache_() conserve désormais un SDVFR valide du jour même si l'état courant restauré ne contient que NATS.
+- restoreBfgNotamQuickCache_() répare automatiquement un cache rapide v4.86 éventuellement vidé en reprenant le cache quotidien SDVFR du jour.
+- La restauration d'un briefing partagé reste indépendante : cette priorité renforcée s'applique à la restauration locale automatique, pas à l'import volontaire d'un briefing partagé.
+
+COMPORTEMENT CONSERVE :
+- SDVFR reste la source NOTAM affichée par défaut à chaque nouvelle ouverture.
+- NATS reste invisible tant que l'utilisateur ne le sélectionne pas explicitement.
+- Les actualisations réseau peuvent continuer en arrière-plan sans vider l'affichage SDVFR déjà disponible.
+- Bandeau « NOTAMs en téléchargement... » conservé lorsqu'aucun NOTAM SDVFR du jour n'est encore disponible.
+- CheckWX reste totalement désactivé.
+- Distinction SUP AIP / SUP AIP AIRAC conservée.
+
+CONTROLES AVANT LIVRAISON :
+- syntaxe JavaScript inline ;
+- manifeste JSON ;
+- syntaxe service worker ;
+- cohérence versions actives v4.87 ;
+- vérification que le changelog reste cumulatif.
+
+===============================================================================
+
 TEST v4.86 — 2026-09-20
 Base : TEST v4.85
 ===============================================================================
