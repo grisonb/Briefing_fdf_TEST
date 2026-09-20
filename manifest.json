@@ -1,7 +1,7 @@
 {
   "name": "Briefing FDF TEST",
   "short_name": "Briefing TEST",
-  "description": "Briefing FDF TEST v4.83 — scroll de démarrage stabilisé et navigation non sollicitée supprimée",
+  "description": "Briefing FDF TEST v4.84 — premier focus corrigé, météo SDVFR seule et liens SUP AIP AIRAC corrigés",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
