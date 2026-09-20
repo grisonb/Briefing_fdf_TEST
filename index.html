@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0">
-    <title>Briefing Fdf TEST v4.77</title>
+    <title>Briefing Fdf TEST v4.78</title>
     <link rel="manifest" href="./manifest.json?v=4.72">
     <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png?v=4.24">
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -2204,10 +2204,10 @@
 
     <div class="page-header">
         <div class="page-header-background"></div>
-        <h1 id="main-title">Briefing Fdf TEST v4.77</h1>
+        <h1 id="main-title">Briefing Fdf TEST v4.78</h1>
         <p id="current-time-display"></p>
         <p style="position: relative; z-index: 2; text-align: center; color: #333; font-size: 1em; margin-top: -25px; margin-bottom: 30px;">
-    v<span id="app-version">4.77 TEST - NATS + SDVFR SIMULTANES + METEO</span>
+    v<span id="app-version">4.78 TEST - SOURCES NOTAM SEPAREES + GRUE</span>
     <button id="force-update-btn" class="link-button" style="background-color: #34495e; padding: 4px 10px; font-size: 0.8em; margin-left: 10px; vertical-align: middle;">
         Forcer MAJ
     </button>
@@ -2600,7 +2600,7 @@
     <footer>Données : Météo-France, SIA, Windy.com, SDVFR, CheckWX.com. Page non commerciale, à usage personnel.</footer>
     
     <script>
-        const APP_VERSION = "4.77 TEST - NATS + SDVFR SIMULTANES + METEO";
+        const APP_VERSION = "4.78 TEST - SOURCES NOTAM SEPAREES + GRUE";
 
         // --- Proxy NAS pour la source de données météo CheckWX ---
         const CHECKWX_PROXY_URL = "https://grisonb.synology.me/briefing-api/get-metar-taf.php";
@@ -2871,7 +2871,7 @@ const tdfStages = [
                 }));
         }
 
-        // v4.77 — comparaison visuelle simultanée NATS + SDVFR, terrain par terrain.
+        // v4.78 — comparaison visuelle simultanée NATS + SDVFR avec stockage source séparé.
         const BFG_NOTAM_SOURCE_NATS_ = 'NATS';
         const BFG_NOTAM_SOURCE_SDVFR_ = 'SDVFR';
         const bfgNotamSourceTexts_ = { NATS: '', SDVFR: '' };
@@ -2912,7 +2912,57 @@ const tdfStages = [
             });
         }
 
-        function renderCombinedBfgNotamSources_() {
+        function splitTaggedNotamSources_(text) {
+            const result = { NATS: '', SDVFR: '' };
+            const raw = String(text || '').trim();
+            if (!raw) return result;
+
+            const sections = raw.split(/\n\s*(?=LF[A-Z]{2}\s+-\s+)/);
+            const nats = [];
+            const sdvfr = [];
+            let taggedCount = 0;
+
+            sections.forEach(section => {
+                const trimmed = String(section || '').trim();
+                if (!trimmed) return;
+                const firstBreak = trimmed.indexOf('\n');
+                const header = firstBreak >= 0 ? trimmed.slice(0, firstBreak) : trimmed;
+                const rest = firstBreak >= 0 ? trimmed.slice(firstBreak + 1) : '';
+                const match = header.match(/^(LF[A-Z]{2}\s+-\s+.+?)\s+-\s+(NATS|SDVFR)\s*$/i);
+                if (!match) return;
+                taggedCount += 1;
+                const cleanSection = `${match[1]}${rest ? `\n${rest}` : ''}`.trim();
+                if (match[2].toUpperCase() === 'SDVFR') sdvfr.push(cleanSection);
+                else nats.push(cleanSection);
+            });
+
+            if (taggedCount > 0) {
+                result.NATS = nats.join('\n\n').trim();
+                result.SDVFR = sdvfr.join('\n\n').trim();
+            }
+            return result;
+        }
+
+        function restoreBfgNotamSources_(sourcePayload, legacyCombinedText = '') {
+            const explicit = sourcePayload && typeof sourcePayload === 'object' ? sourcePayload : null;
+            let nats = explicit ? String(explicit.NATS || explicit.nats || '').trim() : '';
+            let sdvfr = explicit ? String(explicit.SDVFR || explicit.sdvfr || '').trim() : '';
+
+            if (!nats && !sdvfr && String(legacyCombinedText || '').trim()) {
+                const split = splitTaggedNotamSources_(legacyCombinedText);
+                nats = split.NATS;
+                sdvfr = split.SDVFR;
+                // Anciennes sauvegardes antérieures à l'affichage double : texte sans suffixe = NATS historique.
+                if (!nats && !sdvfr) nats = String(legacyCombinedText || '').trim();
+            }
+
+            bfgNotamSourceTexts_.NATS = nats;
+            bfgNotamSourceTexts_.SDVFR = sdvfr;
+            updateBfgNotamSourceUi_();
+            return { NATS: nats, SDVFR: sdvfr };
+        }
+
+        function renderCombinedBfgNotamSources_(savedState = null) {
             const notamInput = document.getElementById('notam-input');
             if (!notamInput || typeof window.parseAndDisplayNotams !== 'function') return false;
             const parts = [];
@@ -2926,7 +2976,7 @@ const tdfStages = [
             if (!combined) return false;
             notamInput.value = combined;
             window.__notamTextFull = combined;
-            window.parseAndDisplayNotams();
+            window.parseAndDisplayNotams(savedState);
             updateBfgNotamSourceUi_();
             return true;
         }
@@ -5465,7 +5515,7 @@ const tdfStages = [
             }
         }
         window.onload = waitForPdfJsAndInitialize;
-        const BFG_REQUIRED_SW_VERSION_ = '4.77';
+        const BFG_REQUIRED_SW_VERSION_ = '4.78';
 
         function queryBfgControllerVersion_(timeoutMs = 1800) {
             return new Promise((resolve) => {
@@ -5505,7 +5555,7 @@ const tdfStages = [
             }
 
             const registration = await navigator.serviceWorker.register(
-                './sw.js?v=4.77',
+                './sw.js?v=4.78',
                 { updateViaCache: 'none' }
             );
 
@@ -9759,9 +9809,13 @@ let activeShareApiBase = SHARE_API_BASE;
             supAips: await Promise.all((window.supAipFileObjects || []).map(f => fileToPortableSavable(f))),
 
             // ===== NOTAM =====
-            // NOTAM complet (pour permettre "Afficher tout" chez le receveur)
+            // v4.78 : les sources restent séparées dans la sauvegarde ; le texte combiné ne sert qu'à l'affichage/compatibilité.
+            notamSources: {
+                NATS: String(bfgNotamSourceTexts_.NATS || ''),
+                SDVFR: String(bfgNotamSourceTexts_.SDVFR || '')
+            },
+            // NOTAM complet combiné conservé uniquement pour compatibilité avec les anciennes sauvegardes / NPF-Q400.
             notamTextFull: window.__notamTextFull || (notamInput ? notamInput.value : ""),
-            // NOTAM tel qu'affiché/filtré (compat)
             notamText: notamInput ? notamInput.value : "",
             notamState: { checkedIds: checkedNotamIds, highlights: highlightedNotams, checkedSignatures: checkedNotamSignatures, highlightSignatures: highlightSignatures },
 
@@ -9834,15 +9888,12 @@ let activeShareApiBase = SHARE_API_BASE;
             if (files.length > 0) window.addSupAipFiles(files);
         }
 
-        // ===== NOTAM (FULL) =====
+        // ===== NOTAM (sources séparées v4.78) =====
         const notamInput = document.getElementById('notam-input');
         const fullNotams = portable.notamTextFull || portable.notamText || "";
-        if (notamInput) {
-            notamInput.value = fullNotams;
-            window.__notamTextFull = fullNotams; // pour "Afficher tout"
-            if (fullNotams && typeof window.parseAndDisplayNotams === "function") {
-                window.parseAndDisplayNotams(portable.notamState || null);
-            }
+        const restoredSources = restoreBfgNotamSources_(portable.notamSources || null, fullNotams);
+        if (notamInput && (restoredSources.NATS || restoredSources.SDVFR)) {
+            renderCombinedBfgNotamSources_(portable.notamState || null);
         }
 
         // ===== METAR/TAF =====
@@ -10090,6 +10141,11 @@ let activeShareApiBase = SHARE_API_BASE;
 
                 supAips: await Promise.all((window.supAipFileObjects || []).map(f => fileToSavable(f))),
 
+                // v4.78 : stockage local séparé NATS / SDVFR.
+                notamSources: portableSnapshot.notamSources || {
+                    NATS: String(bfgNotamSourceTexts_.NATS || ''),
+                    SDVFR: String(bfgNotamSourceTexts_.SDVFR || '')
+                },
                 notamText: portableSnapshot.notamTextFull || portableSnapshot.notamText || document.getElementById('notam-input')?.value || "",
                 notamState: portableSnapshot.notamState || window.__lastNotamState || null,
                 notamsAutoPdfStatus: window.__lastNotamsAutoPdfStatus || loadNotamsAutoPdfStatus_() || null,
@@ -10501,13 +10557,10 @@ let activeShareApiBase = SHARE_API_BASE;
             if (files.length > 0) window.addSupAipFiles(files);
         }
 
-        if (data.notamText) {
-            document.getElementById('notam-input').value = data.notamText;
-            window.__notamTextFull = data.notamText;
-            if (data.notamText && typeof window.parseAndDisplayNotams === "function") {
-                window.parseAndDisplayNotams(data.notamState || null);
-                rememberBfgNotamSourceText_(BFG_NOTAM_SOURCE_NATS_, data.notamText);
-                updateBfgNotamSourceUi_();
+        if (data.notamSources || data.notamText) {
+            const restoredSources = restoreBfgNotamSources_(data.notamSources || null, data.notamText || '');
+            if (restoredSources.NATS || restoredSources.SDVFR) {
+                renderCombinedBfgNotamSources_(data.notamState || null);
             }
         }
 
@@ -10910,6 +10963,7 @@ window.__notamTextFull = notamInput.value;
                 'drill',
                 'fato',
                 'grf',
+                'grue',
                 'handling',
                 'lights',
                 'model flying',
@@ -12038,7 +12092,7 @@ window.__notamTextFull = notamInput.value;
 
         function initializePageTitle() {
             const titleElement = document.getElementById('main-title');
-            titleElement.textContent = `Briefing Fdf TEST v4.77 du ${new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}`;
+            titleElement.textContent = `Briefing Fdf TEST v4.78 du ${new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}`;
             const timeDisplay = document.getElementById('current-time-display');
             const updateTime = () => timeDisplay.textContent = new Date().toLocaleTimeString('fr-FR');
             updateTime(); setInterval(updateTime, 1000);
