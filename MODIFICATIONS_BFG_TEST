@@ -1,3 +1,34 @@
+===============================================================================
+TEST v4.81 — 2026-09-20
+Base : TEST v4.80 validée
+===============================================================================
+
+LIENS SUP AIP DANS LES NOTAMs :
+- Extension de la détection automatique des références SUP AIP dans le texte des NOTAMs.
+- Les formulations suivantes deviennent cliquables :
+  • AIP SUP 118/26
+  • SUP 118/26
+  • SUP AIP 014/26
+  • SUP AIP AIRAC 014/26
+- Les liens ouvrent directement le PDF SIA correspondant, comme pour le fonctionnement déjà validé avec les NOTAMs NATS.
+- Aucun changement du contenu des NOTAMs ni de leur source : seule la reconnaissance des références SUP AIP est élargie.
+
+VERSION / CACHE :
+- Version visible et interne : TEST v4.81.
+- Service worker aligné sur v4.81.
+- Nouveau cache : briefing-fdf-test-v4.81-supaip-links-r1.
+
+NAS / VPS :
+- Aucun changement.
+- Worker VPS inchangé fonctionnellement.
+
+Contrôles avant livraison :
+- syntaxe de tous les scripts JavaScript inline ;
+- manifeste JSON ;
+- syntaxe du service worker ;
+- compilation Python du worker ;
+- cohérence des versions actives v4.81.
+
 CHANGELOG CUMULATIF — BFG TEST v4.79
 Date : 2026-09-20
 Base actuelle : TEST v4.78
