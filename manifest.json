@@ -1,7 +1,7 @@
 {
   "name": "Briefing FDF TEST",
   "short_name": "Briefing TEST",
-  "description": "Briefing FDF TEST v4.72 — intégration NOTAM SDVFR TEST LFML/LFMT",
+  "description": "Briefing FDF TEST v4.73 — correction filtre de validité NOTAM SDVFR",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
