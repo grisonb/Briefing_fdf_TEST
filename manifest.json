@@ -1,7 +1,7 @@
 {
   "name": "Briefing FDF TEST",
   "short_name": "Briefing TEST",
-  "description": "Briefing FDF TEST v4.92 — diagnostic d’affichage NOTAM et service worker aligné",
+  "description": "Briefing FDF TEST v4.93 — restauration NOTAM sans réactivation du filtre Garder la sélection",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
