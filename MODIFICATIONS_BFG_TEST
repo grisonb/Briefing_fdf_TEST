@@ -1,3 +1,32 @@
+TEST v4.93 — 2026-09-20
+Base : TEST v4.92
+===============================================================================
+
+CORRECTION NOTAM — « GARDER LA SÉLECTION »
+- Diagnostic v4.92 confirmé : les NOTAM SDVFR sont bien restaurés depuis les caches, y compris hors ligne.
+- Cause exacte de la disparition apparente : après restauration des coches NOTAM mémorisées, BFG réactivait automatiquement le filtre « Garder la sélection ».
+- Le diagnostic observait 87 NOTAM affichés juste après restauration, puis seulement 4 après application automatique de ce filtre ; les autres restaient présents dans le DOM et dans les caches.
+- v4.93 restaure toujours les coches, masquages volontaires et surlignages persistants.
+- v4.93 ne réactive plus automatiquement « Garder la sélection » lors d'une ouverture, d'une restauration locale ou d'un rendu NOTAM avec état sauvegardé.
+- « Garder la sélection » devient un filtre volontaire valable uniquement lorsqu'il est demandé par l'utilisateur pendant la session courante.
+- À chaque nouvelle ouverture, tous les NOTAM valides selon les préfiltres/date restent affichés, même si certains NOTAM sont cochés.
+- Le diagnostic BFG est conservé et journalise explicitement la restauration de l'état NOTAM sans réactivation du filtre de sélection.
+
+NON-RÉGRESSION
+- Triple persistance SDVFR localStorage + IndexedDB + CacheStorage conservée.
+- SDVFR reste la source NOTAM par défaut ; NATS uniquement sur sélection explicite.
+- CheckWX reste désactivé.
+- Correction SUP AIP / SUP AIP AIRAC conservée.
+- Service worker aligné sur v4.93 avec nouveau cache briefing-fdf-test-v4.93-notam-selection-restore-r1.
+
+Contrôles avant livraison :
+- syntaxe JavaScript inline ;
+- manifeste JSON ;
+- syntaxe du service worker ;
+- cohérence des versions actives v4.93 ;
+- absence d'appel automatique à applySelectionFilter() lors de la restauration savedState ;
+- conservation des coches/surlignages/masquages persistants.
+
 TEST v4.92 — 2026-09-20
 Base : TEST v4.91
 ===============================================================================
