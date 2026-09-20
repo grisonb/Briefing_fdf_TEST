@@ -1270,6 +1270,27 @@ Contrôles avant livraison :
 - compilation Python du worker.
 
 ===============================================================================
+CORRECTIF v4.75 — 2026-09-20
+===============================================================================
+
+CORRECTION CONNEXION BFG :
+- Correction d’une référence JavaScript erronée : BFG_NOTAM_SOURCE_SDVFR -> BFG_NOTAM_SOURCE_SDVFR_.
+- Cette erreur interrompait l’initialisation JavaScript avant l’attachement du bouton de connexion BFG.
+- Aucun changement du mécanisme d’authentification NAS lui-même.
+
+CORRECTIONS DE NON-RÉGRESSION :
+- Libellés visibles corrigés de v4.74 vers v4.75.
+- LFMT rétabli dans les deux tables générales de noms d’aérodromes.
+- LFMT reste exclu uniquement du périmètre SDVFR pélicandromes.
+- Cache du service worker v4.75 révisé en r2 pour forcer la prise en compte de l’index corrigé.
+
+VALIDATION :
+- Syntaxe de tous les scripts JavaScript inline : OK.
+- Manifest JSON : OK.
+- Service worker JavaScript : OK.
+- Worker Python : compilation OK.
+
+===============================================================================
 FICHIERS DE LA VERSION ACTUELLE v4.75
 ===============================================================================
 
