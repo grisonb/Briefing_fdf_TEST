@@ -1,3 +1,39 @@
+TEST v4.85 — 2026-09-20
+Base : TEST v4.84
+===============================================================================
+
+CONNEXION / CLAVIER iPAD :
+- Correction du comportement du champ « Code accès Briefing » avec le clavier virtuel iPad.
+- Suppression du focus preventScroll introduit en v4.84 : il empêchait Safari de remonter la page lors du premier toucher.
+- Dès le premier toucher, le champ reçoit le focus normalement et BFG vérifie sa visibilité pendant l’ouverture du clavier via visualViewport.
+- Recentrages de sécurité brefs après le focus afin que la zone de saisie reste au-dessus du clavier sans attendre la première lettre tapée.
+- Le garde-fou empêchant l’ouverture automatique du clavier au démarrage reste conservé.
+
+METEO SDVFR — NE PLUS REVENIR A UNE METEO MEMORISEE :
+- Correction de la course entre météo fraîche et chargement des NOTAM.
+- Lors d’une connexion, BFG récupère désormais une météo SDVFR fraîche AVANT l’actualisation NATS.
+- Lors d’une réouverture avec session BFG encore valide, même ordre : météo SDVFR fraîche puis NATS.
+- Le payload mémorisé dans le cache quotidien SDVFR reste réservé aux NOTAM et n’est plus utilisé comme météo de connexion.
+- Une restauration locale ou partagée compare maintenant weatherSavedAt : une météo mémorisée plus ancienne ne peut plus écraser une météo plus récente déjà affichée.
+- Le chargement des NOTAM NATS ne doit donc plus faire « revenir en arrière » les METAR/TAF.
+- CheckWX reste totalement désactivé ; SDVFR reste la seule source météo active.
+
+NON-REGRESSION :
+- Distinction SUP AIP / SUP AIP AIRAC de v4.84 conservée.
+- Corrections de stabilité du scroll v4.83 conservées.
+- Fonctionnement NATS / SDVFR, persistance NOTAM et publication NPF-Q400 conservés.
+- Aucun changement NAS/VPS ni du worker SDVFR.
+
+Contrôles avant livraison :
+- syntaxe de tous les scripts JavaScript inline ;
+- manifeste JSON ;
+- syntaxe du service worker ;
+- cohérence des versions actives v4.85 ;
+- contrôle du chemin météo : requête SDVFR fraîche avant NATS, sans CheckWX ;
+- contrôle de non-écrasement d’une météo plus récente par restoreWeatherDataSnapshot_.
+
+===============================================================================
+
 TEST v4.84 — 2026-09-20
 Base : TEST v4.83
 ===============================================================================
