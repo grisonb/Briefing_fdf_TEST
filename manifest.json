@@ -1,7 +1,7 @@
 {
   "name": "Briefing FDF TEST",
   "short_name": "Briefing TEST",
-  "description": "Briefing FDF TEST v4.86 — SDVFR prioritaire par défaut, NOTAM du jour restaurés immédiatement et bandeau de téléchargement",
+  "description": "Briefing FDF TEST v4.87 — persistance NOTAM SDVFR renforcée à la réouverture, cache quotidien prioritaire",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
