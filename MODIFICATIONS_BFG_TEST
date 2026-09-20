@@ -1,3 +1,42 @@
+TEST v4.82 — 2026-09-20
+Base : TEST v4.81
+===============================================================================
+
+INTERFACE / CONNEXION :
+- Le bandeau final « NOTAM et METAR/TAF chargés. » utilise désormais le style succès vert.
+- Vert volontairement discret : légèrement plus foncé que le fond vert de la zone « Accès Briefing ».
+- Les messages d'erreur et d'attente conservent leurs styles précédents.
+
+STABILITÉ DE NAVIGATION :
+- Diagnostic v4.81 : le bandeau de confirmation ne contient lui-même aucun ordre de scroll.
+- La cause plausible du retour en haut est le mécanisme historique forceBriefingStartAtTop(), programmé plusieurs fois au démarrage/restauration.
+- v4.82 conserve la stabilisation en haut uniquement pendant le tout premier affichage.
+- Les rappels différés (0 / 300 / 1200 ms) sont annulés dès une interaction utilisateur de navigation : toucher/clic, geste tactile, molette ou touche de navigation.
+- Suppression des nouvelles salves de retour en haut après restauration d'un briefing partagé ou de la session locale.
+- Après que l'utilisateur a commencé à naviguer, une actualisation NOTAM/météo ou l'apparition du bandeau de connexion ne doit plus modifier sa position dans la page.
+
+LIENS SUP AIP DANS LES NOTAM :
+- Normalisation interne de toutes les références reconnues vers « SUP AIP numéro/année » pour construire l'URL SIA.
+- Formes reconnues : « AIP SUP 118/26 », « AIP SUP AIRAC 118/26 », « SUP AIP 014/26 », « SUP AIP AIRAC 014/26 » et l'ancienne forme courte « SUP 014/26 ».
+- Le texte d'origine du NOTAM reste affiché tel quel ; seule la recherche du PDF est normalisée.
+- Le lien continue d'ouvrir directement le PDF SIA associé.
+
+NON-RÉGRESSION :
+- Fonctionnement NOTAM par défaut / NATS optionnel de v4.80 conservé.
+- Actualisation météo, seuil automatique 35 min et secours CHECKWX inchangés.
+- Filtre GRUE + CRANE conservé.
+- Worker VPS inchangé fonctionnellement.
+
+Contrôles avant livraison :
+- syntaxe de tous les scripts JavaScript inline ;
+- manifeste JSON ;
+- syntaxe du service worker ;
+- compilation Python du worker ;
+- cohérence des versions actives v4.82 ;
+- vérification des formes SUP AIP reconnues.
+
+===============================================================================
+
 ===============================================================================
 TEST v4.81 — 2026-09-20
 Base : TEST v4.80 validée
