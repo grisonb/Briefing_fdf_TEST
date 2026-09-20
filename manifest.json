@@ -1,7 +1,7 @@
 {
   "name": "Briefing FDF TEST",
   "short_name": "Briefing TEST",
-  "description": "Briefing FDF TEST v4.95 — plage de validité NOTAM par calendrier, commandes réorganisées et scroll Garder la Sélection corrigé",
+  "description": "Briefing FDF TEST v4.97 — plage NOTAM quotidienne et NOTAM sélectionnés toujours visibles",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
