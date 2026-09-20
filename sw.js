@@ -1,5 +1,5 @@
-const BFG_SW_VERSION = '4.85';
-const CACHE_NAME = 'briefing-fdf-test-v4.85-keyboard-weather-fresh-r1';
+const BFG_SW_VERSION = '4.86';
+const CACHE_NAME = 'briefing-fdf-test-v4.86-notam-persistence-access-r2';
 
 const LOCAL_ASSETS = [
   './manifest.json',
