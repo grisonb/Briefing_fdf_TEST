@@ -1,3 +1,45 @@
+TEST v4.84 — 2026-09-20
+Base : TEST v4.83
+===============================================================================
+
+CONNEXION / CLAVIER iPAD :
+- Le garde-fou anti-clavier automatique ne bloque plus le premier toucher utilisateur sur le champ « Code accès Briefing ».
+- Dès le premier toucher réel, le champ est focusé avec preventScroll afin d'éviter le petit déplacement de page préalable.
+- Les contrôles différés anti-focus restent actifs uniquement tant qu'aucune interaction utilisateur n'a eu lieu.
+- L'ouverture automatique du clavier au simple chargement de BFG reste empêchée.
+
+METEO — CHECKWX TEMPORAIREMENT DESACTIVE :
+- Ajout d'un verrou global CHECKWX_ENABLED_ = false.
+- Aucun appel réseau vers le proxy CheckWX ne peut partir, y compris depuis un ancien chemin de secours.
+- Connexion BFG : METAR/TAF chargés uniquement depuis SDVFR.
+- Bouton « Actualiser Météo », actualisation automatique des METAR > 35 min et bouton ↻ terrain : SDVFR uniquement.
+- En cas d'absence ou d'échec SDVFR, aucune bascule CheckWX n'est effectuée.
+- La recherche météo manuelle qui dépendait de CheckWX indique temporairement que CheckWX est désactivé.
+
+NOTAM — LIENS SUP AIP / SUP AIP AIRAC :
+- Correction de la règle de construction des PDF SIA.
+- Un SUP AIP classique utilise : lf_sup_YYYY_NNN_fr.pdf.
+- Un SUP AIP AIRAC utilise : lf_sup_a_YYYY_NNN_fr.pdf.
+- Le mot AIRAC n'est plus perdu lors de la normalisation interne.
+- Exemple validé : « AIP SUP 118/26 » -> lf_sup_2026_118_fr.pdf.
+- Exemple validé : « SUP AIP AIRAC 014/26 » -> lf_sup_a_2026_014_fr.pdf.
+- Même traitement pour les NOTAM NATS et SDVFR.
+
+NON-REGRESSION :
+- Corrections de stabilité du scroll v4.83 conservées.
+- Fonctionnement NATS / SDVFR et persistance NOTAM conservés.
+- Aucun changement NAS/VPS ni du worker SDVFR.
+
+Contrôles avant livraison :
+- syntaxe de tous les scripts JavaScript inline ;
+- manifeste JSON ;
+- syntaxe du service worker ;
+- cohérence des versions actives v4.84 ;
+- vérification de l'absence de chemin réseau CheckWX actif ;
+- vérification de la distinction SUP AIP / SUP AIP AIRAC.
+
+===============================================================================
+
 TEST v4.83 — 2026-09-20
 Base : TEST v4.82
 ===============================================================================
