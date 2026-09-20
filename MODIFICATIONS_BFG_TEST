@@ -1,3 +1,54 @@
+CHANGELOG CUMULATIF — BFG TEST v4.77
+Date : 2026-09-20
+Base actuelle : TEST v4.76
+
+===============================================================================
+TEST v4.77 — 2026-09-20
+Base : TEST v4.76
+===============================================================================
+
+NOTAMs — comparaison simultanée NATS / SDVFR
+- Suppression complète du bouton « Comparer : afficher … ».
+- Les NOTAMs NATS et SDVFR sont affichés simultanément.
+- Pour chaque terrain, l’ordre d’affichage est :
+  • « LFTW - NIMES GARONS - NATS »
+  • « LFTW - NIMES GARONS - SDVFR »
+  puis le terrain suivant selon l’ordre BFG.
+- Aucune fusion des deux sources : chaque NOTAM conserve son origine.
+- Les identifiants persistants des NOTAMs intègrent désormais la source (NATS ou SDVFR).
+- Les sélections verte/rouge et les surlignages peuvent donc être mémorisés indépendamment pour les deux sources sans écrasement mutuel.
+- Les filtres date et mots-clés continuent de s’appliquer aux deux sources.
+
+NOTAMs SDVFR — actualisation quotidienne
+- Ajout d’un cache local quotidien SDVFR.
+- Lorsqu’un jeu SDVFR a déjà été récupéré le jour courant, BFG le réutilise lors des ouvertures suivantes.
+- Une récupération automatique SDVFR complète n’est donc pas répétée à chaque ouverture.
+- Le bouton « Actualiser SDVFR » conserve la possibilité de forcer manuellement une nouvelle récupération.
+- L’actualisation météo SDVFR est volontairement séparée : elle ne remplace pas le cache quotidien des NOTAMs.
+
+Météo
+- Bouton « Charger Météo » renommé « Actualiser Météo ».
+- SDVFR reste la source météo prioritaire.
+- Aucune mention de source à côté d’un METAR/TAF signifie que la donnée provient de SDVFR.
+- Lorsqu’un bulletin provient du secours CheckWX, la mention « CHECKWX » est affichée explicitement à côté de METAR ou TAF.
+- L’actualisation météo globale interroge SDVFR puis utilise CheckWX uniquement pour les terrains non servis par SDVFR.
+- Si au moins un METAR affiché a plus de 35 minutes, BFG déclenche automatiquement l’actualisation météo de tous les terrains.
+- Protection anti-boucle : une seule actualisation globale simultanée et temporisation avant une nouvelle actualisation automatique.
+
+Serveur / VPS
+- Aucun changement PHP NAS requis.
+- Le worker SDVFR v4.77 est fonctionnellement identique au worker v4.76 déjà installé.
+
+Contrôles
+- Syntaxe JavaScript de tous les scripts inline : OK.
+- Manifest JSON : OK.
+- Service worker JavaScript : OK.
+- Worker Python : OK.
+
+===============================================================================
+HISTORIQUE CUMULATIF PRÉCÉDENT
+===============================================================================
+
 CHANGELOG CUMULATIF — BFG TEST v4.76
 Date : 2026-09-20
 Base actuelle : TEST v4.75
