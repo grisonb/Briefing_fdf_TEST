@@ -1436,3 +1436,62 @@ FICHIERS DE LA VERSION ACTUELLE v4.76
 - 3_Manifest_v4.76.txt
 - 4_Sw_v4.76.txt
 - 5_bfg-sdvfr-worker_v4.76.txt
+
+===============================================================================
+TEST v4.80 — 2026-09-20
+Base : TEST v4.79 validée
+===============================================================================
+
+INTERFACE NOTAM :
+- Suppression du double affichage simultané des deux sources.
+- Source NOTAM par défaut affichée sans mention de fournisseur : titres du type « LFTW - NIMES GARONS ».
+- NATS devient une source alternative activable depuis « Importation NOTAM » avec la case « Utiliser NATS comme source NOTAM ».
+- Lorsque NATS est activé, le titre du terrain précise explicitement « - NATS ».
+- Le choix « Utiliser NATS comme source NOTAM » est mémorisé localement.
+- Les sélections, masquages et surlignages restent séparés par source lors d’un changement de source.
+
+ZONE IMPORTATION NOTAM :
+- Transformation en panneau déroulant replié par défaut.
+- Les commandes NATS, le lien NATS, l’import manuel et les informations d’import automatique sont masqués lorsque le panneau est replié.
+- Suppression des mentions visibles de la source technique utilisée pour les NOTAM par défaut.
+
+ZONE ANALYSE NOTAM :
+- Ajout du bouton « Actualiser NOTAMs » devant « Garder la sélection ».
+- Déplacement du statut d’actualisation des NOTAM sous les boutons d’analyse.
+- Ajout d’une ligne permanente « Dernier téléchargement NOTAM : JJ/MM/AAAA à HH:MM ».
+- La date/heure correspond à la source actuellement affichée.
+- Déplacement du bouton « Actualiser Météo » à côté de « Annuler surlignage ».
+- Le bouton « Actualiser NOTAMs » et les commandes supérieures restent visibles même avant le premier bulletin.
+- Conservation des filtres CRANE et GRUE.
+
+ACTUALISATION ET CONNEXION :
+- Les NOTAM par défaut restent mis à jour au maximum une fois par jour automatiquement ; le bouton « Actualiser NOTAMs » permet une actualisation forcée.
+- NATS reste téléchargé automatiquement en arrière-plan à chaque ouverture de BFG lorsqu’une session Briefing valide existe.
+- L’actualisation NATS de démarrage ne remplace pas la source affichée si la case NATS n’est pas cochée.
+- À la connexion BFG, suppression du message détaillant le téléchargement NATS.
+- Message final de connexion : « NOTAM et METAR/TAF chargés. »
+- À la connexion, la météo issue du flux NOTAM est appliquée ; CheckWX complète uniquement les terrains manquants.
+- Le comportement d’actualisation météo automatique au-delà de 35 minutes est conservé.
+- La mention CHECKWX reste affichée uniquement lorsque CheckWX est effectivement utilisé en secours.
+
+ROBUSTESSE :
+- Lors du téléchargement automatique du PDF NATS, l’analyse intermédiaire du PDF est neutralisée afin d’éviter qu’un texte NATS soit momentanément attribué à la source NOTAM par défaut.
+- Le texte NATS et le texte NOTAM par défaut restent stockés séparément dans les sauvegardes.
+- Le rendu final n’utilise qu’une seule source à la fois.
+
+Fichiers BFG modifiés :
+- index.html
+- manifest.json
+- sw.js
+
+NAS / VPS :
+- Aucun changement.
+- Worker VPS inchangé fonctionnellement.
+
+Contrôles avant livraison :
+- syntaxe de tous les scripts JavaScript inline ;
+- manifeste JSON ;
+- syntaxe du service worker ;
+- compilation Python du worker ;
+- cohérence des versions actives v4.80 ;
+- absence de mention visible de la source technique NOTAM par défaut dans l’interface.
