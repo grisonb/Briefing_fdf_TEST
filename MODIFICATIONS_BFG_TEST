@@ -1,3 +1,46 @@
+TEST v4.91 — 2026-09-20
+Base : TEST v4.90
+===============================================================================
+
+DIAGNOSTIC BFG EXPORTABLE
+- Ajout d'une rubrique « Diagnostic BFG » dans la zone Accès Briefing.
+- Bouton « Afficher diagnostic » : affiche le diagnostic dans une zone texte modifiable.
+- Bouton « Exporter diagnostic » : génère un fichier texte horodaté BFG_DIAG_v4.91_*.txt.
+- Sur iPad/iOS, utilisation prioritaire de la feuille de partage native afin de choisir Mail, Messages, AirDrop, Fichiers, etc.
+- Le diagnostic complet est pré-calculé en arrière-plan afin que l'appui sur « Exporter diagnostic » puisse ouvrir immédiatement la feuille de partage sans perdre l'activation utilisateur Safari/iPadOS.
+- Si le partage natif avec fichier n'est pas disponible, téléchargement du .txt en solution de secours.
+
+CONTENU DU DIAGNOSTIC
+- Version BFG, date/heure de démarrage, état en ligne/hors ligne, visibilité, mode PWA et User-Agent.
+- Source NOTAM affichée, sélection NATS, nombre de NOTAM visibles et taille des textes SDVFR/NATS en mémoire.
+- État, taille, date et validité des trois stockages NOTAM SDVFR : localStorage, IndexedDB et CacheStorage dédié.
+- Estimation du quota et de l'espace de stockage navigateur utilisé.
+- État du service worker et liste des caches actifs.
+- Résumé de la météo affichée et de ses sources.
+- Journal chronologique depuis le chargement du script : restauration rapide/persistante, lectures/écritures de caches, rendu NOTAM, bandeau de téléchargement, réseau, scroll fenêtre, erreurs JavaScript et promesses rejetées.
+- Les codes d'accès, tokens et contenu brut des NOTAM ne sont pas exportés ; seules les tailles, dates et états techniques sont consignés.
+
+INSTRUMENTATION NOTAM
+- Traçage du démarrage anticipé NOTAM et du résultat de la restauration rapide.
+- Traçage de la lecture IndexedDB, CacheStorage et localStorage ainsi que de la source choisie.
+- Traçage des écritures IndexedDB / CacheStorage et de leurs erreurs éventuelles.
+- Traçage des mises à jour mémoire, rendus NOTAM et affichage/masquage du bandeau de téléchargement.
+- Traçage du lancement des imports NATS sans modifier la priorité d'affichage SDVFR.
+
+NON-RÉGRESSION
+- Logique fonctionnelle NOTAM de v4.90 conservée pour obtenir un diagnostic fidèle du problème observé.
+- SDVFR reste la source NOTAM affichée par défaut ; NATS uniquement sur sélection explicite.
+- CheckWX reste désactivé.
+- Correction SUP AIP / SUP AIP AIRAC conservée.
+
+Contrôles avant livraison :
+- syntaxe JavaScript inline ;
+- manifeste JSON ;
+- syntaxe du service worker ;
+- cohérence des versions actives v4.91 ;
+- présence des commandes Afficher / Exporter diagnostic ;
+- absence d'export des codes d'accès et tokens.
+
 TEST v4.90 — 2026-09-20
 Base : TEST v4.89
 ===============================================================================
