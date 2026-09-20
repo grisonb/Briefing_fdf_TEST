@@ -1,3 +1,40 @@
+TEST v4.88 — 2026-09-20
+Base : TEST v4.87
+===============================================================================
+
+CORRECTION STRUCTURELLE — PERSISTANCE HORS LIGNE DES NOTAM SDVFR :
+- Diagnostic v4.87 : les NOTAM SDVFR dépendaient encore principalement de localStorage.
+- Le texte SDVFR était dupliqué entre le cache quotidien et le cache rapide, et le cache quotidien conservait également le payload SDVFR complet.
+- Sur Safari/iPadOS, une écriture localStorage trop volumineuse peut échouer à cause du quota ; les NOTAM restent alors visibles en mémoire pendant la session mais disparaissent à la réouverture et ne sont plus disponibles hors ligne.
+- v4.88 ajoute une persistance IndexedDB dédiée « BriefingFdfSdvfrNotamsV1 » pour le texte NOTAM SDVFR du jour.
+- Chaque récupération SDVFR non vide déclenche immédiatement l'écriture de ce texte dans IndexedDB.
+- Au démarrage, BFG restaure d'abord un secours localStorage synchrone puis charge le cache IndexedDB autoritaire avant d'appliquer la sauvegarde générale de session.
+- Une ancienne sauvegarde générale ne peut donc plus vider le SDVFR du jour restauré depuis IndexedDB.
+- Migration automatique : si un cache v4.87 localStorage du jour existe encore et qu'IndexedDB n'est pas encore alimentée, ce cache est recopié dans IndexedDB.
+
+REDUCTION DE localStorage :
+- Le cache quotidien SDVFR localStorage ne conserve plus le payload SDVFR complet ; il garde seulement le jour, l'heure et une copie texte de secours des NOTAM.
+- Le cache rapide ne duplique plus le texte SDVFR ; il ne conserve que NATS.
+- Il n'existe donc plus deux copies localStorage du texte SDVFR plus un payload complet.
+- Si localStorage refuse une écriture, IndexedDB reste la persistance principale pour les NOTAM hors ligne.
+
+NETTOYAGE / NON-REGRESSION :
+- « Effacer les données locales » supprime également la nouvelle base IndexedDB NOTAM SDVFR et le cache quotidien de secours.
+- SDVFR reste la source NOTAM affichée par défaut à chaque ouverture.
+- NATS reste visible uniquement après sélection explicite de l'utilisateur.
+- Bandeau « NOTAMs en téléchargement... » conservé lorsqu'aucun NOTAM SDVFR du jour n'est disponible localement.
+- CheckWX reste désactivé.
+- Distinction SUP AIP / SUP AIP AIRAC conservée.
+
+CONTROLES AVANT LIVRAISON :
+- syntaxe JavaScript inline ;
+- manifeste JSON ;
+- syntaxe service worker ;
+- cohérence versions actives v4.88 ;
+- vérification que le changelog reste cumulatif.
+
+===============================================================================
+
 TEST v4.87 — 2026-09-20
 Base : TEST v4.86
 ===============================================================================
