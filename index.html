@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0">
-    <title>Briefing Fdf TEST v4.73</title>
+    <title>Briefing Fdf TEST v4.74</title>
     <link rel="manifest" href="./manifest.json?v=4.72">
     <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png?v=4.24">
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -2204,10 +2204,10 @@
 
     <div class="page-header">
         <div class="page-header-background"></div>
-        <h1 id="main-title">Briefing Fdf TEST v4.73</h1>
+        <h1 id="main-title">Briefing Fdf TEST v4.74</h1>
         <p id="current-time-display"></p>
         <p style="position: relative; z-index: 2; text-align: center; color: #333; font-size: 1em; margin-top: -25px; margin-bottom: 30px;">
-    v<span id="app-version">4.73 TEST - NOTAM SDVFR DATE</span>
+    v<span id="app-version">4.74 TEST - NOTAM SDVFR PELIC + FILTRES</span>
     <button id="force-update-btn" class="link-button" style="background-color: #34495e; padding: 4px 10px; font-size: 0.8em; margin-left: 10px; vertical-align: middle;">
         Forcer MAJ
     </button>
@@ -2449,7 +2449,7 @@
         <div class="pdf-controls">
             <span id="nats-help-icon" class="help-icon" title="Comment utiliser NATS ?">?</span>
             <button id="notam-auto-import-btn" type="button" class="link-button" style="background-color: #16a085;">Importation Auto</button>
-            <button id="notam-sdvfr-import-btn" type="button" class="link-button" style="background-color: #2980b9;">SDVFR TEST LFML/LFMT</button>
+            <button id="notam-sdvfr-import-btn" type="button" class="link-button" style="background-color: #2980b9;">SDVFR PÉLICANDROMES</button>
             <a href="https://nats-uk.ead-it.com/fwf-nats/restricted/user/ino/brief_aerodrome.faces?menuId=C920E9BB76441A9AE05341741DC25BDD" target="_blank" class="link-button" style="background-color: #8e44ad;">Accéder au Briefing NATS</a>
             <button id="pdf-load-notam-btn" class="link-button" style="background-color: #2c3e50;">Importation manuelle</button>
             <input type="file" id="pdf-input-notam" accept="application/pdf">
@@ -2599,7 +2599,7 @@
     <footer>Données : Météo-France, SIA, Windy.com, CheckWX.com. Page non commerciale, à usage personnel.</footer>
     
     <script>
-        const APP_VERSION = "4.73 TEST - NOTAM SDVFR DATE";
+        const APP_VERSION = "4.74 TEST - NOTAM SDVFR PELIC + FILTRES";
 
         // --- Proxy NAS pour la source de données météo CheckWX ---
         const CHECKWX_PROXY_URL = "https://grisonb.synology.me/briefing-api/get-metar-taf.php";
@@ -2856,10 +2856,19 @@ const tdfStages = [
         const NOTAMS_GENERATION_STATUS_API_URL = 'https://grisonb.synology.me/briefing-api/get-notams-generation-status.php';
         const SDVFR_NOTAMS_REQUEST_API_URL = 'https://grisonb.synology.me/briefing-api/request-sdvfr-notams.php';
         const SDVFR_NOTAMS_RESULT_API_URL = 'https://grisonb.synology.me/briefing-api/get-sdvfr-notams-result.php';
-        const SDVFR_NOTAMS_TEST_TARGETS = [
-            { icao: 'LFML', lat: 43.436633, lon: 5.215119, halfLat: 0.015, halfLon: 0.018 },
-            { icao: 'LFMT', lat: 43.576194, lon: 3.963014, halfLat: 0.015, halfLon: 0.018 }
-        ];
+        function getSdvfrPelicandromeTargets_() {
+            // v4.74 : tous les pélicandromes BFG connus ; LFMT est explicitement exclu.
+            const coords = getPelicGeoCoords_();
+            return Object.entries(coords)
+                .filter(([icao]) => icao !== 'LFMT')
+                .map(([icao, coord]) => ({
+                    icao,
+                    lat: Number(coord.lat),
+                    lon: Number(coord.lon),
+                    halfLat: 0.015,
+                    halfLon: 0.018
+                }));
+        }
         const NOTAMS_AUTO_STATUS_STORAGE_KEY = 'briefingFdfNotamsAutoPdfStatus';
         const FDS_GMAIL_REFRESH_URL = 'https://script.google.com/macros/s/AKfycbwjw2i5AcY9UT31sRvz1sTessKF4k1EUHMo0KW4Tga-mLTeBhup0IN98dXnAJSoqq_LDQ/exec';
         const FDS_STATUS_API_URL = 'https://grisonb.synology.me/briefing-api/get-feuille-service-status.php';
@@ -3796,6 +3805,8 @@ const tdfStages = [
         }
 
         async function requestSdvfrNotams_(token) {
+            const targets = getSdvfrPelicandromeTargets_();
+            if (!targets.length) throw new Error('Aucun pélicandrome SDVFR configuré.');
             const response = await fetch(SDVFR_NOTAMS_REQUEST_API_URL, {
                 method: 'POST',
                 cache: 'no-store',
@@ -3805,7 +3816,7 @@ const tdfStages = [
                     'Content-Type': 'application/json'
                 },
                 body: JSON.stringify({
-                    targets: SDVFR_NOTAMS_TEST_TARGETS
+                    targets
                 })
             });
 
@@ -3980,7 +3991,7 @@ const tdfStages = [
                 if (button) button.disabled = true;
                 if (statusElement) {
                     statusElement.classList.remove('warning');
-                    statusElement.textContent = 'SDVFR : envoi de la demande LFML + LFMT...';
+                    statusElement.textContent = `SDVFR : envoi de la demande pour ${getSdvfrPelicandromeTargets_().length} pélicandromes...`;
                 }
 
                 const requestPayload = await requestSdvfrNotams_(tokenInfo.token);
@@ -3993,11 +4004,11 @@ const tdfStages = [
                 const rawText = buildBfgNotamTextFromSdvfrResult_(resultPayload);
 
                 if (!rawText.trim()) {
-                    throw new Error('Aucun NOTAM exploitable reçu pour LFML/LFMT.');
+                    throw new Error('Aucun NOTAM exploitable reçu pour les pélicandromes.');
                 }
 
-                // Le test SDVFR remplace le jeu de NOTAM actuellement affiché pour éviter
-                // de mélanger d'anciens NOTAM NATS avec les deux terrains de validation.
+                // L'import SDVFR remplace le jeu de NOTAM actuellement affiché afin de ne pas
+                // mélanger un ancien jeu NATS avec le jeu SDVFR des pélicandromes.
                 document.querySelectorAll('#notam-display .notam-item').forEach(item => item.remove());
 
                 if (notamInput) {
@@ -7117,6 +7128,7 @@ const tdfStages = [
             }
 
             itemContainer.dataset.notamSignature = createNotamStableSignature_(notamText);
+            itemContainer.__bfgRawNotamText = String(notamText || '');
             if (!itemContainer.dataset.notamId) {
                 itemContainer.dataset.notamId = `${icao}-SIG-${itemContainer.dataset.notamSignature}`;
             }
@@ -10762,17 +10774,34 @@ window.__notamTextFull = notamInput.value;
                 });
             }
 
+            function normalizeNotamKeywordText_(value) {
+                return String(value || '')
+                    .normalize('NFD')
+                    .replace(/[\u0300-\u036f]/g, '')
+                    .toLowerCase()
+                    .replace(/[^a-z0-9]+/g, ' ')
+                    .replace(/\s+/g, ' ')
+                    .trim();
+            }
+
+            function notamMatchesFilteredKeyword_(text, keyword) {
+                const haystack = normalizeNotamKeywordText_(text);
+                const needle = normalizeNotamKeywordText_(keyword);
+                if (!haystack || !needle) return false;
+                return (` ${haystack} `).includes(` ${needle} `);
+            }
+
             function applyLiveFilters() {
                 const isDateFilterActive = document.getElementById('notam-date-filter-cb').checked;
                 const activeKeywords = Array.from(document.querySelectorAll('#keyword-filter-list input:checked')).map(cb => cb.dataset.keyword);
-                
+
                 const today = new Date();
                 const todayStart = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate(), 0, 0, 0));
                 const todayEnd = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate(), 23, 59, 59));
 
                 document.querySelectorAll('#notam-display .notam-item').forEach(item => {
                     let shouldBeHidden = false;
-                    
+
                     if (isDateFilterActive) {
                         const notamStart = item.dataset.startDate ? new Date(item.dataset.startDate) : null;
                         const notamEnd = item.dataset.endDate ? new Date(item.dataset.endDate) : null;
@@ -10782,14 +10811,15 @@ window.__notamTextFull = notamInput.value;
                     }
 
                     if (activeKeywords.length > 0 && !shouldBeHidden) {
-                        const itemText = item.textContent;
-                        if (activeKeywords.some(k => {
-                            const regex = new RegExp(`\\b${k.replace(/ /g, '\\s')}\\b`, 'i');
-                            return regex.test(itemText);
-                        })) {
+                        const itemText = item.__bfgRawNotamText
+                            || item.querySelector('.notam-text-content')?.innerText
+                            || item.textContent
+                            || '';
+                        if (activeKeywords.some(keyword => notamMatchesFilteredKeyword_(itemText, keyword))) {
                             shouldBeHidden = true;
                         }
                     }
+
                     item.classList.toggle('hidden-by-prefilter', shouldBeHidden);
                 });
             }
@@ -11110,6 +11140,7 @@ window.__notamTextFull = notamInput.value;
                     if (hasCheckedSavedState) applySelectionFilter();
                 }
                 updatePersistentHiddenNotamsVisibility_();
+                applyLiveFilters();
                 scheduleBfgNpfNotamsSharedPublish_(260);
             }
             
@@ -11757,7 +11788,7 @@ window.__notamTextFull = notamInput.value;
 
         function initializePageTitle() {
             const titleElement = document.getElementById('main-title');
-            titleElement.textContent = `Briefing Fdf TEST v4.73 du ${new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}`;
+            titleElement.textContent = `Briefing Fdf TEST v4.74 du ${new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}`;
             const timeDisplay = document.getElementById('current-time-display');
             const updateTime = () => timeDisplay.textContent = new Date().toLocaleTimeString('fr-FR');
             updateTime(); setInterval(updateTime, 1000);
