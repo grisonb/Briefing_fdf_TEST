@@ -1,7 +1,7 @@
 {
   "name": "Briefing FDF TEST",
   "short_name": "Briefing TEST",
-  "description": "Briefing FDF TEST v4.91 — diagnostic BFG exportable et traçage complet des caches NOTAM",
+  "description": "Briefing FDF TEST v4.92 — diagnostic d’affichage NOTAM et service worker aligné",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
