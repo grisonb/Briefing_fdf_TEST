@@ -1,3 +1,59 @@
+TEST v4.86 — 2026-09-20
+Base : TEST v4.85
+===============================================================================
+
+ACCES BRIEFING / EMPREINTE DIGITALE :
+- Suppression du nom technique contenant « password » sur le champ « Code accès Briefing ».
+- Le champ devient « cncasc-access-code-input » dans le HTML, le CSS et tous les appels JavaScript.
+- Objectif : éviter que Safari/iPadOS ou un gestionnaire de mots de passe interprète ce champ texte comme un mot de passe et affiche brièvement une demande Touch ID/empreinte au démarrage.
+- Les protections autocomplete/autocorrect/autocapitalize restent actives.
+- Le comportement v4.85 du clavier est conservé : premier tap = ouverture du clavier avec remontée de la page pour garder le champ visible.
+
+NOTAM — SOURCE PRIORITAIRE SDVFR :
+- SDVFR est désormais systématiquement la source NOTAM affichée par défaut à chaque nouvelle ouverture de BFG.
+- Le choix « Utiliser NATS comme source NOTAM » n’est plus mémorisé entre deux ouvertures.
+- Les NOTAM NATS peuvent continuer à être téléchargés/actualisés en arrière-plan mais ne remplacent jamais l’affichage SDVFR.
+- NATS n’est affiché que si l’utilisateur coche explicitement « Utiliser NATS comme source NOTAM » pendant la session en cours.
+- Au lancement suivant, BFG revient automatiquement sur SDVFR.
+
+NOTAM — AFFICHAGE IMMEDIAT ENTRE DEUX OUVERTURES :
+- Ajout d'un cache rapide local des textes NOTAM NATS/SDVFR du jour.
+- Au lancement, ce cache est restauré immédiatement après l'initialisation de l'analyseur NOTAM, avant la restauration IndexedDB lourde et avant les appels réseau.
+- Les NOTAM déjà chargés restent donc affichés pendant l'actualisation réseau de fond au lieu de disparaître jusqu'à la fin du nouveau téléchargement.
+- Le cache rapide n'est valable que pour la journée courante : au premier démarrage d'un nouveau jour, les NOTAM de la veille ne sont pas réaffichés comme s'ils étaient actuels.
+- Le cache rapide est mis à jour après récupération NATS, récupération SDVFR, restauration locale et sauvegarde locale.
+- Il est supprimé lors de la remise à zéro locale et lors de l'expiration quotidienne de la session sauvegardée.
+
+NOTAM — PREMIERE CONNEXION DU JOUR :
+- Ajout d'un bandeau visible dans la rubrique NOTAM : « NOTAMs en téléchargement... ».
+- Le bandeau n'apparaît que lorsqu'aucun NOTAM exploitable n'est déjà affiché.
+- Lors d'une réouverture avec les NOTAM du jour déjà en cache, le rafraîchissement peut continuer en arrière-plan sans masquer les NOTAM ni afficher inutilement le bandeau.
+- Si le téléchargement échoue alors qu'aucun NOTAM n'est disponible, le bandeau passe en erreur « Téléchargement des NOTAM impossible. ».
+
+SDVFR / DEMARRAGE :
+- Le payload SDVFR frais utilisé pour la météo est désormais également exploité immédiatement pour mémoriser les NOTAM SDVFR du même appel.
+- Cela évite une deuxième attente SDVFR au premier chargement et permet d'afficher les NOTAM plus tôt.
+- Cette optimisation ne réintroduit pas le défaut météo de v4.84 : seule la météo du payload frais est appliquée, le cache quotidien NOTAM n'est toujours pas réinjecté comme météo.
+- CheckWX reste totalement désactivé.
+
+NON-REGRESSION :
+- Distinction SUP AIP / SUP AIP AIRAC conservée.
+- Stabilité du scroll v4.83 conservée.
+- Météo SDVFR fraîche de v4.85 conservée.
+- Publication NOTAM vers NPF-Q400 conservée.
+- Aucun changement NAS/VPS ni du worker SDVFR.
+
+Contrôles avant livraison :
+- syntaxe de tous les scripts JavaScript inline ;
+- manifeste JSON ;
+- syntaxe du service worker ;
+- cohérence des versions actives v4.86 ;
+- vérification qu'aucun identifiant « cncasc-password-input » ne subsiste ;
+- vérification du cache rapide NOTAM et du bandeau de téléchargement ;
+- vérification que SDVFR est la source par défaut à chaque ouverture et que le choix NATS n’est plus persistant.
+
+===============================================================================
+
 TEST v4.85 — 2026-09-20
 Base : TEST v4.84
 ===============================================================================
