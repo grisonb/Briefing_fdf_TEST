@@ -1,5 +1,5 @@
-const BFG_SW_VERSION = '4.83';
-const CACHE_NAME = 'briefing-fdf-test-v4.83-scroll-stability-r1';
+const BFG_SW_VERSION = '4.84';
+const CACHE_NAME = 'briefing-fdf-test-v4.84-login-weather-supaip-r1';
 
 const LOCAL_ASSETS = [
   './manifest.json',
