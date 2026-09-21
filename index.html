@@ -818,6 +818,12 @@
             outline: 1px dashed rgba(120, 90, 0, 0.55);
         }
 
+        /* v5.14 : légère respiration entre les champs A), D), E), F), G)... d'un même NOTAM. */
+        .notam-paragraph-start {
+            display: inline-block;
+            margin-top: 5px;
+        }
+
         .notam-text-content.pencil-highlighter-active,
         .notam-validity.pencil-highlighter-active {
             cursor: crosshair;
@@ -2426,10 +2432,10 @@
 
     <div class="page-header">
         <div class="page-header-background"></div>
-        <h1 id="main-title">Briefing Fdf TEST v5.13</h1>
+        <h1 id="main-title">Briefing Fdf TEST</h1>
         <p id="current-time-display"></p>
         <p style="position: relative; z-index: 2; text-align: center; color: #333; font-size: 1em; margin-top: -25px; margin-bottom: 30px;">
-    v<span id="app-version">5.13 TEST - CASE NOIRE VALIDITÉ + ESPACEMENT</span>
+    v<span id="app-version"></span>
     <button id="force-update-btn" class="link-button" style="background-color: #34495e; padding: 4px 10px; font-size: 0.8em; margin-left: 10px; vertical-align: middle;">
         Forcer MAJ
     </button>
@@ -2865,7 +2871,8 @@
     <footer>Données : Météo-France, SIA, Windy.com, SDVFR. Page non commerciale, à usage personnel.</footer>
     
     <script>
-        const APP_VERSION = "5.09 TEST - NOTAM UI + METEO SDVFR";
+        const APP_VERSION_NUMBER = "5.14";
+        const APP_VERSION = `${APP_VERSION_NUMBER} TEST - ESPACEMENT PARAGRAPHES NOTAM`;
 
 
         // v4.97 — diagnostic conservé ; plage NOTAM quotidienne et sélection prioritaire. Aucun code d'accès, token ou contenu NOTAM n'est exporté.
@@ -8824,7 +8831,9 @@ const tdfStages = [
                     : `${baseUrl}lf_sup_${fullYear}_${paddedNumber}_fr.pdf`;
                 return `<a href="${pdfUrl}" class="sup-aip-link" target="_blank" title="Ouvrir le PDF du ${normalizedSupAip}">${match}</a>`;
             });
-            textElement.innerHTML = linkifiedText.replace(/\s+([B-G]\))/g, '<br>$1');
+            // v5.14 : séparation légèrement renforcée entre les champs d'un même NOTAM.
+            // Les lignes techniques B) et C) restent masquées ; A), D), E), F), G)... sont espacées visuellement.
+            textElement.innerHTML = linkifiedText.replace(/\s+([A-G]\))/g, '<br><span class="notam-paragraph-start">$1</span>');
             contentWrapper.appendChild(textElement);
             itemContainer.appendChild(contentWrapper);
             return itemContainer;
@@ -14332,7 +14341,7 @@ window.__notamTextFull = notamInput.value;
 
         function initializePageTitle() {
             const titleElement = document.getElementById('main-title');
-            titleElement.textContent = `Briefing Fdf TEST v5.13 du ${new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}`;
+            titleElement.textContent = `Briefing Fdf TEST v${APP_VERSION_NUMBER} du ${new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}`;
             const timeDisplay = document.getElementById('current-time-display');
             const updateTime = () => timeDisplay.textContent = new Date().toLocaleTimeString('fr-FR');
             updateTime(); setInterval(updateTime, 1000);
