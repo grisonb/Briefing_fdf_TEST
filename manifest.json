@@ -1,7 +1,7 @@
 {
   "name": "Briefing FDF TEST",
   "short_name": "Briefing TEST",
-  "description": "Briefing FDF TEST v5.10 — validité NOTAM, météo manuelle et carte SUP AIP",
+  "description": "Briefing FDF TEST v5.11 — alignement des NOTAM et réorganisation des commandes",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
