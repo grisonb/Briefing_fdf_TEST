@@ -1,7 +1,7 @@
 {
   "name": "Briefing FDF TEST",
   "short_name": "Briefing TEST",
-  "description": "Briefing FDF TEST v5.01 — relais SUP AIP NAS hors interception du service worker",
+  "description": "Briefing FDF TEST v5.02 — diagnostic relais SUP AIP lisible et timeout explicite",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
