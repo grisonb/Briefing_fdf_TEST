@@ -12,8 +12,8 @@
         }
     </script>
     <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0">
-    <title>Briefing Fdf TEST v5.04</title>
-    <link rel="manifest" href="./manifest.json?v=5.04">
+    <title>Briefing Fdf TEST v5.05</title>
+    <link rel="manifest" href="./manifest.json?v=5.05">
     <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png?v=4.24">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-title" content="Briefing TEST">
@@ -446,52 +446,47 @@
 
         .controles, .pdf-controls { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; margin-bottom: 20px; gap: 15px; }
         
+        /* v5.05 — Commandes Windy visibles directement en haut de la carte. */
         .windy-controls-container {
             position: absolute;
             top: 10px;
             left: 10px;
+            right: 10px;
             z-index: 401;
-        }
-        #windy-controls-toggle {
-            width: 40px;
-            height: 40px;
-            border-radius: 50%;
-            background-color: var(--sc-red);
-            color: white;
-            border: none;
-            font-size: 1.5em;
-            cursor: pointer;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.3);
             display: flex;
-            justify-content: center;
-            align-items: center;
-        }
-        .controls-panel { 
-            display: none;
-            position: absolute;
-            top: 50px;
-            left: 0;
             flex-direction: column;
-            align-items: stretch;
-            gap: 8px;
-            background-color: rgba(255, 255, 255, 0.9);
-            padding: 10px;
-            border-radius: 12px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
-            width: max-content;
+            align-items: flex-start;
+            gap: 7px;
+            pointer-events: none;
         }
-        .windy-controls-container.open .controls-panel {
+        .windy-main-controls,
+        .windy-wind-subcontrols {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 6px;
+            padding: 8px;
+            border-radius: 10px;
+            background-color: rgba(255, 255, 255, 0.93);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.25);
+            pointer-events: auto;
+            max-width: 100%;
+            box-sizing: border-box;
+        }
+        .windy-wind-subcontrols {
+            display: none;
+        }
+        .windy-wind-subcontrols.open {
             display: flex;
         }
-        
         .control-group { 
             display: flex; 
             flex-wrap: wrap;
             justify-content: center;
             align-items: center; 
             gap: 6px; 
-            padding: 6px; 
-            background-color: #e4e6eb; 
+            padding: 2px; 
+            background-color: transparent; 
             border-radius: 8px; 
         }
         .control-btn { 
@@ -729,6 +724,11 @@
         .notam-content-wrapper {
             flex-grow: 1;
             min-width: 0;
+        }
+        .notam-reference {
+            font-weight: 900;
+            color: var(--sc-blue);
+            margin-bottom: 5px;
         }
         .notam-validity {
             font-weight: bold;
@@ -2332,10 +2332,10 @@
 
     <div class="page-header">
         <div class="page-header-background"></div>
-        <h1 id="main-title">Briefing Fdf TEST v5.04</h1>
+        <h1 id="main-title">Briefing Fdf TEST v5.05</h1>
         <p id="current-time-display"></p>
         <p style="position: relative; z-index: 2; text-align: center; color: #333; font-size: 1em; margin-top: -25px; margin-bottom: 30px;">
-    v<span id="app-version">5.04 TEST - SUP AIP VIA VPS</span>
+    v<span id="app-version">5.05 TEST - INTERFACE CARTE / NOTAM / WINDY</span>
     <button id="force-update-btn" class="link-button" style="background-color: #34495e; padding: 4px 10px; font-size: 0.8em; margin-left: 10px; vertical-align: middle;">
         Forcer MAJ
     </button>
@@ -2557,20 +2557,22 @@
         </div>
         <div id="windy-container" class="carte-container">
             <div class="windy-controls-container" id="windy-controls-container">
-                <button id="windy-controls-toggle" title="Afficher les contrôles Windy">&#9881;</button>
-                <div class="controls-panel">
+                <div class="windy-main-controls">
+                    <button class="control-btn windy-mode-btn active" data-windy-mode="wind">VENT</button>
+                    <button class="control-btn overlay-btn" data-overlay="drought40" data-product="drought">Sécheresse</button>
+                    <button class="control-btn overlay-btn" data-overlay="radar" data-product="radar">Radar Météo</button>
+                    <button class="control-btn overlay-btn" data-overlay="rain" data-product="ecmwf">Radar</button>
+                    <button class="control-btn overlay-btn" data-overlay="satellite" data-product="satellite">Satellite</button>
+                    <button class="control-btn overlay-btn" data-overlay="thunder" data-product="ecmwf">Orage</button>
+                </div>
+                <div class="windy-wind-subcontrols" id="windy-wind-subcontrols">
                     <div class="control-group">
-                        <button class="control-btn overlay-btn" data-overlay="drought40" data-product="drought">Sécheresse</button>
-                        <button class="control-btn overlay-btn" data-overlay="radar" data-product="radar">Radar</button>
-                        <button class="control-btn overlay-btn" data-overlay="satellite" data-product="satellite">Satellite</button>
-                        <button class="control-btn overlay-btn" data-overlay="thunder" data-product="ecmwf">Orages</button>
-                    </div>
-                    <div class="control-group">
+                        <span class="control-label">Modèle :</span>
                         <button class="control-btn model-btn active" data-model="arome">AROME</button>
                         <button class="control-btn model-btn" data-model="ecmwf">ECMWF</button>
                     </div>
                     <div class="control-group">
-                        <span class="control-label">Vent:</span>
+                        <span class="control-label">Vent :</span>
                         <button class="control-btn altitude-btn active" data-level="surface">SFC</button>
                         <button class="control-btn altitude-btn" data-level="100m">330ft</button>
                         <button class="control-btn altitude-btn" data-level="925h">2500ft</button>
@@ -2712,7 +2714,7 @@
             <div id="sup-aip-map-filters">
                 <label>Du <input type="date" id="sup-aip-map-date-from"></label>
                 <label>au <input type="date" id="sup-aip-map-date-to"></label>
-                <label>FL max <input type="number" id="sup-aip-map-max-fl" min="0" max="660" step="5" value="195" inputmode="numeric"></label>
+                <label>FL max <input type="number" id="sup-aip-map-max-fl" min="0" max="660" step="5" value="115" inputmode="numeric"></label>
                 <button id="sup-aip-map-refresh-btn" class="link-button" type="button">Actualiser SUP AIP</button>
             </div>
             <p id="sup-aip-map-status">Carte SUP AIP non chargée.</p>
@@ -2760,7 +2762,7 @@
     <footer>Données : Météo-France, SIA, Windy.com, SDVFR. Page non commerciale, à usage personnel.</footer>
     
     <script>
-        const APP_VERSION = "5.04 TEST - SUP AIP VIA VPS";
+        const APP_VERSION = "5.05 TEST - INTERFACE CARTE / NOTAM / WINDY";
 
 
         // v4.97 — diagnostic conservé ; plage NOTAM quotidienne et sélection prioritaire. Aucun code d'accès, token ou contenu NOTAM n'est exporté.
@@ -3129,11 +3131,11 @@
                     ? output.value
                     : (bfgDiagPreparedText_ || buildBfgDiagnosticTextSync_());
                 const stamp = new Date().toISOString().replace(/[:.]/g, '-');
-                const filename = `BFG_DIAG_v5.04_${stamp}.txt`;
+                const filename = `BFG_DIAG_v5.05_${stamp}.txt`;
                 const file = new File([text], filename, { type: 'text/plain;charset=utf-8' });
                 if (navigator.share && (!navigator.canShare || navigator.canShare({ files: [file] }))) {
                     try {
-                        await navigator.share({ title: `Diagnostic BFG v5.04`, files: [file] });
+                        await navigator.share({ title: `Diagnostic BFG v5.05`, files: [file] });
                         if (status) status.textContent = 'Diagnostic partagé.';
                         bfgDiagLog_('DIAG', 'Diagnostic partagé via feuille de partage');
                         refreshBfgPreparedDiagnostic_();
@@ -6616,7 +6618,7 @@ const tdfStages = [
             }
         }
         window.onload = waitForPdfJsAndInitialize;
-        const BFG_REQUIRED_SW_VERSION_ = '5.04';
+        const BFG_REQUIRED_SW_VERSION_ = '5.05';
 
         function queryBfgControllerVersion_(timeoutMs = 1800) {
             return new Promise((resolve) => {
@@ -6656,7 +6658,7 @@ const tdfStages = [
             }
 
             const registration = await navigator.serviceWorker.register(
-                './sw.js?v=5.04',
+                './sw.js?v=5.05',
                 { updateViaCache: 'none' }
             );
 
@@ -8295,47 +8297,33 @@ const tdfStages = [
         function initializeWindy() {
             const container = document.getElementById('windy-container');
             const controlsContainer = document.getElementById('windy-controls-container');
-            const controlsToggle = document.getElementById('windy-controls-toggle');
-            const controlsPanel = controlsContainer.querySelector('.controls-panel');
-            
-            const modelButtons = controlsPanel.querySelectorAll('.model-btn');
-            const altitudeButtons = controlsPanel.querySelectorAll('.altitude-btn');
-            const overlayButtons = controlsPanel.querySelectorAll('.overlay-btn');
+            const windSubcontrols = document.getElementById('windy-wind-subcontrols');
+            if (!container || !controlsContainer || !windSubcontrols) return;
 
-            controlsToggle.addEventListener('click', (e) => {
-                e.stopPropagation();
-                controlsContainer.classList.toggle('open');
-            });
-
-            document.addEventListener('click', (e) => {
-                if (!controlsContainer.contains(e.target)) {
-                    controlsContainer.classList.remove('open');
-                }
-            });
-
-            controlsPanel.addEventListener('click', (e) => {
-                if (e.target.matches('.overlay-btn')) {
-                    setTimeout(() => controlsContainer.classList.remove('open'), 150);
-                }
-            });
+            const windModeButton = controlsContainer.querySelector('.windy-mode-btn[data-windy-mode="wind"]');
+            const modelButtons = controlsContainer.querySelectorAll('.model-btn');
+            const altitudeButtons = controlsContainer.querySelectorAll('.altitude-btn');
+            const overlayButtons = controlsContainer.querySelectorAll('.overlay-btn');
 
             function renderWindyMap() {
-                const activeModel = controlsPanel.querySelector('.model-btn.active').dataset.model;
-                const activeAltitudeBtn = controlsPanel.querySelector('.altitude-btn.active');
-                const activeOverlayBtn = controlsPanel.querySelector('.overlay-btn.active');
-                
+                const activeModelBtn = controlsContainer.querySelector('.model-btn.active');
+                const activeModel = activeModelBtn ? activeModelBtn.dataset.model : 'arome';
+                const activeAltitudeBtn = controlsContainer.querySelector('.altitude-btn.active');
+                const activeOverlayBtn = controlsContainer.querySelector('.overlay-btn.active');
+                const windIsActive = !!windModeButton?.classList.contains('active');
+
                 const baseURL = "https://embed.windy.com/embed.html?type=map&location=coordinates&metricRain=mm&metricTemp=°C&metricWind=kt&zoom=6&lat=46.934&lon=2.49";
                 let params = "";
 
-                if (activeAltitudeBtn) {
-                    params = `&overlay=wind&product=${activeModel}&level=${activeAltitudeBtn.dataset.level}`;
+                if (windIsActive) {
+                    const level = activeAltitudeBtn?.dataset.level || 'surface';
+                    params = `&overlay=wind&product=${activeModel}&level=${level}`;
                 } else if (activeOverlayBtn) {
                     const product = activeOverlayBtn.dataset.product || activeModel;
                     params = `&overlay=${activeOverlayBtn.dataset.overlay}&product=${product}`;
                 }
-                
+
                 const newSrc = baseURL + params;
-                
                 let iframe = container.querySelector('iframe');
                 if (!iframe) {
                     iframe = document.createElement('iframe');
@@ -8358,17 +8346,33 @@ const tdfStages = [
                     }
                 });
 
-                if (needsReset) {
-                    const surfaceBtn = controlsPanel.querySelector('.altitude-btn[data-level="surface"]');
-                    if(surfaceBtn) surfaceBtn.classList.add('active');
+                if (needsReset || !controlsContainer.querySelector('.altitude-btn.active')) {
+                    const surfaceBtn = controlsContainer.querySelector('.altitude-btn[data-level="surface"]');
+                    if (surfaceBtn) surfaceBtn.classList.add('active');
                 }
             }
 
+            function activateWindMode({ showControls = true, render = true } = {}) {
+                overlayButtons.forEach(btn => btn.classList.remove('active'));
+                windModeButton?.classList.add('active');
+                if (showControls) windSubcontrols.classList.add('open');
+                manageAltitudeButtonsState(controlsContainer.querySelector('.model-btn.active')?.dataset.model || 'arome');
+                if (render) renderWindyMap();
+            }
+
+            windModeButton?.addEventListener('click', () => {
+                if (windModeButton.classList.contains('active')) {
+                    windSubcontrols.classList.toggle('open');
+                    return;
+                }
+                activateWindMode({ showControls: true, render: true });
+            });
+
             modelButtons.forEach(button => {
                 button.addEventListener('click', () => {
-                    if (button.classList.contains('active')) return;
                     modelButtons.forEach(btn => btn.classList.remove('active'));
                     button.classList.add('active');
+                    activateWindMode({ showControls: true, render: false });
                     manageAltitudeButtonsState(button.dataset.model);
                     renderWindyMap();
                 });
@@ -8376,25 +8380,25 @@ const tdfStages = [
 
             altitudeButtons.forEach(button => {
                 button.addEventListener('click', () => {
-                    if (button.classList.contains('active') || button.disabled) return;
+                    if (button.disabled) return;
 
-                    overlayButtons.forEach(btn => btn.classList.remove('active'));
                     altitudeButtons.forEach(btn => btn.classList.remove('active'));
                     button.classList.add('active');
 
                     const selectedLevel = button.dataset.level;
-                    const activeModelBtn = controlsPanel.querySelector('.model-btn.active');
-                    let activeModel = activeModelBtn.dataset.model;
+                    const activeModelBtn = controlsContainer.querySelector('.model-btn.active');
+                    let activeModel = activeModelBtn?.dataset.model || 'arome';
 
                     if (selectedLevel !== 'surface' && activeModel === 'arome') {
-                        activeModelBtn.classList.remove('active');
-                        const ecmwfBtn = controlsPanel.querySelector('.model-btn[data-model="ecmwf"]');
+                        activeModelBtn?.classList.remove('active');
+                        const ecmwfBtn = controlsContainer.querySelector('.model-btn[data-model="ecmwf"]');
                         if (ecmwfBtn) {
                             ecmwfBtn.classList.add('active');
                             activeModel = 'ecmwf';
                         }
                     }
-                    
+
+                    activateWindMode({ showControls: true, render: false });
                     manageAltitudeButtonsState(activeModel);
                     renderWindyMap();
                 });
@@ -8402,29 +8406,27 @@ const tdfStages = [
 
             overlayButtons.forEach(button => {
                 button.addEventListener('click', () => {
-                    if (button.classList.contains('active')) return;
-                    
-                    altitudeButtons.forEach(btn => btn.classList.remove('active'));
                     overlayButtons.forEach(btn => btn.classList.remove('active'));
                     button.classList.add('active');
+                    windModeButton?.classList.remove('active');
+                    windSubcontrols.classList.remove('open');
 
                     const requiredModel = button.dataset.product;
-                    const isModelSpecific = ['ecmwf', 'arome'].includes(requiredModel);
-
-                    if (isModelSpecific) {
+                    if (['ecmwf', 'arome'].includes(requiredModel)) {
                         modelButtons.forEach(btn => btn.classList.remove('active'));
-                        const modelToActivate = controlsPanel.querySelector(`.model-btn[data-model="${requiredModel}"]`);
+                        const modelToActivate = controlsContainer.querySelector(`.model-btn[data-model="${requiredModel}"]`);
                         if (modelToActivate) {
                             modelToActivate.classList.add('active');
                             manageAltitudeButtonsState(requiredModel);
                         }
                     }
-                    
+
                     renderWindyMap();
                 });
             });
 
-            manageAltitudeButtonsState(controlsPanel.querySelector('.model-btn.active').dataset.model);
+            manageAltitudeButtonsState(controlsContainer.querySelector('.model-btn.active')?.dataset.model || 'arome');
+            windSubcontrols.classList.remove('open');
             renderWindyMap();
         }
 
@@ -8513,6 +8515,17 @@ const tdfStages = [
             return hashStringForNotamState_(notamText);
         }
 
+        // v5.05 — Q), B) et C) restent dans les données brutes pour l'analyse,
+        // mais ne sont plus répétés dans le texte affiché.
+        function bfgGetNotamDisplayText_(notamText) {
+            return String(notamText || '')
+                .replace(/\r\n?/g, '\n')
+                .split('\n')
+                .filter(line => !/^\s*[QBC]\)\s*/i.test(line))
+                .join('\n')
+                .trim();
+        }
+
         function createNotamItemElement(notamText, icao, source = BFG_NOTAM_SOURCE_NATS_) {
             const validity = parseNotamValidity(notamText);
             const normalizedSource = source === BFG_NOTAM_SOURCE_SDVFR_ ? BFG_NOTAM_SOURCE_SDVFR_ : BFG_NOTAM_SOURCE_NATS_;
@@ -8569,6 +8582,13 @@ const tdfStages = [
 
             const contentWrapper = document.createElement('div');
             contentWrapper.className = 'notam-content-wrapper';
+
+            if (notamNumber) {
+                const referenceElement = document.createElement('div');
+                referenceElement.className = 'notam-reference';
+                referenceElement.textContent = notamNumber.replace('-', '/');
+                contentWrapper.appendChild(referenceElement);
+            }
             
             if (validity.text) {
                 const validityElement = document.createElement('div');
@@ -8581,9 +8601,11 @@ const tdfStages = [
             textElement.className = 'notam-text-content';
             // v4.84 : le mot AIRAC doit être conservé pour choisir le vrai nom du PDF SIA.
             // SUP AIP classique : lf_sup_YYYY_NNN_fr.pdf ; SUP AIP AIRAC : lf_sup_a_YYYY_NNN_fr.pdf.
-            // Le libellé original du NOTAM reste affiché tel quel.
+            // Le contenu opérationnel reste inchangé ; seules les lignes techniques Q), B) et C)
+            // sont retirées de l'affichage (les données brutes restent conservées).
+            const displayNotamText = bfgGetNotamDisplayText_(notamText);
             const supAipRegex = /\b((?:AIP\s+SUP|SUP\s+AIP)(?:\s+AIRAC)?|SUP)\s+(\d{1,3})\/(\d{2})\b/gi;
-            let linkifiedText = notamText.replace(supAipRegex, (match, supLabel, supNumber, twoDigitYear) => {
+            let linkifiedText = displayNotamText.replace(supAipRegex, (match, supLabel, supNumber, twoDigitYear) => {
                 const fullYear = `20${twoDigitYear}`;
                 const paddedNumber = supNumber.padStart(3, '0');
                 const isAirac = /\bAIRAC\b/i.test(supLabel);
@@ -13463,7 +13485,7 @@ window.__notamTextFull = notamInput.value;
         }
         
 
-        // ===== v5.04 : CARTE FRANCE SUP AIP / SUP AIP VIA WORKER VPS =====
+        // ===== v5.05 : CARTE FRANCE SUP AIP / CADRAGE METROPOLE + CORSE =====
         let bfgSupAipFranceMap_ = null;
         let bfgSupAipFranceLayer_ = null;
         let bfgSupAipRawPayload_ = null;
@@ -13663,7 +13685,7 @@ window.__notamTextFull = notamInput.value;
 
         async function bfgFetchSupAipTemporaryAirspaces_(force = false) {
             const maxFlInput = document.getElementById('sup-aip-map-max-fl');
-            const requestedCeiling = Math.max(0, Math.min(660, Math.round(Number(maxFlInput?.value || 195))));
+            const requestedCeiling = Math.max(0, Math.min(660, Math.round(Number(maxFlInput?.value || 115))));
             if (!force && bfgSupAipRawPayload_ && Number.isFinite(Number(bfgSupAipLoadedCeiling_)) && Number(bfgSupAipLoadedCeiling_) >= requestedCeiling) {
                 return bfgSupAipRawPayload_;
             }
@@ -13804,7 +13826,7 @@ window.__notamTextFull = notamInput.value;
             if (cached && cached.payload) {
                 bfgDiagLog_('SUPAIP-CACHE', 'Carte SUP AIP restaurée depuis le cache local', { savedAt: cached.savedAt || '' });
                 const cachedCeiling = Number(cached.ceiling);
-                bfgSupAipLoadedCeiling_ = Number.isFinite(cachedCeiling) ? cachedCeiling : 195;
+                bfgSupAipLoadedCeiling_ = Number.isFinite(cachedCeiling) ? cachedCeiling : 115;
                 bfgSupAipRawPayload_ = cached.payload;
                 return cached.payload;
             }
@@ -13840,6 +13862,8 @@ window.__notamTextFull = notamInput.value;
                 desc + pdfLink;
         }
 
+        const BFG_SUPAIP_METRO_BOUNDS_ = [[41.0, -6.5], [51.6, 10.5]];
+
         function bfgRenderSupAipFranceMap_() {
             if (!bfgSupAipFranceMap_ || !bfgSupAipRawPayload_ || !window.L) return;
             if (bfgSupAipFranceLayer_) {
@@ -13850,14 +13874,22 @@ window.__notamTextFull = notamInput.value;
             const rawItems = bfgExtractSupAipItems_(bfgSupAipRawPayload_);
             const normalized = rawItems.map(bfgNormalizeSupAipItem_).filter(Boolean);
             const selected = normalized.filter(bfgSupAipZoneMatchesFilters_);
+            const metroBounds = L.latLngBounds(BFG_SUPAIP_METRO_BOUNDS_);
             const group = L.featureGroup();
+            let displayedCount = 0;
+
             selected.forEach(zone => {
                 try {
                     const layer = L.geoJSON({ type: 'Feature', geometry: zone.geometry, properties: {} }, {
                         style: { color: '#b000b5', weight: 2, fillColor: '#d946ef', fillOpacity: 0.18 }
                     });
+                    const layerBounds = layer.getBounds();
+                    // v5.05 : les SUP AIP ultramarins restent dans les données brutes mais
+                    // ne sont pas affichés sur cette carte France métropolitaine + Corse.
+                    if (!layerBounds.isValid() || !layerBounds.overlaps(metroBounds)) return;
                     layer.bindPopup(bfgSupAipPopupHtml_(zone), { maxWidth: 360 });
                     layer.addTo(group);
+                    displayedCount += 1;
                 } catch (error) {
                     console.warn('BFG SUP AIP : géométrie ignorée.', error, zone.label);
                 }
@@ -13866,13 +13898,11 @@ window.__notamTextFull = notamInput.value;
             bfgSupAipFranceLayer_ = group;
             if (status) {
                 status.classList.remove('warning');
-                status.textContent = `${selected.length} zone(s) SUP AIP affichée(s) sur ${normalized.length} reconnue(s).`;
+                status.textContent = `${displayedCount} zone(s) SUP AIP affichée(s) en France métropolitaine / Corse.`;
             }
-            if (selected.length && group.getBounds().isValid()) {
-                bfgSupAipFranceMap_.fitBounds(group.getBounds().pad(0.08), { maxZoom: 8 });
-            } else {
-                bfgSupAipFranceMap_.fitBounds([[41.0, -5.5], [51.5, 9.8]]);
-            }
+            // Le cadrage reste volontairement fixe : une zone ultramarine ne doit jamais
+            // provoquer un zoom monde ou éloigner la France.
+            bfgSupAipFranceMap_.fitBounds(metroBounds, { animate: false });
         }
 
         async function bfgLoadAndRenderSupAipMap_(force = false) {
@@ -13882,14 +13912,14 @@ window.__notamTextFull = notamInput.value;
                 if (button) button.disabled = true;
                 if (status) {
                     status.classList.remove('warning');
-                    status.textContent = force ? 'Actualisation des zones SUP AIP SDVFR...' : 'Chargement des zones SUP AIP SDVFR...';
+                    status.textContent = force ? 'Actualisation des zones SUP AIP...' : 'Chargement des zones SUP AIP...';
                 }
                 bfgSupAipRawPayload_ = await bfgFetchSupAipTemporaryAirspaces_(force);
                 bfgRenderSupAipFranceMap_();
             } catch (error) {
                 if (status) {
                     status.classList.add('warning');
-                    status.textContent = `Carte SUP AIP indisponible : ${error.message || error}`;
+                    status.textContent = 'Carte SUP AIP indisponible. Consultez le diagnostic BFG pour le détail technique.';
                 }
             } finally {
                 if (button) button.disabled = false;
@@ -13908,7 +13938,7 @@ window.__notamTextFull = notamInput.value;
             if (toInput && !toInput.value) toInput.value = today;
 
             bfgSupAipFranceMap_ = L.map(mapElement, { zoomControl: true, preferCanvas: true });
-            bfgSupAipFranceMap_.fitBounds([[41.0, -5.5], [51.5, 9.8]]);
+            bfgSupAipFranceMap_.fitBounds(BFG_SUPAIP_METRO_BOUNDS_, { animate: false });
             L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
                 maxZoom: 18,
                 attribution: '&copy; OpenStreetMap contributors'
@@ -13916,7 +13946,7 @@ window.__notamTextFull = notamInput.value;
 
             const rerender = () => bfgRenderSupAipFranceMap_();
             const rerenderOrExtendCeiling = () => {
-                const requested = Math.max(0, Math.min(660, Math.round(Number(maxFlInput?.value || 195))));
+                const requested = Math.max(0, Math.min(660, Math.round(Number(maxFlInput?.value || 115))));
                 if (navigator.onLine && Number.isFinite(Number(bfgSupAipLoadedCeiling_)) && requested > Number(bfgSupAipLoadedCeiling_)) {
                     bfgLoadAndRenderSupAipMap_(true);
                 } else {
@@ -13952,7 +13982,7 @@ window.__notamTextFull = notamInput.value;
 
         function initializePageTitle() {
             const titleElement = document.getElementById('main-title');
-            titleElement.textContent = `Briefing Fdf TEST v5.04 du ${new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}`;
+            titleElement.textContent = `Briefing Fdf TEST v5.05 du ${new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}`;
             const timeDisplay = document.getElementById('current-time-display');
             const updateTime = () => timeDisplay.textContent = new Date().toLocaleTimeString('fr-FR');
             updateTime(); setInterval(updateTime, 1000);
