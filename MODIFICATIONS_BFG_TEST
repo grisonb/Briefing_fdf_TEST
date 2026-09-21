@@ -1,3 +1,32 @@
+TEST v5.14 — 2026-09-21
+Base : TEST v5.13
+===============================================================================
+
+VERSION AFFICHÉE — SOURCE UNIQUE DANS INDEX.HTML
+- Correction du numéro affiché sous l'heure : l'ancienne constante interne restée à « 5.09 » est supprimée.
+- Le numéro de version de l'interface est désormais défini une seule fois par APP_VERSION_NUMBER = « 5.14 ».
+- La ligne de version sous l'heure et le titre principal utilisent tous deux cette même constante afin d'éviter une nouvelle désynchronisation.
+- Les valeurs statiques de version dans le HTML sont supprimées ; elles sont renseignées au chargement par JavaScript.
+
+NOTAM — ESPACEMENT ENTRE LES PARAGRAPHES
+- Léger agrandissement de l'espace vertical entre les champs internes d'un même NOTAM : A), D), E), F), G), etc.
+- Ajout d'environ 5 px avant chaque nouveau champ afin d'améliorer la lecture sans créer une ligne blanche complète.
+- Les lignes techniques Q), B) et C) restent masquées comme précédemment.
+- Aucun changement du texte opérationnel ni de la logique de filtrage, sélection, surlignage ou persistance.
+
+NON-RÉGRESSION
+- Positionnement v5.13 des cases conservé : verte sur la référence du NOTAM, noire sur la ligne « au … ».
+- Espacement horizontal renforcé entre les cases et le texte conservé.
+- Ordre des boutons v5.12/v5.13 conservé : « Sauvegarder en Pdf » au-dessus de « Annuler Surlignage ».
+- Présentation « Validité du … / au … », météo manuelle sans mention visible de SDVFR et clignotement SUP AIP conservés.
+- Aucun changement NAS / worker VPS / RTBA.
+
+CONTRÔLES AVANT LIVRAISON
+- Cohérence de version contrôlée dans index.html.
+- Manifeste JSON vérifié.
+- Service worker aligné sur v5.14 avec nouveau nom de cache.
+- Historique v5.13 et antérieur conservé intégralement.
+
 TEST v5.13 — 2026-09-21
 Base : TEST v5.12
 ===============================================================================
