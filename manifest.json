@@ -1,7 +1,7 @@
 {
   "name": "Briefing FDF TEST",
   "short_name": "Briefing TEST",
-  "description": "Briefing FDF TEST v5.14 — version synchronisée et espacement des paragraphes NOTAM",
+  "description": "Briefing FDF TEST v5.15 — annulation sélection et surlignage persistante",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
