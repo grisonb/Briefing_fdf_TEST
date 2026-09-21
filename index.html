@@ -12,8 +12,8 @@
         }
     </script>
     <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0">
-    <title>Briefing Fdf TEST v5.05</title>
-    <link rel="manifest" href="./manifest.json?v=5.05">
+    <title>Briefing Fdf TEST v5.06</title>
+    <link rel="manifest" href="./manifest.json?v=5.06">
     <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png?v=4.24">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-title" content="Briefing TEST">
@@ -502,7 +502,17 @@
             box-shadow: 0 1px 3px rgba(0,0,0,0.1); 
         }
         .control-btn:hover:not(:disabled) { background-color: #dcdfe4; }
-        .control-btn.active { background-color: #007aff; color: white; transform: scale(1.05); }
+        /* v5.06 — état sélectionné Windy rendu de façon autoritaire sur iPad/Safari. */
+        .control-btn { -webkit-appearance: none; appearance: none; -webkit-backface-visibility: hidden; backface-visibility: hidden; }
+        .control-btn.active,
+        .control-btn.active:hover,
+        .control-btn.active:focus,
+        .control-btn.active:active {
+            background-color: #007aff !important;
+            color: #ffffff !important;
+            transform: scale(1.05);
+            -webkit-transform: scale(1.05);
+        }
         .control-btn:disabled { background-color: #f4f4f4; color: #aaa; cursor: not-allowed; border-color: #e0e0e0; }
         .control-label { font-size: 1em; font-weight: bold; color: var(--sc-blue); padding-right: 5px; }
 
@@ -1213,6 +1223,21 @@
             min-height: 1.3em;
         }
         #sup-aip-map-status.warning { color: #9a3412; }
+        /* v5.06 — légende des catégories SUP AIP. Traits volontairement pleins. */
+        #sup-aip-map-legend {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            align-items: center;
+            gap: 6px 12px;
+            margin: 0 0 10px 0;
+            font-size: 0.82em;
+            font-weight: 700;
+            color: #334155;
+        }
+        .bfg-supaip-legend-item { display: inline-flex; align-items: center; gap: 5px; }
+        .bfg-supaip-legend-swatch { width: 20px; height: 9px; border: 2px solid currentColor; border-radius: 3px; background: currentColor; opacity: 0.78; box-sizing: border-box; }
+        .bfg-supaip-legend-note { font-weight: 600; color: #64748b; }
         #sup-aip-france-map {
             width: 100%;
             height: min(68vh, 720px);
@@ -2332,10 +2357,10 @@
 
     <div class="page-header">
         <div class="page-header-background"></div>
-        <h1 id="main-title">Briefing Fdf TEST v5.05</h1>
+        <h1 id="main-title">Briefing Fdf TEST v5.06</h1>
         <p id="current-time-display"></p>
         <p style="position: relative; z-index: 2; text-align: center; color: #333; font-size: 1em; margin-top: -25px; margin-bottom: 30px;">
-    v<span id="app-version">5.05 TEST - INTERFACE CARTE / NOTAM / WINDY</span>
+    v<span id="app-version">5.06 TEST - COULEURS SUP AIP / WINDY</span>
     <button id="force-update-btn" class="link-button" style="background-color: #34495e; padding: 4px 10px; font-size: 0.8em; margin-left: 10px; vertical-align: middle;">
         Forcer MAJ
     </button>
@@ -2718,6 +2743,15 @@
                 <button id="sup-aip-map-refresh-btn" class="link-button" type="button">Actualiser SUP AIP</button>
             </div>
             <p id="sup-aip-map-status">Carte SUP AIP non chargée.</p>
+            <div id="sup-aip-map-legend" aria-label="Légende SUP AIP">
+                <span class="bfg-supaip-legend-item" style="color:#c62828;"><span class="bfg-supaip-legend-swatch"></span>ZIT</span>
+                <span class="bfg-supaip-legend-item" style="color:#e76f00;"><span class="bfg-supaip-legend-swatch"></span>ZRT</span>
+                <span class="bfg-supaip-legend-item" style="color:#d6a500;"><span class="bfg-supaip-legend-swatch"></span>ZDT</span>
+                <span class="bfg-supaip-legend-item" style="color:#d94801;"><span class="bfg-supaip-legend-swatch"></span>ZRT/ZDT</span>
+                <span class="bfg-supaip-legend-item" style="color:#2563eb;"><span class="bfg-supaip-legend-swatch"></span>CTR/TMA</span>
+                <span class="bfg-supaip-legend-item" style="color:#7e22ce;"><span class="bfg-supaip-legend-swatch"></span>Autre</span>
+                <span class="bfg-supaip-legend-note">Pulsation légère = début de validité à venir</span>
+            </div>
             <div id="sup-aip-france-map" aria-label="Carte de France des SUP AIP"></div>
         </div>
         <div id="sup-aip-controls" class="pdf-controls">
@@ -2762,7 +2796,7 @@
     <footer>Données : Météo-France, SIA, Windy.com, SDVFR. Page non commerciale, à usage personnel.</footer>
     
     <script>
-        const APP_VERSION = "5.05 TEST - INTERFACE CARTE / NOTAM / WINDY";
+        const APP_VERSION = "5.06 TEST - COULEURS SUP AIP / WINDY";
 
 
         // v4.97 — diagnostic conservé ; plage NOTAM quotidienne et sélection prioritaire. Aucun code d'accès, token ou contenu NOTAM n'est exporté.
@@ -3131,11 +3165,11 @@
                     ? output.value
                     : (bfgDiagPreparedText_ || buildBfgDiagnosticTextSync_());
                 const stamp = new Date().toISOString().replace(/[:.]/g, '-');
-                const filename = `BFG_DIAG_v5.05_${stamp}.txt`;
+                const filename = `BFG_DIAG_v5.06_${stamp}.txt`;
                 const file = new File([text], filename, { type: 'text/plain;charset=utf-8' });
                 if (navigator.share && (!navigator.canShare || navigator.canShare({ files: [file] }))) {
                     try {
-                        await navigator.share({ title: `Diagnostic BFG v5.05`, files: [file] });
+                        await navigator.share({ title: `Diagnostic BFG v5.06`, files: [file] });
                         if (status) status.textContent = 'Diagnostic partagé.';
                         bfgDiagLog_('DIAG', 'Diagnostic partagé via feuille de partage');
                         refreshBfgPreparedDiagnostic_();
@@ -6618,7 +6652,7 @@ const tdfStages = [
             }
         }
         window.onload = waitForPdfJsAndInitialize;
-        const BFG_REQUIRED_SW_VERSION_ = '5.05';
+        const BFG_REQUIRED_SW_VERSION_ = '5.06';
 
         function queryBfgControllerVersion_(timeoutMs = 1800) {
             return new Promise((resolve) => {
@@ -6658,7 +6692,7 @@ const tdfStages = [
             }
 
             const registration = await navigator.serviceWorker.register(
-                './sw.js?v=5.05',
+                './sw.js?v=5.06',
                 { updateViaCache: 'none' }
             );
 
@@ -8333,6 +8367,17 @@ const tdfStages = [
                 iframe.src = newSrc;
             }
 
+            // v5.06 — Safari/iPad peut différer le repaint des boutons lorsqu'on
+            // recharge l'iframe Windy dans la même pile d'événement. Deux frames
+            // sont laissées au navigateur pour peindre l'état bleu avant le reload.
+            function renderWindyMapAfterControlPaint_() {
+                void controlsContainer.offsetHeight;
+                requestAnimationFrame(() => {
+                    void controlsContainer.offsetHeight;
+                    requestAnimationFrame(() => renderWindyMap());
+                });
+            }
+
             function manageAltitudeButtonsState(selectedModel) {
                 const isArome = selectedModel === 'arome';
                 let needsReset = false;
@@ -8357,7 +8402,7 @@ const tdfStages = [
                 windModeButton?.classList.add('active');
                 if (showControls) windSubcontrols.classList.add('open');
                 manageAltitudeButtonsState(controlsContainer.querySelector('.model-btn.active')?.dataset.model || 'arome');
-                if (render) renderWindyMap();
+                if (render) renderWindyMapAfterControlPaint_();
             }
 
             windModeButton?.addEventListener('click', () => {
@@ -8374,7 +8419,7 @@ const tdfStages = [
                     button.classList.add('active');
                     activateWindMode({ showControls: true, render: false });
                     manageAltitudeButtonsState(button.dataset.model);
-                    renderWindyMap();
+                    renderWindyMapAfterControlPaint_();
                 });
             });
 
@@ -8400,7 +8445,7 @@ const tdfStages = [
 
                     activateWindMode({ showControls: true, render: false });
                     manageAltitudeButtonsState(activeModel);
-                    renderWindyMap();
+                    renderWindyMapAfterControlPaint_();
                 });
             });
 
@@ -8421,7 +8466,7 @@ const tdfStages = [
                         }
                     }
 
-                    renderWindyMap();
+                    renderWindyMapAfterControlPaint_();
                 });
             });
 
@@ -13485,11 +13530,14 @@ window.__notamTextFull = notamInput.value;
         }
         
 
-        // ===== v5.05 : CARTE FRANCE SUP AIP / CADRAGE METROPOLE + CORSE =====
+        // ===== v5.06 : CARTE FRANCE SUP AIP / COULEURS + VALIDITE FUTURE =====
         let bfgSupAipFranceMap_ = null;
         let bfgSupAipFranceLayer_ = null;
         let bfgSupAipRawPayload_ = null;
         let bfgSupAipLoadedCeiling_ = null;
+        let bfgSupAipFuturePulseTimer_ = null;
+        let bfgSupAipFuturePulseLayers_ = [];
+        let bfgSupAipFuturePulseState_ = true;
 
         function bfgTodayIsoDate_() {
             const d = new Date();
@@ -13850,6 +13898,59 @@ window.__notamTextFull = notamInput.value;
             return true;
         }
 
+        function bfgSupAipCategory_(zone) {
+            const label = String(zone && zone.label || '').toUpperCase().replace(/\s+/g, ' ').trim();
+            // Ordre important : ZRT/ZDT doit être détecté avant ZRT ou ZDT seuls.
+            if (/\bZRT\s*\/\s*ZDT\b/.test(label)) return 'ZRT_ZDT';
+            if (/\bZIT\b/.test(label)) return 'ZIT';
+            if (/\bZRT\b/.test(label)) return 'ZRT';
+            if (/\bZDT\b/.test(label)) return 'ZDT';
+            if (/\b(?:CTR|TMA)\b/.test(label)) return 'CTR_TMA';
+            return 'OTHER';
+        }
+
+        function bfgSupAipStyle_(zone) {
+            const category = bfgSupAipCategory_(zone);
+            const palette = {
+                ZIT:     { color: '#c62828', fillColor: '#ef4444' },
+                ZRT:     { color: '#e76f00', fillColor: '#fb923c' },
+                ZDT:     { color: '#d6a500', fillColor: '#facc15' },
+                ZRT_ZDT: { color: '#d94801', fillColor: '#f97316' },
+                CTR_TMA: { color: '#2563eb', fillColor: '#60a5fa' },
+                OTHER:   { color: '#7e22ce', fillColor: '#c084fc' }
+            };
+            const colors = palette[category] || palette.OTHER;
+            return { ...colors, weight: 2, opacity: 0.95, fillOpacity: 0.18 };
+        }
+
+        function bfgSupAipStartsInFuture_(zone) {
+            return !!(zone && zone.start instanceof Date && !Number.isNaN(zone.start.getTime()) && zone.start.getTime() > Date.now());
+        }
+
+        function bfgStopSupAipFuturePulse_() {
+            if (bfgSupAipFuturePulseTimer_) clearInterval(bfgSupAipFuturePulseTimer_);
+            bfgSupAipFuturePulseTimer_ = null;
+            bfgSupAipFuturePulseLayers_ = [];
+            bfgSupAipFuturePulseState_ = true;
+        }
+
+        function bfgStartSupAipFuturePulse_() {
+            if (!bfgSupAipFuturePulseLayers_.length) return;
+            bfgSupAipFuturePulseState_ = true;
+            bfgSupAipFuturePulseTimer_ = setInterval(() => {
+                bfgSupAipFuturePulseState_ = !bfgSupAipFuturePulseState_;
+                const factor = bfgSupAipFuturePulseState_ ? 1 : 0.58;
+                bfgSupAipFuturePulseLayers_.forEach(({ layer, style }) => {
+                    try {
+                        layer.setStyle({
+                            opacity: Math.max(0.5, style.opacity * factor),
+                            fillOpacity: Math.max(0.08, style.fillOpacity * factor)
+                        });
+                    } catch (_) {}
+                });
+            }, 1250);
+        }
+
         function bfgSupAipPopupHtml_(zone) {
             const pdf = bfgBuildOfficialSupAipPdf_(zone);
             const desc = zone.description ? `<div class="bfg-supaip-popup-row">${escapeHtml_(zone.description)}</div>` : '';
@@ -13866,6 +13967,7 @@ window.__notamTextFull = notamInput.value;
 
         function bfgRenderSupAipFranceMap_() {
             if (!bfgSupAipFranceMap_ || !bfgSupAipRawPayload_ || !window.L) return;
+            bfgStopSupAipFuturePulse_();
             if (bfgSupAipFranceLayer_) {
                 bfgSupAipFranceLayer_.remove();
                 bfgSupAipFranceLayer_ = null;
@@ -13880,8 +13982,9 @@ window.__notamTextFull = notamInput.value;
 
             selected.forEach(zone => {
                 try {
+                    const zoneStyle = bfgSupAipStyle_(zone);
                     const layer = L.geoJSON({ type: 'Feature', geometry: zone.geometry, properties: {} }, {
-                        style: { color: '#b000b5', weight: 2, fillColor: '#d946ef', fillOpacity: 0.18 }
+                        style: zoneStyle
                     });
                     const layerBounds = layer.getBounds();
                     // v5.05 : les SUP AIP ultramarins restent dans les données brutes mais
@@ -13889,6 +13992,9 @@ window.__notamTextFull = notamInput.value;
                     if (!layerBounds.isValid() || !layerBounds.overlaps(metroBounds)) return;
                     layer.bindPopup(bfgSupAipPopupHtml_(zone), { maxWidth: 360 });
                     layer.addTo(group);
+                    if (bfgSupAipStartsInFuture_(zone)) {
+                        bfgSupAipFuturePulseLayers_.push({ layer, style: zoneStyle });
+                    }
                     displayedCount += 1;
                 } catch (error) {
                     console.warn('BFG SUP AIP : géométrie ignorée.', error, zone.label);
@@ -13896,6 +14002,7 @@ window.__notamTextFull = notamInput.value;
             });
             group.addTo(bfgSupAipFranceMap_);
             bfgSupAipFranceLayer_ = group;
+            bfgStartSupAipFuturePulse_();
             if (status) {
                 status.classList.remove('warning');
                 status.textContent = `${displayedCount} zone(s) SUP AIP affichée(s) en France métropolitaine / Corse.`;
@@ -13982,7 +14089,7 @@ window.__notamTextFull = notamInput.value;
 
         function initializePageTitle() {
             const titleElement = document.getElementById('main-title');
-            titleElement.textContent = `Briefing Fdf TEST v5.05 du ${new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}`;
+            titleElement.textContent = `Briefing Fdf TEST v5.06 du ${new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}`;
             const timeDisplay = document.getElementById('current-time-display');
             const updateTime = () => timeDisplay.textContent = new Date().toLocaleTimeString('fr-FR');
             updateTime(); setInterval(updateTime, 1000);
