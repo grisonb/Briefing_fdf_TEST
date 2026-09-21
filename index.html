@@ -12,8 +12,8 @@
         }
     </script>
     <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0">
-    <title>Briefing Fdf TEST v4.99</title>
-    <link rel="manifest" href="./manifest.json?v=4.99">
+    <title>Briefing Fdf TEST v5.00</title>
+    <link rel="manifest" href="./manifest.json?v=5.00">
     <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png?v=4.24">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-title" content="Briefing TEST">
@@ -1173,7 +1173,7 @@
             border-radius: 8px;
             box-shadow: 0 2px 8px rgba(0,0,0,0.08);
         }
-        /* v4.99 — Carte France SUP AIP via relais NAS vers les zones temporaires SDVFR. */
+        /* v5.00 — Carte SUP AIP : diagnostic complet BFG -> NAS -> SDVFR. */
         #sup-aip-map-panel {
             margin: 0 0 22px 0;
             padding: 16px;
@@ -2332,10 +2332,10 @@
 
     <div class="page-header">
         <div class="page-header-background"></div>
-        <h1 id="main-title">Briefing Fdf TEST v4.99</h1>
+        <h1 id="main-title">Briefing Fdf TEST v5.00</h1>
         <p id="current-time-display"></p>
         <p style="position: relative; z-index: 2; text-align: center; color: #333; font-size: 1em; margin-top: -25px; margin-bottom: 30px;">
-    v<span id="app-version">4.99 TEST - CARTE SUP AIP RELAIS NAS</span>
+    v<span id="app-version">5.00 TEST - DIAGNOSTIC SUP AIP</span>
     <button id="force-update-btn" class="link-button" style="background-color: #34495e; padding: 4px 10px; font-size: 0.8em; margin-left: 10px; vertical-align: middle;">
         Forcer MAJ
     </button>
@@ -2760,7 +2760,7 @@
     <footer>Données : Météo-France, SIA, Windy.com, SDVFR. Page non commerciale, à usage personnel.</footer>
     
     <script>
-        const APP_VERSION = "4.99 TEST - CARTE SUP AIP RELAIS NAS";
+        const APP_VERSION = "5.00 TEST - DIAGNOSTIC SUP AIP";
 
 
         // v4.97 — diagnostic conservé ; plage NOTAM quotidienne et sélection prioritaire. Aucun code d'accès, token ou contenu NOTAM n'est exporté.
@@ -2770,6 +2770,27 @@
         let bfgDiagEditorDirty_ = false;
         let bfgDiagPreparedText_ = '';
         let bfgDiagPrepareInFlight_ = false;
+
+        // v5.00 — état du dernier échange carte SUP AIP, exporté dans le diagnostic BFG.
+        const bfgSupAipRelayDiag_ = {
+            lastAttemptAt: '',
+            requestUrl: '',
+            bfgToNasStatus: null,
+            bfgToNasOk: null,
+            bfgToNasContentType: '',
+            bfgToNasDurationMs: null,
+            relaySource: '',
+            relayVersion: '',
+            upstreamUrl: '',
+            upstreamStatus: null,
+            upstreamContentType: '',
+            upstreamDurationMs: null,
+            upstreamJsonValid: null,
+            curlErrno: null,
+            curlError: '',
+            responsePreview: '',
+            error: ''
+        };
 
         function bfgDiagSafeData_(value) {
             if (value == null) return '';
@@ -2967,6 +2988,33 @@
                 }
             } catch (e) { push('Service worker/caches :', `ERREUR ${e && e.message || e}`); }
             lines.push('');
+            lines.push('=== CARTE SUP AIP / RELAIS NAS ===');
+            try {
+                const d = bfgSupAipRelayDiag_;
+                push('Dernier essai :', d.lastAttemptAt || 'AUCUN');
+                push('URL relais :', d.requestUrl || SDVFR_TEMPORARY_AIRSPACES_API_URL || '');
+                const nasStatus = Number.isFinite(Number(d.bfgToNasStatus)) ? `HTTP ${d.bfgToNasStatus}` : 'HTTP inconnu';
+                const nasOk = d.bfgToNasOk === true ? 'OK' : (d.bfgToNasOk === false ? 'ECHEC' : 'inconnu');
+                const nasTime = Number.isFinite(Number(d.bfgToNasDurationMs)) ? `${Math.round(Number(d.bfgToNasDurationMs))} ms` : 'durée inconnue';
+                push('BFG -> NAS :', `${nasStatus} | ${nasOk} | ${nasTime}${d.bfgToNasContentType ? ` | ${d.bfgToNasContentType}` : ''}`);
+                push('Source relais :', d.relaySource || 'inconnue');
+                push('Version relais :', d.relayVersion || 'inconnue');
+                const upStatus = Number.isFinite(Number(d.upstreamStatus)) ? `HTTP ${d.upstreamStatus}` : 'HTTP inconnu';
+                const upTime = Number.isFinite(Number(d.upstreamDurationMs)) ? `${Math.round(Number(d.upstreamDurationMs))} ms` : 'durée inconnue';
+                push('NAS -> SDVFR :', `${upStatus} | ${upTime}${d.upstreamContentType ? ` | ${d.upstreamContentType}` : ''}`);
+                if (d.upstreamUrl) push('URL SDVFR :', d.upstreamUrl);
+                if (d.upstreamJsonValid !== null) push('JSON SDVFR valide :', d.upstreamJsonValid ? 'OUI' : 'NON');
+                if (Number(d.curlErrno || 0) !== 0 || d.curlError) push('cURL NAS :', `${d.curlErrno || 0}${d.curlError ? ` | ${d.curlError}` : ''}`);
+                if (d.responsePreview) push('Extrait réponse SDVFR :', d.responsePreview);
+                if (d.error) push('Erreur carte SUP AIP :', d.error);
+                try {
+                    const supCache = typeof bfgReadSupAipMapCache_ === 'function' ? await bfgReadSupAipMapCache_() : null;
+                    push('Cache local carte SUP AIP :', supCache && supCache.payload ? `OK${supCache.savedAt ? ` | ${supCache.savedAt}` : ''}` : 'ABSENT');
+                } catch (cacheError) {
+                    push('Cache local carte SUP AIP :', `ERREUR ${cacheError && cacheError.message || cacheError}`);
+                }
+            } catch (e) { push('Diagnostic SUP AIP :', `ERREUR ${e && e.message || e}`); }
+            lines.push('');
             lines.push('=== METEO ===');
             try {
                 const weatherNodes = Array.from(document.querySelectorAll('#notam-display .airport-section-container[data-icao]'));
@@ -3073,11 +3121,11 @@
                     ? output.value
                     : (bfgDiagPreparedText_ || buildBfgDiagnosticTextSync_());
                 const stamp = new Date().toISOString().replace(/[:.]/g, '-');
-                const filename = `BFG_DIAG_v4.99_${stamp}.txt`;
+                const filename = `BFG_DIAG_v5.00_${stamp}.txt`;
                 const file = new File([text], filename, { type: 'text/plain;charset=utf-8' });
                 if (navigator.share && (!navigator.canShare || navigator.canShare({ files: [file] }))) {
                     try {
-                        await navigator.share({ title: `Diagnostic BFG v4.99`, files: [file] });
+                        await navigator.share({ title: `Diagnostic BFG v5.00`, files: [file] });
                         if (status) status.textContent = 'Diagnostic partagé.';
                         bfgDiagLog_('DIAG', 'Diagnostic partagé via feuille de partage');
                         refreshBfgPreparedDiagnostic_();
@@ -6560,7 +6608,7 @@ const tdfStages = [
             }
         }
         window.onload = waitForPdfJsAndInitialize;
-        const BFG_REQUIRED_SW_VERSION_ = '4.99';
+        const BFG_REQUIRED_SW_VERSION_ = '5.00';
 
         function queryBfgControllerVersion_(timeoutMs = 1800) {
             return new Promise((resolve) => {
@@ -6600,7 +6648,7 @@ const tdfStages = [
             }
 
             const registration = await navigator.serviceWorker.register(
-                './sw.js?v=4.99',
+                './sw.js?v=5.00',
                 { updateViaCache: 'none' }
             );
 
@@ -13407,7 +13455,7 @@ window.__notamTextFull = notamInput.value;
         }
         
 
-        // ===== v4.99 : CARTE FRANCE SUP AIP / SDVFR VIA RELAIS NAS =====
+        // ===== v5.00 : CARTE FRANCE SUP AIP / DIAGNOSTIC RELAIS NAS -> SDVFR =====
         let bfgSupAipFranceMap_ = null;
         let bfgSupAipFranceLayer_ = null;
         let bfgSupAipRawPayload_ = null;
@@ -13597,24 +13645,81 @@ window.__notamTextFull = notamInput.value;
         async function bfgFetchSupAipTemporaryAirspaces_(force = false) {
             if (!force && bfgSupAipRawPayload_) return bfgSupAipRawPayload_;
             if (navigator.onLine) {
+                const url = `${SDVFR_TEMPORARY_AIRSPACES_API_URL}?v=500&t=${Date.now()}${force ? '&force=1' : ''}&diag=1`;
+                const started = performance.now();
+                bfgSupAipRelayDiag_.lastAttemptAt = new Date().toISOString();
+                bfgSupAipRelayDiag_.requestUrl = url;
+                bfgSupAipRelayDiag_.bfgToNasStatus = null;
+                bfgSupAipRelayDiag_.bfgToNasOk = null;
+                bfgSupAipRelayDiag_.bfgToNasContentType = '';
+                bfgSupAipRelayDiag_.bfgToNasDurationMs = null;
+                bfgSupAipRelayDiag_.relaySource = '';
+                bfgSupAipRelayDiag_.relayVersion = '';
+                bfgSupAipRelayDiag_.upstreamUrl = '';
+                bfgSupAipRelayDiag_.upstreamStatus = null;
+                bfgSupAipRelayDiag_.upstreamContentType = '';
+                bfgSupAipRelayDiag_.upstreamDurationMs = null;
+                bfgSupAipRelayDiag_.upstreamJsonValid = null;
+                bfgSupAipRelayDiag_.curlErrno = null;
+                bfgSupAipRelayDiag_.curlError = '';
+                bfgSupAipRelayDiag_.responsePreview = '';
+                bfgSupAipRelayDiag_.error = '';
+                bfgDiagLog_('SUPAIP-RELAY', 'Appel relais NAS démarré', { url: SDVFR_TEMPORARY_AIRSPACES_API_URL, force: !!force });
                 try {
-                    const url = `${SDVFR_TEMPORARY_AIRSPACES_API_URL}?v=499&t=${Date.now()}${force ? '&force=1' : ''}`;
                     const response = await fetch(url, {
                         method: 'GET',
                         cache: 'no-store',
                         credentials: 'omit',
                         headers: { 'Accept': 'application/json' }
                     });
+                    const durationMs = Math.round(performance.now() - started);
                     const contentType = String(response.headers.get('content-type') || '').toLowerCase();
+                    const rawBody = await response.text();
                     let payload = null;
-                    if (contentType.includes('json')) {
-                        try { payload = await response.json(); } catch (_) { payload = null; }
-                    }
+                    try { payload = rawBody ? JSON.parse(rawBody) : null; } catch (_) { payload = null; }
+
+                    bfgSupAipRelayDiag_.bfgToNasStatus = response.status;
+                    bfgSupAipRelayDiag_.bfgToNasOk = response.ok;
+                    bfgSupAipRelayDiag_.bfgToNasContentType = contentType;
+                    bfgSupAipRelayDiag_.bfgToNasDurationMs = durationMs;
+                    bfgSupAipRelayDiag_.responsePreview = payload && payload.relayDiagnostic && payload.relayDiagnostic.bodyPreview
+                        ? String(payload.relayDiagnostic.bodyPreview).slice(0, 800)
+                        : (!payload ? String(rawBody || '').replace(/\s+/g, ' ').trim().slice(0, 800) : '');
+
+                    const relayDiag = payload && payload.relayDiagnostic && typeof payload.relayDiagnostic === 'object'
+                        ? payload.relayDiagnostic
+                        : {};
+                    bfgSupAipRelayDiag_.relaySource = String(payload && payload.source || '');
+                    bfgSupAipRelayDiag_.relayVersion = String(relayDiag.relayVersion || payload && payload.relayVersion || '');
+                    bfgSupAipRelayDiag_.upstreamUrl = String(relayDiag.upstreamUrl || '');
+                    bfgSupAipRelayDiag_.upstreamStatus = Number.isFinite(Number(relayDiag.upstreamStatus)) ? Number(relayDiag.upstreamStatus) : null;
+                    bfgSupAipRelayDiag_.upstreamContentType = String(relayDiag.upstreamContentType || '');
+                    bfgSupAipRelayDiag_.upstreamDurationMs = Number.isFinite(Number(relayDiag.totalTimeMs)) ? Number(relayDiag.totalTimeMs) : null;
+                    bfgSupAipRelayDiag_.upstreamJsonValid = typeof relayDiag.jsonValid === 'boolean' ? relayDiag.jsonValid : null;
+                    bfgSupAipRelayDiag_.curlErrno = Number.isFinite(Number(relayDiag.curlErrno)) ? Number(relayDiag.curlErrno) : null;
+                    bfgSupAipRelayDiag_.curlError = String(relayDiag.curlError || '');
+
+                    bfgDiagLog_('SUPAIP-RELAY', 'Réponse relais NAS reçue', {
+                        bfgToNasStatus: response.status,
+                        bfgToNasOk: response.ok,
+                        durationMs,
+                        contentType,
+                        source: bfgSupAipRelayDiag_.relaySource,
+                        upstreamStatus: bfgSupAipRelayDiag_.upstreamStatus,
+                        upstreamContentType: bfgSupAipRelayDiag_.upstreamContentType,
+                        upstreamJsonValid: bfgSupAipRelayDiag_.upstreamJsonValid,
+                        curlErrno: bfgSupAipRelayDiag_.curlErrno,
+                        bodyPreview: bfgSupAipRelayDiag_.responsePreview
+                    });
+
                     if (!response.ok) {
                         const detail = payload && (payload.error || payload.message || payload.detail);
-                        throw new Error(detail ? `Relais NAS : ${detail}` : `Relais NAS HTTP ${response.status}`);
+                        const upstreamDetail = Number.isFinite(Number(bfgSupAipRelayDiag_.upstreamStatus))
+                            ? ` | SDVFR HTTP ${bfgSupAipRelayDiag_.upstreamStatus}`
+                            : '';
+                        throw new Error(detail ? `Relais NAS HTTP ${response.status}${upstreamDetail} : ${detail}` : `Relais NAS HTTP ${response.status}${upstreamDetail}`);
                     }
-                    if (!payload) throw new Error('Relais NAS : réponse non JSON');
+                    if (!payload) throw new Error(`Relais NAS HTTP ${response.status} : réponse non JSON (${contentType || 'type inconnu'})`);
                     if (payload && payload.ok === false) {
                         throw new Error(payload.error || payload.message || 'Relais NAS : récupération SDVFR impossible');
                     }
@@ -13627,16 +13732,26 @@ window.__notamTextFull = notamInput.value;
                     await bfgWriteSupAipMapCache_(sdvfrPayload);
                     return sdvfrPayload;
                 } catch (error) {
+                    bfgSupAipRelayDiag_.bfgToNasDurationMs = bfgSupAipRelayDiag_.bfgToNasDurationMs ?? Math.round(performance.now() - started);
+                    bfgSupAipRelayDiag_.error = String(error && error.message || error);
+                    bfgDiagLog_('SUPAIP-RELAY', 'Échec carte SUP AIP via relais', {
+                        message: bfgSupAipRelayDiag_.error,
+                        bfgToNasStatus: bfgSupAipRelayDiag_.bfgToNasStatus,
+                        upstreamStatus: bfgSupAipRelayDiag_.upstreamStatus,
+                        curlErrno: bfgSupAipRelayDiag_.curlErrno,
+                        bodyPreview: bfgSupAipRelayDiag_.responsePreview
+                    });
                     console.warn('BFG SUP AIP : relais NAS indisponible, tentative cache local.', error);
                 }
             }
             const cached = await bfgReadSupAipMapCache_();
             if (cached && cached.payload) {
+                bfgDiagLog_('SUPAIP-CACHE', 'Carte SUP AIP restaurée depuis le cache local', { savedAt: cached.savedAt || '' });
                 bfgSupAipRawPayload_ = cached.payload;
                 return cached.payload;
             }
             throw new Error(navigator.onLine
-                ? 'Données SUP AIP indisponibles via le relais NAS.'
+                ? (bfgSupAipRelayDiag_.error || 'Données SUP AIP indisponibles via le relais NAS.')
                 : 'Aucune carte SUP AIP mémorisée pour le mode hors ligne.');
         }
 
@@ -13771,7 +13886,7 @@ window.__notamTextFull = notamInput.value;
 
         function initializePageTitle() {
             const titleElement = document.getElementById('main-title');
-            titleElement.textContent = `Briefing Fdf TEST v4.99 du ${new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}`;
+            titleElement.textContent = `Briefing Fdf TEST v5.00 du ${new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}`;
             const timeDisplay = document.getElementById('current-time-display');
             const updateTime = () => timeDisplay.textContent = new Date().toLocaleTimeString('fr-FR');
             updateTime(); setInterval(updateTime, 1000);
