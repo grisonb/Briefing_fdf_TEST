@@ -1,5 +1,5 @@
-const BFG_SW_VERSION = '5.12';
-const CACHE_NAME = 'briefing-fdf-test-v5.12-notam-layout-r1';
+const BFG_SW_VERSION = '5.13';
+const CACHE_NAME = 'briefing-fdf-test-v5.13-notam-spacing-r1';
 
 const LOCAL_ASSETS = [
   './manifest.json',
