@@ -1,7 +1,7 @@
 {
   "name": "Briefing FDF TEST",
   "short_name": "Briefing TEST",
-  "description": "Briefing FDF TEST v4.98 — carte France SUP AIP SDVFR avec filtres période et FL max",
+  "description": "Briefing FDF TEST v4.99 — carte France SUP AIP via relais NAS SDVFR",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
