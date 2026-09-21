@@ -1186,7 +1186,7 @@
         /* v5.04 — Carte SUP AIP via worker VPS authentifié SDVFR. */
         #sup-aip-map-panel {
             margin: 0 0 22px 0;
-            padding: 16px;
+            padding: 10px;
             border: 1px solid var(--border-color);
             border-radius: 10px;
             background: #f8fafc;
@@ -1197,7 +1197,7 @@
             justify-content: center;
             flex-wrap: wrap;
             gap: 10px 14px;
-            margin-bottom: 12px;
+            margin: 14px 0 2px 0;
         }
         #sup-aip-map-filters label {
             display: inline-flex;
@@ -1216,7 +1216,7 @@
         #sup-aip-map-max-fl { min-width: 86px !important; width: 86px !important; }
         #sup-aip-map-refresh-btn { background-color: #0F2B5B; }
         #sup-aip-map-status {
-            margin: 8px 0 12px 0;
+            margin: 12px 0 0 0;
             text-align: center;
             font-weight: 700;
             color: #475569;
@@ -1230,7 +1230,7 @@
             justify-content: center;
             align-items: center;
             gap: 6px 12px;
-            margin: 0 0 10px 0;
+            margin: 0 0 8px 0;
             font-size: 0.82em;
             font-weight: 700;
             color: #334155;
@@ -1240,8 +1240,9 @@
         .bfg-supaip-legend-note { font-weight: 600; color: #64748b; }
         #sup-aip-france-map {
             width: 100%;
-            height: min(68vh, 720px);
-            min-height: 480px;
+            height: calc(100vh - 155px);
+            height: calc(100dvh - 155px);
+            min-height: 600px;
             border: 1px solid #cbd5e1;
             border-radius: 10px;
             overflow: hidden;
@@ -1259,7 +1260,11 @@
             font-weight: 800;
         }
         @media (max-width: 700px) {
-            #sup-aip-france-map { min-height: 430px; height: 62vh; }
+            #sup-aip-france-map {
+                height: calc(100vh - 135px);
+                height: calc(100dvh - 135px);
+                min-height: 520px;
+            }
             #sup-aip-map-filters { justify-content: flex-start; }
         }
 
@@ -2360,7 +2365,7 @@
         <h1 id="main-title">Briefing Fdf TEST v5.07</h1>
         <p id="current-time-display"></p>
         <p style="position: relative; z-index: 2; text-align: center; color: #333; font-size: 1em; margin-top: -25px; margin-bottom: 30px;">
-    v<span id="app-version">5.07 TEST - FILTRE ALTITUDE SUP AIP</span>
+    v<span id="app-version">5.08 TEST - CARTE SUP AIP GRAND FORMAT</span>
     <button id="force-update-btn" class="link-button" style="background-color: #34495e; padding: 4px 10px; font-size: 0.8em; margin-left: 10px; vertical-align: middle;">
         Forcer MAJ
     </button>
@@ -2736,13 +2741,6 @@
     <div id="sup-aip-section" class="pdf-section dropzone">
         <h2>AZBA / SUP AIP</h2>
         <div id="sup-aip-map-panel">
-            <div id="sup-aip-map-filters">
-                <label>Du <input type="date" id="sup-aip-map-date-from"></label>
-                <label>au <input type="date" id="sup-aip-map-date-to"></label>
-                <label>FL max <input type="number" id="sup-aip-map-max-fl" min="0" max="660" step="5" value="115" inputmode="numeric"></label>
-                <button id="sup-aip-map-refresh-btn" class="link-button" type="button">Actualiser SUP AIP</button>
-            </div>
-            <p id="sup-aip-map-status">Carte SUP AIP non chargée.</p>
             <div id="sup-aip-map-legend" aria-label="Légende SUP AIP">
                 <span class="bfg-supaip-legend-item" style="color:#c62828;"><span class="bfg-supaip-legend-swatch"></span>ZIT</span>
                 <span class="bfg-supaip-legend-item" style="color:#e76f00;"><span class="bfg-supaip-legend-swatch"></span>ZRT</span>
@@ -2753,6 +2751,13 @@
                 <span class="bfg-supaip-legend-note">Pulsation légère = début de validité à venir</span>
             </div>
             <div id="sup-aip-france-map" aria-label="Carte de France des SUP AIP"></div>
+            <p id="sup-aip-map-status">Carte SUP AIP non chargée.</p>
+            <div id="sup-aip-map-filters">
+                <label>Du <input type="date" id="sup-aip-map-date-from"></label>
+                <label>au <input type="date" id="sup-aip-map-date-to"></label>
+                <label>FL max <input type="number" id="sup-aip-map-max-fl" min="0" max="660" step="5" value="115" inputmode="numeric"></label>
+                <button id="sup-aip-map-refresh-btn" class="link-button" type="button">Actualiser SUP AIP</button>
+            </div>
         </div>
         <div id="sup-aip-controls" class="pdf-controls">
             <a id="supaip-map-btn" href="https://supaip.fr/" target="_blank" rel="noopener" class="link-button" style="background-color: #0F2B5B;">Carte SUP AIP / AZBA</a>
@@ -2796,7 +2801,7 @@
     <footer>Données : Météo-France, SIA, Windy.com, SDVFR. Page non commerciale, à usage personnel.</footer>
     
     <script>
-        const APP_VERSION = "5.07 TEST - FILTRE ALTITUDE SUP AIP";
+        const APP_VERSION = "5.08 TEST - CARTE SUP AIP GRAND FORMAT";
 
 
         // v4.97 — diagnostic conservé ; plage NOTAM quotidienne et sélection prioritaire. Aucun code d'accès, token ou contenu NOTAM n'est exporté.
