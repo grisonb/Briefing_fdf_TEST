@@ -12,8 +12,8 @@
         }
     </script>
     <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0">
-    <title>Briefing Fdf TEST v5.01</title>
-    <link rel="manifest" href="./manifest.json?v=5.01">
+    <title>Briefing Fdf TEST v5.02</title>
+    <link rel="manifest" href="./manifest.json?v=5.02">
     <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png?v=4.24">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-title" content="Briefing TEST">
@@ -1173,7 +1173,7 @@
             border-radius: 8px;
             box-shadow: 0 2px 8px rgba(0,0,0,0.08);
         }
-        /* v5.01 — Carte SUP AIP : relais NAS hors interception du service worker. */
+        /* v5.02 — Carte SUP AIP : diagnostic relais HTTP 200 + timeout explicite. */
         #sup-aip-map-panel {
             margin: 0 0 22px 0;
             padding: 16px;
@@ -2332,10 +2332,10 @@
 
     <div class="page-header">
         <div class="page-header-background"></div>
-        <h1 id="main-title">Briefing Fdf TEST v5.01</h1>
+        <h1 id="main-title">Briefing Fdf TEST v5.02</h1>
         <p id="current-time-display"></p>
         <p style="position: relative; z-index: 2; text-align: center; color: #333; font-size: 1em; margin-top: -25px; margin-bottom: 30px;">
-    v<span id="app-version">5.01 TEST - RELAIS SUP AIP</span>
+    v<span id="app-version">5.02 TEST - DIAGNOSTIC RELAIS SUP AIP</span>
     <button id="force-update-btn" class="link-button" style="background-color: #34495e; padding: 4px 10px; font-size: 0.8em; margin-left: 10px; vertical-align: middle;">
         Forcer MAJ
     </button>
@@ -2760,7 +2760,7 @@
     <footer>Données : Météo-France, SIA, Windy.com, SDVFR. Page non commerciale, à usage personnel.</footer>
     
     <script>
-        const APP_VERSION = "5.01 TEST - RELAIS SUP AIP";
+        const APP_VERSION = "5.02 TEST - DIAGNOSTIC RELAIS SUP AIP";
 
 
         // v4.97 — diagnostic conservé ; plage NOTAM quotidienne et sélection prioritaire. Aucun code d'accès, token ou contenu NOTAM n'est exporté.
@@ -2771,7 +2771,7 @@
         let bfgDiagPreparedText_ = '';
         let bfgDiagPrepareInFlight_ = false;
 
-        // v5.01 — état du dernier échange carte SUP AIP, exporté dans le diagnostic BFG.
+        // v5.02 — diagnostic relais SUP AIP lisible même en échec amont + timeout navigateur.
         const bfgSupAipRelayDiag_ = {
             lastAttemptAt: '',
             requestUrl: '',
@@ -2781,6 +2781,7 @@
             bfgToNasDurationMs: null,
             relaySource: '',
             relayVersion: '',
+            relayDiagnosticHttpStatus: null,
             upstreamUrl: '',
             upstreamStatus: null,
             upstreamContentType: '',
@@ -2999,6 +3000,7 @@
                 push('BFG -> NAS :', `${nasStatus} | ${nasOk} | ${nasTime}${d.bfgToNasContentType ? ` | ${d.bfgToNasContentType}` : ''}`);
                 push('Source relais :', d.relaySource || 'inconnue');
                 push('Version relais :', d.relayVersion || 'inconnue');
+                if (Number.isFinite(Number(d.relayDiagnosticHttpStatus))) push('Statut relais réel :', `HTTP ${d.relayDiagnosticHttpStatus}`);
                 const upStatus = Number.isFinite(Number(d.upstreamStatus)) ? `HTTP ${d.upstreamStatus}` : 'HTTP inconnu';
                 const upTime = Number.isFinite(Number(d.upstreamDurationMs)) ? `${Math.round(Number(d.upstreamDurationMs))} ms` : 'durée inconnue';
                 push('NAS -> SDVFR :', `${upStatus} | ${upTime}${d.upstreamContentType ? ` | ${d.upstreamContentType}` : ''}`);
@@ -3121,11 +3123,11 @@
                     ? output.value
                     : (bfgDiagPreparedText_ || buildBfgDiagnosticTextSync_());
                 const stamp = new Date().toISOString().replace(/[:.]/g, '-');
-                const filename = `BFG_DIAG_v5.01_${stamp}.txt`;
+                const filename = `BFG_DIAG_v5.02_${stamp}.txt`;
                 const file = new File([text], filename, { type: 'text/plain;charset=utf-8' });
                 if (navigator.share && (!navigator.canShare || navigator.canShare({ files: [file] }))) {
                     try {
-                        await navigator.share({ title: `Diagnostic BFG v5.01`, files: [file] });
+                        await navigator.share({ title: `Diagnostic BFG v5.02`, files: [file] });
                         if (status) status.textContent = 'Diagnostic partagé.';
                         bfgDiagLog_('DIAG', 'Diagnostic partagé via feuille de partage');
                         refreshBfgPreparedDiagnostic_();
@@ -6608,7 +6610,7 @@ const tdfStages = [
             }
         }
         window.onload = waitForPdfJsAndInitialize;
-        const BFG_REQUIRED_SW_VERSION_ = '5.01';
+        const BFG_REQUIRED_SW_VERSION_ = '5.02';
 
         function queryBfgControllerVersion_(timeoutMs = 1800) {
             return new Promise((resolve) => {
@@ -6648,7 +6650,7 @@ const tdfStages = [
             }
 
             const registration = await navigator.serviceWorker.register(
-                './sw.js?v=5.01',
+                './sw.js?v=5.02',
                 { updateViaCache: 'none' }
             );
 
@@ -13455,7 +13457,7 @@ window.__notamTextFull = notamInput.value;
         }
         
 
-        // ===== v5.01 : CARTE FRANCE SUP AIP / DIAGNOSTIC RELAIS NAS -> SDVFR =====
+        // ===== v5.02 : CARTE FRANCE SUP AIP / DIAGNOSTIC RELAIS NAS -> SDVFR =====
         let bfgSupAipFranceMap_ = null;
         let bfgSupAipFranceLayer_ = null;
         let bfgSupAipRawPayload_ = null;
@@ -13645,7 +13647,7 @@ window.__notamTextFull = notamInput.value;
         async function bfgFetchSupAipTemporaryAirspaces_(force = false) {
             if (!force && bfgSupAipRawPayload_) return bfgSupAipRawPayload_;
             if (navigator.onLine) {
-                const url = `${SDVFR_TEMPORARY_AIRSPACES_API_URL}?v=500&t=${Date.now()}${force ? '&force=1' : ''}&diag=1`;
+                const url = `${SDVFR_TEMPORARY_AIRSPACES_API_URL}?v=502&t=${Date.now()}${force ? '&force=1' : ''}&diag=1`;
                 const started = performance.now();
                 bfgSupAipRelayDiag_.lastAttemptAt = new Date().toISOString();
                 bfgSupAipRelayDiag_.requestUrl = url;
@@ -13655,6 +13657,7 @@ window.__notamTextFull = notamInput.value;
                 bfgSupAipRelayDiag_.bfgToNasDurationMs = null;
                 bfgSupAipRelayDiag_.relaySource = '';
                 bfgSupAipRelayDiag_.relayVersion = '';
+                bfgSupAipRelayDiag_.relayDiagnosticHttpStatus = null;
                 bfgSupAipRelayDiag_.upstreamUrl = '';
                 bfgSupAipRelayDiag_.upstreamStatus = null;
                 bfgSupAipRelayDiag_.upstreamContentType = '';
@@ -13666,12 +13669,28 @@ window.__notamTextFull = notamInput.value;
                 bfgSupAipRelayDiag_.error = '';
                 bfgDiagLog_('SUPAIP-RELAY', 'Appel relais NAS démarré', { url: SDVFR_TEMPORARY_AIRSPACES_API_URL, force: !!force });
                 try {
-                    const response = await fetch(url, {
-                        method: 'GET',
-                        cache: 'no-store',
-                        credentials: 'omit',
-                        headers: { 'Accept': 'application/json' }
-                    });
+                    // v5.02 : timeout explicite. Sans cela Safari/iPadOS peut laisser la requête
+                    // en attente très longtemps lorsque le relais NAS attend lui-même SDVFR.
+                    const controller = new AbortController();
+                    const timeoutMs = 20000;
+                    const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+                    let response;
+                    try {
+                        response = await fetch(url, {
+                            method: 'GET',
+                            cache: 'no-store',
+                            credentials: 'omit',
+                            headers: { 'Accept': 'application/json' },
+                            signal: controller.signal
+                        });
+                    } catch (fetchError) {
+                        if (fetchError && fetchError.name === 'AbortError') {
+                            throw new Error(`Timeout relais NAS après ${Math.round(timeoutMs / 1000)} s`);
+                        }
+                        throw fetchError;
+                    } finally {
+                        clearTimeout(timeoutId);
+                    }
                     const durationMs = Math.round(performance.now() - started);
                     const contentType = String(response.headers.get('content-type') || '').toLowerCase();
                     const rawBody = await response.text();
@@ -13691,6 +13710,7 @@ window.__notamTextFull = notamInput.value;
                         : {};
                     bfgSupAipRelayDiag_.relaySource = String(payload && payload.source || '');
                     bfgSupAipRelayDiag_.relayVersion = String(relayDiag.relayVersion || payload && payload.relayVersion || '');
+                    bfgSupAipRelayDiag_.relayDiagnosticHttpStatus = Number.isFinite(Number(payload && payload.diagnosticHttpStatus)) ? Number(payload.diagnosticHttpStatus) : null;
                     bfgSupAipRelayDiag_.upstreamUrl = String(relayDiag.upstreamUrl || '');
                     bfgSupAipRelayDiag_.upstreamStatus = Number.isFinite(Number(relayDiag.upstreamStatus)) ? Number(relayDiag.upstreamStatus) : null;
                     bfgSupAipRelayDiag_.upstreamContentType = String(relayDiag.upstreamContentType || '');
@@ -13886,7 +13906,7 @@ window.__notamTextFull = notamInput.value;
 
         function initializePageTitle() {
             const titleElement = document.getElementById('main-title');
-            titleElement.textContent = `Briefing Fdf TEST v5.01 du ${new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}`;
+            titleElement.textContent = `Briefing Fdf TEST v5.02 du ${new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}`;
             const timeDisplay = document.getElementById('current-time-display');
             const updateTime = () => timeDisplay.textContent = new Date().toLocaleTimeString('fr-FR');
             updateTime(); setInterval(updateTime, 1000);
