@@ -1,5 +1,5 @@
-const BFG_SW_VERSION = '5.07';
-const CACHE_NAME = 'briefing-fdf-test-v5.07-supaip-altitude-strict-r1';
+const BFG_SW_VERSION = '5.08';
+const CACHE_NAME = 'briefing-fdf-test-v5.08-supaip-large-map-r1';
 
 const LOCAL_ASSETS = [
   './manifest.json',
