@@ -1,7 +1,7 @@
 {
   "name": "Briefing FDF TEST",
   "short_name": "Briefing TEST",
-  "description": "Briefing FDF TEST v5.04 — carte SUP AIP via worker VPS authentifié SDVFR",
+  "description": "Briefing FDF TEST v5.05 — interface Windy directe, NOTAM épurés, carte SUP AIP métropole/Corse",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
