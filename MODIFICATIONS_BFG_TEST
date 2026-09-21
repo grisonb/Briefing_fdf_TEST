@@ -1,3 +1,33 @@
+TEST v5.07 — 2026-09-21
+Base : TEST v5.06
+===============================================================================
+
+CARTE SUP AIP — FILTRE D'ALTITUDE
+- Correction du filtre « FL max » conformément à la logique opérationnelle demandée.
+- La limite supérieure est désormais stricte sur le plancher de la zone : une zone dont le plancher est exactement égal au FL max sélectionné est masquée.
+- Exemple avec MAX = FL115 :
+  - plancher FL114 ou inférieur : zone conservée ;
+  - plancher FL115 : zone masquée ;
+  - plancher FL116 ou supérieur : zone masquée.
+- Une zone qui commence sous le FL max et se prolonge au-dessus reste affichée : le filtrage porte sur le plancher de la zone.
+- Les filtres de dates et les autres règles d'affichage SUP AIP sont inchangés.
+
+NON-RÉGRESSION
+- FL max SUP AIP par défaut conservé à FL115.
+- Couleurs SUP AIP par type et pulsation légère des zones à validité future conservées.
+- Cadrage France métropolitaine + Corse conservé.
+- Sélection Windy bleue stabilisée conservée.
+- Masquage visuel NOTAM Q), B) et C) conservé.
+- Aucun changement RTBA/AZBA dans cette version.
+- Backend NAS / worker VPS inchangé : aucun fichier PHP/Python à remplacer.
+
+CONTRÔLES AVANT LIVRAISON
+- Syntaxe JavaScript inline vérifiée.
+- Manifeste JSON vérifié.
+- Service worker aligné sur v5.07 avec nouveau nom de cache.
+- Vérification ciblée : le test du plancher utilise désormais `zone.lowerFl >= maxFl` pour masquer la zone.
+- Historique des modifications conservé intégralement.
+
 TEST v5.06 — 2026-09-21
 Base : TEST v5.05
 ===============================================================================
