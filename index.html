@@ -557,8 +557,9 @@
         #notam-controls-top .show-all-action { grid-column: 3; grid-row: 1; }
         /* « Annuler Sélection » glisse juste en dessous. */
         #notam-controls-top .clear-notam-selection-action { grid-column: 3; grid-row: 2; }
-        #notam-controls-top .pencil-undo-highlight-action { grid-column: 4; grid-row: 1; }
-        #notam-controls-top .save-pdf-action { grid-column: 4; grid-row: 2; }
+        /* v5.12 : Sauvegarder en Pdf au-dessus, Annuler Surlignage en dessous. */
+        #notam-controls-top .save-pdf-action { grid-column: 4; grid-row: 1; }
+        #notam-controls-top .pencil-undo-highlight-action { grid-column: 4; grid-row: 2; }
         .notam-controls-row {
             display: flex;
             justify-content: center;
@@ -577,8 +578,8 @@
             #notam-controls-top .filter-action,
             #notam-controls-top .show-all-action { grid-column: 2; grid-row: 1; }
             #notam-controls-top .clear-notam-selection-action { grid-column: 2; grid-row: 2; }
-            #notam-controls-top .pencil-undo-highlight-action { grid-column: 2; grid-row: 3; }
-            #notam-controls-top .save-pdf-action { grid-column: 2; grid-row: 4; }
+            #notam-controls-top .save-pdf-action { grid-column: 2; grid-row: 3; }
+            #notam-controls-top .pencil-undo-highlight-action { grid-column: 2; grid-row: 4; }
         }
         
         #notam-controls-bottom { 
@@ -725,10 +726,13 @@
             display: flex;
             flex-direction: column;
             align-items: center;
-            gap: 9px;
+            justify-content: space-between;
+            align-self: stretch;
+            gap: 0;
             flex: 0 0 auto;
-            /* v5.11 : la case verte est calée sur la ligne de référence du NOTAM. */
+            /* v5.12 : verte sur la référence ; noire sur la dernière ligne du NOTAM. */
             margin-top: -4px;
+            margin-bottom: 0;
         }
         .notam-checkbox-ring {
             width: 32px;
@@ -747,8 +751,9 @@
         }
         .notam-checkbox-ring-hide {
             border: 3px solid #111111;
-            /* v5.11 : décale la case noire pour l'aligner sur la ligne « au … ». */
-            margin-top: 16px;
+            /* v5.12 : essai d'alignement sur la dernière ligne visible du NOTAM. */
+            margin-top: auto;
+            transform: translateY(5px);
         }
         .notam-checkbox,
         .notam-hide-checkbox {
@@ -2425,10 +2430,10 @@
 
     <div class="page-header">
         <div class="page-header-background"></div>
-        <h1 id="main-title">Briefing Fdf TEST v5.11</h1>
+        <h1 id="main-title">Briefing Fdf TEST v5.12</h1>
         <p id="current-time-display"></p>
         <p style="position: relative; z-index: 2; text-align: center; color: #333; font-size: 1em; margin-top: -25px; margin-bottom: 30px;">
-    v<span id="app-version">5.11 TEST - ALIGNEMENT NOTAM + COMMANDES</span>
+    v<span id="app-version">5.12 TEST - CASE NOIRE BAS NOTAM + COMMANDES</span>
     <button id="force-update-btn" class="link-button" style="background-color: #34495e; padding: 4px 10px; font-size: 0.8em; margin-left: 10px; vertical-align: middle;">
         Forcer MAJ
     </button>
@@ -2762,8 +2767,8 @@
             <button class="link-button confirm-action filter-action">Garder la Sélection</button>
             <button class="link-button reset show-all-action" style="display: none;">Tout Afficher</button>
             <button class="link-button reset clear-notam-selection-action" type="button">Annuler Sélection</button>
-            <button class="link-button pencil-undo-highlight-action" type="button">Annuler Surlignage</button>
             <button class="link-button save-pdf-action">Sauvegarder en Pdf</button>
+            <button class="link-button pencil-undo-highlight-action" type="button">Annuler Surlignage</button>
         </div>
 
         <div id="manual-metar-section">
@@ -14331,7 +14336,7 @@ window.__notamTextFull = notamInput.value;
 
         function initializePageTitle() {
             const titleElement = document.getElementById('main-title');
-            titleElement.textContent = `Briefing Fdf TEST v5.11 du ${new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}`;
+            titleElement.textContent = `Briefing Fdf TEST v5.12 du ${new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}`;
             const timeDisplay = document.getElementById('current-time-display');
             const updateTime = () => timeDisplay.textContent = new Date().toLocaleTimeString('fr-FR');
             updateTime(); setInterval(updateTime, 1000);
