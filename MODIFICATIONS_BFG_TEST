@@ -1,3 +1,40 @@
+TEST v5.00 — 2026-09-21
+Base : TEST v4.99
+===============================================================================
+
+DIAGNOSTIC CARTE SUP AIP — BFG / NAS / SDVFR
+- Le diagnostic BFG exporté contient désormais une rubrique dédiée « CARTE SUP AIP / RELAIS NAS ».
+- BFG enregistre le code HTTP et le type de contenu de l'appel BFG -> NAS, ainsi que sa durée.
+- Le relais NAS v5.00 renvoie un diagnostic structuré du second trajet NAS -> SDVFR : code HTTP amont, type de contenu, durée, validité JSON, éventuelle erreur cURL et extrait court de la réponse amont.
+- En cas de 401/403/404/5xx SDVFR, le diagnostic permet donc de distinguer immédiatement l'échec amont d'un problème CORS/BFG -> NAS.
+- Une réponse HTML/non JSON est identifiée explicitement et un court extrait est intégré au diagnostic pour reconnaître une page d'erreur ou d'authentification.
+- Aucun code d'accès BFG, token, cookie ou secret n'est exporté.
+
+CARTE SUP AIP
+- L'interface, les filtres période/FL max, les polygones, les popups et les liens PDF SIA restent inchangés par rapport à v4.99.
+- En cas d'échec du relais, le message visible inclut maintenant le HTTP NAS et, lorsqu'il est connu, le HTTP SDVFR.
+- Le cache local de carte reste utilisé en secours sans masquer le résultat du dernier test réseau dans le diagnostic.
+
+RELAIS NAS
+- Nouveau relais diagnostic v5.00 à installer à la place du fichier v4.99 : `/web/briefing-api/get-sdvfr-temporary-airspaces.php`.
+- Le relais conserve son cache serveur de secours mais renvoie également les informations du dernier échec SDVFR lorsqu'il doit l'utiliser.
+- Le paramètre `diag=1` est accepté ; aucune information sensible n'est renvoyée.
+
+NON-RÉGRESSION
+- Toute la logique NOTAM / METAR / TAF validée en v4.97-v4.99 reste inchangée.
+- Diagnostic général BFG conservé.
+- Couche AZBA/RTBA dynamique toujours non intégrée dans cette version.
+- Service worker aligné sur v5.00 avec cache `briefing-fdf-test-v5.00-supaip-relay-diag-r1`.
+
+Contrôles avant livraison :
+- syntaxe JavaScript inline ;
+- manifeste JSON ;
+- syntaxe service worker ;
+- syntaxe PHP du relais ;
+- cohérence des versions actives v5.00 ;
+- présence du diagnostic SUP AIP dans l'export BFG ;
+- conservation de l'historique cumulatif.
+
 TEST v4.99 — 2026-09-21
 Base : TEST v4.98
 ===============================================================================
