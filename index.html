@@ -12,8 +12,8 @@
         }
     </script>
     <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0">
-    <title>Briefing Fdf TEST v5.03</title>
-    <link rel="manifest" href="./manifest.json?v=5.03">
+    <title>Briefing Fdf TEST v5.04</title>
+    <link rel="manifest" href="./manifest.json?v=5.04">
     <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png?v=4.24">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-title" content="Briefing TEST">
@@ -1173,7 +1173,7 @@
             border-radius: 8px;
             box-shadow: 0 2px 8px rgba(0,0,0,0.08);
         }
-        /* v5.03 — Carte SUP AIP : diagnostic OPTIONS/POST du contrat SDVFR. */
+        /* v5.04 — Carte SUP AIP via worker VPS authentifié SDVFR. */
         #sup-aip-map-panel {
             margin: 0 0 22px 0;
             padding: 16px;
@@ -2332,10 +2332,10 @@
 
     <div class="page-header">
         <div class="page-header-background"></div>
-        <h1 id="main-title">Briefing Fdf TEST v5.03</h1>
+        <h1 id="main-title">Briefing Fdf TEST v5.04</h1>
         <p id="current-time-display"></p>
         <p style="position: relative; z-index: 2; text-align: center; color: #333; font-size: 1em; margin-top: -25px; margin-bottom: 30px;">
-    v<span id="app-version">5.03 TEST - DIAGNOSTIC METHODE SUP AIP</span>
+    v<span id="app-version">5.04 TEST - SUP AIP VIA VPS</span>
     <button id="force-update-btn" class="link-button" style="background-color: #34495e; padding: 4px 10px; font-size: 0.8em; margin-left: 10px; vertical-align: middle;">
         Forcer MAJ
     </button>
@@ -2760,7 +2760,7 @@
     <footer>Données : Météo-France, SIA, Windy.com, SDVFR. Page non commerciale, à usage personnel.</footer>
     
     <script>
-        const APP_VERSION = "5.03 TEST - DIAGNOSTIC METHODE SUP AIP";
+        const APP_VERSION = "5.04 TEST - SUP AIP VIA VPS";
 
 
         // v4.97 — diagnostic conservé ; plage NOTAM quotidienne et sélection prioritaire. Aucun code d'accès, token ou contenu NOTAM n'est exporté.
@@ -2771,7 +2771,7 @@
         let bfgDiagPreparedText_ = '';
         let bfgDiagPrepareInFlight_ = false;
 
-        // v5.03 — diagnostic de méthode SDVFR : OPTIONS + POST JSON vide, avec détail des réponses.
+        // v5.04 — diagnostic chaîne BFG -> NAS -> worker VPS -> SDVFR.
         const bfgSupAipRelayDiag_ = {
             lastAttemptAt: '',
             requestUrl: '',
@@ -2781,6 +2781,7 @@
             bfgToNasDurationMs: null,
             relaySource: '',
             relayVersion: '',
+            workerVersion: '',
             relayDiagnosticHttpStatus: null,
             optionsStatus: null,
             optionsAllow: '',
@@ -2993,7 +2994,7 @@
                 }
             } catch (e) { push('Service worker/caches :', `ERREUR ${e && e.message || e}`); }
             lines.push('');
-            lines.push('=== CARTE SUP AIP / RELAIS NAS ===');
+            lines.push('=== CARTE SUP AIP / NAS + WORKER VPS ===');
             try {
                 const d = bfgSupAipRelayDiag_;
                 push('Dernier essai :', d.lastAttemptAt || 'AUCUN');
@@ -3005,11 +3006,10 @@
                 push('Source relais :', d.relaySource || 'inconnue');
                 push('Version relais :', d.relayVersion || 'inconnue');
                 if (Number.isFinite(Number(d.relayDiagnosticHttpStatus))) push('Statut relais réel :', `HTTP ${d.relayDiagnosticHttpStatus}`);
-                const optStatus = Number.isFinite(Number(d.optionsStatus)) ? `HTTP ${d.optionsStatus}` : 'HTTP inconnu';
-                push('SDVFR OPTIONS :', `${optStatus}${d.optionsAllow ? ` | Allow: ${d.optionsAllow}` : ''}${d.optionsContentType ? ` | ${d.optionsContentType}` : ''}`);
+                if (d.workerVersion) push('Version worker VPS :', d.workerVersion);
                 const upStatus = Number.isFinite(Number(d.upstreamStatus)) ? `HTTP ${d.upstreamStatus}` : 'HTTP inconnu';
                 const upTime = Number.isFinite(Number(d.upstreamDurationMs)) ? `${Math.round(Number(d.upstreamDurationMs))} ms` : 'durée inconnue';
-                push('NAS -> SDVFR :', `${d.upstreamMethod ? d.upstreamMethod + ' | ' : ''}${upStatus} | ${upTime}${d.upstreamContentType ? ` | ${d.upstreamContentType}` : ''}`);
+                push('VPS -> SDVFR :', `${d.upstreamMethod ? d.upstreamMethod + ' | ' : ''}${upStatus} | ${upTime}${d.upstreamContentType ? ` | ${d.upstreamContentType}` : ''}`);
                 if (d.upstreamUrl) push('URL SDVFR :', d.upstreamUrl);
                 if (d.upstreamJsonValid !== null) push('JSON SDVFR valide :', d.upstreamJsonValid ? 'OUI' : 'NON');
                 if (Number(d.curlErrno || 0) !== 0 || d.curlError) push('cURL NAS :', `${d.curlErrno || 0}${d.curlError ? ` | ${d.curlError}` : ''}`);
@@ -3129,11 +3129,11 @@
                     ? output.value
                     : (bfgDiagPreparedText_ || buildBfgDiagnosticTextSync_());
                 const stamp = new Date().toISOString().replace(/[:.]/g, '-');
-                const filename = `BFG_DIAG_v5.03_${stamp}.txt`;
+                const filename = `BFG_DIAG_v5.04_${stamp}.txt`;
                 const file = new File([text], filename, { type: 'text/plain;charset=utf-8' });
                 if (navigator.share && (!navigator.canShare || navigator.canShare({ files: [file] }))) {
                     try {
-                        await navigator.share({ title: `Diagnostic BFG v5.03`, files: [file] });
+                        await navigator.share({ title: `Diagnostic BFG v5.04`, files: [file] });
                         if (status) status.textContent = 'Diagnostic partagé.';
                         bfgDiagLog_('DIAG', 'Diagnostic partagé via feuille de partage');
                         refreshBfgPreparedDiagnostic_();
@@ -6616,7 +6616,7 @@ const tdfStages = [
             }
         }
         window.onload = waitForPdfJsAndInitialize;
-        const BFG_REQUIRED_SW_VERSION_ = '5.03';
+        const BFG_REQUIRED_SW_VERSION_ = '5.04';
 
         function queryBfgControllerVersion_(timeoutMs = 1800) {
             return new Promise((resolve) => {
@@ -6656,7 +6656,7 @@ const tdfStages = [
             }
 
             const registration = await navigator.serviceWorker.register(
-                './sw.js?v=5.03',
+                './sw.js?v=5.04',
                 { updateViaCache: 'none' }
             );
 
@@ -13463,10 +13463,11 @@ window.__notamTextFull = notamInput.value;
         }
         
 
-        // ===== v5.03 : CARTE FRANCE SUP AIP / DIAGNOSTIC METHODE SDVFR =====
+        // ===== v5.04 : CARTE FRANCE SUP AIP / SUP AIP VIA WORKER VPS =====
         let bfgSupAipFranceMap_ = null;
         let bfgSupAipFranceLayer_ = null;
         let bfgSupAipRawPayload_ = null;
+        let bfgSupAipLoadedCeiling_ = null;
 
         function bfgTodayIsoDate_() {
             const d = new Date();
@@ -13544,7 +13545,7 @@ window.__notamTextFull = notamInput.value;
         }
 
         function bfgNormalizeSupAipGeometry_(item) {
-            const candidate = item && (item.geometry || item.geojson || item.geoJson || item.shape || item.wkt || item.polygon);
+            const candidate = item && (item.geometry || item.geojson || item.geoJson || item.shape || item.wkt || item.polygon || item.coordinates);
             if (!candidate) return null;
             if (typeof candidate === 'string') {
                 const trimmed = candidate.trim();
@@ -13583,31 +13584,41 @@ window.__notamTextFull = notamInput.value;
             const geometry = (item && item.type === 'Feature' && item.geometry) ? item.geometry : bfgNormalizeSupAipGeometry_(p);
             if (!geometry) return null;
 
-            const start = bfgParseFlexibleDate_(bfgPickFirst_(p, ['validFrom', 'validityStart', 'startDate', 'dateStart', 'from', 'begin', 'start', 'effectiveFrom']));
-            const end = bfgParseFlexibleDate_(bfgPickFirst_(p, ['validTo', 'validityEnd', 'endDate', 'dateEnd', 'to', 'end', 'finish', 'effectiveTo']));
-            const lowerRaw = bfgPickFirst_(p, ['lowerLimit', 'lower', 'floor', 'bottom', 'minAltitude', 'lowerAltitude']);
-            const upperRaw = bfgPickFirst_(p, ['upperLimit', 'upper', 'ceiling', 'top', 'maxAltitude', 'upperAltitude']);
-            const lowerUnit = bfgPickFirst_(p, ['lowerUnit', 'floorUnit', 'altitudeUnit', 'unit']) || '';
-            const upperUnit = bfgPickFirst_(p, ['upperUnit', 'ceilingUnit', 'altitudeUnit', 'unit']) || '';
+            const start = bfgParseFlexibleDate_(bfgPickFirst_(p, ['validFrom', 'validityStart', 'startDate', 'dateStart', 'from', 'begin', 'start', 'effectiveFrom', 'start_validity']));
+            const end = bfgParseFlexibleDate_(bfgPickFirst_(p, ['validTo', 'validityEnd', 'endDate', 'dateEnd', 'to', 'end', 'finish', 'effectiveTo', 'end_validity']));
+            const lowerRaw = bfgPickFirst_(p, ['lowerLimit', 'lower', 'floor', 'bottom', 'minAltitude', 'lowerAltitude', 'lower_limit']);
+            const upperRaw = bfgPickFirst_(p, ['upperLimit', 'upper', 'ceiling', 'top', 'maxAltitude', 'upperAltitude', 'upper_limit']);
+            const lowerUnit = bfgPickFirst_(p, ['lowerUnit', 'floorUnit', 'altitudeUnit', 'unit', 'lower_limit_unit']) || '';
+            const upperUnit = bfgPickFirst_(p, ['upperUnit', 'ceilingUnit', 'altitudeUnit', 'unit', 'upper_limit_unit']) || '';
             const lowerFl = bfgAltitudeToFl_(lowerRaw, lowerUnit);
             const upperFl = bfgAltitudeToFl_(upperRaw, upperUnit);
             const directPdf = String(bfgPickFirst_(p, ['pdfUrl', 'documentUrl', 'documentURL', 'url', 'href']) || '').trim();
             const description = String(bfgPickFirst_(p, ['description', 'text', 'comment', 'remarks']) || '').trim();
-            return { item: p, label, typeText: typeText || 'SUP AIP', geometry, start, end, lowerRaw, upperRaw, lowerFl, upperFl, directPdf, description };
+            const lowerReference = String(bfgPickFirst_(p, ['lowerReference', 'floorReference', 'lower_limit_reference']) || '').trim();
+            const upperReference = String(bfgPickFirst_(p, ['upperReference', 'ceilingReference', 'upper_limit_reference']) || '').trim();
+            return { item: p, label, typeText: typeText || 'SUP AIP', geometry, start, end, lowerRaw, upperRaw, lowerUnit, upperUnit, lowerReference, upperReference, lowerFl, upperFl, directPdf, description };
         }
 
         function bfgBuildOfficialSupAipPdf_(zone) {
             if (zone.directPdf && /^https?:\/\//i.test(zone.directPdf)) return zone.directPdf;
             const haystack = `${zone.label} ${zone.description}`;
             const match = haystack.match(/(?:SUP\s*AIP|AIP\s*SUP)(\s+AIRAC)?\s*(\d{1,3})\s*\/\s*(\d{2,4})/i);
-            if (!match) return '';
-            const isAirac = Boolean(match[1]);
-            const number = String(Number(match[2])).padStart(3, '0');
-            let year = Number(match[3]);
-            if (year < 100) year += 2000;
+            if (match) {
+                const isAirac = Boolean(match[1]);
+                const number = String(Number(match[2])).padStart(3, '0');
+                let year = Number(match[3]);
+                if (year < 100) year += 2000;
+                if (!Number.isFinite(year)) return '';
+                const filename = isAirac ? `lf_sup_a_${year}_${number}_fr.pdf` : `lf_sup_${year}_${number}_fr.pdf`;
+                return `https://www.sia.aviation-civile.gouv.fr/media/store/documents/file/l/f/${filename}`;
+            }
+            // Schéma réel SDVFR observé : code LF_26_194 = SUP AIP 194/26.
+            const sdvfrCode = haystack.match(/\bLF[_-](\d{2})[_-](\d{1,3})\b/i);
+            if (!sdvfrCode) return '';
+            const year = 2000 + Number(sdvfrCode[1]);
+            const number = String(Number(sdvfrCode[2])).padStart(3, '0');
             if (!Number.isFinite(year)) return '';
-            const filename = isAirac ? `lf_sup_a_${year}_${number}_fr.pdf` : `lf_sup_${year}_${number}_fr.pdf`;
-            return `https://www.sia.aviation-civile.gouv.fr/media/store/documents/file/l/f/${filename}`;
+            return `https://www.sia.aviation-civile.gouv.fr/media/store/documents/file/l/f/lf_sup_${year}_${number}_fr.pdf`;
         }
 
         function bfgFormatDateFr_(date) {
@@ -13615,14 +13626,14 @@ window.__notamTextFull = notamInput.value;
             return date.toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
         }
 
-        function bfgFormatAltitude_(raw, fl) {
+        function bfgFormatAltitude_(raw, fl, unitHint = '', reference = '') {
             if (raw !== null && raw !== undefined && raw !== '') {
                 if (typeof raw === 'object') {
                     const val = bfgPickFirst_(raw, ['value', 'val', 'altitude', 'level']);
-                    const unit = bfgPickFirst_(raw, ['unit', 'units', 'uom']) || '';
-                    if (val !== null) return `${val}${unit ? ' ' + unit : ''}`;
+                    const unit = bfgPickFirst_(raw, ['unit', 'units', 'uom']) || unitHint || '';
+                    if (val !== null) return `${val}${unit ? ' ' + unit : ''}${reference ? ' ' + reference : ''}`;
                 }
-                return String(raw);
+                return `${String(raw)}${unitHint ? ' ' + String(unitHint) : ''}${reference ? ' ' + String(reference) : ''}`;
             }
             return Number.isFinite(fl) ? `FL ${Math.round(fl)}` : 'Non précisé';
         }
@@ -13639,11 +13650,11 @@ window.__notamTextFull = notamInput.value;
             }
         }
 
-        async function bfgWriteSupAipMapCache_(payload) {
+        async function bfgWriteSupAipMapCache_(payload, ceiling = null) {
             if (!('caches' in window)) return;
             try {
                 const cache = await caches.open(BFG_SUPAIP_MAP_CACHE_NAME_);
-                const body = JSON.stringify({ savedAt: new Date().toISOString(), payload });
+                const body = JSON.stringify({ savedAt: new Date().toISOString(), ceiling, payload });
                 await cache.put(BFG_SUPAIP_MAP_CACHE_PATH_, new Response(body, { headers: { 'Content-Type': 'application/json' } }));
             } catch (error) {
                 console.warn('BFG SUP AIP : cache carte impossible.', error);
@@ -13651,9 +13662,13 @@ window.__notamTextFull = notamInput.value;
         }
 
         async function bfgFetchSupAipTemporaryAirspaces_(force = false) {
-            if (!force && bfgSupAipRawPayload_) return bfgSupAipRawPayload_;
+            const maxFlInput = document.getElementById('sup-aip-map-max-fl');
+            const requestedCeiling = Math.max(0, Math.min(660, Math.round(Number(maxFlInput?.value || 195))));
+            if (!force && bfgSupAipRawPayload_ && Number.isFinite(Number(bfgSupAipLoadedCeiling_)) && Number(bfgSupAipLoadedCeiling_) >= requestedCeiling) {
+                return bfgSupAipRawPayload_;
+            }
             if (navigator.onLine) {
-                const url = `${SDVFR_TEMPORARY_AIRSPACES_API_URL}?v=503&t=${Date.now()}${force ? '&force=1' : ''}&diag=1`;
+                const url = `${SDVFR_TEMPORARY_AIRSPACES_API_URL}?v=504&t=${Date.now()}&ceiling=${encodeURIComponent(requestedCeiling)}${force ? '&force=1' : ''}&diag=1`;
                 const started = performance.now();
                 bfgSupAipRelayDiag_.lastAttemptAt = new Date().toISOString();
                 bfgSupAipRelayDiag_.requestUrl = url;
@@ -13663,6 +13678,7 @@ window.__notamTextFull = notamInput.value;
                 bfgSupAipRelayDiag_.bfgToNasDurationMs = null;
                 bfgSupAipRelayDiag_.relaySource = '';
                 bfgSupAipRelayDiag_.relayVersion = '';
+                bfgSupAipRelayDiag_.workerVersion = '';
                 bfgSupAipRelayDiag_.relayDiagnosticHttpStatus = null;
                 bfgSupAipRelayDiag_.optionsStatus = null;
                 bfgSupAipRelayDiag_.optionsAllow = '';
@@ -13679,10 +13695,9 @@ window.__notamTextFull = notamInput.value;
                 bfgSupAipRelayDiag_.error = '';
                 bfgDiagLog_('SUPAIP-RELAY', 'Appel relais NAS démarré', { url: SDVFR_TEMPORARY_AIRSPACES_API_URL, force: !!force });
                 try {
-                    // v5.03 : timeout explicite conservé. Safari/iPadOS ne doit jamais laisser la requête
-                    // en attente très longtemps lorsque le relais NAS attend lui-même SDVFR.
+                    // v5.04 : le NAS attend le worker VPS ; timeout navigateur supérieur à la fenêtre serveur.
                     const controller = new AbortController();
-                    const timeoutMs = 20000;
+                    const timeoutMs = 25000;
                     const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
                     let response;
                     try {
@@ -13720,6 +13735,7 @@ window.__notamTextFull = notamInput.value;
                         : {};
                     bfgSupAipRelayDiag_.relaySource = String(payload && payload.source || '');
                     bfgSupAipRelayDiag_.relayVersion = String(relayDiag.relayVersion || payload && payload.relayVersion || '');
+                    bfgSupAipRelayDiag_.workerVersion = String(relayDiag.workerVersion || '');
                     bfgSupAipRelayDiag_.relayDiagnosticHttpStatus = Number.isFinite(Number(payload && payload.diagnosticHttpStatus)) ? Number(payload.diagnosticHttpStatus) : null;
                     bfgSupAipRelayDiag_.optionsStatus = Number.isFinite(Number(relayDiag.optionsStatus)) ? Number(relayDiag.optionsStatus) : null;
                     bfgSupAipRelayDiag_.optionsAllow = String(relayDiag.optionsAllow || '');
@@ -13739,6 +13755,7 @@ window.__notamTextFull = notamInput.value;
                         durationMs,
                         contentType,
                         source: bfgSupAipRelayDiag_.relaySource,
+                        workerVersion: bfgSupAipRelayDiag_.workerVersion,
                         optionsStatus: bfgSupAipRelayDiag_.optionsStatus,
                         optionsAllow: bfgSupAipRelayDiag_.optionsAllow,
                         upstreamMethod: bfgSupAipRelayDiag_.upstreamMethod,
@@ -13765,13 +13782,15 @@ window.__notamTextFull = notamInput.value;
                     if (!sdvfrPayload || (!Array.isArray(sdvfrPayload) && typeof sdvfrPayload !== 'object')) {
                         throw new Error('Relais NAS : données SDVFR invalides');
                     }
+                    const returnedCeiling = Number(payload && payload.requestPayload && payload.requestPayload.ceiling);
+                    bfgSupAipLoadedCeiling_ = Number.isFinite(returnedCeiling) ? returnedCeiling : requestedCeiling;
                     bfgSupAipRawPayload_ = sdvfrPayload;
-                    await bfgWriteSupAipMapCache_(sdvfrPayload);
+                    await bfgWriteSupAipMapCache_(sdvfrPayload, bfgSupAipLoadedCeiling_);
                     return sdvfrPayload;
                 } catch (error) {
                     bfgSupAipRelayDiag_.bfgToNasDurationMs = bfgSupAipRelayDiag_.bfgToNasDurationMs ?? Math.round(performance.now() - started);
                     bfgSupAipRelayDiag_.error = String(error && error.message || error);
-                    bfgDiagLog_('SUPAIP-RELAY', 'Échec carte SUP AIP via relais', {
+                    bfgDiagLog_('SUPAIP-RELAY', 'Échec carte SUP AIP via NAS/worker VPS', {
                         message: bfgSupAipRelayDiag_.error,
                         bfgToNasStatus: bfgSupAipRelayDiag_.bfgToNasStatus,
                         upstreamStatus: bfgSupAipRelayDiag_.upstreamStatus,
@@ -13784,11 +13803,13 @@ window.__notamTextFull = notamInput.value;
             const cached = await bfgReadSupAipMapCache_();
             if (cached && cached.payload) {
                 bfgDiagLog_('SUPAIP-CACHE', 'Carte SUP AIP restaurée depuis le cache local', { savedAt: cached.savedAt || '' });
+                const cachedCeiling = Number(cached.ceiling);
+                bfgSupAipLoadedCeiling_ = Number.isFinite(cachedCeiling) ? cachedCeiling : 195;
                 bfgSupAipRawPayload_ = cached.payload;
                 return cached.payload;
             }
             throw new Error(navigator.onLine
-                ? (bfgSupAipRelayDiag_.error || 'Données SUP AIP indisponibles via le relais NAS.')
+                ? (bfgSupAipRelayDiag_.error || 'Données SUP AIP indisponibles via le NAS/worker VPS.')
                 : 'Aucune carte SUP AIP mémorisée pour le mode hors ligne.');
         }
 
@@ -13814,8 +13835,8 @@ window.__notamTextFull = notamInput.value;
             return `<div class="bfg-supaip-popup-title">${escapeHtml_(zone.label)}</div>` +
                 `<div class="bfg-supaip-popup-row"><strong>Type :</strong> ${escapeHtml_(zone.typeText || 'SUP AIP')}</div>` +
                 `<div class="bfg-supaip-popup-row"><strong>Validité :</strong> ${escapeHtml_(bfgFormatDateFr_(zone.start))} → ${escapeHtml_(bfgFormatDateFr_(zone.end))}</div>` +
-                `<div class="bfg-supaip-popup-row"><strong>Plancher :</strong> ${escapeHtml_(bfgFormatAltitude_(zone.lowerRaw, zone.lowerFl))}</div>` +
-                `<div class="bfg-supaip-popup-row"><strong>Plafond :</strong> ${escapeHtml_(bfgFormatAltitude_(zone.upperRaw, zone.upperFl))}</div>` +
+                `<div class="bfg-supaip-popup-row"><strong>Plancher :</strong> ${escapeHtml_(bfgFormatAltitude_(zone.lowerRaw, zone.lowerFl, zone.lowerUnit, zone.lowerReference))}</div>` +
+                `<div class="bfg-supaip-popup-row"><strong>Plafond :</strong> ${escapeHtml_(bfgFormatAltitude_(zone.upperRaw, zone.upperFl, zone.upperUnit, zone.upperReference))}</div>` +
                 desc + pdfLink;
         }
 
@@ -13894,9 +13915,17 @@ window.__notamTextFull = notamInput.value;
             }).addTo(bfgSupAipFranceMap_);
 
             const rerender = () => bfgRenderSupAipFranceMap_();
+            const rerenderOrExtendCeiling = () => {
+                const requested = Math.max(0, Math.min(660, Math.round(Number(maxFlInput?.value || 195))));
+                if (navigator.onLine && Number.isFinite(Number(bfgSupAipLoadedCeiling_)) && requested > Number(bfgSupAipLoadedCeiling_)) {
+                    bfgLoadAndRenderSupAipMap_(true);
+                } else {
+                    rerender();
+                }
+            };
             fromInput?.addEventListener('change', rerender);
             toInput?.addEventListener('change', rerender);
-            maxFlInput?.addEventListener('change', rerender);
+            maxFlInput?.addEventListener('change', rerenderOrExtendCeiling);
             maxFlInput?.addEventListener('input', rerender);
             refreshBtn?.addEventListener('click', () => bfgLoadAndRenderSupAipMap_(true));
             setTimeout(() => bfgSupAipFranceMap_?.invalidateSize(false), 100);
@@ -13923,7 +13952,7 @@ window.__notamTextFull = notamInput.value;
 
         function initializePageTitle() {
             const titleElement = document.getElementById('main-title');
-            titleElement.textContent = `Briefing Fdf TEST v5.03 du ${new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}`;
+            titleElement.textContent = `Briefing Fdf TEST v5.04 du ${new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}`;
             const timeDisplay = document.getElementById('current-time-display');
             const updateTime = () => timeDisplay.textContent = new Date().toLocaleTimeString('fr-FR');
             updateTime(); setInterval(updateTime, 1000);
