@@ -1,3 +1,50 @@
+TEST v5.05 — 2026-09-21
+Base : TEST v5.04
+===============================================================================
+
+WINDY — COMMANDES DIRECTEMENT SUR LA CARTE
+- Suppression de la roue dentée : les raccourcis Windy sont maintenant visibles directement dans la partie haute de la carte.
+- Nouvelle ligne principale : VENT, Sécheresse, Radar Météo, Radar, Satellite, Orage.
+- Le bouton VENT est le mode vent ; un appui affiche/masque les sous-commandes du vent.
+- Les sous-commandes VENT conservent les choix AROME / ECMWF et les niveaux SFC, 330 ft, 2500 ft, 5000 ft et FL100.
+- Tout bouton sélectionné est affiché en bleu.
+- Lorsqu'un filtre autre que VENT est choisi, les sous-commandes vent sont automatiquement repliées.
+- Radar Météo utilise la couche radar temps réel de l'embed Windy (`overlay=radar`, `product=radar`).
+- Le bouton Radar utilise la couche précipitations Windy (`overlay=rain`, produit ECMWF), afin de rester distinct du Radar Météo.
+- Le comportement historique AROME est conservé : avec AROME, seul SFC est disponible ; le choix d'un niveau supérieur bascule automatiquement vers ECMWF.
+
+NOTAM — AFFICHAGE ÉPURÉ
+- Les lignes Q), B) et C) ne sont plus affichées dans le corps des NOTAM.
+- Les données brutes restent intégralement conservées : Q/B/C continuent donc à servir au parsing, à l'identification stable, aux filtres de dates, à la persistance et à la sauvegarde.
+- Les lignes D), E), F) et G) restent affichées lorsqu'elles existent.
+- La période B)/C) reste présentée sous la forme synthétique déjà utilisée : `VALIDE DU ... AU ...`.
+- Le numéro du NOTAM est affiché séparément au-dessus de la validité afin qu'il ne disparaisse pas avec la ligne Q).
+- Les liens automatiques vers les PDF SUP AIP officiels SIA continuent d'être créés dans le texte utile du NOTAM.
+
+CARTE SUP AIP
+- FL max par défaut abaissé de FL195 à FL115.
+- Le cadrage de la carte reste désormais volontairement fixé sur la France métropolitaine + Corse.
+- Les zones ultramarines restent présentes dans les données reçues mais ne sont plus dessinées sur cette carte ; elles ne peuvent donc plus provoquer un zoom monde.
+- Après chargement ou actualisation, la carte revient toujours sur le cadrage métropole + Corse.
+- Les messages visibles de chargement SUP AIP ne citent plus la source technique ; le diagnostic BFG conserve les informations techniques nécessaires au dépannage.
+- Le backend NAS / worker VPS validé en v5.04 n'est pas modifié.
+
+RTBA / AZBA
+- L'investigation de l'API SIA AZBA a confirmé l'accès aux géométries et aux créneaux `timeSlots`.
+- L'intégration graphique RTBA n'est pas encore activée dans cette version ; v5.05 se limite aux modifications d'interface demandées sur la version actuellement validée.
+
+NON-RÉGRESSION
+- Sources NOTAM NATS/SDVFR, mémoire « Garder la sélection », masquage persistant, METAR/TAF, TEMSI, FDS, GAAR, Tour de France et autres modules conservés.
+- Aucun fichier serveur PHP/Python n'est à remplacer pour v5.05.
+
+CONTRÔLES AVANT LIVRAISON
+- Syntaxe JavaScript inline vérifiée.
+- Manifeste JSON vérifié.
+- Service worker aligné sur v5.05 avec nouveau nom de cache.
+- Absence de la roue dentée et des anciens gestionnaires Windy vérifiée.
+- FL max SUP AIP par défaut = 115 vérifié.
+- Historique des modifications conservé intégralement.
+
 TEST v5.04 — 2026-09-21
 Base : TEST v5.03
 ===============================================================================
