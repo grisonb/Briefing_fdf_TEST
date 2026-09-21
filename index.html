@@ -2871,8 +2871,8 @@
     <footer>Données : Météo-France, SIA, Windy.com, SDVFR. Page non commerciale, à usage personnel.</footer>
     
     <script>
-        const APP_VERSION_NUMBER = "5.14";
-        const APP_VERSION = `${APP_VERSION_NUMBER} TEST - ESPACEMENT PARAGRAPHES NOTAM`;
+        const APP_VERSION_NUMBER = "5.15";
+        const APP_VERSION = `${APP_VERSION_NUMBER} TEST - EFFACEMENTS NOTAM PERSISTANTS`;
 
 
         // v4.97 — diagnostic conservé ; plage NOTAM quotidienne et sélection prioritaire. Aucun code d'accès, token ou contenu NOTAM n'est exporté.
@@ -11231,7 +11231,14 @@ let activeShareApiBase = SHARE_API_BASE;
             // NOTAM complet combiné conservé uniquement pour compatibilité avec les anciennes sauvegardes / NPF-Q400.
             notamTextFull: window.__notamTextFull || (notamInput ? notamInput.value : ""),
             notamText: notamInput ? notamInput.value : "",
-            notamState: { checkedIds: checkedNotamIds, highlights: highlightedNotams, checkedSignatures: checkedNotamSignatures, highlightSignatures: highlightSignatures },
+            notamState: {
+                capturedAt: new Date().toISOString(),
+                source: getBfgDisplayedNotamSource_(),
+                checkedIds: checkedNotamIds,
+                highlights: highlightedNotams,
+                checkedSignatures: checkedNotamSignatures,
+                highlightSignatures: highlightSignatures
+            },
 
             // ===== METAR/TAF =====
             weatherData: weatherData
@@ -12692,6 +12699,82 @@ window.__notamTextFull = notamInput.value;
                 }
             }
 
+            function getNotamClearMarkersForSource_(state = null, source = getBfgDisplayedNotamSource_()) {
+                const snapshot = state && typeof state === 'object' ? state : readPersistentNotamState_();
+                const allMarkers = snapshot.clearMarkers && typeof snapshot.clearMarkers === 'object' ? snapshot.clearMarkers : {};
+                const sourceKey = source === BFG_NOTAM_SOURCE_NATS_ ? BFG_NOTAM_SOURCE_NATS_ : BFG_NOTAM_SOURCE_SDVFR_;
+                const markers = allMarkers[sourceKey];
+                return markers && typeof markers === 'object' ? markers : {};
+            }
+
+            function markNotamExplicitClear_(kind) {
+                const state = readPersistentNotamState_();
+                const source = getBfgDisplayedNotamSource_() === BFG_NOTAM_SOURCE_NATS_
+                    ? BFG_NOTAM_SOURCE_NATS_
+                    : BFG_NOTAM_SOURCE_SDVFR_;
+                const nowIso = new Date().toISOString();
+                const clearMarkers = state.clearMarkers && typeof state.clearMarkers === 'object'
+                    ? { ...state.clearMarkers }
+                    : {};
+                const sourceMarkers = clearMarkers[source] && typeof clearMarkers[source] === 'object'
+                    ? { ...clearMarkers[source] }
+                    : {};
+                if (kind === 'selection') sourceMarkers.selectionClearedAt = nowIso;
+                if (kind === 'highlights') sourceMarkers.highlightsClearedAt = nowIso;
+                clearMarkers[source] = sourceMarkers;
+                writePersistentNotamState_({
+                    ...state,
+                    version: 'persistentNotamStateV1',
+                    updatedAt: nowIso,
+                    clearMarkers
+                });
+                return nowIso;
+            }
+
+            function savedNotamStateIsNewerThanExplicitClear_(savedState, kind) {
+                const markers = getNotamClearMarkersForSource_();
+                const markerIso = kind === 'selection' ? markers.selectionClearedAt : markers.highlightsClearedAt;
+                if (!markerIso) return true;
+
+                const markerTime = Date.parse(markerIso);
+                if (!Number.isFinite(markerTime)) return true;
+
+                const savedIso = savedState && (
+                    savedState.capturedAt ||
+                    savedState.updatedAt ||
+                    savedState.savedAt ||
+                    savedState.exportedAt
+                );
+                const savedTime = savedIso ? Date.parse(savedIso) : NaN;
+
+                // Un ancien snapshot sans horodatage est considéré antérieur à un effacement explicite.
+                return Number.isFinite(savedTime) && savedTime >= markerTime;
+            }
+
+            async function flushExplicitNotamClear_() {
+                window.__lastNotamState = null;
+
+                // Publication immédiate de l'état persistant (NAS + copies locales de secours).
+                try {
+                    await publishBfgNpfNotamsSharedSnapshot_();
+                } catch (error) {
+                    console.warn('Publication immédiate de l’état NOTAM effacé impossible :', error);
+                }
+
+                // Réécriture immédiate du snapshot IndexedDB pour éviter qu'un ancien notamState
+                // soit restauré si BFG est fermé juste après l'effacement.
+                try {
+                    if (typeof window.performBfgLocalSave_ === 'function' && !window.__bfgSessionSaveRunning) {
+                        await window.performBfgLocalSave_({ silent: true });
+                    } else if (typeof scheduleBfgLocalSnapshotSave_ === 'function') {
+                        scheduleBfgLocalSnapshotSave_(320);
+                    }
+                } catch (error) {
+                    console.warn('Réécriture immédiate du snapshot NOTAM impossible :', error);
+                    if (typeof scheduleBfgLocalSnapshotSave_ === 'function') scheduleBfgLocalSnapshotSave_(500);
+                }
+            }
+
             /* v4.61 — snapshot NOTAM BFG -> NAS -> NPF-Q400.
              * Les PWA installées iPad pouvant isoler leurs stockages, le NAS devient
              * le canal de synchronisation fiable. CacheStorage/localStorage restent
@@ -12826,7 +12909,10 @@ window.__notamTextFull = notamInput.value;
                 writePersistentNotamState_({
                     version: 'persistentNotamStateV1',
                     updatedAt: new Date().toISOString(),
-                    byId: merged
+                    byId: merged,
+                    clearMarkers: previous.clearMarkers && typeof previous.clearMarkers === 'object'
+                        ? previous.clearMarkers
+                        : {}
                 });
                 scheduleBfgNpfNotamsSharedPublish_(180);
             }
@@ -12879,29 +12965,33 @@ window.__notamTextFull = notamInput.value;
                 if (!savedState) return false;
                 let hasChecked = false;
 
+                // v5.15 : un effacement explicite est prioritaire sur un ancien snapshot local/portable.
+                const allowSelectionRestore = savedNotamStateIsNewerThanExplicitClear_(savedState, 'selection');
+                const allowHighlightRestore = savedNotamStateIsNewerThanExplicitClear_(savedState, 'highlights');
+
                 if (savedState.byId && typeof savedState.byId === 'object') {
                     Object.entries(savedState.byId).forEach(([id, entry]) => {
                         const item = findNotamItemById_(id);
                         if (!item || !stateEntryMatchesCurrentNotam_(item, entry)) return;
                         const checkbox = item.querySelector('.notam-checkbox');
                         const hideCheckbox = item.querySelector('.notam-hide-checkbox');
-                        if (checkbox && entry.checked) {
+                        if (allowSelectionRestore && checkbox && entry.checked) {
                             checkbox.checked = true;
                             hasChecked = true;
                         }
-                        if (hideCheckbox && entry.hiddenUntilChanged) hideCheckbox.checked = true;
-                        if (entry.highlightHtml) {
+                        if (allowSelectionRestore && hideCheckbox && entry.hiddenUntilChanged) hideCheckbox.checked = true;
+                        if (allowHighlightRestore && entry.highlightHtml) {
                             const contentEl = item.querySelector('.notam-text-content');
                             if (contentEl) contentEl.innerHTML = entry.highlightHtml;
                         }
-                        if (entry.validityHighlightHtml) {
+                        if (allowHighlightRestore && entry.validityHighlightHtml) {
                             const validityEl = item.querySelector('.notam-validity');
                             if (validityEl) validityEl.innerHTML = entry.validityHighlightHtml;
                         }
                     });
                 }
 
-                if (savedState.highlights) {
+                if (allowHighlightRestore && savedState.highlights) {
                     Object.entries(savedState.highlights).forEach(([id, html]) => {
                         const item = findNotamItemById_(id);
                         if (!item) return;
@@ -12912,7 +13002,7 @@ window.__notamTextFull = notamInput.value;
                     });
                 }
 
-                if (savedState.checkedIds) {
+                if (allowSelectionRestore && savedState.checkedIds) {
                     savedState.checkedIds.forEach(id => {
                         const item = findNotamItemById_(id);
                         if (!item) return;
@@ -13071,13 +13161,18 @@ window.__notamTextFull = notamInput.value;
                 return true;
             }
 
-            function clearNotamSelection_() {
+            async function clearNotamSelection_() {
+                // L'effacement est mémorisé même si aucune case n'est actuellement cochée :
+                // cela neutralise aussi un ancien snapshot qui tenterait de les restaurer.
+                markNotamExplicitClear_('selection');
+
                 document.querySelectorAll('#notam-display .notam-checkbox:checked, #notam-display .notam-hide-checkbox:checked').forEach(checkbox => {
                     checkbox.checked = false;
                 });
                 resetSelectionFilter();
                 updatePersistentHiddenNotamsVisibility_();
                 persistCurrentNotamState_();
+                await flushExplicitNotamClear_();
             }
             
             setupKeywordFilterDropdown();
@@ -13105,7 +13200,9 @@ window.__notamTextFull = notamInput.value;
             filterButtons.forEach(b => b.addEventListener('click', () => applySelectionFilter(true, { persist: true })));
             showAllButtons.forEach(b => b.addEventListener('click', () => resetSelectionFilter({ persist: true })));
             savePdfButtons.forEach(b => b.addEventListener('click', generateNotamPdf));
-            document.querySelectorAll('.clear-notam-selection-action').forEach(button => button.addEventListener('click', clearNotamSelection_));
+            document.querySelectorAll('.clear-notam-selection-action').forEach(button => button.addEventListener('click', () => {
+                clearNotamSelection_().catch(error => console.warn('Annulation sélection NOTAM incomplète :', error));
+            }));
 
             notamSection.addEventListener('change', (e) => {
                 const target = e.target;
@@ -13305,18 +13402,18 @@ window.__notamTextFull = notamInput.value;
                 return true;
             }
 
-            function undoLastPencilHighlight_() {
+            async function undoLastPencilHighlight_() {
                 // Suppression globale demandée : un clic retire tous les surlignages NOTAMs,
-                // y compris les surlignages Pencil, doigt et titres de validité.
+                // y compris Pencil, doigt et titres de validité, puis invalide les anciens snapshots.
                 pencilHighlightUndoStack_.length = 0;
+                markNotamExplicitClear_('highlights');
+
                 const marks = Array.from(document.querySelectorAll('#notam-display mark.highlighted-text'));
-                if (!marks.length) {
-                    window.getSelection()?.removeAllRanges();
-                    return;
-                }
                 marks.forEach(removeHighlightedMark_);
+
                 persistCurrentNotamState_();
                 window.getSelection()?.removeAllRanges();
+                await flushExplicitNotamClear_();
             }
 
             function isPencilEvent_(event) {
@@ -13700,7 +13797,9 @@ window.__notamTextFull = notamInput.value;
             notamSection.addEventListener('touchmove', preventPencilTouchScroll_, { passive: false, capture: true });
             document.addEventListener('touchmove', preventPencilTouchScroll_, { passive: false, capture: true });
             window.addEventListener('scroll', keepPencilPageStill_, { passive: true });
-            document.querySelectorAll('.pencil-undo-highlight-action').forEach(button => button.addEventListener('click', undoLastPencilHighlight_));
+            document.querySelectorAll('.pencil-undo-highlight-action').forEach(button => button.addEventListener('click', () => {
+                undoLastPencilHighlight_().catch(error => console.warn('Annulation surlignage NOTAM incomplète :', error));
+            }));
         }
         
 
