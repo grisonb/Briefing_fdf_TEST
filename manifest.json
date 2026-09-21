@@ -1,7 +1,7 @@
 {
   "name": "Briefing FDF TEST",
   "short_name": "Briefing TEST",
-  "description": "Briefing FDF TEST v5.05 — interface Windy directe, NOTAM épurés, carte SUP AIP métropole/Corse",
+  "description": "Briefing FDF TEST v5.06 — couleurs SUP AIP, validité future pulsée, sélection Windy stabilisée",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
