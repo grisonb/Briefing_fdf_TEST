@@ -1,7 +1,7 @@
 {
   "name": "Briefing FDF TEST",
   "short_name": "Briefing TEST",
-  "description": "Briefing FDF TEST v5.02 — diagnostic relais SUP AIP lisible et timeout explicite",
+  "description": "Briefing FDF TEST v5.03 — diagnostic méthode SDVFR OPTIONS/POST pour carte SUP AIP",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
