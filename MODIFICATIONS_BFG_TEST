@@ -1,3 +1,39 @@
+TEST v5.02 — 2026-09-21
+Base : TEST v5.01
+===============================================================================
+
+DIAGNOSTIC CARTE SUP AIP — ERREURS NAS LISIBLES
+- Le test direct Safari a confirmé que le relais NAS répond par HTTP 502 lorsque l'appel NAS -> SDVFR échoue.
+- Synology remplace les réponses HTTP 5xx par sa page générique « Une erreur s'est produite lors du traitement de cette demande », ce qui masquait le JSON de diagnostic du relais.
+- En v5.02, lorsque `diag=1` est demandé, le relais renvoie toujours HTTP 200 mais conserve le statut qui aurait dû être renvoyé dans `diagnosticHttpStatus`.
+- Le JSON de diagnostic reste donc lisible dans Safari et par BFG même lorsque SDVFR renvoie 401/403/404/5xx, une erreur TLS/DNS ou un timeout cURL.
+
+TIMEOUTS
+- Le relais NAS utilise désormais 8 s maximum pour établir la connexion et 15 s maximum pour l'appel SDVFR complet.
+- BFG applique également un timeout explicite de 20 s sur l'appel du relais NAS.
+- Le message « Chargement des zones SUP AIP SDVFR... » ne peut donc plus rester indéfiniment en attente ; en cas de dépassement BFG journalise « Timeout relais NAS après 20 s » puis tente le cache local.
+
+RELAIS NAS
+- Version du relais : 5.02.
+- Le fichier opérationnel doit remplacer `/web/briefing-api/get-sdvfr-temporary-airspaces.php` sur le NAS.
+- Le cache serveur de secours et les en-têtes CORS existants sont conservés.
+
+NON-RÉGRESSION
+- Carte France SUP AIP, filtres période / FL max, popups et liens PDF SIA inchangés.
+- Service worker conserve l'exclusion directe du relais SUP AIP introduite en v5.01.
+- NOTAM / météo / diagnostic général inchangés.
+- Service worker aligné sur v5.02 avec cache `briefing-fdf-test-v5.02-supaip-relay-diag200-r1`.
+
+Contrôles avant livraison :
+- syntaxe JavaScript inline ;
+- manifeste JSON ;
+- syntaxe service worker ;
+- syntaxe PHP du relais ;
+- cohérence des versions actives v5.02 ;
+- présence du timeout BFG 20 s ;
+- mode `diag=1` HTTP 200 avec statut réel conservé dans le JSON ;
+- conservation de l'historique cumulatif.
+
 TEST v5.01 — 2026-09-21
 Base : TEST v5.00
 ===============================================================================
