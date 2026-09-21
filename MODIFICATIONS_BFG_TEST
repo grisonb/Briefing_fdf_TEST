@@ -1,3 +1,32 @@
+TEST v5.01 — 2026-09-21
+Base : TEST v5.00
+===============================================================================
+
+CORRECTION CARTE SUP AIP — SERVICE WORKER
+- Diagnostic v5.00 : l'appel BFG -> NAS échouait avant toute réponse HTTP (`HTTP null`) avec `FetchEvent.respondWith ... TypeError: Load failed`.
+- Cause confirmée : le service worker interceptait encore le nouvel endpoint `/briefing-api/get-sdvfr-temporary-airspaces.php` via la règle générique des ressources externes.
+- v5.01 exclut explicitement ce relais de `event.respondWith()`, exactement comme le proxy METAR/TAF déjà validé.
+- La requête BFG -> NAS est donc désormais effectuée directement par le navigateur.
+- Le relais PHP v5.00 sur le NAS reste inchangé et ne doit pas être remplacé pour cette version.
+
+DIAGNOSTIC SUP AIP
+- Le diagnostic v5.00 est conservé pour obtenir enfin le vrai statut HTTP BFG -> NAS puis le statut NAS -> SDVFR.
+- Si SDVFR refuse l'appel serveur, BFG pourra maintenant distinguer clairement un 401/403/404/5xx amont d'un problème d'accès au NAS.
+
+NON-RÉGRESSION
+- Carte France SUP AIP, période, FL max, polygones, popup et liens PDF SIA inchangés.
+- Toute la logique NOTAM / METAR / TAF validée reste inchangée.
+- Relais NAS PHP v5.00 inchangé.
+- Service worker aligné sur v5.01 avec cache `briefing-fdf-test-v5.01-supaip-relay-direct-r1`.
+
+Contrôles avant livraison :
+- syntaxe JavaScript inline ;
+- manifeste JSON ;
+- syntaxe service worker ;
+- cohérence des versions actives v5.01 ;
+- exclusion explicite du relais SUP AIP dans le service worker ;
+- conservation de l'historique cumulatif.
+
 TEST v5.00 — 2026-09-21
 Base : TEST v4.99
 ===============================================================================
