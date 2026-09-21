@@ -1,3 +1,44 @@
+TEST v4.99 — 2026-09-21
+Base : TEST v4.98
+===============================================================================
+
+CARTE FRANCE SUP AIP — RELAIS NAS
+- L'appel direct BFG -> SDVFR Next de la v4.98 est supprimé : il est bloqué depuis la PWA par les contraintes d'accès navigateur (CORS/authentification côté SDVFR).
+- BFG appelle désormais uniquement le relais NAS `https://grisonb.synology.me/briefing-api/get-sdvfr-temporary-airspaces.php`.
+- Le relais NAS récupère côté serveur l'endpoint SDVFR Next `/auto-temporary-airspaces`, contrôle que la réponse est du JSON valide puis la renvoie à BFG.
+- Le relais autorise explicitement l'origine GitHub Pages de BFG et gère les requêtes OPTIONS/CORS.
+- En cas d'échec amont, le relais renvoie un message JSON explicite avec le code HTTP SDVFR lorsqu'il est disponible.
+
+ROBUSTESSE / HORS LIGNE
+- Le cache local de carte SUP AIP introduit en v4.98 est conservé : si le relais NAS est momentanément indisponible, BFG tente la dernière carte locale valide.
+- Le relais NAS conserve également une copie serveur de la dernière réponse SDVFR valide dans `/tmp` et peut la restituer en secours en cas d'échec temporaire de SDVFR.
+- Le bouton « Actualiser SUP AIP » force un nouvel appel au relais NAS ; les filtres période et FL max restent entièrement locaux et instantanés.
+
+DIAGNOSTIC D'ERREUR
+- BFG distingue désormais une erreur du relais NAS d'une réponse SDVFR invalide.
+- Le relais refuse les réponses HTML/non JSON et renvoie une erreur structurée au lieu de transmettre une page d'erreur à la carte.
+
+NON-RÉGRESSION
+- Carte France, filtres « Du / au », FL max, polygones SUP AIP, popup et liens PDF SIA inchangés.
+- Toute la logique NOTAM/METAR/TAF validée en v4.97 reste inchangée.
+- Couche AZBA/RTBA dynamique toujours réservée à la version 2.
+- Service worker aligné sur v4.99 avec nouveau cache `briefing-fdf-test-v4.99-supaip-nas-relay-r1`.
+
+FICHIER NAS À INSTALLER
+- `5_Relais_NAS_SUP_AIP_v4.99.txt` doit être copié sur le NAS sous :
+  `/web/briefing-api/get-sdvfr-temporary-airspaces.php`
+- Ce fichier est nécessaire : sans lui, la carte SUP AIP v4.99 ne peut pas interroger SDVFR.
+
+Contrôles avant livraison :
+- syntaxe JavaScript inline ;
+- manifeste JSON ;
+- syntaxe du service worker ;
+- syntaxe PHP du relais ;
+- cohérence des versions actives v4.99 ;
+- suppression de l'appel navigateur direct à `sdvfr-next.skydreamsoft.fr` ;
+- appel BFG vers le relais NAS ;
+- maintien du cache local de carte SUP AIP.
+
 TEST v4.98 — 2026-09-20
 Base : TEST v4.97
 ===============================================================================
