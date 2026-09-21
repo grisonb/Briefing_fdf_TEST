@@ -536,11 +536,15 @@
         
         .notam-controls { display: none; justify-content: center; flex-wrap: wrap; gap: 15px; margin-top: 20px; }
         #notam-controls-top.notam-controls-top-layout {
-            grid-template-columns: repeat(4, max-content);
+            /*
+             * v5.11 : colonne 2 volontairement vide. Elle crée une séparation
+             * plus marquée entre les boutons « Actualiser » et les autres actions.
+             */
+            grid-template-columns: max-content 28px max-content max-content;
             grid-template-rows: auto auto;
             justify-content: center;
             align-items: center;
-            column-gap: 15px;
+            column-gap: 12px;
             row-gap: 10px;
         }
         #notam-controls-top .notam-controls-row {
@@ -548,9 +552,11 @@
         }
         #notam-refresh-btn { grid-column: 1; grid-row: 1; }
         #manual-load-weather-btn { grid-column: 1; grid-row: 2; }
+        /* « Garder la Sélection » prend l'ancienne position d'« Annuler Sélection ». */
         #notam-controls-top .filter-action,
-        #notam-controls-top .show-all-action { grid-column: 2; grid-row: 1; }
-        #notam-controls-top .clear-notam-selection-action { grid-column: 3; grid-row: 1; }
+        #notam-controls-top .show-all-action { grid-column: 3; grid-row: 1; }
+        /* « Annuler Sélection » glisse juste en dessous. */
+        #notam-controls-top .clear-notam-selection-action { grid-column: 3; grid-row: 2; }
         #notam-controls-top .pencil-undo-highlight-action { grid-column: 4; grid-row: 1; }
         #notam-controls-top .save-pdf-action { grid-column: 4; grid-row: 2; }
         .notam-controls-row {
@@ -564,14 +570,15 @@
         @media (max-width: 760px) {
             #notam-controls-top.notam-controls-top-layout {
                 grid-template-columns: repeat(2, minmax(0, max-content));
+                column-gap: 18px;
             }
             #notam-refresh-btn { grid-column: 1; grid-row: 1; }
             #manual-load-weather-btn { grid-column: 1; grid-row: 2; }
             #notam-controls-top .filter-action,
             #notam-controls-top .show-all-action { grid-column: 2; grid-row: 1; }
             #notam-controls-top .clear-notam-selection-action { grid-column: 2; grid-row: 2; }
-            #notam-controls-top .pencil-undo-highlight-action { grid-column: 1; grid-row: 3; }
-            #notam-controls-top .save-pdf-action { grid-column: 1; grid-row: 4; }
+            #notam-controls-top .pencil-undo-highlight-action { grid-column: 2; grid-row: 3; }
+            #notam-controls-top .save-pdf-action { grid-column: 2; grid-row: 4; }
         }
         
         #notam-controls-bottom { 
@@ -720,7 +727,8 @@
             align-items: center;
             gap: 9px;
             flex: 0 0 auto;
-            margin-top: 1px;
+            /* v5.11 : la case verte est calée sur la ligne de référence du NOTAM. */
+            margin-top: -4px;
         }
         .notam-checkbox-ring {
             width: 32px;
@@ -739,7 +747,8 @@
         }
         .notam-checkbox-ring-hide {
             border: 3px solid #111111;
-            margin-top: 6px;
+            /* v5.11 : décale la case noire pour l'aligner sur la ligne « au … ». */
+            margin-top: 16px;
         }
         .notam-checkbox,
         .notam-hide-checkbox {
@@ -2416,10 +2425,10 @@
 
     <div class="page-header">
         <div class="page-header-background"></div>
-        <h1 id="main-title">Briefing Fdf TEST v5.10</h1>
+        <h1 id="main-title">Briefing Fdf TEST v5.11</h1>
         <p id="current-time-display"></p>
         <p style="position: relative; z-index: 2; text-align: center; color: #333; font-size: 1em; margin-top: -25px; margin-bottom: 30px;">
-    v<span id="app-version">5.10 TEST - VALIDITÉ + MÉTÉO MANUELLE + SUP AIP</span>
+    v<span id="app-version">5.11 TEST - ALIGNEMENT NOTAM + COMMANDES</span>
     <button id="force-update-btn" class="link-button" style="background-color: #34495e; padding: 4px 10px; font-size: 0.8em; margin-left: 10px; vertical-align: middle;">
         Forcer MAJ
     </button>
@@ -14322,7 +14331,7 @@ window.__notamTextFull = notamInput.value;
 
         function initializePageTitle() {
             const titleElement = document.getElementById('main-title');
-            titleElement.textContent = `Briefing Fdf TEST v5.10 du ${new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}`;
+            titleElement.textContent = `Briefing Fdf TEST v5.11 du ${new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}`;
             const timeDisplay = document.getElementById('current-time-display');
             const updateTime = () => timeDisplay.textContent = new Date().toLocaleTimeString('fr-FR');
             updateTime(); setInterval(updateTime, 1000);
