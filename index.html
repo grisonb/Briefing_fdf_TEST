@@ -12,8 +12,8 @@
         }
     </script>
     <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0">
-    <title>Briefing Fdf TEST v5.00</title>
-    <link rel="manifest" href="./manifest.json?v=5.00">
+    <title>Briefing Fdf TEST v5.01</title>
+    <link rel="manifest" href="./manifest.json?v=5.01">
     <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png?v=4.24">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-title" content="Briefing TEST">
@@ -1173,7 +1173,7 @@
             border-radius: 8px;
             box-shadow: 0 2px 8px rgba(0,0,0,0.08);
         }
-        /* v5.00 — Carte SUP AIP : diagnostic complet BFG -> NAS -> SDVFR. */
+        /* v5.01 — Carte SUP AIP : relais NAS hors interception du service worker. */
         #sup-aip-map-panel {
             margin: 0 0 22px 0;
             padding: 16px;
@@ -2332,10 +2332,10 @@
 
     <div class="page-header">
         <div class="page-header-background"></div>
-        <h1 id="main-title">Briefing Fdf TEST v5.00</h1>
+        <h1 id="main-title">Briefing Fdf TEST v5.01</h1>
         <p id="current-time-display"></p>
         <p style="position: relative; z-index: 2; text-align: center; color: #333; font-size: 1em; margin-top: -25px; margin-bottom: 30px;">
-    v<span id="app-version">5.00 TEST - DIAGNOSTIC SUP AIP</span>
+    v<span id="app-version">5.01 TEST - RELAIS SUP AIP</span>
     <button id="force-update-btn" class="link-button" style="background-color: #34495e; padding: 4px 10px; font-size: 0.8em; margin-left: 10px; vertical-align: middle;">
         Forcer MAJ
     </button>
@@ -2760,7 +2760,7 @@
     <footer>Données : Météo-France, SIA, Windy.com, SDVFR. Page non commerciale, à usage personnel.</footer>
     
     <script>
-        const APP_VERSION = "5.00 TEST - DIAGNOSTIC SUP AIP";
+        const APP_VERSION = "5.01 TEST - RELAIS SUP AIP";
 
 
         // v4.97 — diagnostic conservé ; plage NOTAM quotidienne et sélection prioritaire. Aucun code d'accès, token ou contenu NOTAM n'est exporté.
@@ -2771,7 +2771,7 @@
         let bfgDiagPreparedText_ = '';
         let bfgDiagPrepareInFlight_ = false;
 
-        // v5.00 — état du dernier échange carte SUP AIP, exporté dans le diagnostic BFG.
+        // v5.01 — état du dernier échange carte SUP AIP, exporté dans le diagnostic BFG.
         const bfgSupAipRelayDiag_ = {
             lastAttemptAt: '',
             requestUrl: '',
@@ -3121,11 +3121,11 @@
                     ? output.value
                     : (bfgDiagPreparedText_ || buildBfgDiagnosticTextSync_());
                 const stamp = new Date().toISOString().replace(/[:.]/g, '-');
-                const filename = `BFG_DIAG_v5.00_${stamp}.txt`;
+                const filename = `BFG_DIAG_v5.01_${stamp}.txt`;
                 const file = new File([text], filename, { type: 'text/plain;charset=utf-8' });
                 if (navigator.share && (!navigator.canShare || navigator.canShare({ files: [file] }))) {
                     try {
-                        await navigator.share({ title: `Diagnostic BFG v5.00`, files: [file] });
+                        await navigator.share({ title: `Diagnostic BFG v5.01`, files: [file] });
                         if (status) status.textContent = 'Diagnostic partagé.';
                         bfgDiagLog_('DIAG', 'Diagnostic partagé via feuille de partage');
                         refreshBfgPreparedDiagnostic_();
@@ -6608,7 +6608,7 @@ const tdfStages = [
             }
         }
         window.onload = waitForPdfJsAndInitialize;
-        const BFG_REQUIRED_SW_VERSION_ = '5.00';
+        const BFG_REQUIRED_SW_VERSION_ = '5.01';
 
         function queryBfgControllerVersion_(timeoutMs = 1800) {
             return new Promise((resolve) => {
@@ -6648,7 +6648,7 @@ const tdfStages = [
             }
 
             const registration = await navigator.serviceWorker.register(
-                './sw.js?v=5.00',
+                './sw.js?v=5.01',
                 { updateViaCache: 'none' }
             );
 
@@ -13455,7 +13455,7 @@ window.__notamTextFull = notamInput.value;
         }
         
 
-        // ===== v5.00 : CARTE FRANCE SUP AIP / DIAGNOSTIC RELAIS NAS -> SDVFR =====
+        // ===== v5.01 : CARTE FRANCE SUP AIP / DIAGNOSTIC RELAIS NAS -> SDVFR =====
         let bfgSupAipFranceMap_ = null;
         let bfgSupAipFranceLayer_ = null;
         let bfgSupAipRawPayload_ = null;
@@ -13886,7 +13886,7 @@ window.__notamTextFull = notamInput.value;
 
         function initializePageTitle() {
             const titleElement = document.getElementById('main-title');
-            titleElement.textContent = `Briefing Fdf TEST v5.00 du ${new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}`;
+            titleElement.textContent = `Briefing Fdf TEST v5.01 du ${new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}`;
             const timeDisplay = document.getElementById('current-time-display');
             const updateTime = () => timeDisplay.textContent = new Date().toLocaleTimeString('fr-FR');
             updateTime(); setInterval(updateTime, 1000);
