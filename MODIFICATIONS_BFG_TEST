@@ -1,3 +1,51 @@
+TEST v5.06 — 2026-09-21
+Base : TEST v5.05
+===============================================================================
+
+WINDY — ÉTAT BLEU STABLE SUR IPAD
+- Correction du retard d'affichage signalé sur iPad/Safari : un bouton Windy sélectionné reste désormais bleu immédiatement, sans devoir déplacer la carte.
+- L'état actif est renforcé par CSS et le rechargement de l'iframe Windy est différé de deux frames graphiques afin de laisser Safari peindre la sélection avant le changement de couche.
+- Cette correction s'applique aux filtres principaux ainsi qu'aux choix AROME / ECMWF et niveaux de vent.
+- Aucun changement de source ou de logique météo dans cette version.
+- « Danger d'incendie » n'est pas ajouté dans v5.06 : aucune couche Windy Embed fiable n'a été validée pour ce filtre.
+
+CARTE SUP AIP — COULEURS PAR TYPE
+- Les zones ne sont plus toutes violettes. La couleur dépend désormais du libellé opérationnel de la zone :
+  - ZIT : rouge ;
+  - ZRT : orange ;
+  - ZDT : jaune ;
+  - ZRT/ZDT : rouge-orangé ;
+  - CTR/TMA temporaires : bleu ;
+  - autres SUP AIP : violet.
+- Les contours restent exclusivement en traits pleins : aucun pointillé n'est utilisé afin d'éviter toute confusion avec les conventions graphiques des cartes aéronautiques.
+- Ajout d'une légende compacte au-dessus de la carte.
+
+CARTE SUP AIP — VALIDITÉ FUTURE
+- Une zone dont `start_validity` est postérieur à l'heure actuelle conserve sa couleur de catégorie et présente une pulsation légère d'opacité.
+- Cette pulsation signifie uniquement « début de période de validité à venir » ; elle ne prétend pas indiquer une activation opérationnelle réelle lorsqu'aucun créneau d'activité n'est fourni.
+- La pulsation est volontairement lente et modérée (environ 1,25 s entre états) pour rester lisible sans attirer excessivement l'attention.
+- Le système de pulsation est arrêté/recréé proprement à chaque changement de filtre ou actualisation pour éviter l'accumulation de timers.
+
+RTBA / AZBA
+- Aucun changement RTBA/AZBA dans v5.06.
+- Aucun clignotement RTBA n'est ajouté.
+- La logique et les couleurs RTBA seront définies ultérieurement.
+
+NON-RÉGRESSION
+- FL max SUP AIP par défaut conservé à FL115.
+- Cadrage France métropolitaine + Corse conservé ; zones ultramarines ignorées sur cette carte.
+- Masquage visuel NOTAM Q), B) et C) conservé avec maintien des données brutes pour le traitement.
+- Backend NAS / worker VPS SUP AIP inchangé : aucun fichier PHP/Python à remplacer.
+- Sources NOTAM, METAR/TAF, TEMSI, FDS, GAAR, Tour de France et autres modules non modifiés.
+
+CONTRÔLES AVANT LIVRAISON
+- Syntaxe JavaScript inline vérifiée.
+- Manifeste JSON vérifié.
+- Service worker aligné sur v5.06 avec nouveau nom de cache.
+- Vérification : aucune propriété `dashArray` / aucun contour pointillé ajouté aux SUP AIP.
+- Vérification : aucune logique RTBA ajoutée.
+- Historique des modifications conservé intégralement.
+
 TEST v5.05 — 2026-09-21
 Base : TEST v5.04
 ===============================================================================
