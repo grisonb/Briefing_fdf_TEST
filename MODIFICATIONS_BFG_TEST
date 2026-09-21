@@ -1,3 +1,32 @@
+TEST v5.11 — 2026-09-21
+Base : TEST v5.10
+===============================================================================
+
+NOTAM — ALIGNEMENT DES CASES
+- La case verte « Garder ce NOTAM » est remontée afin d'être alignée avec la ligne de référence du NOTAM (ex. « B4168/26 »).
+- La case noire « Non désirable » est décalée vers le bas afin d'être alignée avec la seconde ligne de validité « au … ».
+- Aucun changement du fonctionnement des deux cases ni de leur persistance.
+
+ANALYSE NOTAM — RÉORGANISATION DES COMMANDES
+- « Garder la Sélection » prend la position précédemment occupée par « Annuler Sélection ».
+- « Annuler Sélection » est placé directement sous « Garder la Sélection ».
+- « Annuler Surlignage » reste sur la ligne haute et « Sauvegarder en Pdf » reste directement en dessous.
+- « Actualiser NOTAM » et « Actualiser Météo » restent dans leur colonne à gauche.
+- L'espace horizontal entre la colonne des boutons « Actualiser » et le groupe des autres actions est volontairement plus grand que l'espace entre les autres boutons.
+
+NON-RÉGRESSION
+- Présentation « Validité du … / au … » v5.10 conservée.
+- Météo manuelle sans référence visible à SDVFR conservée.
+- Clignotement SUP AIP des validités futures conservé.
+- Bandeau de chargement NOTAM et autres fonctions v5.09 conservés.
+- Aucun changement NAS / worker VPS / RTBA.
+
+CONTRÔLES AVANT LIVRAISON
+- Syntaxe JavaScript inline vérifiée.
+- Manifeste JSON vérifié.
+- Service worker aligné sur v5.11 avec nouveau nom de cache.
+- Historique v5.10 et antérieur conservé intégralement.
+
 TEST v5.10 — 2026-09-21
 Base : TEST v5.09
 ===============================================================================
