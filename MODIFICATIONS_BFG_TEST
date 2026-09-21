@@ -1,3 +1,43 @@
+TEST v5.10 — 2026-09-21
+Base : TEST v5.09
+===============================================================================
+
+NOTAM — CRÉNEAU DE VALIDITÉ
+- « Validité » est désormais placé sur la même première ligne que « du » et la date/heure de début.
+- La seconde ligne commence sous la colonne « du » avec « au » puis la date/heure de fin.
+- Rendu attendu :
+      Validité   du   21/09/2026 à 12h00
+                 au   24/09/2026 à 10h00
+- « du » et « au » restent parfaitement alignés dans une colonne fixe ; les dates/heures restent alignées dans leur propre colonne.
+- Le surlignage du bloc de validité est conservé.
+
+MÉTÉO MANUELLE — LIBELLÉS NEUTRES
+- Suppression de toute référence visible à « SDVFR » pendant une recherche météo manuelle.
+- Le bouton affiche « Recherche météo… » pendant la requête.
+- Les états affichés deviennent « Chargement météo… », « Aucun METAR/TAF disponible », « Aucune donnée météo disponible » ou un message d'erreur générique.
+- La chaîne technique de récupération reste inchangée en arrière-plan ; seule la présentation utilisateur est neutralisée.
+
+CARTE SUP AIP — CLIGNOTEMENT DES VALIDITÉS FUTURES
+- La pulsation des zones dont la période de validité commence plus tard est remplacée par un clignotement léger et régulier.
+- Aucun changement de taille ni effet de zoom : seule l'opacité alterne entre l'état normal et un état atténué.
+- Période de clignotement : environ 0,85 s par état.
+- Les couleurs par catégorie SUP AIP restent inchangées.
+- Ce clignotement indique uniquement une période de validité future du SUP AIP, pas une activation opérationnelle RTBA.
+
+NON-RÉGRESSION
+- Réorganisation des boutons, bandeau de chargement NOTAM et météo manuelle v5.09 conservés.
+- Grande carte SUP AIP v5.08 conservée.
+- Filtre altitude strict v5.07 conservé : plancher = FL max masqué.
+- Cadrage France métropolitaine + Corse conservé.
+- Aucun changement RTBA/AZBA.
+- Aucun changement NAS / worker VPS.
+
+CONTRÔLES AVANT LIVRAISON
+- Syntaxe JavaScript inline vérifiée.
+- Manifeste JSON vérifié.
+- Service worker aligné sur v5.10 avec nouveau nom de cache.
+- Historique des modifications v5.09 et antérieures conservé intégralement.
+
 TEST v5.09 — 2026-09-21
 Base : TEST v5.08
 ===============================================================================
