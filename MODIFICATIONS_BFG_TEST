@@ -1,3 +1,39 @@
+TEST v5.15 — 2026-09-21
+Base : TEST v5.14
+===============================================================================
+
+NOTAM — ANNULER SURLIGNAGE DÉFINITIF
+- Correction de la réapparition des surlignages après fermeture/réouverture de BFG.
+- « Annuler Surlignage » supprime toujours les marques visibles puis enregistre un marqueur d'effacement horodaté pour la source NOTAM courante.
+- Les anciens snapshots locaux/portables antérieurs à cet effacement ne sont plus autorisés à réinjecter des surlignages.
+- L'effacement est mémorisé même si aucun surlignage n'est visible au moment du clic, afin de neutraliser un ancien snapshot résiduel.
+- Après l'effacement, le snapshot IndexedDB local est réécrit immédiatement et l'état NOTAM partagé est republié sans attendre la sauvegarde automatique différée.
+
+NOTAM — ANNULER SÉLECTION DÉFINITIF
+- Même sécurisation pour « Annuler Sélection ».
+- Les cases vertes et noires sont décochées comme auparavant.
+- Un marqueur d'effacement horodaté empêche un ancien `checkedIds`, `checked` ou `hiddenUntilChanged` de recocher les NOTAMs lors d'une réouverture.
+- L'état « Garder la Sélection » reste désactivé après l'annulation.
+- Le snapshot IndexedDB et l'état partagé sont mis à jour immédiatement.
+
+PERSISTANCE / COMPATIBILITÉ
+- `notamState` contient désormais `capturedAt` et la source NOTAM afin de pouvoir distinguer un snapshot récent d'un ancien état antérieur à une annulation.
+- L'état persistant conserve des `clearMarkers` séparés pour NATS et SDVFR.
+- Les snapshots créés après une annulation restent restaurables normalement ; seuls les états plus anciens que l'annulation sont bloqués.
+- Compatibilité maintenue avec les anciens snapshots sans horodatage : après une annulation explicite, ils sont considérés comme anciens pour la catégorie concernée.
+
+NON-RÉGRESSION
+- Espacement des paragraphes NOTAM v5.14 conservé.
+- Positionnement des cases v5.13 conservé.
+- Ordre des boutons v5.12/v5.13 conservé.
+- Aucune modification SUP AIP, Windy, météo ou RTBA dans cette version.
+
+CONTRÔLES AVANT LIVRAISON
+- JavaScript inline vérifié.
+- Manifeste JSON vérifié.
+- Service worker aligné sur v5.15.
+- Historique cumulatif conservé.
+
 TEST v5.14 — 2026-09-21
 Base : TEST v5.13
 ===============================================================================
