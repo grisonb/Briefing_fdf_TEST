@@ -1,3 +1,56 @@
+TEST v5.04 — 2026-09-21
+Base : TEST v5.03
+===============================================================================
+
+CARTE FRANCE SUP AIP — CHAÎNE VPS AUTHENTIFIÉE VALIDÉE
+- Le test manuel depuis le VPS a confirmé l'appel SDVFR Next `/auto-temporary-airspaces` : HTTP 200, JSON `application/json`, environ 383 ko reçus.
+- Le contrat réel SDVFR est désormais reproduit : POST JSON, session `PHPSESSID` authentifiée et en-tête `X-Requested-With: XMLHttpRequest`.
+- Payload V1 SUP AIP : `ceiling` issu du FL max BFG, `azbaEnabled:false`, `supAipEnabled:true`, `zsmEnabled:false`, `anticipation:120`.
+- Les identifiants SDVFR et le cookie PHPSESSID restent exclusivement sur le VPS.
+
+ARCHITECTURE
+- BFG n'appelle plus SDVFR directement pour la carte.
+- Flux : BFG -> `get-sdvfr-temporary-airspaces.php` sur NAS -> file d'attente NAS -> `bfg-sdvfr-worker.py` sur VPS -> SDVFR -> retour NAS -> BFG.
+- Deux nouveaux endpoints NAS réservés au worker sont ajoutés :
+  - `get-sdvfr-temporary-airspaces-request.php` ;
+  - `update-sdvfr-temporary-airspaces-result.php`.
+- Ils réutilisent le `upload_token` existant de `notams_config.php`.
+- Le worker existant conserve intégralement la récupération NOTAM + METAR/TAF et surveille en plus la file SUP AIP.
+
+ROBUSTESSE
+- Le relais public conserve un cache NAS de la dernière carte valide (TTL nominal 15 min).
+- Une actualisation forcée déclenche une nouvelle demande au worker.
+- Si le worker est momentanément trop lent, la dernière carte valide peut être renvoyée en secours.
+- Les erreurs applicatives du relais public restent en HTTP 200 avec `ok:false` afin d'éviter que Synology remplace le JSON par une page HTML générique.
+- Timeout navigateur porté à 25 s pour laisser au NAS le temps d'attendre le worker VPS.
+
+SCHÉMA SDVFR RÉEL PRIS EN CHARGE
+- Géométrie : champ `coordinates` WKT (`SRID=4326;POLYGON(...)`).
+- Validité : `start_validity` / `end_validity`.
+- Limites verticales : `lower_limit`, `upper_limit`, unités et références associées.
+- Type `SUPAIP` reconnu directement.
+- Code SDVFR `LF_26_194` converti en SUP AIP 194/26 pour construire le lien PDF officiel SIA.
+
+INTERFACE
+- Carte France, période, FL max, popups, lien PDF SIA et cache local conservés.
+- Diagnostic carte mis à jour pour afficher la chaîne NAS + worker VPS et le statut `VPS -> SDVFR`.
+- Les fonctions NOTAM, météo, FDS, GAAR, Tour de France et autres modules ne sont pas modifiées.
+
+FICHIERS SERVEUR À DÉPLOYER
+- NAS `/volume1/web/briefing-api/` :
+  - remplacer `get-sdvfr-temporary-airspaces.php` ;
+  - ajouter `get-sdvfr-temporary-airspaces-request.php` ;
+  - ajouter `update-sdvfr-temporary-airspaces-result.php`.
+- VPS `/home/ubuntu/bfg-worker/` : remplacer `bfg-sdvfr-worker.py`, puis redémarrer `bfg-sdvfr-worker.service`.
+
+CONTRÔLES AVANT LIVRAISON
+- Syntaxe JavaScript inline v5.04 : OK.
+- Syntaxe PHP des 3 endpoints : OK.
+- Syntaxe Python worker : OK.
+- Manifeste JSON : OK.
+- Version service worker v5.04 et exclusion du relais SUP AIP : OK.
+- Historique des modifications conservé intégralement.
+
 TEST v5.03 — 2026-09-21
 Base : TEST v5.02
 ===============================================================================
