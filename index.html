@@ -780,7 +780,7 @@
         }
         .notam-validity-label {
             grid-column: 1;
-            grid-row: 1 / span 2;
+            grid-row: 1;
             align-self: center;
             font-weight: 900;
         }
@@ -2416,10 +2416,10 @@
 
     <div class="page-header">
         <div class="page-header-background"></div>
-        <h1 id="main-title">Briefing Fdf TEST v5.09</h1>
+        <h1 id="main-title">Briefing Fdf TEST v5.10</h1>
         <p id="current-time-display"></p>
         <p style="position: relative; z-index: 2; text-align: center; color: #333; font-size: 1em; margin-top: -25px; margin-bottom: 30px;">
-    v<span id="app-version">5.09 TEST - NOTAM UI + METEO SDVFR</span>
+    v<span id="app-version">5.10 TEST - VALIDITÉ + MÉTÉO MANUELLE + SUP AIP</span>
     <button id="force-update-btn" class="link-button" style="background-color: #34495e; padding: 4px 10px; font-size: 0.8em; margin-left: 10px; vertical-align: middle;">
         Forcer MAJ
     </button>
@@ -14093,18 +14093,19 @@ window.__notamTextFull = notamInput.value;
         function bfgStartSupAipFuturePulse_() {
             if (!bfgSupAipFuturePulseLayers_.length) return;
             bfgSupAipFuturePulseState_ = true;
+            // v5.10 : clignotement léger, net et régulier des zones dont la validité commence plus tard.
+            // Pas de pulsation/zoom : seule l'opacité alterne entre deux états.
             bfgSupAipFuturePulseTimer_ = setInterval(() => {
                 bfgSupAipFuturePulseState_ = !bfgSupAipFuturePulseState_;
-                const factor = bfgSupAipFuturePulseState_ ? 1 : 0.58;
                 bfgSupAipFuturePulseLayers_.forEach(({ layer, style }) => {
                     try {
                         layer.setStyle({
-                            opacity: Math.max(0.5, style.opacity * factor),
-                            fillOpacity: Math.max(0.08, style.fillOpacity * factor)
+                            opacity: bfgSupAipFuturePulseState_ ? style.opacity : 0.38,
+                            fillOpacity: bfgSupAipFuturePulseState_ ? style.fillOpacity : 0.055
                         });
                     } catch (_) {}
                 });
-            }, 1250);
+            }, 850);
         }
 
         function bfgSupAipPopupHtml_(zone) {
@@ -14245,7 +14246,7 @@ window.__notamTextFull = notamInput.value;
                 display.innerHTML = '';
                 if (fetchBtn) {
                     fetchBtn.disabled = true;
-                    fetchBtn.textContent = 'Recherche SDVFR…';
+                    fetchBtn.textContent = 'Recherche météo…';
                 }
 
                 const containers = new Map();
@@ -14276,7 +14277,7 @@ window.__notamTextFull = notamInput.value;
 
                     targets.forEach(target => {
                         const container = containers.get(target.icao);
-                        if (container) setManualWeatherMessage_(container, 'Chargement SDVFR…');
+                        if (container) setManualWeatherMessage_(container, 'Chargement météo…');
                     });
 
                     const payload = await fetchSdvfrTargetsOnce_(targets);
@@ -14289,17 +14290,17 @@ window.__notamTextFull = notamInput.value;
                         const airport = airports.find(item => String(item && item.icao || '').toUpperCase() === target.icao);
                         if (airport) {
                             const result = displaySdvfrWeatherForAirport_(airport, container);
-                            if (!result.loaded) setManualWeatherMessage_(container, 'Aucun METAR/TAF SDVFR disponible.');
+                            if (!result.loaded) setManualWeatherMessage_(container, 'Aucun METAR/TAF disponible.');
                             return;
                         }
                         const error = errors.find(item => String(item && item.icao || '').toUpperCase() === target.icao);
-                        setManualWeatherMessage_(container, error && error.error ? `SDVFR : ${error.error}` : 'Aucune donnée SDVFR disponible.');
+                        setManualWeatherMessage_(container, error && error.error ? `Erreur : ${error.error}` : 'Aucune donnée météo disponible.');
                     });
                 } catch (error) {
                     console.warn('Recherche météo manuelle SDVFR impossible:', error);
                     containers.forEach(container => {
                         if (!container.querySelector('.metar-container pre') && !container.querySelector('.taf-container pre')) {
-                            setManualWeatherMessage_(container, `Recherche SDVFR impossible : ${error.message || error}`);
+                            setManualWeatherMessage_(container, `Recherche météo impossible : ${error.message || error}`);
                         }
                     });
                 } finally {
@@ -14321,7 +14322,7 @@ window.__notamTextFull = notamInput.value;
 
         function initializePageTitle() {
             const titleElement = document.getElementById('main-title');
-            titleElement.textContent = `Briefing Fdf TEST v5.09 du ${new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}`;
+            titleElement.textContent = `Briefing Fdf TEST v5.10 du ${new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}`;
             const timeDisplay = document.getElementById('current-time-display');
             const updateTime = () => timeDisplay.textContent = new Date().toLocaleTimeString('fr-FR');
             updateTime(); setInterval(updateTime, 1000);
