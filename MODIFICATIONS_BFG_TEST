@@ -1,3 +1,52 @@
+TEST v5.09 — 2026-09-21
+Base : TEST v5.08
+===============================================================================
+
+NOTAM — RÉORGANISATION DES COMMANDES
+- « Actualiser Météo » est placé directement sous « Actualiser NOTAM » dans le bloc supérieur.
+- « Sauvegarder en Pdf » est placé directement sous « Annuler Surlignage ».
+- Le bloc supérieur utilise une grille stable afin de conserver cet alignement sur iPad.
+- « Annuler Surlignage » passe en rouge plus foncé (#922b21) que « Annuler Sélection » (#c0392b).
+
+NOTAM — CRÉNEAU DE VALIDITÉ PLUS LISIBLE
+- Le créneau n'est plus affiché sur une ligne compacte en capitales.
+- Nouveau rendu sur deux lignes :
+      Validité   du   21/09/2026 à 12h00
+                 au   24/09/2026 à 10h00
+- « Validité » occupe les deux lignes ; « du » et « au » disposent d'une colonne fixe et sont centrés verticalement face à leur date/heure.
+- Les dates/heures utilisent des chiffres tabulaires pour améliorer l'alignement.
+- Le surlignage NOTAM reste disponible sur tout le bloc de validité.
+
+ACCUEIL — BANDEAU DE CHARGEMENT NOTAM
+- Le bandeau de téléchargement NOTAM est déplacé sous le statut « Accès Briefing connecté jusqu'à … ».
+- Pendant le chargement il apparaît en vert soutenu, plus foncé que le fond vert de la zone connectée, avec texte blanc.
+- Texte : « Chargement des NOTAM en cours... ».
+- Le bandeau disparaît dès que les NOTAM sont rendus ; en cas d'échec sans données affichées il passe en état erreur rouge.
+
+MÉTÉO MANUELLE — SDVFR
+- La recherche manuelle METAR/TAF n'affiche plus le message CheckWX désactivé.
+- METAR et TAF sont désormais demandés via le relais SDVFR déjà utilisé par BFG ; CheckWX reste totalement désactivé.
+- Pour les terrains BFG connus, les coordonnées locales existantes sont réutilisées.
+- Pour un OACI hors liste, BFG résout uniquement les coordonnées du terrain via le géocodage déjà présent dans l'application, les met en cache localement, puis interroge SDVFR avec ces coordonnées.
+- LFMT, LFPB et EGLL disposent en plus de coordonnées intégrées pour les cas usuels / exemples.
+- Le bouton ↻ d'un résultat météo manuel utilise la même chaîne SDVFR.
+- Aucun changement NAS / worker VPS n'est nécessaire.
+
+NON-RÉGRESSION
+- Carte SUP AIP grand format v5.08 conservée.
+- Filtre altitude strict v5.07 conservé : plancher = FL max masqué.
+- Couleurs et pulsation SUP AIP conservées.
+- Boutons Windy et état bleu v5.06 conservés.
+- Q), B) et C) restent masqués dans le corps des NOTAM tout en restant disponibles dans les données brutes.
+- Aucun changement RTBA/AZBA dans cette version.
+
+CONTRÔLES AVANT LIVRAISON
+- Syntaxe JavaScript inline vérifiée.
+- Manifeste JSON vérifié.
+- Service worker aligné sur v5.09 avec nouveau nom de cache.
+- Vérification ciblée du placement du bandeau NOTAM et des commandes supérieures.
+- Historique des modifications conservé intégralement.
+
 TEST v5.08 — 2026-09-21
 Base : TEST v5.07
 ===============================================================================
