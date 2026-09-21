@@ -701,7 +701,7 @@
         
         .notam-item { 
             display: flex;
-            gap: 10px;
+            gap: 22px;
             align-items: flex-start;
             border-left: 5px solid #7fb3d5; 
             padding: 15px; 
@@ -726,13 +726,10 @@
             display: flex;
             flex-direction: column;
             align-items: center;
-            justify-content: space-between;
-            align-self: stretch;
-            gap: 0;
+            gap: 9px;
             flex: 0 0 auto;
-            /* v5.12 : verte sur la référence ; noire sur la dernière ligne du NOTAM. */
+            /* v5.13 : retour au positionnement v5.11 ; espace latéral augmenté avec le texte. */
             margin-top: -4px;
-            margin-bottom: 0;
         }
         .notam-checkbox-ring {
             width: 32px;
@@ -751,9 +748,8 @@
         }
         .notam-checkbox-ring-hide {
             border: 3px solid #111111;
-            /* v5.12 : essai d'alignement sur la dernière ligne visible du NOTAM. */
-            margin-top: auto;
-            transform: translateY(5px);
+            /* v5.13 : retour à l'alignement de la case noire sur la ligne « au … ». */
+            margin-top: 16px;
         }
         .notam-checkbox,
         .notam-hide-checkbox {
@@ -2430,10 +2426,10 @@
 
     <div class="page-header">
         <div class="page-header-background"></div>
-        <h1 id="main-title">Briefing Fdf TEST v5.12</h1>
+        <h1 id="main-title">Briefing Fdf TEST v5.13</h1>
         <p id="current-time-display"></p>
         <p style="position: relative; z-index: 2; text-align: center; color: #333; font-size: 1em; margin-top: -25px; margin-bottom: 30px;">
-    v<span id="app-version">5.12 TEST - CASE NOIRE BAS NOTAM + COMMANDES</span>
+    v<span id="app-version">5.13 TEST - CASE NOIRE VALIDITÉ + ESPACEMENT</span>
     <button id="force-update-btn" class="link-button" style="background-color: #34495e; padding: 4px 10px; font-size: 0.8em; margin-left: 10px; vertical-align: middle;">
         Forcer MAJ
     </button>
@@ -14336,7 +14332,7 @@ window.__notamTextFull = notamInput.value;
 
         function initializePageTitle() {
             const titleElement = document.getElementById('main-title');
-            titleElement.textContent = `Briefing Fdf TEST v5.12 du ${new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}`;
+            titleElement.textContent = `Briefing Fdf TEST v5.13 du ${new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}`;
             const timeDisplay = document.getElementById('current-time-display');
             const updateTime = () => timeDisplay.textContent = new Date().toLocaleTimeString('fr-FR');
             updateTime(); setInterval(updateTime, 1000);
