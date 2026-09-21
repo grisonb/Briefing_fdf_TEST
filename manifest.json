@@ -1,7 +1,7 @@
 {
   "name": "Briefing FDF TEST",
   "short_name": "Briefing TEST",
-  "description": "Briefing FDF TEST v5.07 — filtre altitude SUP AIP strict au FL max",
+  "description": "Briefing FDF TEST v5.08 — carte SUP AIP grand format",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
