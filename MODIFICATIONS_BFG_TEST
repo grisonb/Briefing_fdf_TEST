@@ -1,3 +1,30 @@
+TEST v5.08 — 2026-09-21
+Base : TEST v5.07
+===============================================================================
+
+CARTE SUP AIP — AFFICHAGE GRAND FORMAT
+- Réorganisation verticale de la zone AZBA / SUP AIP pour privilégier immédiatement la carte.
+- La légende reste placée directement au-dessus de la carte.
+- Les champs « Du », « au », « FL max » et le bouton « Actualiser SUP AIP » sont déplacés sous la carte : ils restent toujours présents et accessibles par simple défilement, sans panneau repliable ni masquage fonctionnel.
+- Le statut de chargement / nombre de zones affichées est lui aussi placé sous la carte afin de ne pas réduire la surface visible au-dessus.
+- Hauteur de carte fortement augmentée et adaptée à la hauteur réelle de l'écran (`100dvh` avec repli `100vh`) ; minimum renforcé sur iPad / écran tactile.
+- Marges internes du panneau réduites pour consacrer davantage de surface à la carte.
+
+NON-RÉGRESSION
+- Filtre altitude strict v5.07 conservé : une zone dont le plancher est exactement égal au FL max sélectionné reste masquée.
+- FL max SUP AIP par défaut : FL115.
+- Couleurs SUP AIP et pulsation légère de validité future conservées.
+- Cadrage France métropolitaine + Corse conservé.
+- Aucun changement RTBA/AZBA dans cette version.
+- Backend NAS / worker VPS inchangé : aucun fichier PHP/Python à remplacer.
+
+CONTRÔLES AVANT LIVRAISON
+- Syntaxe JavaScript inline vérifiée.
+- Manifeste JSON vérifié.
+- Service worker aligné sur v5.08 avec nouveau nom de cache.
+- Vérification ciblée : la légende précède directement la carte ; statut et réglages sont placés après la carte.
+- Historique des modifications conservé intégralement.
+
 TEST v5.07 — 2026-09-21
 Base : TEST v5.06
 ===============================================================================
