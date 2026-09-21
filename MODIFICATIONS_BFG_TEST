@@ -1,3 +1,41 @@
+TEST v5.03 — 2026-09-21
+Base : TEST v5.02
+===============================================================================
+
+DIAGNOSTIC CONTRAT SDVFR — MÉTHODE HTTP
+- Le diagnostic v5.02 a confirmé que le NAS atteint correctement `https://sdvfr-next.skydreamsoft.fr/auto-temporary-airspaces` mais que GET renvoie HTTP 405 `Method Not Allowed`.
+- v5.03 ne modifie pas encore les filtres ou la cartographie : elle identifie précisément la méthode attendue par l'endpoint SDVFR.
+- Le relais effectue d'abord une requête `OPTIONS` et relève notamment le code HTTP, l'en-tête `Allow`, le type de contenu et les erreurs cURL éventuelles.
+- Le relais effectue ensuite un essai `POST` avec `Content-Type: application/json` et le corps minimal `{}`.
+- Si ce POST renvoie immédiatement un JSON HTTP 2xx, les données sont utilisées et mises en cache pour la carte SUP AIP.
+- Sinon le diagnostic conserve le code HTTP POST, le type de contenu, la validité JSON et un extrait de la réponse afin de déterminer les paramètres requis ou une éventuelle authentification.
+
+DIAGNOSTIC BFG
+- Ajout des lignes `SDVFR OPTIONS` et de la méthode réellement testée pour `NAS -> SDVFR` dans l'export diagnostic.
+- La chronologie SUP AIP enregistre également le statut OPTIONS, l'en-tête Allow et la méthode amont utilisée.
+- Le timeout BFG -> NAS de 20 s de v5.02 est conservé.
+
+RELAIS NAS
+- Version du relais : 5.03.
+- Le fichier opérationnel complet doit remplacer `/web/briefing-api/get-sdvfr-temporary-airspaces.php`.
+- Le mode `diag=1` continue de répondre HTTP 200 même lorsque le statut logique est 502, afin que DSM ne masque jamais le JSON de diagnostic.
+- Timeouts cURL : connexion 8 s, requête 15 s.
+
+NON-RÉGRESSION
+- Carte France SUP AIP, période, FL max, popups et liens PDF SIA inchangés.
+- NOTAM, mémoire « Garder la Sélection », météo et autres modules BFG inchangés.
+- Service worker aligné sur v5.03 avec cache `briefing-fdf-test-v5.03-supaip-method-diag-r1`.
+
+Contrôles avant livraison :
+- syntaxe JavaScript inline ;
+- manifeste JSON ;
+- syntaxe service worker ;
+- syntaxe PHP du relais ;
+- cohérence des versions actives v5.03 ;
+- présence du diagnostic OPTIONS + POST `{}` ;
+- conservation du mode diagnostic HTTP 200 ;
+- conservation de l'historique cumulatif.
+
 TEST v5.02 — 2026-09-21
 Base : TEST v5.01
 ===============================================================================
