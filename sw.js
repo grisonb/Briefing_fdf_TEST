@@ -1,5 +1,5 @@
-const BFG_SW_VERSION = '5.01';
-const CACHE_NAME = 'briefing-fdf-test-v5.01-supaip-relay-direct-r1';
+const BFG_SW_VERSION = '5.02';
+const CACHE_NAME = 'briefing-fdf-test-v5.02-supaip-relay-diag200-r1';
 
 const LOCAL_ASSETS = [
   './manifest.json',
