@@ -1,3 +1,32 @@
+TEST v5.12 — 2026-09-21
+Base : TEST v5.11
+===============================================================================
+
+NOTAM — ESSAI D’ALIGNEMENT DE LA CASE NOIRE
+- La case verte « Garder ce NOTAM » reste alignée avec la ligne de référence du NOTAM (ex. « B4168/26 »).
+- La colonne des cases occupe maintenant toute la hauteur utile du bloc NOTAM.
+- La case noire « Non désirable » est placée en bas de cette colonne afin de l’aligner visuellement avec la dernière ligne du NOTAM, quelle que soit la longueur du texte.
+- Un léger ajustement vertical de 5 px est appliqué pour rapprocher le centre de la case du centre de la dernière ligne de texte.
+- Il s’agit volontairement d’un essai de présentation ; le fonctionnement et la persistance des cases restent inchangés.
+
+ANALYSE NOTAM — INVERSION DE DEUX COMMANDES
+- « Sauvegarder en Pdf » prend la position haute précédemment occupée par « Annuler Surlignage ».
+- « Annuler Surlignage » est désormais placé directement sous « Sauvegarder en Pdf ».
+- Le même ordre est appliqué au groupe de commandes inférieur.
+- « Garder la Sélection », « Annuler Sélection » et l’écart renforcé après les boutons « Actualiser » restent inchangés.
+
+NON-RÉGRESSION
+- Présentation « Validité du … / au … » conservée.
+- Météo manuelle sans référence visible à SDVFR conservée.
+- Clignotement SUP AIP des validités futures conservé.
+- Aucun changement NAS / worker VPS / RTBA.
+
+CONTRÔLES AVANT LIVRAISON
+- Syntaxe JavaScript inline vérifiée.
+- Manifeste JSON vérifié.
+- Service worker aligné sur v5.12 avec nouveau nom de cache.
+- Historique v5.11 et antérieur conservé intégralement.
+
 TEST v5.11 — 2026-09-21
 Base : TEST v5.10
 ===============================================================================
