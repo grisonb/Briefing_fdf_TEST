@@ -1,7 +1,7 @@
 {
   "name": "Briefing FDF TEST",
   "short_name": "Briefing TEST",
-  "description": "Briefing FDF TEST v5.12 — case noire en bas du NOTAM et inversion PDF/surlignage",
+  "description": "Briefing FDF TEST v5.13 — retour case noire sur validité et espacement NOTAM augmenté",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
