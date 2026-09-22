@@ -1,3 +1,280 @@
+===============================================================================
+0. RÈGLES DU CHAT / CONTRAT DE TRAVAIL  (BFG — Briefing Fdf TEST)
+===============================================================================
+Cette section est permanente. Elle reste en tête du fichier à chaque nouvelle
+version et n'est jamais déplacée sous l'historique. Elle prime sur CLAUDE.md et
+sur toute habitude prise dans une autre conversation.
+
+-------------------------------------------------------------------------------
+A. RÈGLES GÉNÉRALES
+-------------------------------------------------------------------------------
+
+1. AUCUN CODE SANS DEMANDE EXPLICITE.
+   Une question, une remarque, un constat de bug, un DIAG ou une demande
+   d'analyse n'autorisent PAS à modifier le code. Rester au stade
+   analyse / diagnostic / proposition tant que ce n'est pas explicitement
+   demandé (« fais-le », « modifie », « corrige », « intègre »,
+   « donne-moi les .txt »).
+
+2. TOUJOURS TRAVAILLER DEPUIS LES FICHIERS RÉELS.
+   Le projet tient en 4 fichiers dans Briefing_fdf_TEST/ :
+     - index.html              ~14 450 lignes / ~706 Ko — application complète
+     - sw.js                   ~306 lignes — Service Worker
+     - manifest.json           31 lignes — manifest PWA
+     - MODIFICATIONS_BFG_TEST  journal cumulatif (ce fichier)
+   Ne JAMAIS reconstituer un de ces fichiers de mémoire ou depuis un extrait.
+   Si le contenu nécessaire n'est pas sous les yeux, le lire d'abord.
+
+3. IL N'Y A PAS DE script.js, DE style.css NI DE sia.js DANS CE PROJET.
+   Tout est monofichier dans index.html :
+     - micro-script <head>   L.7–13     (history.scrollRestoration = 'manual')
+     - CSS inline            L.30–2410
+     - HTML                  L.2412–2872
+     - JS principal          L.2873–14450
+   Ne pas transposer ici les réflexes NPF-Q400 (7 fichiers, sia.js, ordre de
+   chargement des scripts) : ils ne s'appliquent pas.
+   Les bibliothèques sont chargées depuis des CDN externes (pdf.js 2.16.105,
+   jsPDF 2.5.1, Leaflet 1.9.3) et ne sont PAS mises en cache par le Service
+   Worker : toute ressource cross-origin autre que le NAS et aviation.meteo.fr
+   passe en `fetch()` direct sans cache. C'est l'état actuel, constaté ;
+   ne pas le « corriger » sans demande explicite.
+
+4. PÉRIMÈTRE STRICT.
+   Modifier uniquement ce qui est demandé et strictement nécessaire. Pas de
+   nettoyage ni de refactorisation opportuniste au passage d'une correction
+   ciblée. Le fonctionnement hors ligne sur iPad reste prioritaire.
+
+5. VERSION DE TRAVAIL STABLE PENDANT LES ITÉRATIONS.
+   Ne pas incrémenter la version à chaque message. Une nouvelle version TEST
+   n'est créée que lors d'une vraie livraison complète demandée.
+
+6. LIVRAISON = 4 FICHIERS COMPLETS, TOUJOURS DANS CET ORDRE, JAMAIS DE PATCHS :
+     1_Modifications_vX.XX.txt   -> MODIFICATIONS_BFG_TEST
+     2_Index_vX.XX.txt           -> index.html
+     3_Manifest_vX.XX.txt        -> manifest.json
+     4_Sw_vX.XX.txt              -> sw.js
+   Un 5e fichier (relais NAS, worker VPS) n'est fourni que s'il est
+   explicitement demandé, sur le modèle de 5_bfg-sdvfr-worker_vX.XX.txt ou
+   5_Relais_NAS_SUP_AIP_vX.XX.txt.
+   Ne jamais demander à l'utilisateur de modifier lui-même quelques lignes.
+
+7. CE JOURNAL EST CUMULATIF, JAMAIS TRONQUÉ.
+   Nouvelle entrée en tête (sous cette section 0), historique complet conservé
+   en dessous, y compris les essais ratés et les abandons — l'inversion de
+   case noire de la v5.12, abandonnée en v5.13, doit rester lisible.
+   Une remarque non codée porte un statut : NON IMPLÉMENTÉ, À MESURER,
+   À DÉCIDER, ABANDONNÉ, À REVOIR, VALIDÉ.
+
+8. BACKEND NAS / VPS : NON VERSIONNÉ ICI, NE JAMAIS LE SUPPOSER.
+   Le dépôt ne contient AUCUN code serveur. BFG appelle :
+     - le NAS grisonb.synology.me — ~20 points d'entrée /briefing-api/*.php
+       (auth-cncasc, dispo-cncasc, get-cncasc-fdf, get-metar-taf,
+       get-notams-pdf, request-notams-generation, get-notams-generation-status,
+       request-sdvfr-notams, get-sdvfr-notams-result,
+       get-sdvfr-temporary-airspaces, get-risk-map-*, request-risk-map-*,
+       get-feuille-service-*, get-gaar-*, request-gaar-import, npf-docs-api)
+       et les dépôts /briefing-data/{risk-maps,gaar,feuille-service,temsi}/
+     - des workers VPS (bfg-notams-worker, bfg-sdvfr-worker) atteints
+       indirectement via le NAS
+     - un Apps Script Google pour le rafraîchissement Gmail de la FdS
+     - aviation.meteo.fr pour les images TEMSI
+   Ne jamais affirmer ce que fait, renvoie ou attend un de ces services sans
+   l'avoir vérifié (réponse réelle, DIAG, ou fichier fourni). En cas de doute,
+   le dire et demander. Ne jamais proposer de modifier un contrat d'API côté
+   client en supposant que le serveur suivra.
+
+9. GIT : JAMAIS DE COMMIT NI DE PUSH SANS DEMANDE EXPLICITE, À CHAQUE FOIS.
+   Si un commit est demandé : commiter exactement les chemins nommés, rien
+   d'autre ; « commite » n'autorise pas à pousser ; montrer le résultat du
+   travail avant tout commit ; commits directs sur main, pas de branche ni de
+   PR sauf demande. Une autorisation vaut pour l'opération demandée, jamais
+   pour les suivantes.
+   Ne jamais travailler hors du dossier Briefing_fdf_TEST/ sans demande :
+   Briefing-fdf/ (pérenne) et NPF-Q400/ sont des dépôts distincts.
+
+-------------------------------------------------------------------------------
+B. POINTS SENSIBLES DU CODE — NE PAS TOUCHER SANS DEMANDE EXPLICITE
+-------------------------------------------------------------------------------
+
+B1. ROUTAGE DU SERVICE WORKER (sw.js)
+    L'ordre des règles dans le listener `fetch` est significatif. Ordre actuel :
+      1. méthode != GET            -> return (pas de respondWith)
+      2. NAS get-metar-taf.php ET get-sdvfr-temporary-airspaces.php
+                                   -> return SANS respondWith (requête réseau
+                                      native). Cette exclusion DOIT rester
+                                      avant la règle NAS générique et avant la
+                                      règle cross-origin générique.
+      3. NAS /briefing-data/{risk-maps,gaar,feuille-service,temsi}/ et
+         /briefing-api/get-*-pdf|status, request-risk-map-generation
+                                   -> réseau d'abord, repli cache ; timeouts
+                                      65 000 ms (génération carte des risques),
+                                      15 000 ms (PDF/données), 5 000 ms (statut)
+      4. aviation.meteo.fr/affiche_image.php -> réseau puis mise en cache
+      5. tout autre cross-origin   -> fetch() direct, sans cache
+      6. navigation ou index       -> networkFirst 3 500 ms
+      7. reste same-origin         -> cacheFirst (timeout 8 000 ms)
+    `normalizedBfgCacheRequest()` range une seconde copie des réponses NAS sous
+    une clé nettoyée ne conservant que les paramètres `map` et `date` : c'est ce
+    qui permet le repli hors ligne malgré les cache-busters. Ne pas simplifier.
+
+    CACHES PARTAGÉS ENTRE LES TROIS APPLICATIONS — POINT CRITIQUE.
+    Briefing_fdf_TEST, Briefing-fdf et NPF-Q400 sont publiés sous la MÊME
+    origine (grisonb.github.io), à des chemins différents. CacheStorage,
+    localStorage et IndexedDB sont donc communs (sous réserve de l'isolement
+    que peut appliquer iPadOS entre PWA installées — cf. commentaire v4.61).
+    En conséquence :
+      - `activate` ne supprime QUE les caches préfixés 'briefing-fdf-test-'.
+        La version pérenne ne supprime que 'briefing-fdf-v'. Élargir ou
+        raccourcir ce filtre effacerait les données de l'autre application, et
+        de NPF-Q400, sur le même iPad.
+      - Les caches de données ne portent volontairement PAS le préfixe
+        applicatif et survivent aux mises à jour :
+          briefing-fdf-sdvfr-notams-offline-v1
+          briefing-fdf-supaip-map-v1
+          briefing-fdf-temsi-offline-v1
+          bfg-npf-shared-notams-v1
+      - `migratePreviousBfgDataCaches_()` recopie les derniers PDF
+        risques/FdS/GAAR depuis l'ancien cache AVANT suppression. Ne pas
+        réordonner activate.
+      - `caches.match(request)` sans nom de cache balaie toute l'origine :
+        une réponse NAS mise en cache par la version pérenne peut être servie
+        à la version TEST. C'est le comportement actuel, à garder en tête lors
+        d'un diagnostic « donnée périmée ».
+
+    VERSIONS : ÉCART CONSTATÉ SUR LE 5.07 — NE PAS LE MODIFIER SANS DEMANDE.
+    Fait constaté, sans interprétation : index.html porte
+    BFG_REQUIRED_SW_VERSION_ = '5.07', enregistre './sw.js?v=5.07', référence
+    './manifest.json?v=5.07' et './icons/apple-touch-icon.png?v=4.24', et son
+    <title> statique indique « v5.07 » — alors que sw.js déclare
+    BFG_SW_VERSION = '5.15'. Les mêmes valeurs 5.07 figurent à l'identique dans
+    la version pérenne, dont le service worker est en 2026.27.
+    Cette valeur ne suit donc plus BFG_SW_VERSION depuis plusieurs versions.
+    L'origine de cet écart — choix volontaire ou oubli — n'est pas connue et
+    n'est expliquée nulle part dans l'historique ci-dessous.
+    Conséquence actuelle : `ensureBfgServiceWorker_()` ne trouve jamais
+    l'égalité, attend jusqu'à 9 s puis renvoie false ; l'appelant se contente
+    d'un avertissement console, car depuis la v4.53 l'activation du service
+    worker n'est plus un préalable au chargement METAR/TAF. Modifier ces
+    constantes change donc un comportement réel au démarrage.
+    RÈGLE : ne pas y toucher sans demande explicite. Si une explication claire
+    apparaît dans l'historique au fil d'une lecture, la SIGNALER à
+    l'utilisateur plutôt que de trancher seul.
+    (Repère utile, sans conclusion : aux v4.76 et v4.92, une URL
+    d'enregistrement restée en arrière avait été traitée comme une anomalie à
+    corriger — cf. entrées correspondantes.)
+    Ce qui doit en revanche être aligné à chaque livraison :
+    APP_VERSION_NUMBER, APP_VERSION, BFG_SW_VERSION, CACHE_NAME (nouveau nom à
+    chaque version) et le champ "description" du manifest.
+
+B2. PERSISTANCE NOTAM — TROIS COUCHES + UN ARBITRAGE HORODATÉ
+    Couches actuelles, toutes réellement utilisées :
+      - localStorage 'briefingFdfPersistentNotamStateV1'
+        (version 'persistentNotamStateV1', byId, et clearMarkers indexés par
+        source NATS / SDVFR avec selectionClearedAt / highlightsClearedAt)
+      - IndexedDB 'briefingSessionDB' / 'sessionStore', clé 'currentSession'
+        (snapshot BFG complet, dont notamState.capturedAt)
+      - texte SDVFR du jour : IndexedDB 'BriefingFdfSdvfrNotamsV1'/'dailyNotams',
+        CacheStorage 'briefing-fdf-sdvfr-notams-offline-v1' et localStorage
+        'briefingFdfSdvfrDailyNotamsV1' (le plus récent des trois l'emporte)
+      - partage vers NPF-Q400 : le NAS (npf-docs-api.php) est le canal
+        principal ; CacheStorage 'bfg-npf-shared-notams-v1' et localStorage
+        'bfgNpfSharedNotamsV1' ne sont que des copies de secours locales.
+    RÈGLE D'ARBITRAGE (v5.15) : `savedNotamStateIsNewerThanExplicitClear_()`
+    compare l'horodatage du snapshot (capturedAt / updatedAt / savedAt /
+    exportedAt) au marqueur d'effacement de la source affichée. Un snapshot
+    SANS horodatage est réputé antérieur, donc bloqué. C'est ce qui empêche un
+    vieil état de faire réapparaître surlignages et cases après réouverture.
+    Interdits sans demande explicite :
+      - ajouter, renommer ou supprimer une de ces couches, ou un de ces noms
+        de clé / de base / de cache ;
+      - modifier le sens de la comparaison ci-dessus ;
+      - traiter un snapshot non horodaté comme récent.
+    Toute évolution de format doit rester lisible par les snapshots DÉJÀ
+    présents sur les iPad : ils ne seront pas migrés.
+    Autres bases IndexedDB à ne pas confondre avec les précédentes :
+    'bfg-pdf-annotations-v1'/'pdfAnnotations' (annotations PDF) et
+    'bfgSupAipPersistentDB'/'supAipFiles' (SUP AIP importés).
+
+B3. SURLIGNEUR APPLE PENCIL — VALEURS CALÉES SUR IPAD, NE PAS ARRONDIR
+    Le surlignage NOTAM distingue trois entrées : pointerType 'pen' (tracé
+    Pencil), doigt/souris (sélection native) et clic sur un `mark` existant
+    (suppression). Constantes actuelles, issues d'essais réels :
+      PENCIL_HOLD_MS_ = 280                      (appui avant activation)
+      PENCIL_PENDING_MOVE_CANCEL_PX_ = 9         (annulation si dérive)
+      PENCIL_PENDING_VERTICAL_SCROLL_PX_ = 7     (bascule en défilement)
+      PENCIL_ACTIVE_HORIZONTAL_START_PX_ = 4     (démarrage du tracé)
+      garde-fou clic synthétique iPadOS : 1 200 ms après la fin d'un tracé
+      garde-fou sélection native : 700 ms
+      marges de capture d'un mark voisin : 14 px en X, 10 px en Y
+      tolérance de ligne visuelle : clamp(3,5 ; 8 ; hauteur du caractère × 0,45)
+    Mécanismes à ne pas « simplifier » :
+      - verrouillage de ligne en deux temps
+        (`getHardLineBoundsForOffset_` sur les sauts de ligne, puis sélection
+        de la seule ligne VISUELLE touchée) : c'est ce qui empêche de déborder
+        sur les champs B) / C) / D) voisins d'un NOTAM ;
+      - clamp aux bornes de la ligne verrouillée : dépasser à gauche ou à
+        droite ne doit jamais faire changer de ligne ;
+      - blocage du défilement pendant le tracé : classes
+        `pencil-notam-scroll-lock` sur html et body, `touch-action: none` sur
+        .notam-text-content / .notam-validity, preventDefault sur touchmove et
+        repositionnement par `keepPencilPageStill_()`.
+    « Annuler Surlignage » est GLOBAL depuis la v5.15 : la pile d'annulation
+    est vidée, un marqueur highlightsClearedAt est posé, tous les
+    `mark.highlighted-text` de #notam-display sont retirés (Pencil, doigt et
+    titres de validité confondus), l'état est persisté, puis
+    `flushExplicitNotamClear_()` republie l'état partagé et réécrit
+    immédiatement le snapshot IndexedDB. Ne pas revenir à une annulation
+    « dernier tracé seulement » sans demande.
+
+B4. DELTAS TEST / PÉRENNE — À RELIRE AVANT TOUTE PROMOTION
+    État constaté entre Briefing_fdf_TEST (v5.15) et Briefing-fdf (v2026.27) :
+    12 écarts dans index.html, 3 lignes dans manifest.json, 3 lignes dans sw.js.
+    Écarts NORMAUX, à conserver de part et d'autre :
+      - <title>, apple-mobile-web-app-title, <h1 id="main-title">, titre daté
+        (`titleElement.textContent`), name / short_name / description du
+        manifest ;
+      - APP_VERSION_NUMBER et APP_VERSION (en TEST, APP_VERSION porte un
+        libellé descriptif ; en pérenne, il vaut simplement le numéro) ;
+      - BFG_SW_VERSION et CACHE_NAME ;
+      - le filtre de purge d'activate : 'briefing-fdf-test-' en TEST,
+        'briefing-fdf-v' en pérenne (cf. B1) ;
+      - #bfg-npf-bridge-panel et #bfg-diagnostic-panel : visibles en TEST,
+        `hidden` + display:none en pérenne ;
+      - la constante d'affichage du Tour de France : en TEST
+        TDF_FORCE_DISPLAY_FOR_TEST = true (forçage) ; en pérenne
+        TDF_FORCE_DISPLAY_OVERRIDE = false (fenêtre 04/07–26/07/2026 seule).
+        Le NOM de la constante diffère : une promotion par copier-coller
+        réintroduirait le forçage dans la version opérationnelle.
+      - les étiquettes de source envoyées au NAS.
+    Écarts à ARBITRER explicitement (divergences fonctionnelles, pas des
+    marqueurs de version) :
+      - ordre des boutons de #notam-controls-bottom : TEST applique
+        l'inversion v5.12 (« Sauvegarder en Pdf » puis « Annuler Surlignage »),
+        la pérenne a encore l'ordre inverse ;
+      - libellé du bouton SUP AIP : « Charger SUP AIP » en TEST,
+        « Charger Pdf SUP AIP » en pérenne ;
+      - étiquette de source figée : la TEST envoie encore
+        source=bfg-test-v4.72 et source=bfg-test alors qu'elle est en v5.15.
+    Règle : une promotion vers la version pérenne ne se fait jamais par copie
+    intégrale d'index.html. Reprendre cette liste écart par écart, la mettre à
+    jour si elle a bougé, et faire valider avant livraison.
+
+-------------------------------------------------------------------------------
+C. CONTRÔLES AVANT TOUTE LIVRAISON
+-------------------------------------------------------------------------------
+    - syntaxe de tout le JavaScript inline d'index.html ;
+    - JSON du manifest valide ;
+    - syntaxe du service worker ;
+    - BFG_SW_VERSION et CACHE_NAME mis à jour, nouveau nom de cache ;
+    - APP_VERSION_NUMBER / APP_VERSION / description du manifest cohérents ;
+    - filtre de purge d'activate toujours limité à 'briefing-fdf-test-' ;
+    - la modification demandée est effectivement présente ;
+    - aucune fonction validée n'a disparu (en particulier persistance NOTAM,
+      surligneur, repli hors ligne NAS) ;
+    - nouvelle entrée ajoutée EN TÊTE de ce journal, sous cette section 0,
+      historique intégralement conservé.
+===============================================================================
+
 TEST v5.15 — 2026-09-21
 Base : TEST v5.14
 ===============================================================================
