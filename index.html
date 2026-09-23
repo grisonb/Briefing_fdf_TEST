@@ -2844,7 +2844,7 @@
             <li><strong>Sauvegarder :</strong> enregistre localement le briefing affiché sur cet iPad/navigateur, avec les derniers PDF, NOTAMs, pélicandromes, cartes et données disponibles.</li>
             <li><strong>Chargement automatique :</strong> à l’ouverture du briefing, la dernière sauvegarde locale de cet iPad/navigateur est chargée automatiquement si elle existe.</li>
             <li><strong>Partager :</strong> crée un briefing partagé sur le NAS et fournit un code à ouvrir depuis un autre appareil. Les METAR/TAF déjà chargés sont inclus dans le partage et s’affichent chez le destinataire sans nouvelle requête météo.</li>
-            <li><strong>Effacer :</strong> réinitialise tout le stockage local de cet iPad pour BFG. Sont supprimés : <strong>les cases vertes, les cases noires et les surlignages des NOTAM</strong> (y compris ceux reçus d'un briefing partagé), la sauvegarde locale, les anciens PDF/NOTAM/TEMSI/SUP AIP, les annotations portées sur les PDF, les cartes VAC téléchargées, les modes FDS/GAAR, « Garder la sélection », les derniers codes de partage, l'association NPF-Q400 et les caches PWA BFG. Sont conservés : la connexion Briefing en cours, qui s'interrompt avec « Déconnexion », et la trace de diagnostic de démarrage. Les fichiers NAS et les briefings partagés déjà créés ne sont pas supprimés.</li>
+            <li><strong>Effacer :</strong> réinitialise tout le stockage local de cet iPad pour BFG. Sont supprimés : <strong>les cases vertes, les cases noires et les surlignages des NOTAM</strong> (y compris ceux reçus d'un briefing partagé), la sauvegarde locale, les anciens PDF/NOTAM/TEMSI/SUP AIP, les annotations portées sur les PDF, les cartes VAC téléchargées, les modes FDS/GAAR, « Garder la sélection », les derniers codes de partage et les caches PWA BFG. Sont conservés : <strong>l'association NPF-Q400</strong>, qui n'est donc pas à refaire, la connexion Briefing en cours, qui s'interrompt avec « Déconnexion », et la trace de diagnostic de démarrage. Les fichiers NAS et les briefings partagés déjà créés ne sont pas supprimés.</li>
             <li><strong>Ouvrir un briefing partagé :</strong> permet de saisir un code du type BFG-JJMM-01 pour récupérer un briefing déjà partagé.</li>
         </ol>
     </div>
@@ -12728,10 +12728,11 @@ let activeShareApiBase = SHARE_API_BASE;
                 "\u2022 la sauvegarde locale et les anciens fichiers/PDF locaux ;\n" +
                 "\u2022 les annotations portées sur les PDF ;\n" +
                 "\u2022 les cartes VAC téléchargées et les anciennes TEMSI ;\n" +
-                "\u2022 les modes FDS/GAAR, « Garder la sélection », les derniers codes de partage et l'association NPF-Q400 ;\n" +
+                "\u2022 les modes FDS/GAAR, « Garder la sélection » et les derniers codes de partage ;\n" +
                 "\u2022 les caches BFG.\n\n" +
                 "SERONT CONSERVÉS :\n" +
                 "\u2022 la connexion Briefing en cours (bouton « Déconnexion » pour l'interrompre) ;\n" +
+                "\u2022 l'association NPF-Q400 : pas besoin de la refaire ;\n" +
                 "\u2022 la trace de diagnostic de démarrage.\n\n" +
                 "Les fichiers sur le NAS et les briefings déjà partagés ne sont pas supprimés."
             );
@@ -12945,12 +12946,29 @@ let activeShareApiBase = SHARE_API_BASE;
     /* v5.19 — « Effacer » remet à zéro TOUTES les données locales BFG.
      * Balayage par préfixe plutôt que liste de clés, pour qu'une clé ajoutée
      * plus tard soit prise en compte sans qu'on ait à penser à l'inscrire ici.
-     * DEUX EXCEPTIONS SEULEMENT, volontaires :
-     *   - bfgDiagStartupTraceV1        : trace de diagnostic de démarrage v5.16 ;
+     * EXCEPTIONS VOLONTAIRES, toutes listées dans BFG_LOCAL_STORAGE_KEEP_ :
+     *   - bfgDiagStartupTraceV1         : trace de diagnostic de démarrage v5.16 ;
      *   - bfg_cncasc_token_v1 / _exp_v1 : connexion Briefing, qui a son propre
-     *     bouton « Déconnexion ». */
+     *     bouton « Déconnexion » ;
+     *   - les 5 clés du PONT NPF-Q400   : l'association est une opération
+     *     manuelle par code à 8 chiffres, elle ne doit pas être détruite par un
+     *     effacement de données locales. ATTENTION : le préfixe 'bfgNpf' les
+     *     capturerait, d'où leur inscription explicite ci-dessous.
+     * En revanche la SESSION NPF-Q400 Docs (bfgNpfNotamsNasToken*) est effacée :
+     * elle est réobtenue à chaque connexion Briefing par
+     * authorizeNpfNotamsNasFromBfgPassword_. */
     const BFG_LOCAL_STORAGE_PREFIXES_ = ['briefingFdf', 'bfgNpf', 'bfgVac', 'bfgPdfAnnotations:'];
-    const BFG_LOCAL_STORAGE_KEEP_ = ['bfgDiagStartupTraceV1', 'bfg_cncasc_token_v1', 'bfg_cncasc_token_exp_v1'];
+    const BFG_LOCAL_STORAGE_KEEP_ = [
+        'bfgDiagStartupTraceV1',
+        'bfg_cncasc_token_v1',
+        'bfg_cncasc_token_exp_v1',
+        // Association NPF-Q400 — conservée.
+        'bfgNpfBridgeIdV1',
+        'bfgNpfBridgePairCodeV1',
+        'bfgNpfBridgePairCodeExpV1',
+        'bfgNpfBridgeGrantExpV1',
+        'bfgNpfBridgePairedV1'
+    ];
 
     function clearAllBfgLocalStorageKeys_() {
         const removed = [];

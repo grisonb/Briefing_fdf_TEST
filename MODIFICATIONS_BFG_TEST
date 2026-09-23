@@ -382,13 +382,26 @@ EFFACER — REMISE À ZÉRO COMPLÈTE
       part jusqu'ici ;
     - modes FDS/GAAR, statut NOTAM auto, coordonnées OACI manuelles ;
     - derniers codes de partage créés ;
-    - association NPF-Q400 (`bfgNpf*`) : une nouvelle association par code à
-      8 chiffres sera nécessaire ensuite ;
+    - session NPF-Q400 Docs `bfgNpfNotamsNasToken*` : sans conséquence, elle est
+      réobtenue à chaque connexion Briefing par
+      `authorizeNpfNotamsNasFromBfgPassword_`, appelée uniquement depuis
+      `unlockCncascAndSync_`. Seule conséquence : entre un effacement et la
+      connexion suivante, la publication NOTAM vers le NAS pour NPF-Q400 est
+      inactive et retombe sur les copies locales de secours ;
     - caches applicatifs et de données BFG TEST.
 - SONT CONSERVÉS, seules exceptions :
     - `bfgDiagStartupTraceV1`, la trace de diagnostic de démarrage v5.16 ;
     - `bfg_cncasc_token_v1` et `bfg_cncasc_token_exp_v1`, la connexion Briefing,
-      qui s'interrompt avec son propre bouton « Déconnexion ».
+      qui s'interrompt avec son propre bouton « Déconnexion » ;
+    - les 5 clés du PONT NPF-Q400 : `bfgNpfBridgeIdV1`,
+      `bfgNpfBridgePairCodeV1`, `bfgNpfBridgePairCodeExpV1`,
+      `bfgNpfBridgeGrantExpV1` et `bfgNpfBridgePairedV1`. L'association est une
+      opération manuelle par code à 8 chiffres : elle n'a pas à être détruite
+      par un effacement de données locales, et n'est donc PAS à refaire après
+      un « Effacer ».
+      POINT DE VIGILANCE : le préfixe de balayage `bfgNpf` capturerait ces
+      clés ; elles sont explicitement inscrites dans la liste de conservation.
+      Toute future clé du pont devra y être ajoutée.
 - PROTECTION AJOUTÉE : `clearBfgLocalCaches_` supprimait tous les caches
   commençant par `briefing-fdf`. Les trois applications partageant l'origine
   grisonb.github.io, cela emportait AUSSI le cache applicatif de la version
