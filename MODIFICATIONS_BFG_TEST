@@ -275,6 +275,171 @@ C. CONTRÔLES AVANT TOUTE LIVRAISON
       historique intégralement conservé.
 ===============================================================================
 
+TEST v5.16 — 2026-09-23
+Base : TEST v5.15
+===============================================================================
+
+*** VERSION DE DIAGNOSTIC TEMPORAIRE — NE PAS PROMOUVOIR EN PÉRENNE ***
+Cette version n'apporte aucune fonction opérationnelle. Elle sert uniquement à
+capturer, au premier lancement à froid d'une journée (jeton expiré), ce qui se
+passe autour du champ « Code accès Briefing » : apparition puis disparition du
+clavier iPad et défilement de la page. À retirer une fois la mesure faite.
+
+SYMPTÔME OBSERVÉ (non corrigé dans cette version)
+- Au démarrage à froid, le clavier apparaît puis disparaît, et la page se
+  retrouve défilée.
+- Se produit au premier lancement de la journée, ou sur une TEST jamais
+  connectée. Ne se produit pas après une déconnexion manuelle le même jour,
+  ni à froid en étant déjà connecté.
+- Constat présent aussi en version pérenne ; la pérenne n'est pas modifiée.
+
+ANALYSE PRÉALABLE (faits vérifiés dans le code, aucune correction appliquée)
+- Le garde-fou `preventIpadKeyboardOnStartup_()` ne bloque pas le focus : il le
+  laisse se produire puis appelle `input.blur()` à 0, 50, 300 et 1000 ms tant
+  qu'aucune interaction utilisateur n'a eu lieu.
+- Aucun `focus()` de démarrage n'existe dans le code BFG : le seul appel est
+  déclenché par un `pointerdown`/`touchstart` réel sur le champ. L'origine du
+  focus initial est donc externe (AutoFill iOS / fenêtre biométrique).
+- La différence entre « déconnexion manuelle le même jour » et « premier
+  lancement du jour » n'est pas le jeton mais la CLÉ DE DATE : les caches
+  `briefingFdfNotamQuickCacheV1` et `briefingFdfSdvfrDailyNotamsV1` sont
+  rejetés dès que leur champ `day` ne vaut plus `bfgTodayLocalKey_()`.
+- Conséquence : au premier lancement du jour, `restoreBfgNotamQuickCache_()`
+  sort en `false` et le bandeau `#notam-loading-banner` reste affiché. Or ce
+  bandeau se trouve À L'INTÉRIEUR du panneau Accès Briefing, directement sous
+  le champ, entre `#cncasc-auth-status` et `#cncasc-warning`. Il représente
+  environ 50 à 60 px qui apparaissent puis disparaissent sous le champ pendant
+  le chargement.
+- En plus, si un jeton expiré est encore présent, `getStoredCncascToken_()`
+  déclenche `clearWeatherForDailyLogout_()`, chemin inexistant après une
+  déconnexion manuelle.
+- Il y a donc probablement deux causes superposées : l'ouverture du clavier
+  elle-même, et le déplacement du contenu sous le champ. STATUT : À MESURER.
+
+CE QUE FAIT CETTE VERSION
+- Enregistreur de démarrage passif placé dans le `<head>`, démarré au plus tôt.
+- Écouteurs uniquement passifs, en capture : aucun `preventDefault`, aucun
+  `focus`/`blur`, aucun défilement provoqué. Le garde-fou clavier existant est
+  laissé strictement tel quel.
+- Événements journalisés avec horodatage en ms depuis le début du script :
+  état du jeton au démarrage (aucun / valide / expiré, jamais sa valeur),
+  `document.activeElement` au départ puis à chaque changement, `focusin` et
+  `focusout` avec `isTrusted`, `pointerdown`/`touchstart` sur les deux champs
+  de saisie, `visualViewport` resize/scroll et `window.scrollY`,
+  affichage/masquage de `#notam-loading-banner`, changements de
+  `#cncasc-warning`, hauteur de `#cncasc-auth-panel`, puis `load`,
+  `pageshow` (avec `persisted`), `visibilitychange` et `controllerchange` du
+  service worker.
+- Quatre lignes de trace, sans effet fonctionnel, ajoutées au début de
+  `forceBriefingStartAtTop`, `scheduleBfgInitialTopLock_`,
+  `blurIfAutomaticStartupFocus_` et `clearWeatherForDailyLogout_`. Elles
+  n'agissent que si `window.__bfgDiagMark_` existe.
+- L'état du jeton est lu directement en `localStorage.getItem()`, SANS appeler
+  `getStoredCncascToken_()`, qui supprimerait les clés au passage et fausserait
+  la mesure.
+
+STOCKAGE DE LA TRACE
+- Clé dédiée `bfgDiagStartupTraceV1`, conservée sur les 3 derniers lancements.
+- Cette clé n'est retirée ni par le bouton « Effacer » ni par « Déconnexion » :
+  `clearCncascToken_()` ne retire que 4 clés nommées, `resetBfgLocalStorage_()`
+  que des clés nommées, et il n'existe aucun `localStorage.clear()` global.
+- L'enregistrement s'arrête seul au bout de 15 secondes par lancement, avec un
+  plafond de 900 événements.
+
+INTERFACE
+- Trois boutons ajoutés dans le panneau « Diagnostic BFG » : « Trace démarrage »,
+  « Copier trace » et « Vider trace », avec leur propre zone d'affichage
+  `#bfg-diag-startup-output`, distincte de celle du diagnostic existant pour
+  éviter tout conflit avec son rafraîchissement automatique.
+
+PROCÉDURE DE MESURE
+- Installer cette version, se connecter, puis FERMER COMPLÈTEMENT BFG avant
+  23h00. Important : `scheduleBfgDailyExpiry_()` arme un minuteur qui, à 23h00,
+  appelle `clearCncascToken_()` et SUPPRIME les clés de jeton. Si BFG reste
+  ouvert, même en arrière-plan, l'état du lendemain sera « aucun jeton » au lieu
+  de « jeton expiré ».
+- Le lendemain matin, lancer BFG à froid avant toute connexion, attendre une
+  quinzaine de secondes, puis ouvrir « Diagnostic BFG » et afficher la trace.
+
+RETRAIT DE CETTE VERSION
+- Supprimer le bloc `<script>` balisé « BFG DIAG TEMPORAIRE v5.16 » du `<head>`.
+- Supprimer le bloc HTML balisé du panneau « Diagnostic BFG ».
+- Supprimer les 4 lignes commençant par `/* BFG DIAG TEMPORAIRE v5.16 */`.
+- Retirer au besoin la clé `bfgDiagStartupTraceV1` avec « Vider trace ».
+
+NON-RÉGRESSION
+- Aucune modification de la persistance NOTAM, du surligneur Apple Pencil, du
+  routage du service worker ni du garde-fou clavier.
+- Aucun changement NAS / worker VPS / RTBA.
+- `BFG_REQUIRED_SW_VERSION_` et les URL en `?v=5.07` sont laissés inchangés,
+  conformément à la section 0.B1.
+- Version pérenne non touchée.
+
+CONTRÔLES AVANT LIVRAISON
+- Syntaxe JavaScript inline vérifiée.
+- Manifeste JSON vérifié.
+- Service worker aligné sur v5.16 avec nouveau nom de cache
+  `briefing-fdf-test-v5.16-diag-startup-r1`.
+- Filtre de purge d'activate toujours limité à `briefing-fdf-test-`.
+- Historique v5.15 et antérieur conservé intégralement.
+
+TEST v5.15 (suite) — 2026-09-23 — CHAÎNE NOTAM SDVFR PARTAGÉE VIA LE NAS
+Base : TEST v5.15 — aucun changement d'index.html, sw.js ni manifest.json
+===============================================================================
+
+ARCHITECTURE RETENUE — À REVOIR (décidée, non implémentée côté client)
+- Le NAS devient le producteur du fichier NOTAM partagé : BFG et NPF deviennent tous deux de simples lecteurs.
+- Source unique du fichier partagé : SDVFR. NATS est définitivement exclu, la liste d'aérodromes du PIB n'étant pas modifiable automatiquement et ne pouvant donc pas couvrir les 122 terrains de NPF.
+- NATS reste une solution de secours propre à BFG, hors fichier partagé : le bouton « Actualiser NATS » est conservé tel quel.
+- Un bouton « Rafraîchir les NOTAM » est ajouté dans les deux applications, avec attente et progression.
+- Périmètre phase 1 : les 27 pélicandromes, inchangé. Élargissement aux 122 terrains en phase 2 seulement.
+
+CONTRAT NAS ÉTABLI SUR LES FICHIERS PHP RÉELS — VALIDÉ (constats, pas des suppositions)
+- npf-docs-api.php : `action=login` (BFG, mot de passe), `bridge-claim` et `bridge-session` (NPF) appellent tous npf_create_session_token(). Les deux applications détiennent donc le MÊME type de jeton : NPF pouvait déjà publier et BFG déjà lire, sans aucune modification serveur.
+- Jeton valable jusqu'à minuit Europe/Paris.
+- `notams-snapshot` renvoie le payload BRUT, sans enveloppe {ok:true}, et 404 {ok:false} si absent.
+- `notams-publish` : plafond 8 Mo, exige version === 'bfgNpfNotamsV1', notamText non vide et notamsAutoPdfStatus.timestampIso parsable.
+- Fichier partagé : /web/briefing-data/npf-notams-snapshot-v1.json, écriture atomique.
+- request-sdvfr-notams.php : 1 à 50 terrains par demande, un seul slot global (409 request_already_active), TTL 600 s, requestedBy = 'BFG' pour le bouton BFG existant.
+- request-notams-generation.php : n'envoie AUCUNE liste de terrains ; le périmètre NATS vit dans le worker PC.
+- get-notams-generation-status.php : ne vérifie aucun jeton.
+- Aucun fichier PHP du NAS ne nomme d'état terminal SDVFR. Les seuls traités en production sont ceux de la boucle d'attente de BFG : success, partial, error.
+
+RELAIS NAS FOURNI POUR COPIE MANUELLE — NON IMPLÉMENTÉ dans le dépôt (code hors dépôt)
+- Trois blocs remis à l'utilisateur : notams-sdvfr-shared.php (nouveau), deux insertions dans npf-docs-api.php, notams-auto-refresh.php (nouveau, tâche planifiée Synology).
+- Actions `notams-refresh` (POST) et `notams-refresh-status` (GET), derrière npf_verify_session_token : mêmes actions et même jeton pour BFG et pour NPF.
+- Statut en quatre états : idle, pending (enregistrée), running (en cours), success / error (terminée).
+- La lecture du statut fait avancer la machine à états : c'est elle qui construit le texte et écrit le fichier partagé dès que le worker a terminé.
+- Construction du texte : portage strict de buildBfgNotamTextFromSdvfrResult_ (index.html ~L.5255), normalisation des dates B) / C) comprise. Toute divergence casserait les analyseurs de BFG et de NPF.
+- Compatibilité des installations déjà déployées : version 'bfgNpfNotamsV1' conservée et notamsAutoPdfStatus.timestampIso renseigné, sans quoi NPF rejette le fichier.
+- Champs additifs : sourceKind = 'SDVFR' (garde côté NPF), coverage, coverageCount, notamCount, requestId, origin.
+- L'état des sélections (state) est repris tel quel tant que l'on reste dans la même journée Europe/Paris, puis repart à zéro.
+- Un résultat SDVFR vide n'écrase jamais un fichier partagé exploitable.
+
+CORRECTIONS APPORTÉES AVANT COPIE SUR LE NAS — À MESURER (code non déployé, non testé)
+- requestedBy : les valeurs 'NAS' et 'NAS-AUTO' du premier jet étaient inventées. Remplacées par 'BFG', seule valeur que request-sdvfr-notams.php écrive pour le bouton BFG existant, donc la seule que le worker VPS ait jamais traitée. L'origine réelle (api-refresh / nas-auto) est mémorisée dans npf-notams-refresh-v1.json, que le worker ne lit pas.
+- Verrou anti-doublon : npf_notams_active_request() libère la demande dès que sdvfr-result.json porte le même requestId avec un état terminal, que sdvfr-request.json ait été mis à jour ou non. Le TTL de 600 s est conservé comme filet de sécurité. Tout statut inconnu du worker reste NON terminal, pour ne jamais relancer une demande pendant qu'il travaille encore.
+- Conséquence assumée : deux appuis successifs sur « Rafraîchir » lancent deux téléchargements réels au lieu d'être fusionnés.
+
+CÔTÉ CLIENT — NON IMPLÉMENTÉ
+- BFG : lecture du fichier partagé à écrire (elle n'existe pas aujourd'hui) ; #notam-refresh-btn recâblé sur la nouvelle chaîne ; publishBfgNpfNotamsSharedSnapshot_ à neutraliser sans supprimer son code — elle publie le texte AFFICHÉ, donc potentiellement du NATS, ce que la nouvelle architecture interdit ; « Actualiser NATS » et le sélecteur de source conservés.
+- NPF : bouton dans « Gestion des Cartes » sous #simulation-mode-button, sur le gabarit de la section VAC ; attente avec progression reprise de waitForBriefingDocSourceRefresh ; garde SDVFR au chargement ; porte de fraîcheur généralisée avec repli sur notamsAutoPdfStatus.timestampIso.
+- Filtrage de l'affichage BFG inutile en phase 1 : il ne devient nécessaire qu'au passage à 122 terrains.
+
+À MESURER
+- Taille réelle de npf-notams-snapshot-v1.json, et marge sous les 8 Mo une fois le périmètre porté à 122 terrains.
+- Durée d'un lot SDVFR de 50 terrains, pour estimer un rafraîchissement complet en trois lots.
+- Cadence de relecture de la demande par le worker VPS : elle fixe le plancher du temps d'attente du bouton, quel que soit le code client.
+
+À DÉCIDER
+- Élargissement aux 122 terrains : découpage en trois lots successifs côté NAS (un seul lot actif à la fois), filtrage de l'affichage côté BFG, couverture élargie côté NPF.
+- Sort de la publication BFG une fois la nouvelle chaîne validée en usage réel : neutralisation définitive ou suppression.
+
+NON-RÉGRESSION
+- Aucun fichier du dépôt modifié : index.html, sw.js et manifest.json sont inchangés, la version TEST reste 5.15.
+- Chaîne NATS de BFG inchangée et maintenue hors du fichier partagé.
+- Aucun cache, base IndexedDB ou clé localStorage de la chaîne de persistance NOTAM renommé ou supprimé.
+
 TEST v5.15 — 2026-09-21
 Base : TEST v5.14
 ===============================================================================

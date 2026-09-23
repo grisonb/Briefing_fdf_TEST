@@ -11,6 +11,297 @@
             history.scrollRestoration = 'manual';
         }
     </script>
+    <!-- ===== BFG DIAG TEMPORAIRE v5.16 — DÉBUT =====
+         Version de diagnostic temporaire, destinée à capturer le démarrage à froid
+         autour du champ « Code accès Briefing ». Purement passif : aucun
+         preventDefault, aucun focus/blur, aucun scroll provoqué.
+         RETRAIT : supprimer ce bloc, le bloc DIAG du panneau « Diagnostic BFG »
+         dans le corps de page, et les 4 lignes balisées « BFG DIAG TEMPORAIRE
+         v5.16 » dans le script principal. -->
+    <script>
+    (function () {
+        'use strict';
+        try {
+            var STORAGE_KEY = 'bfgDiagStartupTraceV1';
+            var MAX_LAUNCHES = 3;
+            var WINDOW_MS = 15000;
+            var MAX_EVENTS = 900;
+
+            var startedAt = new Date();
+            var launchId = 'L' + startedAt.getTime() + '-' + Math.floor(Math.random() * 1000);
+            var events = [];
+            var stopped = false;
+            var saveTimer = null;
+            var lastScrollLogged = -9999;
+            var lastActiveDesc = '';
+
+            function now_() {
+                try { return Math.round(performance.now()); }
+                catch (_) { return Date.now() - startedAt.getTime(); }
+            }
+
+            function pad_(value) {
+                var s = String(value);
+                while (s.length < 6) s = ' ' + s;
+                return s;
+            }
+
+            function desc_(node) {
+                if (!node) return 'null';
+                if (node === document.documentElement) return 'html';
+                if (node === document.body) return 'body';
+                var tag = String(node.tagName || node).toLowerCase();
+                return node.id ? tag + '#' + node.id : tag;
+            }
+
+            function readStore_() {
+                try {
+                    var raw = localStorage.getItem(STORAGE_KEY);
+                    var parsed = raw ? JSON.parse(raw) : null;
+                    if (parsed && Object.prototype.toString.call(parsed.launches) === '[object Array]') return parsed;
+                } catch (_) {}
+                return { v: 1, launches: [] };
+            }
+
+            function save_() {
+                try {
+                    var store = readStore_();
+                    store.launches = store.launches.filter(function (entry) {
+                        return entry && entry.id !== launchId;
+                    });
+                    store.launches.push({
+                        id: launchId,
+                        startedIso: startedAt.toISOString(),
+                        appVersion: '5.16',
+                        path: String(location.pathname || ''),
+                        events: events
+                    });
+                    while (store.launches.length > MAX_LAUNCHES) store.launches.shift();
+                    localStorage.setItem(STORAGE_KEY, JSON.stringify(store));
+                } catch (_) {}
+            }
+
+            function scheduleSave_() {
+                if (saveTimer !== null) return;
+                saveTimer = setTimeout(function () { saveTimer = null; save_(); }, 500);
+            }
+
+            function log_(type, detail) {
+                if (stopped) return;
+                if (events.length >= MAX_EVENTS) return;
+                events.push({ t: now_(), e: String(type), d: detail == null ? '' : String(detail) });
+                scheduleSave_();
+            }
+
+            // État du jeton lu DIRECTEMENT, sans passer par getStoredCncascToken_()
+            // qui supprimerait les clés au passage. La valeur du jeton n'est jamais journalisée.
+            try {
+                var rawToken = localStorage.getItem('bfg_cncasc_token_v1') || '';
+                var rawExp = Number(localStorage.getItem('bfg_cncasc_token_exp_v1') || 0);
+                var tokenState = (!rawToken || !rawExp) ? 'aucun' : (rawExp <= Date.now() ? 'expire' : 'valide');
+                log_('jeton', 'etat=' + tokenState
+                    + ' expIso=' + (rawExp ? new Date(rawExp).toISOString() : '-')
+                    + ' dansMin=' + (rawExp ? Math.round((rawExp - Date.now()) / 60000) : '-'));
+            } catch (_) {
+                log_('jeton', 'lecture impossible');
+            }
+
+            log_('boot', 'readyState=' + document.readyState
+                + ' activeElement=' + desc_(document.activeElement)
+                + ' innerH=' + window.innerHeight
+                + ' vvH=' + (window.visualViewport ? Math.round(window.visualViewport.height) : '-'));
+            lastActiveDesc = desc_(document.activeElement);
+
+            document.addEventListener('focusin', function (ev) {
+                log_('focusin', desc_(ev.target) + ' isTrusted=' + !!ev.isTrusted + ' scrollY=' + Math.round(window.scrollY));
+            }, true);
+            document.addEventListener('focusout', function (ev) {
+                log_('focusout', desc_(ev.target) + ' isTrusted=' + !!ev.isTrusted + ' scrollY=' + Math.round(window.scrollY));
+            }, true);
+
+            ['pointerdown', 'touchstart'].forEach(function (name) {
+                document.addEventListener(name, function (ev) {
+                    var id = ev.target && ev.target.id;
+                    if (id === 'cncasc-access-code-input' || id === 'shared-code-input') {
+                        log_(name, '#' + id + ' isTrusted=' + !!ev.isTrusted);
+                    }
+                }, { capture: true, passive: true });
+            });
+
+            var activePollTimer = setInterval(function () {
+                if (stopped) { clearInterval(activePollTimer); return; }
+                var current = desc_(document.activeElement);
+                if (current !== lastActiveDesc) {
+                    lastActiveDesc = current;
+                    log_('activeElement', current + ' scrollY=' + Math.round(window.scrollY));
+                }
+            }, 250);
+
+            window.addEventListener('scroll', function () {
+                var y = Math.round(window.scrollY);
+                if (Math.abs(y - lastScrollLogged) < 4) return;
+                lastScrollLogged = y;
+                log_('scroll', 'scrollY=' + y);
+            }, { capture: true, passive: true });
+
+            if (window.visualViewport) {
+                var vv = window.visualViewport;
+                ['resize', 'scroll'].forEach(function (name) {
+                    vv.addEventListener(name, function () {
+                        log_('vv-' + name, 'h=' + Math.round(vv.height)
+                            + ' offTop=' + Math.round(vv.offsetTop)
+                            + ' scrollY=' + Math.round(window.scrollY));
+                    }, { passive: true });
+                });
+            }
+
+            window.addEventListener('load', function () {
+                log_('load', 'scrollY=' + Math.round(window.scrollY));
+            }, { passive: true });
+            window.addEventListener('pageshow', function (ev) {
+                log_('pageshow', 'persisted=' + !!(ev && ev.persisted));
+            }, { passive: true });
+            window.addEventListener('pagehide', function () { save_(); }, { passive: true });
+            document.addEventListener('visibilitychange', function () {
+                log_('visibilitychange', 'hidden=' + document.hidden);
+            }, { passive: true });
+
+            try {
+                if (navigator.serviceWorker) {
+                    navigator.serviceWorker.addEventListener('controllerchange', function () {
+                        log_('sw-controllerchange', navigator.serviceWorker.controller ? 'controleur present' : 'aucun controleur');
+                    });
+                }
+            } catch (_) {}
+
+            // Point d'entrée utilisé par les 4 lignes balisées du script principal.
+            window.__bfgDiagMark_ = function (name, detail) {
+                log_('mark:' + name, detail == null ? '' : String(detail));
+            };
+
+            function formatTrace_() {
+                var store = readStore_();
+                if (!store.launches.length) return 'Aucune trace de démarrage enregistrée.';
+                var lines = [];
+                store.launches.forEach(function (entry, index) {
+                    lines.push('=== Lancement ' + (index + 1) + '/' + store.launches.length
+                        + ' — ' + (entry.startedIso || '?')
+                        + ' — BFG v' + (entry.appVersion || '?') + ' ===');
+                    (entry.events || []).forEach(function (ev) {
+                        lines.push(pad_(ev.t) + ' ms  ' + ev.e + (ev.d ? '  ' + ev.d : ''));
+                    });
+                    lines.push('');
+                });
+                return lines.join('\n');
+            }
+
+            function wireButtons_() {
+                var showBtn = document.getElementById('bfg-diag-startup-show-btn');
+                var copyBtn = document.getElementById('bfg-diag-startup-copy-btn');
+                var clearBtn = document.getElementById('bfg-diag-startup-clear-btn');
+                var output = document.getElementById('bfg-diag-startup-output');
+                var status = document.getElementById('bfg-diag-startup-status');
+
+                if (showBtn && output) {
+                    showBtn.addEventListener('click', function () {
+                        output.value = formatTrace_();
+                        output.style.display = 'block';
+                        if (status) status.textContent = 'Trace affichée. Enregistrement ' + (stopped ? 'terminé.' : 'en cours.');
+                    });
+                }
+                if (copyBtn) {
+                    copyBtn.addEventListener('click', function () {
+                        var text = formatTrace_();
+                        if (output) { output.value = text; output.style.display = 'block'; }
+                        try {
+                            if (navigator.clipboard && navigator.clipboard.writeText) {
+                                navigator.clipboard.writeText(text).then(function () {
+                                    if (status) status.textContent = 'Trace copiée dans le presse-papiers.';
+                                }, function () {
+                                    if (status) status.textContent = 'Copie automatique refusée : sélectionner le texte ci-dessous.';
+                                });
+                            } else if (status) {
+                                status.textContent = 'Copie automatique indisponible : sélectionner le texte ci-dessous.';
+                            }
+                        } catch (_) {
+                            if (status) status.textContent = 'Copie automatique impossible : sélectionner le texte ci-dessous.';
+                        }
+                    });
+                }
+                if (clearBtn) {
+                    clearBtn.addEventListener('click', function () {
+                        try { localStorage.removeItem(STORAGE_KEY); } catch (_) {}
+                        events = [];
+                        if (output) { output.value = ''; output.style.display = 'none'; }
+                        if (status) status.textContent = 'Trace vidée.';
+                    });
+                }
+            }
+
+            function onDomReady_() {
+                try {
+                    var panel = document.getElementById('cncasc-auth-panel');
+                    var banner = document.getElementById('notam-loading-banner');
+                    var warning = document.getElementById('cncasc-warning');
+                    var input = document.getElementById('cncasc-access-code-input');
+
+                    if (input) {
+                        log_('champ', '#cncasc-access-code-input top=' + Math.round(input.getBoundingClientRect().top));
+                    }
+                    if (panel) {
+                        var rect = panel.getBoundingClientRect();
+                        log_('panneau', 'h=' + Math.round(rect.height) + ' top=' + Math.round(rect.top));
+                    }
+                    if (banner) {
+                        log_('banniere', 'visible=' + banner.classList.contains('visible'));
+                    }
+
+                    if (banner && window.MutationObserver) {
+                        new MutationObserver(function () {
+                            log_('banniere', 'visible=' + banner.classList.contains('visible')
+                                + ' h=' + Math.round(banner.getBoundingClientRect().height)
+                                + ' scrollY=' + Math.round(window.scrollY));
+                        }).observe(banner, { attributes: true, attributeFilter: ['class'], childList: true, characterData: true, subtree: true });
+                    }
+                    if (warning && window.MutationObserver) {
+                        new MutationObserver(function () {
+                            log_('avertissement', 'len=' + String(warning.textContent || '').length
+                                + ' h=' + Math.round(warning.getBoundingClientRect().height));
+                        }).observe(warning, { childList: true, characterData: true, subtree: true });
+                    }
+                    if (panel && window.ResizeObserver) {
+                        new ResizeObserver(function () {
+                            var r = panel.getBoundingClientRect();
+                            log_('panneau', 'h=' + Math.round(r.height)
+                                + ' top=' + Math.round(r.top)
+                                + ' scrollY=' + Math.round(window.scrollY));
+                        }).observe(panel);
+                    }
+
+                    wireButtons_();
+                } catch (_) {}
+            }
+
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', onDomReady_, { once: true });
+            } else {
+                onDomReady_();
+            }
+
+            setTimeout(function () {
+                log_('stop', 'fin de la fenetre de ' + Math.round(WINDOW_MS / 1000) + ' s');
+                stopped = true;
+                if (saveTimer !== null) { clearTimeout(saveTimer); saveTimer = null; }
+                save_();
+            }, WINDOW_MS);
+
+            window.__bfgDiagStartupTrace_ = { key: STORAGE_KEY, read: readStore_, format: formatTrace_ };
+        } catch (_) {
+            // Le diagnostic ne doit jamais empêcher BFG de démarrer.
+        }
+    })();
+    </script>
+    <!-- ===== BFG DIAG TEMPORAIRE v5.16 — FIN ===== -->
     <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0">
     <title>Briefing Fdf TEST v5.07</title>
     <link rel="manifest" href="./manifest.json?v=5.07">
@@ -2480,6 +2771,15 @@
                 </div>
                 <p id="bfg-diag-status" style="margin:8px 0 0 0;font-weight:700;color:#34495e;"></p>
                 <textarea id="bfg-diag-output" aria-label="Diagnostic BFG" style="display:none;min-height:280px;margin-top:10px;font:12px/1.4 monospace;white-space:pre;overflow:auto;"></textarea>
+                <!-- ===== BFG DIAG TEMPORAIRE v5.16 — DÉBUT ===== -->
+                <div class="cncasc-auth-row" style="margin-top:14px;">
+                    <button id="bfg-diag-startup-show-btn" type="button" class="link-button" style="background-color:#8e44ad;">Trace démarrage</button>
+                    <button id="bfg-diag-startup-copy-btn" type="button" class="link-button" style="background-color:#16a085;">Copier trace</button>
+                    <button id="bfg-diag-startup-clear-btn" type="button" class="link-button" style="background-color:var(--sc-red);">Vider trace</button>
+                </div>
+                <p id="bfg-diag-startup-status" style="margin:8px 0 0 0;font-weight:700;color:#34495e;"></p>
+                <textarea id="bfg-diag-startup-output" aria-label="Trace de démarrage BFG" style="display:none;min-height:280px;margin-top:10px;font:12px/1.4 monospace;white-space:pre;overflow:auto;"></textarea>
+                <!-- ===== BFG DIAG TEMPORAIRE v5.16 — FIN ===== -->
             </div>
         </details>
     </div>
@@ -2871,8 +3171,8 @@
     <footer>Données : Météo-France, SIA, Windy.com, SDVFR. Page non commerciale, à usage personnel.</footer>
     
     <script>
-        const APP_VERSION_NUMBER = "5.15";
-        const APP_VERSION = `${APP_VERSION_NUMBER} TEST - EFFACEMENTS NOTAM PERSISTANTS`;
+        const APP_VERSION_NUMBER = "5.16";
+        const APP_VERSION = `${APP_VERSION_NUMBER} TEST - DIAGNOSTIC DEMARRAGE TEMPORAIRE`;
 
 
         // v4.97 — diagnostic conservé ; plage NOTAM quotidienne et sélection prioritaire. Aucun code d'accès, token ou contenu NOTAM n'est exporté.
@@ -4871,6 +5171,7 @@ const tdfStages = [
                 }
 
                 const blurIfAutomaticStartupFocus_ = () => {
+                    /* BFG DIAG TEMPORAIRE v5.16 */ if (window.__bfgDiagMark_) window.__bfgDiagMark_('blurIfAutomaticStartupFocus_', '#' + input.id + ' interaction=' + userHasInteracted_ + ' focalise=' + (document.activeElement === input) + ' scrollY=' + Math.round(window.scrollY));
                     if (!userHasInteracted_ && document.activeElement === input) input.blur();
                 };
 
@@ -8177,11 +8478,13 @@ const tdfStages = [
         }
 
         function forceBriefingStartAtTop() {
+            /* BFG DIAG TEMPORAIRE v5.16 */ if (window.__bfgDiagMark_) window.__bfgDiagMark_('forceBriefingStartAtTop', 'verrouActif=' + bfgStartupTopLockActive_ + ' scrollY=' + Math.round(window.scrollY));
             if (!bfgStartupTopLockActive_) return;
             setBriefingWindowScrollInstant_(0);
         }
 
         function scheduleBfgInitialTopLock_() {
+            /* BFG DIAG TEMPORAIRE v5.16 */ if (window.__bfgDiagMark_) window.__bfgDiagMark_('scheduleBfgInitialTopLock_', 'scrollY=' + Math.round(window.scrollY));
             const timer = setTimeout(() => {
                 bfgStartupTopLockActive_ = false;
             }, 0);
@@ -11159,6 +11462,7 @@ let activeShareApiBase = SHARE_API_BASE;
     window.restoreWeatherDataSnapshot_ = restoreWeatherDataSnapshot_;
 
     function clearWeatherForDailyLogout_() {
+        /* BFG DIAG TEMPORAIRE v5.16 */ if (window.__bfgDiagMark_) window.__bfgDiagMark_('clearWeatherForDailyLogout_', 'scrollY=' + Math.round(window.scrollY));
         document.querySelectorAll('#notam-display .airport-section-container').forEach(container => {
             const metar = container.querySelector('.metar-container');
             const taf = container.querySelector('.taf-container');

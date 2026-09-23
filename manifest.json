@@ -1,7 +1,7 @@
 {
   "name": "Briefing FDF TEST",
   "short_name": "Briefing TEST",
-  "description": "Briefing FDF TEST v5.15 — annulation sélection et surlignage persistante",
+  "description": "Briefing FDF TEST v5.16 — version de diagnostic temporaire du démarrage",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
