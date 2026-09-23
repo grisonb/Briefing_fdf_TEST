@@ -280,8 +280,11 @@ Base : TEST v5.16
 ===============================================================================
 
 CARTES VAC — BOUTON PAR TERRAIN
-- Ajout d'un bouton « VAC » violet dans le bandeau de chaque aérodrome, à la
-  suite de « Afficher TAF » et du bouton ↻.
+- Ajout d'un bouton « VAC » violet dans le bandeau de chaque aérodrome, après
+  « Afficher TAF » et le bouton ↻.
+- Dans la section NOTAM, le bouton est aligné à l'EXTRÉMITÉ DROITE du bandeau
+  (`margin-left: auto` dans le bandeau `h3` en `display: flex`), séparé du
+  groupe « Afficher TAF » / ↻ qui reste à gauche.
 - Le bouton est créé par `createAirportSectionElement`, donc il apparaît à la
   fois dans la section NOTAM et dans la Météo manuelle.
 - Le bouton est TOUJOURS actif, y compris pour un terrain sans VAC publiée.
@@ -403,7 +406,12 @@ CONTRÔLES AVANT LIVRAISON
 - Manifeste JSON vérifié.
 - Syntaxe du service worker vérifiée.
 - Service worker aligné sur v5.17 avec nouveau nom de cache
-  `briefing-fdf-test-v5.17-vac-r1`.
+  `briefing-fdf-test-v5.17-vac-r2`.
+- RÉVISION r2 : cache renommé de `...-vac-r1` en `...-vac-r2` afin que l'iPad
+  reprenne l'alignement à droite du bouton VAC. `BFG_SW_VERSION` reste à 5.17 et
+  le numéro de version affiché est inchangé : c'est la modification du fichier
+  `sw.js` lui-même qui déclenche l'installation du nouveau service worker, puis
+  la purge des anciens caches `briefing-fdf-test-`.
 - Filtre de purge d'activate toujours limité à `briefing-fdf-test-`.
 - Historique v5.16 et antérieur conservé intégralement.
 
@@ -592,7 +600,11 @@ SÉLECTIONS INDIVIDUELLES — NOUVELLE ORIENTATION — À REVOIR
 - NPF pérenne n'affiche pas les NOTAM : modifier NPF TEST pour lire ses sélections ailleurs que dans le fichier commun est donc acceptable et sans effet sur la pérenne.
 - Aucun code écrit, aucune action serveur créée à ce stade.
 
-VERSION PÉRENNE v2026.27 — RISQUE D'ÉCRASEMENT DU FICHIER DU NAS — À DÉCIDER
+VERSION PÉRENNE v2026.27 — RISQUE D'ÉCRASEMENT DU FICHIER DU NAS — TRANCHÉ le 23/09, INSTALLATION PLANIFIÉE
+- Décision : garde côté NAS + purge du `state`, mais PAS MAINTENANT. Les deux sont à livrer et à installer EN MÊME TEMPS que la tâche planifiée qui prendra le relais de la production du lot. Installée seule, la garde couperait la dernière source qui alimente le fichier et NPF TEST resterait figé sur le dernier lot produit manuellement.
+- D'ici là, le NAS n'est pas touché : notams-publish continue d'accepter les publications de BFG TEST et de la pérenne.
+- Code préparé, NON LIVRÉ, dans ~/nas-a-copier/en-attente/ : garde dans notams-publish refusant d'écraser un fichier dont `source` vaut `NAS` (409 snapshot_owned_by_nas), et suppression de la préservation du `state` dans npf_notams_write_snapshot(). Les fichiers complets au sens de la règle 6 seront produits au moment de l'installation, pas avant.
+- Ordre d'installation retenu : tâche planifiée DSM active, puis remplacement des deux fichiers PHP dans la même opération.
 - Vérifié en lecture seule dans le dépôt Briefing-fdf : la pérenne publie toujours son texte NOTAM via notams-publish (publishBfgNpfNotamsSharedSnapshot_, appelée depuis l'import SDVFR, l'import NATS, la sauvegarde locale et la republication différée), avec le même format bfgNpfNotamsV1.
 - Conséquence : dès que le NAS est producteur, la pérenne utilisée sur le même iPad écrase npf-notams-snapshot-v1.json avec son texte AFFICHÉ — donc potentiellement du NATS — et sans les champs sourceKind ni coverage.
 - Trois voies possibles : livrer une pérenne corrigée ; protéger côté NAS en refusant un notams-publish qui écraserait un fichier dont source vaut NAS ; ou accepter le risque jusqu'à la promotion.
