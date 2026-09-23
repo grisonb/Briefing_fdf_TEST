@@ -44,9 +44,11 @@ A. RÈGLES GÉNÉRALES
    nettoyage ni de refactorisation opportuniste au passage d'une correction
    ciblée. Le fonctionnement hors ligne sur iPad reste prioritaire.
 
-5. VERSION DE TRAVAIL STABLE PENDANT LES ITÉRATIONS.
-   Ne pas incrémenter la version à chaque message. Une nouvelle version TEST
-   n'est créée que lors d'une vraie livraison complète demandée.
+5. UNE VERSION PAR LIVRAISON POUSSÉE.
+   Chaque livraison poussée sur GitHub reçoit un nouveau numéro de version
+   (index.html, sw.js, manifest.json + entrée de journal), même pour une petite
+   correction. Pas d'incrément pour les itérations non poussées : tant qu'on
+   ajuste sans pousser, la version reste la même.
 
 6. LIVRAISON = 4 FICHIERS COMPLETS, TOUJOURS DANS CET ORDRE, JAMAIS DE PATCHS :
      1_Modifications_vX.XX.txt   -> MODIFICATIONS_BFG_TEST
@@ -305,13 +307,10 @@ CE QUI CHANGE
   VAC passe à la ligne suivante, toujours aligné à droite.
 
 VERSION
-- Nouvelle règle de travail demandée par l'utilisateur : le numéro de version
-  est désormais incrémenté à CHAQUE modification livrée, et non plus seulement
-  lors d'une livraison complète. Cette version 5.18 applique cette règle.
-- ATTENTION : ceci contredit le point 5 de la section 0 ci-dessus
-  (« VERSION DE TRAVAIL STABLE PENDANT LES ITÉRATIONS »). La section 0 n'a pas
-  été modifiée sans accord explicite. STATUT : À DÉCIDER — mettre à jour le
-  point 5, ou le conserver et traiter le cas présent comme une exception.
+- Nouvelle règle de travail : chaque livraison poussée sur GitHub reçoit un
+  nouveau numéro de version, même pour une petite correction ; les itérations
+  non poussées ne changent pas de numéro. Cette version 5.18 l'applique, et le
+  point 5 de la section 0 ci-dessus a été réécrit en conséquence.
 - Service worker en 5.18, nouveau cache `briefing-fdf-test-v5.18-vac-right-r1`.
 
 NON-RÉGRESSION

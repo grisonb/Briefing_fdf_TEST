@@ -27,8 +27,10 @@ avant de commencer une session — elle peut évoluer. Résumé de l'essentiel :
    jamais reconstruire de mémoire ni depuis un extrait.
 3. **Périmètre strict**, aucune refactorisation opportuniste, priorité au
    fonctionnement hors ligne.
-4. **Version de travail stable** pendant les itérations, pas d'incrément à chaque
-   message.
+4. **Une version par livraison poussée** : tout push sur GitHub reçoit un
+   nouveau numéro (`index.html`, `sw.js`, `manifest.json` + entrée de journal),
+   même pour une petite correction. Les itérations non poussées ne changent pas
+   de numéro.
 5. **Livraison = 4 fichiers complets**, dans l'ordre `1_Modifications` →
    `2_Index` → `3_Manifest` → `4_Sw`, jamais de patchs. Un 5e fichier NAS/VPS
    seulement sur demande.
@@ -41,6 +43,39 @@ avant de commencer une session — elle peut évoluer. Résumé de l'essentiel :
    caches partagés entre les trois applications, persistance NOTAM, surligneur
    Apple Pencil, deltas TEST/pérenne.
 9. **Git : jamais de commit ni de push sans demande explicite, à chaque fois.**
+   Voir la section « Règles permanentes » ci-dessous : aucun `git push` sans
+   accord écrit, aucun travail dans les dépôts pérennes.
+
+## 🚫 RÈGLES PERMANENTES — sans exception, sans expiration
+
+Ces deux règles ne se périment pas et ne se déduisent jamais du contexte. Une
+autorisation donnée une fois ne vaut jamais pour la suivante.
+
+### 1. Aucun `git push` sans accord écrit dans le chat
+
+Avant **chaque** `git push`, sans exception :
+
+1. afficher le **dépôt distant** (`git remote get-url origin`) et la **branche**
+   (`git branch --show-current` et son upstream) ;
+2. **attendre un « OK » écrit de l'utilisateur dans le chat** ;
+3. seulement alors, pousser — et jamais en `--force`.
+
+Ne jamais considérer comme un accord de pousser : une demande de commit, un
+« vas-y » portant sur le code, un feu vert donné à un plan, une urgence
+invoquée, ou une autorisation obtenue plus tôt dans la même conversation.
+Commiter n'autorise pas à pousser. Dans le doute, s'arrêter et demander.
+
+### 2. Ne jamais travailler dans les dépôts pérennes
+
+`Briefing-fdf` et `NPF-Q400` sont les **versions pérennes, en usage
+opérationnel**. Aucune écriture : pas de modification de fichier, pas de
+commit, pas de push, pas de branche, pas de `git` qui modifie l'état.
+
+Le seul travail autorisé se fait dans `Briefing_fdf_TEST/`. La **lecture** de
+ces dépôts reste permise pour comparer ou analyser — c'est ainsi que sont
+relevés les écarts TEST/pérenne de la section 0.B4 du journal. Toute promotion
+vers la pérenne est une opération manuelle de l'utilisateur, jamais de Claude
+Code.
 
 ## ⚠️ Ce projet n'est PAS NPF-Q400
 
@@ -155,7 +190,10 @@ cas de doute : le dire et demander.
 - Réintroduire une piste marquée `ABANDONNÉ` sans nouvel élément.
 - Incrémenter la version à chaque échange au lieu de garder la version TEST
   stable.
-- Travailler hors du dossier `Briefing_fdf_TEST/`.
+- Travailler hors du dossier `Briefing_fdf_TEST/` — et **jamais d'écriture**
+  dans `Briefing-fdf` ni `NPF-Q400` (cf. règles permanentes).
+- Pousser sans avoir montré dépôt et branche et obtenu un « OK » écrit
+  (cf. règles permanentes).
 
 ## Environnement de test
 
