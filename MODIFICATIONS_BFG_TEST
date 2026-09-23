@@ -359,12 +359,46 @@ PARTAGE
   `mergeReceivedState` à false : il ne contient que la couche personnelle.
   Sans cela, sa restauration aurait promu l'état reçu en permanent.
 
-EFFACER
-- Le bouton « Effacer » supprime aussi la couche reçue et la retire de
-  l'affichage.
-- À noter, comportement INCHANGÉ et antérieur à cette version : « Effacer » ne
-  supprime pas la couche personnelle `briefingFdfPersistentNotamStateV1` ni
-  `briefingFdfKeepSelectionBySourceV1`. STATUT : À DÉCIDER.
+EFFACER — REMISE À ZÉRO COMPLÈTE
+- Le bouton « Effacer » efface désormais TOUTES les données locales BFG, et non
+  plus une liste partielle de clés.
+- Le balayage se fait PAR PRÉFIXE (`briefingFdf`, `bfgNpf`, `bfgVac`,
+  `bfgPdfAnnotations:`) et non par liste nominative : une clé ajoutée dans une
+  version future sera prise en compte sans qu'on ait à penser à l'inscrire.
+- SONT EFFACÉS :
+    - couche NOTAM personnelle `briefingFdfPersistentNotamStateV1` : cases
+      vertes, cases noires, surlignages du texte et de la validité ;
+    - couche NOTAM reçue `briefingFdfReceivedNotamStateV1` ;
+    - marqueurs d'effacement explicite `clearMarkers` (inclus dans la couche
+      personnelle) ;
+    - « Garder la sélection » `briefingFdfKeepSelectionBySourceV1` ;
+    - plage de validité NOTAM, source NATS/SDVFR, caches NOTAM du jour ;
+    - sauvegarde locale de session (IndexedDB `briefingSessionDB`) ;
+    - NOTAM SDVFR persistants (IndexedDB + CacheStorage dédié) ;
+    - SUP AIP importés (IndexedDB `bfgSupAipPersistentDB`) ;
+    - cartes VAC (IndexedDB `BfgVacDB`) et dates de vérification du cycle ;
+    - annotations PDF : IndexedDB `bfg-pdf-annotations-v1` et clés
+      `bfgPdfAnnotations:*`. LACUNE CORRIGÉE : elles n'étaient effacées nulle
+      part jusqu'ici ;
+    - modes FDS/GAAR, statut NOTAM auto, coordonnées OACI manuelles ;
+    - derniers codes de partage créés ;
+    - association NPF-Q400 (`bfgNpf*`) : une nouvelle association par code à
+      8 chiffres sera nécessaire ensuite ;
+    - caches applicatifs et de données BFG TEST.
+- SONT CONSERVÉS, seules exceptions :
+    - `bfgDiagStartupTraceV1`, la trace de diagnostic de démarrage v5.16 ;
+    - `bfg_cncasc_token_v1` et `bfg_cncasc_token_exp_v1`, la connexion Briefing,
+      qui s'interrompt avec son propre bouton « Déconnexion ».
+- PROTECTION AJOUTÉE : `clearBfgLocalCaches_` supprimait tous les caches
+  commençant par `briefing-fdf`. Les trois applications partageant l'origine
+  grisonb.github.io, cela emportait AUSSI le cache applicatif de la version
+  pérenne (préfixe `briefing-fdf-v`), rendant l'outil opérationnel indisponible
+  hors ligne jusqu'à un rechargement en ligne. Ce préfixe est désormais
+  explicitement préservé. Les caches de DONNÉES partagés restent effacés : ils
+  se retéléchargent, contrairement à la coque applicative.
+- Le message de confirmation et l'aide « ? » énumèrent maintenant ce qui est
+  supprimé et ce qui est conservé, en mentionnant explicitement les cases et les
+  surlignages NOTAM.
 
 TRANSFERT BFG -> NPF-Q400
 - `publishBfgNpfNotamsSharedSnapshot_` N'EST PAS MODIFIÉE, comme demandé.

@@ -2844,7 +2844,7 @@
             <li><strong>Sauvegarder :</strong> enregistre localement le briefing affiché sur cet iPad/navigateur, avec les derniers PDF, NOTAMs, pélicandromes, cartes et données disponibles.</li>
             <li><strong>Chargement automatique :</strong> à l’ouverture du briefing, la dernière sauvegarde locale de cet iPad/navigateur est chargée automatiquement si elle existe.</li>
             <li><strong>Partager :</strong> crée un briefing partagé sur le NAS et fournit un code à ouvrir depuis un autre appareil. Les METAR/TAF déjà chargés sont inclus dans le partage et s’affichent chez le destinataire sans nouvelle requête météo.</li>
-            <li><strong>Effacer :</strong> réinitialise le stockage local de cet iPad pour BFG : sauvegarde locale, anciens PDF/NOTAM/TEMSI/SUP AIP, modes FDS/GAAR et caches PWA BFG. Les fichiers NAS et les briefings partagés déjà créés ne sont pas supprimés.</li>
+            <li><strong>Effacer :</strong> réinitialise tout le stockage local de cet iPad pour BFG. Sont supprimés : <strong>les cases vertes, les cases noires et les surlignages des NOTAM</strong> (y compris ceux reçus d'un briefing partagé), la sauvegarde locale, les anciens PDF/NOTAM/TEMSI/SUP AIP, les annotations portées sur les PDF, les cartes VAC téléchargées, les modes FDS/GAAR, « Garder la sélection », les derniers codes de partage, l'association NPF-Q400 et les caches PWA BFG. Sont conservés : la connexion Briefing en cours, qui s'interrompt avec « Déconnexion », et la trace de diagnostic de démarrage. Les fichiers NAS et les briefings partagés déjà créés ne sont pas supprimés.</li>
             <li><strong>Ouvrir un briefing partagé :</strong> permet de saisir un code du type BFG-JJMM-01 pour récupérer un briefing déjà partagé.</li>
         </ol>
     </div>
@@ -12723,11 +12723,21 @@ let activeShareApiBase = SHARE_API_BASE;
         btn.addEventListener('click', async () => {
             const confirmed = window.confirm(
                 "Confirmer l'effacement ?\n\n" +
-                "La sauvegarde locale, les anciens fichiers/PDF locaux, les anciennes TEMSI locales, les modes FDS/GAAR et les caches BFG de cet iPad seront supprimés. Les fichiers NAS ne seront pas supprimés."
+                "SERONT SUPPRIMÉS sur cet iPad :\n" +
+                "\u2022 les cases vertes, les cases noires et les surlignages des NOTAM, y compris ceux reçus d'un briefing partagé ;\n" +
+                "\u2022 la sauvegarde locale et les anciens fichiers/PDF locaux ;\n" +
+                "\u2022 les annotations portées sur les PDF ;\n" +
+                "\u2022 les cartes VAC téléchargées et les anciennes TEMSI ;\n" +
+                "\u2022 les modes FDS/GAAR, « Garder la sélection », les derniers codes de partage et l'association NPF-Q400 ;\n" +
+                "\u2022 les caches BFG.\n\n" +
+                "SERONT CONSERVÉS :\n" +
+                "\u2022 la connexion Briefing en cours (bouton « Déconnexion » pour l'interrompre) ;\n" +
+                "\u2022 la trace de diagnostic de démarrage.\n\n" +
+                "Les fichiers sur le NAS et les briefings déjà partagés ne sont pas supprimés."
             );
             if (!confirmed) return;
 
-            sessionStatus.textContent = "Effacement complet du stockage local BFG en cours...";
+            sessionStatus.textContent = "Effacement complet du stockage local BFG en cours (NOTAM, PDF, VAC, préférences)...";
             try {
                 await resetBfgLocalStorage_();
 
@@ -12897,14 +12907,69 @@ let activeShareApiBase = SHARE_API_BASE;
         }
     }
 
+    /* v5.19 — « Effacer » ne doit jamais rendre la version PÉRENNE inutilisable
+     * hors ligne. Les trois applications partagent la même origine
+     * grisonb.github.io : un balayage sur 'briefing-fdf' emportait aussi le cache
+     * applicatif de Briefing-fdf (préfixe 'briefing-fdf-v'), qui est l'outil en
+     * usage opérationnel. Il est désormais explicitement préservé.
+     * Les caches de DONNÉES partagés sont en revanche effacés : ils se
+     * retéléchargent, contrairement à la coque applicative. */
     async function clearBfgLocalCaches_() {
         if (!('caches' in window)) return;
         const names = await caches.keys();
+        const isPerennialAppShell = (name) => /^briefing-fdf-v\d/.test(name);
         await Promise.all(
             names
-                .filter(name => name.startsWith('briefing-fdf'))
+                .filter(name => (name.startsWith('briefing-fdf') || name.startsWith('bfg-npf')) && !isPerennialAppShell(name))
                 .map(name => caches.delete(name).catch(() => false))
         );
+    }
+
+    /* v5.19 — annotations PDF (FDS / GAAR / SUP AIP) : base et copies locales.
+     * Elles n'étaient effacées nulle part jusqu'ici. */
+    async function clearBfgPdfAnnotations_() {
+        try {
+            if (window.indexedDB && typeof indexedDB.deleteDatabase === 'function') {
+                await new Promise((resolve) => {
+                    const request = indexedDB.deleteDatabase('bfg-pdf-annotations-v1');
+                    request.onsuccess = () => resolve();
+                    request.onerror = () => resolve();
+                    request.onblocked = () => resolve();
+                });
+            }
+        } catch (error) {
+            console.warn('Effacement des annotations PDF impossible :', error);
+        }
+    }
+
+    /* v5.19 — « Effacer » remet à zéro TOUTES les données locales BFG.
+     * Balayage par préfixe plutôt que liste de clés, pour qu'une clé ajoutée
+     * plus tard soit prise en compte sans qu'on ait à penser à l'inscrire ici.
+     * DEUX EXCEPTIONS SEULEMENT, volontaires :
+     *   - bfgDiagStartupTraceV1        : trace de diagnostic de démarrage v5.16 ;
+     *   - bfg_cncasc_token_v1 / _exp_v1 : connexion Briefing, qui a son propre
+     *     bouton « Déconnexion ». */
+    const BFG_LOCAL_STORAGE_PREFIXES_ = ['briefingFdf', 'bfgNpf', 'bfgVac', 'bfgPdfAnnotations:'];
+    const BFG_LOCAL_STORAGE_KEEP_ = ['bfgDiagStartupTraceV1', 'bfg_cncasc_token_v1', 'bfg_cncasc_token_exp_v1'];
+
+    function clearAllBfgLocalStorageKeys_() {
+        const removed = [];
+        try {
+            const keys = [];
+            for (let i = 0; i < localStorage.length; i += 1) {
+                const key = localStorage.key(i);
+                if (key) keys.push(key);
+            }
+            keys.forEach((key) => {
+                if (BFG_LOCAL_STORAGE_KEEP_.includes(key)) return;
+                if (!BFG_LOCAL_STORAGE_PREFIXES_.some((prefix) => key.startsWith(prefix))) return;
+                localStorage.removeItem(key);
+                removed.push(key);
+            });
+        } catch (error) {
+            console.warn('Effacement des clés locales BFG incomplet :', error);
+        }
+        return removed;
     }
 
     async function resetBfgLocalStorage_() {
@@ -12916,19 +12981,20 @@ let activeShareApiBase = SHARE_API_BASE;
         // v5.17 : les cartes VAC stockées localement font partie du stockage BFG effacé.
         await clearBfgVacDb_().catch(error => console.warn('Effacement des cartes VAC impossible :', error));
 
-        // Remise à zéro des préférences qui peuvent forcer un ancien état local.
-        localStorage.removeItem('briefingFdfDoNotAutoRestore');
-        localStorage.removeItem(FDS_MODE_STORAGE_KEY);
-        localStorage.removeItem(GAAR_MODE_STORAGE_KEY);
-        localStorage.removeItem(NOTAMS_AUTO_STATUS_STORAGE_KEY);
-        localStorage.removeItem(BFG_NOTAM_QUICK_CACHE_KEY_);
-        localStorage.removeItem(BFG_SDVFR_DAILY_CACHE_KEY_);
-        // v5.19 : la couche NOTAM reçue est une donnée locale temporaire, elle part aussi.
-        localStorage.removeItem('briefingFdfReceivedNotamStateV1');
+        await clearBfgPdfAnnotations_();
+
+        // v5.19 — balayage complet : état NOTAM personnel ET reçu, « Garder la
+        // sélection », marqueurs d'effacement explicite, plage de validité,
+        // préférences FDS/GAAR, derniers partages, association NPF-Q400,
+        // annotations PDF locales, dates de vérification VAC.
+        const removedKeys = clearAllBfgLocalStorageKeys_();
+        console.info(`BFG : ${removedKeys.length} clé(s) locale(s) effacée(s).`, removedKeys);
+
+        // L'état NOTAM ayant disparu, l'affichage doit suivre immédiatement.
         if (typeof window.enforceBfgReceivedNotamExpiry_ === 'function') {
             try { window.enforceBfgReceivedNotamExpiry_(); } catch (_) {}
         }
-        sessionStorage.removeItem('skipAutoRestoreOnce');
+        try { sessionStorage.removeItem('skipAutoRestoreOnce'); } catch (_) {}
 
         // Nettoyage immédiat des objets lourds en mémoire avant rechargement.
         window.fdsFileObject = null;
