@@ -1401,6 +1401,21 @@
         .taf-toggle-btn { background-color: var(--sc-blue); color: white; border: none; padding: 5px 10px; font-size: 0.8em; cursor: pointer; border-radius: 4px; margin-left: 10px; vertical-align: middle; }
         .metar-taf-refresh-btn { margin-left: 10px; background: none; border: 1px solid #ccc; cursor: pointer; border-radius: 50%; width: 24px; height: 24px; font-size: 14px; line-height: 22px; vertical-align: middle; padding: 0; }
         .metar-taf-refresh-btn:hover { background-color: #e9ecef; }
+        .vac-open-btn { background-color: #6f42c1; color: white; border: none; padding: 5px 12px; font-size: 0.8em; font-weight: 700; cursor: pointer; border-radius: 4px; margin-left: 10px; vertical-align: middle; letter-spacing: .04em; }
+        .vac-open-btn:hover { background-color: #5a349f; }
+        .vac-open-btn:disabled { background-color: #9b8bc4; cursor: progress; }
+        .vac-stale-warning {
+            margin: 0 0 12px 0;
+            padding: 9px 12px;
+            border: 1px solid #e0a800;
+            border-left: 6px solid #b8860b;
+            border-radius: 8px;
+            background: #fff8e1;
+            color: #7a5200;
+            font-weight: 800;
+            font-size: 0.92em;
+            line-height: 1.35;
+        }
         .metar-taf-container { border: 1px solid #e0e0e0; background-color: #fdfdfd; padding: 15px; margin-top: 10px; border-radius: 5px; font-size: 1em; }
         .metar-taf-container h4 { margin: 0 0 5px 0; color: var(--sc-blue); font-size: 1em; display: flex; align-items: center; }
         .metar-taf-container pre { white-space: pre-wrap; word-wrap: break-word; font-family: monospace; background-color: #e9ecef; padding: 10px; border-radius: 4px; margin: 0; font-size: 1.3em; line-height: 1.35; }
@@ -3171,8 +3186,8 @@
     <footer>Données : Météo-France, SIA, Windy.com, SDVFR. Page non commerciale, à usage personnel.</footer>
     
     <script>
-        const APP_VERSION_NUMBER = "5.16";
-        const APP_VERSION = `${APP_VERSION_NUMBER} TEST - DIAGNOSTIC DEMARRAGE TEMPORAIRE`;
+        const APP_VERSION_NUMBER = "5.17";
+        const APP_VERSION = `${APP_VERSION_NUMBER} TEST - CARTES VAC (+ DIAGNOSTIC DEMARRAGE)`;
 
 
         // v4.97 — diagnostic conservé ; plage NOTAM quotidienne et sélection prioritaire. Aucun code d'accès, token ou contenu NOTAM n'est exporté.
@@ -6298,6 +6313,16 @@ const tdfStages = [
                 // NATS est ensuite actualisé. Son chargement ne doit plus modifier la météo affichée.
                 await importAutomaticNotamsFromNas_(null);
                 setCncascWarning_('NOTAM et METAR/TAF chargés.', { success: true });
+
+                // VAC : vérification du cycle une seule fois par jour, à la première
+                // connexion réussie. Non bloquante — un échec ne remet pas en cause
+                // la connexion, mais laisse les VAC signalées comme non vérifiées.
+                ensureBfgVacDailyManifestCheck_().catch(vacError => {
+                    console.warn('Vérification quotidienne du cycle VAC impossible :', vacError);
+                    bfgDiagLog_('VAC', 'Vérification quotidienne impossible', {
+                        message: vacError && vacError.message || String(vacError)
+                    });
+                });
             } catch (error) {
                 clearCncascToken_();
                 updateCncascAuthUi_();
@@ -8940,6 +8965,488 @@ const tdfStages = [
             }
         }
 
+        /* ===================== CARTES VAC =====================
+         * v5.17 — source actuelle : dépôt GitHub Pages public NPF-Q400-VAC,
+         * publié sous la même origine que BFG. Aucun NAS, aucun VPS, aucune
+         * authentification. Les PDF sont conservés dans une base IndexedDB
+         * propre à BFG ; le service worker laisse ce dépôt en réseau pur.
+         *
+         * BFG_VAC_SOURCES_ est consultée DANS L'ORDRE : la première source qui
+         * publie une VAC utilisable pour l'OACI l'emporte. Une seconde source
+         * (VAC militaires) pourra donc être ajoutée ici sans refonte, à
+         * condition qu'elle expose le même contrat de manifest
+         * (schemaVersion 1, airports{ OACI: { available, file, sha256, size,
+         * cycle, name } }, sourceCycle).
+         */
+        const BFG_VAC_SOURCES_ = [
+            {
+                id: 'SIA',
+                label: 'SIA',
+                baseUrl: 'https://grisonb.github.io/NPF-Q400-VAC/',
+                manifestPath: 'manifest.json'
+            }
+        ];
+
+        const BFG_VAC_DB_NAME_ = 'BfgVacDB';
+        const BFG_VAC_DB_VERSION_ = 1;
+        const BFG_VAC_STORE_ = 'vacPdfs';
+        const BFG_VAC_LAST_CHECK_DAY_KEY_ = 'bfgVacLastManifestCheckDayV1';
+        const BFG_VAC_LAST_CHECK_ISO_KEY_ = 'bfgVacLastManifestCheckIsoV1';
+
+        let bfgVacDb_ = null;
+        let bfgVacDailyCheckPromise_ = null;
+        const bfgVacManifestSessionCache_ = new Map();
+
+        function normalizeBfgVacOaci_(oaci) {
+            return String(oaci || '').trim().toUpperCase().replace(/[^A-Z0-9]/g, '');
+        }
+
+        function openBfgVacDb_() {
+            if (bfgVacDb_) return Promise.resolve(bfgVacDb_);
+            return new Promise((resolve, reject) => {
+                if (!window.indexedDB) {
+                    reject(new Error('IndexedDB indisponible'));
+                    return;
+                }
+                const request = window.indexedDB.open(BFG_VAC_DB_NAME_, BFG_VAC_DB_VERSION_);
+                request.onupgradeneeded = (event) => {
+                    const db = event.target.result;
+                    if (!db.objectStoreNames.contains(BFG_VAC_STORE_)) {
+                        db.createObjectStore(BFG_VAC_STORE_, { keyPath: 'oaci' });
+                    }
+                };
+                request.onsuccess = (event) => {
+                    bfgVacDb_ = event.target.result;
+                    bfgVacDb_.onversionchange = () => {
+                        try { bfgVacDb_.close(); } catch (_) {}
+                        bfgVacDb_ = null;
+                    };
+                    resolve(bfgVacDb_);
+                };
+                request.onerror = (event) => reject(event.target.error || new Error('Ouverture de la base VAC impossible'));
+                request.onblocked = () => reject(new Error('Base VAC bloquée par une autre instance de BFG.'));
+            });
+        }
+
+        async function getBfgVacRecord_(oaci) {
+            const key = normalizeBfgVacOaci_(oaci);
+            if (!key) return null;
+            const db = await openBfgVacDb_();
+            return new Promise((resolve, reject) => {
+                const tx = db.transaction(BFG_VAC_STORE_, 'readonly');
+                const request = tx.objectStore(BFG_VAC_STORE_).get(key);
+                request.onsuccess = () => resolve(request.result || null);
+                request.onerror = () => reject(request.error);
+            });
+        }
+
+        async function getAllBfgVacRecords_() {
+            const db = await openBfgVacDb_();
+            return new Promise((resolve, reject) => {
+                const tx = db.transaction(BFG_VAC_STORE_, 'readonly');
+                const request = tx.objectStore(BFG_VAC_STORE_).getAll();
+                request.onsuccess = () => resolve(Array.isArray(request.result) ? request.result : []);
+                request.onerror = () => reject(request.error);
+            });
+        }
+
+        async function putBfgVacRecord_(record) {
+            const db = await openBfgVacDb_();
+            return new Promise((resolve, reject) => {
+                const tx = db.transaction(BFG_VAC_STORE_, 'readwrite');
+                tx.objectStore(BFG_VAC_STORE_).put(record);
+                tx.oncomplete = () => resolve(record);
+                tx.onerror = () => reject(tx.error);
+                tx.onabort = () => reject(tx.error);
+            });
+        }
+
+        async function deleteBfgVacRecord_(oaci) {
+            const key = normalizeBfgVacOaci_(oaci);
+            if (!key) return;
+            const db = await openBfgVacDb_();
+            return new Promise((resolve, reject) => {
+                const tx = db.transaction(BFG_VAC_STORE_, 'readwrite');
+                tx.objectStore(BFG_VAC_STORE_).delete(key);
+                tx.oncomplete = () => resolve();
+                tx.onerror = () => reject(tx.error);
+                tx.onabort = () => reject(tx.error);
+            });
+        }
+
+        // Appelée par le bouton « Effacer » : les VAC sont des données locales BFG.
+        async function clearBfgVacDb_() {
+            try {
+                const db = await openBfgVacDb_();
+                await new Promise((resolve, reject) => {
+                    const tx = db.transaction(BFG_VAC_STORE_, 'readwrite');
+                    tx.objectStore(BFG_VAC_STORE_).clear();
+                    tx.oncomplete = () => resolve();
+                    tx.onerror = () => reject(tx.error);
+                    tx.onabort = () => reject(tx.error);
+                });
+            } catch (error) {
+                console.warn('Effacement des cartes VAC impossible :', error);
+            }
+            try {
+                localStorage.removeItem(BFG_VAC_LAST_CHECK_DAY_KEY_);
+                localStorage.removeItem(BFG_VAC_LAST_CHECK_ISO_KEY_);
+            } catch (_) {}
+            bfgVacManifestSessionCache_.clear();
+        }
+
+        async function bfgVacSha256Hex_(buffer) {
+            if (!window.crypto || !window.crypto.subtle || !window.crypto.subtle.digest) {
+                throw new Error('contrôle SHA-256 indisponible sur cet appareil');
+            }
+            const digest = await window.crypto.subtle.digest('SHA-256', buffer);
+            return Array.from(new Uint8Array(digest))
+                .map(byte => byte.toString(16).padStart(2, '0'))
+                .join('');
+        }
+
+        async function fetchBfgVacManifest_(source, timeoutMs = 12000) {
+            if (!navigator.onLine) throw new Error('Connexion Internet indisponible');
+
+            const manifestUrl = new URL(source.manifestPath, source.baseUrl).toString();
+            const controller = new AbortController();
+            const timer = setTimeout(() => controller.abort(), timeoutMs);
+            try {
+                const separator = manifestUrl.includes('?') ? '&' : '?';
+                const response = await fetch(`${manifestUrl}${separator}t=${Date.now()}`, {
+                    method: 'GET',
+                    cache: 'no-store',
+                    credentials: 'omit',
+                    signal: controller.signal
+                });
+                if (!response.ok) throw new Error(`manifest VAC ${source.id} HTTP ${response.status}`);
+
+                const manifest = await response.json();
+                if (!manifest
+                    || Number(manifest.schemaVersion) !== 1
+                    || !manifest.airports
+                    || typeof manifest.airports !== 'object') {
+                    throw new Error(`manifest VAC ${source.id} invalide`);
+                }
+                bfgVacManifestSessionCache_.set(source.id, manifest);
+                return manifest;
+            } finally {
+                clearTimeout(timer);
+            }
+        }
+
+        async function getBfgVacManifest_(source, options = {}) {
+            if (!options.force && bfgVacManifestSessionCache_.has(source.id)) {
+                return bfgVacManifestSessionCache_.get(source.id);
+            }
+            return fetchBfgVacManifest_(source, options.timeoutMs || 12000);
+        }
+
+        function readBfgVacManifestEntry_(manifest, oaci) {
+            const key = normalizeBfgVacOaci_(oaci);
+            const raw = manifest && manifest.airports ? manifest.airports[key] : null;
+            if (!raw) return null;
+            const entry = Object.assign({ oaci: key }, raw);
+            const usable = entry.available === true
+                && typeof entry.file === 'string' && entry.file
+                && typeof entry.sha256 === 'string' && entry.sha256;
+            return { entry, usable: !!usable };
+        }
+
+        /* Sources consultées dans l'ordre déclaré ; la première qui publie
+         * réellement la VAC l'emporte. Un terrain présent mais non publié
+         * (ex. LFBM) est renvoyé avec unavailable = true. */
+        async function findBfgVacEntryAcrossSources_(oaci, options = {}) {
+            const key = normalizeBfgVacOaci_(oaci);
+            if (!key) return null;
+
+            let knownButUnavailable = null;
+            let lastError = null;
+
+            for (const source of BFG_VAC_SOURCES_) {
+                let manifest;
+                try {
+                    manifest = await getBfgVacManifest_(source, options);
+                } catch (error) {
+                    lastError = error;
+                    continue;
+                }
+                const found = readBfgVacManifestEntry_(manifest, key);
+                if (!found) continue;
+                if (found.usable) return { source, manifest, entry: found.entry, unavailable: false };
+                if (!knownButUnavailable) {
+                    knownButUnavailable = { source, manifest, entry: found.entry, unavailable: true };
+                }
+            }
+
+            if (knownButUnavailable) return knownButUnavailable;
+            if (lastError) throw lastError;
+            return null;
+        }
+
+        async function downloadAndValidateBfgVacEntry_(source, entry, timeoutMs = 30000) {
+            const pdfUrl = new URL(entry.file, source.baseUrl).toString();
+            const controller = new AbortController();
+            const timer = setTimeout(() => controller.abort(), timeoutMs);
+            try {
+                const response = await fetch(`${pdfUrl}?sha=${encodeURIComponent(entry.sha256)}`, {
+                    method: 'GET',
+                    cache: 'no-store',
+                    credentials: 'omit',
+                    signal: controller.signal
+                });
+                if (!response.ok) throw new Error(`HTTP ${response.status}`);
+
+                const buffer = await response.arrayBuffer();
+                if (!buffer.byteLength) throw new Error('PDF vide');
+
+                const header = new Uint8Array(buffer, 0, Math.min(5, buffer.byteLength));
+                let signature = '';
+                for (let i = 0; i < header.length; i += 1) signature += String.fromCharCode(header[i]);
+                if (signature !== '%PDF-') throw new Error('signature PDF invalide');
+
+                const expectedSize = Number(entry.size) || 0;
+                if (expectedSize && buffer.byteLength !== expectedSize) {
+                    throw new Error(`taille invalide (${buffer.byteLength} octets au lieu de ${expectedSize})`);
+                }
+
+                const sha256 = await bfgVacSha256Hex_(buffer);
+                if (sha256.toLowerCase() !== String(entry.sha256).toLowerCase()) {
+                    throw new Error('SHA-256 invalide');
+                }
+
+                return {
+                    blob: new Blob([buffer], { type: 'application/pdf' }),
+                    size: buffer.byteLength,
+                    sha256,
+                    sourceUrl: pdfUrl
+                };
+            } finally {
+                clearTimeout(timer);
+            }
+        }
+
+        async function storeBfgVacEntry_(source, entry, manifest) {
+            const validated = await downloadAndValidateBfgVacEntry_(source, entry);
+            const record = {
+                oaci: entry.oaci,
+                sourceId: source.id,
+                filename: `${entry.oaci}.pdf`,
+                blob: validated.blob,
+                size: validated.size,
+                sha256: validated.sha256,
+                cycle: String(entry.cycle || (manifest && manifest.sourceCycle) || ''),
+                name: String(entry.name || ''),
+                sourceUrl: validated.sourceUrl,
+                updatedAt: new Date().toISOString()
+            };
+            await putBfgVacRecord_(record);
+            return record;
+        }
+
+        function bfgVacCheckedToday_() {
+            try { return localStorage.getItem(BFG_VAC_LAST_CHECK_DAY_KEY_) === bfgTodayLocalKey_(); }
+            catch (_) { return false; }
+        }
+
+        function bfgVacLastCheckLabel_() {
+            try {
+                const iso = localStorage.getItem(BFG_VAC_LAST_CHECK_ISO_KEY_) || '';
+                if (!iso) return 'jamais';
+                const date = new Date(iso);
+                if (Number.isNaN(date.getTime())) return 'jamais';
+                return date.toLocaleString('fr-FR', {
+                    day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit'
+                });
+            } catch (_) { return 'jamais'; }
+        }
+
+        function markBfgVacCheckedToday_() {
+            try {
+                localStorage.setItem(BFG_VAC_LAST_CHECK_DAY_KEY_, bfgTodayLocalKey_());
+                localStorage.setItem(BFG_VAC_LAST_CHECK_ISO_KEY_, new Date().toISOString());
+            } catch (_) {}
+        }
+
+        /* Vérification du cycle AIRAC : une seule fois par jour, déclenchée par la
+         * première connexion Briefing réussie. Aucune requête VAC au démarrage.
+         * En cas d'échec, la date du jour n'est PAS mémorisée : les ouvertures
+         * ultérieures resteront signalées comme non vérifiées. */
+        async function ensureBfgVacDailyManifestCheck_(options = {}) {
+            if (!options.force && bfgVacCheckedToday_()) return { skipped: true, checked: true };
+            if (bfgVacDailyCheckPromise_) return bfgVacDailyCheckPromise_;
+
+            bfgVacDailyCheckPromise_ = (async () => {
+                if (!navigator.onLine) throw new Error('Connexion Internet indisponible');
+
+                // Un manifest frais est obligatoire : ne jamais vérifier un cycle
+                // à partir d'une copie déjà en mémoire depuis le début de session.
+                bfgVacManifestSessionCache_.clear();
+                for (const source of BFG_VAC_SOURCES_) {
+                    await getBfgVacManifest_(source, { force: true });
+                }
+
+                const records = await getAllBfgVacRecords_();
+                let updated = 0;
+                let removed = 0;
+                let unchanged = 0;
+
+                for (const record of records) {
+                    const found = await findBfgVacEntryAcrossSources_(record.oaci);
+                    if (!found || found.unavailable) {
+                        await deleteBfgVacRecord_(record.oaci);
+                        removed += 1;
+                        continue;
+                    }
+                    const localSha = String(record.sha256 || '').toLowerCase();
+                    const remoteSha = String(found.entry.sha256 || '').toLowerCase();
+                    if (localSha && remoteSha && localSha === remoteSha) {
+                        unchanged += 1;
+                        continue;
+                    }
+                    await storeBfgVacEntry_(found.source, found.entry, found.manifest);
+                    updated += 1;
+                }
+
+                markBfgVacCheckedToday_();
+                clearAllBfgVacStaleWarnings_();
+                bfgDiagLog_('VAC', 'Vérification quotidienne du cycle terminée', {
+                    total: records.length, updated, removed, unchanged
+                });
+                return { checked: true, total: records.length, updated, removed, unchanged };
+            })();
+
+            try {
+                return await bfgVacDailyCheckPromise_;
+            } finally {
+                bfgVacDailyCheckPromise_ = null;
+            }
+        }
+
+        function showBfgVacStaleWarning_(container, oaci, record) {
+            if (!container) return;
+            let banner = container.querySelector('.vac-stale-warning');
+            if (!banner) {
+                banner = document.createElement('p');
+                banner.className = 'vac-stale-warning';
+                const title = container.querySelector('h3');
+                if (title && title.nextSibling) container.insertBefore(banner, title.nextSibling);
+                else container.insertBefore(banner, container.firstChild);
+            }
+            const cycle = record && record.cycle ? record.cycle : 'inconnu';
+            banner.textContent = `⚠ VAC ${oaci} affichée SANS vérification du cycle aujourd'hui.`
+                + ` Cycle enregistré : ${cycle}. Dernière vérification : ${bfgVacLastCheckLabel_()}.`
+                + ` Se connecter à Internet puis se connecter au Briefing pour la vérifier.`;
+        }
+
+        function clearBfgVacStaleWarning_(container) {
+            if (!container) return;
+            const banner = container.querySelector('.vac-stale-warning');
+            if (banner) banner.remove();
+        }
+
+        function clearAllBfgVacStaleWarnings_() {
+            document.querySelectorAll('.vac-stale-warning').forEach(node => node.remove());
+        }
+
+        function closeBfgVacWindow_(openedWindow) {
+            try {
+                if (openedWindow && !openedWindow.closed) openedWindow.close();
+            } catch (_) {}
+        }
+
+        /* Ouverture identique à NPF-Q400 : l'onglet est ouvert AVANT tout await,
+         * sans quoi Safari le bloque, puis reçoit l'URL blob du PDF. */
+        async function openBfgVacPdf_(oaci, buttonEl) {
+            const key = normalizeBfgVacOaci_(oaci);
+            if (!key) return false;
+
+            const container = buttonEl ? buttonEl.closest('.airport-section-container') : null;
+            const openedWindow = window.open('', '_blank');
+            const originalLabel = buttonEl ? buttonEl.textContent : '';
+            if (buttonEl) {
+                buttonEl.disabled = true;
+                buttonEl.textContent = 'VAC…';
+            }
+
+            try {
+                let record = await getBfgVacRecord_(key);
+                let hasBlob = !!(record && record.blob instanceof Blob);
+                let verified = hasBlob && bfgVacCheckedToday_();
+
+                if (!verified) {
+                    // VAC absente, ou cycle non vérifié aujourd'hui : tentative de
+                    // vérification ciblée sur ce seul terrain.
+                    try {
+                        // Une copie locale déjà présente exige un manifest frais :
+                        // c'est la seule façon de confirmer qu'elle est au cycle en vigueur.
+                        const found = await findBfgVacEntryAcrossSources_(key, { force: hasBlob });
+
+                        if (!found || found.unavailable) {
+                            closeBfgVacWindow_(openedWindow);
+                            alert(`Aucune carte VAC disponible pour ${key}.`);
+                            return false;
+                        }
+
+                        const remoteSha = String(found.entry.sha256 || '').toLowerCase();
+                        const localSha = String((record && record.sha256) || '').toLowerCase();
+                        if (!hasBlob || localSha !== remoteSha) {
+                            record = await storeBfgVacEntry_(found.source, found.entry, found.manifest);
+                            hasBlob = true;
+                        }
+                        verified = true;
+                    } catch (error) {
+                        if (!hasBlob) {
+                            closeBfgVacWindow_(openedWindow);
+                            alert(navigator.onLine
+                                ? `Carte VAC ${key} indisponible : ${error.message || error}`
+                                : `VAC ${key} non disponible hors ligne. L'ouvrir une fois en ligne pour la conserver.`);
+                            return false;
+                        }
+                        // Une copie locale existe : elle sera affichée, mais signalée.
+                        verified = false;
+                    }
+                }
+
+                if (!record || !(record.blob instanceof Blob)) {
+                    closeBfgVacWindow_(openedWindow);
+                    alert(`Aucune carte VAC disponible pour ${key}.`);
+                    return false;
+                }
+
+                if (verified) clearBfgVacStaleWarning_(container);
+                else showBfgVacStaleWarning_(container, key, record);
+
+                const pdfUrl = URL.createObjectURL(record.blob);
+                if (openedWindow) openedWindow.location.href = pdfUrl;
+                else window.location.href = pdfUrl;
+                setTimeout(() => URL.revokeObjectURL(pdfUrl), 120000);
+                return true;
+            } catch (error) {
+                closeBfgVacWindow_(openedWindow);
+                alert(`Ouverture de la VAC ${key} impossible : ${error.message || error}`);
+                return false;
+            } finally {
+                if (buttonEl) {
+                    buttonEl.disabled = false;
+                    buttonEl.textContent = originalLabel || 'VAC';
+                }
+            }
+        }
+
+        /* Délégation au niveau document : le bouton VAC existe aussi bien dans la
+         * section NOTAM que dans la Météo manuelle. */
+        document.addEventListener('click', (event) => {
+            const button = event.target && event.target.closest ? event.target.closest('.vac-open-btn') : null;
+            if (!button) return;
+            event.preventDefault();
+            const icao = button.dataset.icao || '';
+            openBfgVacPdf_(icao, button).catch(error => {
+                console.warn('Ouverture VAC impossible :', error);
+            });
+        });
+        /* =================== FIN CARTES VAC =================== */
+
         function createAirportSectionElement(icao, fullName, source = BFG_NOTAM_SOURCE_SDVFR_) {
             const normalizedSource = source === BFG_NOTAM_SOURCE_NATS_ ? BFG_NOTAM_SOURCE_NATS_ : BFG_NOTAM_SOURCE_SDVFR_;
             const airportContainer = document.createElement('div');
@@ -8964,8 +9471,16 @@ const tdfStages = [
             refreshButton.title = 'Rafraîchir';
             refreshButton.innerHTML = '↻';
 
+            const vacButton = document.createElement('button');
+            vacButton.type = 'button';
+            vacButton.className = 'vac-open-btn';
+            vacButton.dataset.icao = icao;
+            vacButton.title = `Carte VAC ${icao}`;
+            vacButton.textContent = 'VAC';
+
             airportTitle.appendChild(tafToggleButton);
             airportTitle.appendChild(refreshButton);
+            airportTitle.appendChild(vacButton);
 
             const metarContainer = document.createElement('div');
             metarContainer.className = 'metar-container metar-taf-container';
@@ -12369,6 +12884,8 @@ let activeShareApiBase = SHARE_API_BASE;
         await clearPersistedSupAips_().catch(error => console.warn('Effacement persistant SUP AIP impossible :', error));
         await clearBfgSdvfrNotamIndexedDb_().catch(error => console.warn('Effacement IndexedDB NOTAM SDVFR impossible :', error));
         await clearBfgSdvfrNotamCacheStorage_().catch(error => console.warn('Effacement CacheStorage NOTAM SDVFR impossible :', error));
+        // v5.17 : les cartes VAC stockées localement font partie du stockage BFG effacé.
+        await clearBfgVacDb_().catch(error => console.warn('Effacement des cartes VAC impossible :', error));
 
         // Remise à zéro des préférences qui peuvent forcer un ancien état local.
         localStorage.removeItem('briefingFdfDoNotAutoRestore');
@@ -12544,7 +13061,7 @@ window.__notamTextFull = notamInput.value;
                 const visibleItems = section.querySelectorAll('.notam-item:not(.hidden-by-filter):not(.hidden-by-prefilter)');
                 if (visibleItems.length === 0) return;
                 if (y > pageHeight - 20) { doc.addPage(); y = 15; }
-                const airportTitle = section.querySelector('h3').textContent.replace(/Afficher TAF/g, '').replace(/Masquer TAF/g, '').trim();
+                const airportTitle = section.querySelector('h3').textContent.replace(/Afficher TAF/g, '').replace(/Masquer TAF/g, '').replace(/VAC…?/g, '').trim();
                 doc.setFont("helvetica", "bold").setFontSize(14).text(airportTitle, margin, y);
                 y += 8;
 

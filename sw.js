@@ -1,5 +1,5 @@
-const BFG_SW_VERSION = '5.16';
-const CACHE_NAME = 'briefing-fdf-test-v5.16-diag-startup-r1';
+const BFG_SW_VERSION = '5.17';
+const CACHE_NAME = 'briefing-fdf-test-v5.17-vac-r1';
 
 const LOCAL_ASSETS = [
   './manifest.json',
@@ -210,6 +210,16 @@ self.addEventListener('fetch', (event) => {
 
   const url = new URL(event.request.url);
   const sameOrigin = url.origin === self.location.origin;
+
+  // v5.17 — dépôt de cartes VAC NPF-Q400-VAC.
+  // Publié sous la même origine que BFG mais hors de son périmètre applicatif :
+  // sans cette règle, il tomberait dans le cacheFirst final, ce qui figerait le
+  // manifest et accumulerait les PDF dans le cache applicatif BFG.
+  // Réseau pur : les PDF validés sont conservés par index.html dans IndexedDB.
+  if (sameOrigin && url.pathname.startsWith('/NPF-Q400-VAC/')) {
+    event.respondWith(fetch(event.request));
+    return;
+  }
 
   // v5.01 — METAR/TAF et relais SUP AIP : ne surtout pas appeler event.respondWith().
   // Le navigateur effectue alors la requête réseau native directement vers les relais NAS.

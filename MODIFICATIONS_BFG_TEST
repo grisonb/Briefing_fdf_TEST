@@ -275,6 +275,138 @@ C. CONTRÔLES AVANT TOUTE LIVRAISON
       historique intégralement conservé.
 ===============================================================================
 
+TEST v5.17 — 2026-09-23
+Base : TEST v5.16
+===============================================================================
+
+CARTES VAC — BOUTON PAR TERRAIN
+- Ajout d'un bouton « VAC » violet dans le bandeau de chaque aérodrome, à la
+  suite de « Afficher TAF » et du bouton ↻.
+- Le bouton est créé par `createAirportSectionElement`, donc il apparaît à la
+  fois dans la section NOTAM et dans la Météo manuelle.
+- Le bouton est TOUJOURS actif, y compris pour un terrain sans VAC publiée.
+- Clic géré par délégation au niveau `document`, afin de couvrir les deux
+  emplacements sans dupliquer de code.
+- Ouverture identique à NPF-Q400 : l'onglet est ouvert AVANT tout `await`,
+  sinon Safari le bloque, puis reçoit l'URL blob du PDF, révoquée après 120 s.
+  Repli sur `window.location.href` si l'onglet est refusé.
+
+SOURCE DES CARTES
+- Dépôt GitHub Pages public NPF-Q400-VAC, déjà utilisé par NPF-Q400 :
+  https://grisonb.github.io/NPF-Q400-VAC/
+- AUCUN fichier NAS ni VPS n'est utilisé ni à déposer. Aucune authentification.
+- Le manifest donne le chemin de chaque PDF ; l'URL n'est jamais reconstruite à
+  partir de l'OACI. L'OACI ne sert que de clé.
+- Manifest au moment de l'intégration : schemaVersion 1, cycle 03_SEP_2026,
+  446 terrains dont 415 avec VAC publiée.
+- Couverture des 28 OACI de la liste NOTAM BFG : 27 disponibles. Seul LFBM
+  (Mont-de-Marsan) est marqué `not_published_by_sia`.
+
+SOURCES MULTIPLES — STRUCTURE PRÊTE POUR LES VAC MILITAIRES
+- La constante `BFG_VAC_SOURCES_` est une LISTE consultée dans l'ordre déclaré.
+  La première source qui publie réellement la VAC du terrain l'emporte.
+- Une seconde source (VAC militaires, autre dépôt ou autre manifest) pourra y
+  être ajoutée sans refonte, à condition d'exposer le même contrat :
+  schemaVersion 1, `airports { OACI: { available, file, sha256, size, cycle,
+  name } }`, `sourceCycle`.
+- Cette seconde source n'est PAS créée dans cette version. STATUT : À VENIR.
+
+CONTRÔLE D'INTÉGRITÉ À CHAQUE TÉLÉCHARGEMENT
+- Réponse HTTP correcte, fichier non vide, signature `%PDF-`, taille exacte à
+  l'octet et SHA-256 conforme au manifest.
+- Un PDF non conforme est rejeté : rien n'est écrit en base.
+
+STOCKAGE
+- Base IndexedDB dédiée `BfgVacDB`, magasin `vacPdfs`, clé `oaci`.
+- La base `NpfVacDB` de NPF-Q400 n'est ni lue ni modifiée. Les deux applications
+  partagent pourtant la même origine, mais une PWA installée sur iPad peut
+  isoler son stockage : une lecture croisée serait un bonus non fiable.
+- Téléchargement À LA DEMANDE au clic, jamais de synchronisation de masse :
+  environ 200 à 400 ko par carte, contre 124 Mo pour le pack complet.
+
+CYCLE AIRAC — VÉRIFICATION UNE FOIS PAR JOUR
+- Déclenchée par la PREMIÈRE CONNEXION BRIEFING RÉUSSIE de la journée, à la fin
+  de `unlockCncascAndSync_`, en tâche de fond et sans bloquer la connexion.
+- AUCUNE requête VAC au démarrage de l'application : uniquement à la connexion
+  ou au clic.
+- La vérification retélécharge le manifest de chaque source, compare le SHA-256
+  de chaque VAC déjà stockée, retélécharge celles qui ont changé et supprime
+  celles qui ne sont plus publiées.
+- La date de vérification est mémorisée dans `bfgVacLastManifestCheckDayV1` et
+  `bfgVacLastManifestCheckIsoV1`. Les connexions suivantes du même jour ne
+  relancent pas la vérification.
+- En cas d'échec, la date du jour n'est PAS mémorisée : les VAC restent donc
+  signalées comme non vérifiées.
+
+AVERTISSEMENT DE CYCLE NON VÉRIFIÉ
+- Au clic, si la vérification du jour n'a pas eu lieu, BFG tente une
+  vérification ciblée sur ce seul terrain, avec manifest forcé à jour.
+- Si cette vérification aboutit, la carte est ouverte normalement.
+- Si elle échoue (hors ligne, réseau indisponible) et qu'une copie locale
+  existe, la carte est affichée MAIS un bandeau orange est inséré sous le
+  bandeau du terrain, indiquant le cycle enregistré et la date de la dernière
+  vérification.
+- Une VAC dont le cycle ne peut pas être confirmé n'est jamais affichée sans cet
+  avertissement.
+- Les bandeaux sont retirés dès qu'une vérification quotidienne aboutit.
+
+CAS D'ERREUR
+- Terrain sans VAC publiée (LFBM) ou OACI absent des manifests (ex. EGLL saisi
+  en Météo manuelle) : message « Aucune carte VAC disponible pour XXXX. »
+- Hors ligne et aucune copie locale : « VAC XXXX non disponible hors ligne.
+  L'ouvrir une fois en ligne pour la conserver. »
+- Téléchargement corrompu : message d'erreur, aucune écriture en base.
+
+SERVICE WORKER
+- Nouvelle règle placée en tête du routage `fetch` : les requêtes vers
+  `/NPF-Q400-VAC/` sont servies en RÉSEAU PUR.
+- Nécessaire car BFG est publié sur la même origine que le dépôt VAC : sans
+  cette règle, ces requêtes tombaient dans le `cacheFirst` final, ce qui aurait
+  figé le manifest et accumulé les PDF dans le cache applicatif BFG.
+- L'ordre des autres règles est strictement inchangé.
+
+EFFACEMENT
+- Le bouton « Effacer » vide désormais `BfgVacDB` et retire les deux clés de
+  date de vérification, via `resetBfgLocalStorage_`.
+- La trace de diagnostic `bfgDiagStartupTraceV1` reste préservée comme en v5.16.
+
+SAUVEGARDE LOCALE ET PARTAGE
+- Aucun impact : `collectWeatherDataSnapshot_` ne stocke que `metarHTML` et
+  `tafHTML`. Le bandeau `h3` est reconstruit à chaque rendu, donc les sections
+  restaurées reçoivent le bouton automatiquement.
+- Les PDF VAC restent hors snapshot et hors partage : un briefing partagé ne les
+  embarque pas et son volume est inchangé. Le destinataire les téléchargera au
+  besoin.
+- Correction associée : l'export PDF des NOTAM reprenait le texte du bandeau de
+  terrain en retirant « Afficher TAF » et « Masquer TAF ». « VAC » est ajouté à
+  ce nettoyage, sinon le mot se serait collé au nom du terrain dans le PDF.
+
+DIAGNOSTIC TEMPORAIRE v5.16
+- Intégralement conservé et fonctionnel : bloc `<script>` du `<head>`, boutons
+  « Trace démarrage » / « Copier trace » / « Vider trace » du panneau
+  « Diagnostic BFG », et les 4 lignes de trace dans `forceBriefingStartAtTop`,
+  `scheduleBfgInitialTopLock_`, `blurIfAutomaticStartupFocus_` et
+  `clearWeatherForDailyLogout_`.
+- Le problème d'apparition du clavier au démarrage reste NON CORRIGÉ et en
+  attente de mesure. STATUT : À MESURER.
+
+NON-RÉGRESSION
+- Aucune modification de la persistance NOTAM ni du surligneur Apple Pencil.
+- Garde-fou clavier `preventIpadKeyboardOnStartup_` inchangé.
+- Aucun changement NAS / worker VPS / RTBA.
+- `BFG_REQUIRED_SW_VERSION_` et les URL en `?v=5.07` laissés inchangés,
+  conformément à la section 0.B1.
+- Version pérenne non touchée.
+
+CONTRÔLES AVANT LIVRAISON
+- Syntaxe des 3 blocs JavaScript inline d'index.html vérifiée.
+- Manifeste JSON vérifié.
+- Syntaxe du service worker vérifiée.
+- Service worker aligné sur v5.17 avec nouveau nom de cache
+  `briefing-fdf-test-v5.17-vac-r1`.
+- Filtre de purge d'activate toujours limité à `briefing-fdf-test-`.
+- Historique v5.16 et antérieur conservé intégralement.
+
 TEST v5.16 — 2026-09-23
 Base : TEST v5.15
 ===============================================================================
@@ -405,7 +537,7 @@ CONTRAT NAS ÉTABLI SUR LES FICHIERS PHP RÉELS — VALIDÉ (constats, pas des s
 - get-notams-generation-status.php : ne vérifie aucun jeton.
 - Aucun fichier PHP du NAS ne nomme d'état terminal SDVFR. Les seuls traités en production sont ceux de la boucle d'attente de BFG : success, partial, error.
 
-RELAIS NAS FOURNI POUR COPIE MANUELLE — NON IMPLÉMENTÉ dans le dépôt (code hors dépôt)
+RELAIS NAS — DÉPLOYÉ SUR LE NAS ET VALIDÉ EN RÉEL EN LIGNE DE COMMANDE (code hors dépôt)
 - Trois blocs remis à l'utilisateur : notams-sdvfr-shared.php (nouveau), deux insertions dans npf-docs-api.php, notams-auto-refresh.php (nouveau, tâche planifiée Synology).
 - Actions `notams-refresh` (POST) et `notams-refresh-status` (GET), derrière npf_verify_session_token : mêmes actions et même jeton pour BFG et pour NPF.
 - Statut en quatre états : idle, pending (enregistrée), running (en cours), success / error (terminée).
@@ -416,20 +548,85 @@ RELAIS NAS FOURNI POUR COPIE MANUELLE — NON IMPLÉMENTÉ dans le dépôt (code
 - L'état des sélections (state) est repris tel quel tant que l'on reste dans la même journée Europe/Paris, puis repart à zéro.
 - Un résultat SDVFR vide n'écrase jamais un fichier partagé exploitable.
 
-CORRECTIONS APPORTÉES AVANT COPIE SUR LE NAS — À MESURER (code non déployé, non testé)
+CORRECTIONS APPORTÉES AVANT COPIE SUR LE NAS — VALIDÉ pour requestedBy et origin ; verrou et adoption À MESURER (non exercés par le test du 23/09)
 - requestedBy : les valeurs 'NAS' et 'NAS-AUTO' du premier jet étaient inventées. Remplacées par 'BFG', seule valeur que request-sdvfr-notams.php écrive pour le bouton BFG existant, donc la seule que le worker VPS ait jamais traitée. L'origine réelle (api-refresh / nas-auto) est mémorisée dans npf-notams-refresh-v1.json, que le worker ne lit pas.
 - Verrou anti-doublon : npf_notams_active_request() libère la demande dès que sdvfr-result.json porte le même requestId avec un état terminal, que sdvfr-request.json ait été mis à jour ou non. Le TTL de 600 s est conservé comme filet de sécurité. Tout statut inconnu du worker reste NON terminal, pour ne jamais relancer une demande pendant qu'il travaille encore.
+- Ajout de npf_notams_refresh_follow() : une demande SDVFR lancée hors de cette chaîne (bouton BFG historique, tâche planifiée, autre application) est adoptée pour que son avancement soit suivi et que le fichier partagé soit écrit à son terme. Sans elle, un rafraîchissement déclenché pendant qu'une demande tournait déjà renvoyait joined=true avec un statut idle incohérent.
 - Conséquence assumée : deux appuis successifs sur « Rafraîchir » lancent deux téléchargements réels au lieu d'être fusionnés.
+
+TEST RÉEL DU 23/09/2026 — VALIDÉ (chemin ligne de commande uniquement)
+- notams-auto-refresh.php exécuté par le Planificateur de tâches DSM (root, puis sudo -u http /bin/php), PHP 7.3.3, code retour 0.
+- Enchaînement complet observé : pending 09:37:53 -> running 09:37:56 -> success 09:38:05.
+- Prise en charge de la demande par le worker VPS : environ 3 s. Cycle complet : 12 s pour 27 terrains et 207 NOTAM.
+- Fichier partagé écrit : /volume1/web/briefing-data/npf-notams-snapshot-v1.json, 72 804 octets, propriétaire http.
+- État de rafraîchissement écrit : npf-notams-refresh-v1.json, 729 octets, avec requestedBy = BFG, origin = nas-auto, coverage des 27 OACI, notamCount 207, airportCount 27, sdvfrStatus success.
+- requestedBy = 'BFG' est bien accepté par le worker VPS : la valeur reprise de request-sdvfr-notams.php était la bonne, l'hypothèse est levée.
+- COMPATIBILITÉ NPF CONFIRMÉE SANS AUCUNE MODIFICATION DE NPF : NPF-Q400 TEST affiche la ligne source du fichier produit par le NAS (« NOTAM SDVFR du 23/09/2026 à 09h38 »). Le format bfgNpfNotamsV1 et le champ notamsAutoPdfStatus.timestampIso remplissent donc bien leur rôle de compatibilité.
+- NON exercés par ce test : libération du verrou sur résultat terminal, adoption par npf_notams_refresh_follow(), et les deux actions web notams-refresh / notams-refresh-status.
+
+HORODATAGES DU FICHIER D'ÉTAT — À REVOIR (aucune conséquence fonctionnelle constatée)
+- requestedAt et updatedAt sont en heure locale Europe/Paris (+02:00) ; expiresAt est en UTC (+00:00).
+- Ce n'est volontaire qu'à moitié : expiresAt est recopié tel quel depuis sdvfr-request.json, dont le format gmdate('c') reproduit exactement celui de request-sdvfr-notams.php pour le worker. Sa propagation dans npf-notams-refresh-v1.json est un effet de bord, pas un choix.
+- Les deux formes sont de l'ISO 8601 à décalage explicite, correctement interprétées par strtotime() côté NAS — le test le confirme, aucun faux dépassement de délai — et par Date.parse() côté client.
+- Règle côté client : analyser ces champs avec Date.parse() / new Date(), jamais par comparaison ni découpage de chaîne, et calculer le jour Europe/Paris via Intl comme le fait déjà NPF.
+
+PARTAGE DES SÉLECTIONS BFG -> NPF ROMPU DEPUIS LA v4.77 — À REVOIR
+- Défaut reproduit sur iPad : un NOTAM coché dans BFG TEST n'apparaît pas coché dans NPF TEST.
+- Cause identifiée dans le code : BFG préfixe ses identifiants persistants par la source — `${source}-${icao}-...` (index.html, createNotamItemElement) — alors que NPF construit les siens sans préfixe, `${oaci}-...` (src/210 createNpfBfgNotamRecord), et les recherche par accès direct byId[record.id], sans aucun traitement de préfixe. Aucune entrée publiée par BFG ne peut donc être retrouvée par NPF.
+- Origine datée et confirmée : entrée TEST v4.77 du 20/09/2026 de ce journal — « Les identifiants persistants des NOTAMs intègrent désormais la source (NATS ou SDVFR) », introduit pour mémoriser NATS et SDVFR indépendamment sans écrasement mutuel. La même entrée conclut « Aucun changement PHP NAS requis » : l'effet de bord sur le partage vers NPF n'avait pas été vu. L'hypothèse d'une rupture en v4.77 est donc vérifiée.
+- La version pérenne v2026.27 porte le même préfixe : le défaut est présent dans les deux applications BFG, ce qui concorde avec « ça fonctionnait avant ».
+- Les fonctions de signature sont en revanche rigoureusement identiques des deux côtés (même normalisation, même FNV-1a, même base 36) : une fois les identifiants alignés, le contrôle textSignature passera sans autre correction.
+- Correction envisagée le 23/09 au matin, puis ABANDONNÉE le même jour : BFG devait publier dans le fichier commun une projection de son état, préfixe SDVFR- retiré. Écartée par la décision sur le caractère individuel des sélections — voir la rubrique suivante.
+- Le constat technique reste entier : tant que les identifiants ne sont pas alignés, aucun mécanisme de partage de sélections, où qu'il range les données, ne fonctionnera entre BFG et NPF.
+
+SÉLECTIONS INDIVIDUELLES — NOUVELLE ORIENTATION — À REVOIR
+- Décision du 23/09/2026 : les cases cochées sont individuelles. Elles ne sont jamais partagées avec d'autres utilisateurs, à la seule exception du partage volontaire du briefing BFG (code BFG-xxxx-xx), qui reste inchangé et hors de ce sujet.
+- Conséquence directe : npf-notams-snapshot-v1.json, commun à toutes les installations, ne doit plus porter l'état de personne. Trois écritures le remplissent encore aujourd'hui et devront être traitées : la préservation du `state` de la veille dans npf_notams_write_snapshot() du relais NAS, les publications de BFG TEST, et celles de la version pérenne v2026.27.
+- Piste à l'étude : ranger les sélections par association BFG <-> NPF, c'est-à-dire par pont bridge-grant / bridge-claim.
+- Vérification du modèle dans le code réel de npf-docs-api.php : npf-auth-bridge-v1.json contient une CARTE `bridges` indexée par bridgeId. Plusieurs ponts coexistent donc, un par appairage BFG <-> NPF ; il n'y a pas de pont global unique. Le modèle se prête bien à un rangement par paire d'installations.
+- bridgeId = 16 octets aléatoires (32 hexadécimaux), créé par bridge-grant, mémorisé des deux côtés : clé bfgNpfBridgeIdV1 dans BFG, bridgeId + deviceSecret dans NPF.
+- Preuves de propriété disponibles sans rien inventer : NPF présente bridgeId + deviceSecret, dont le NAS ne conserve qu'un SHA-256 ; BFG présente son jeton de session BFG (scope 'bfg'), déjà vérifié par bridge-grant.
+- Point d'attention : le jeton de session npf-docs-v1 ne porte PAS le bridgeId. Le serveur ne peut donc pas déduire le pont du seul jeton — toute action par pont devra exiger une preuve explicite, sans quoi n'importe quel porteur de jeton valide lirait les sélections d'un autre pont.
+- Deuxième point d'attention : une réassociation explicite (forceRePair) crée un NOUVEAU bridgeId et révoque l'ancien. Des sélections rangées par bridgeId seraient perdues à cet instant. Acceptable si elles restent quotidiennes, à confirmer.
+- Troisième point : grantExp vaut minuit ; BFG doit réautoriser chaque jour, sans quoi bridge-session renvoie bridge_not_granted. Un accès aux sélections adossé au pont hériterait de cette contrainte quotidienne.
+- NPF pérenne n'affiche pas les NOTAM : modifier NPF TEST pour lire ses sélections ailleurs que dans le fichier commun est donc acceptable et sans effet sur la pérenne.
+- Aucun code écrit, aucune action serveur créée à ce stade.
+
+VERSION PÉRENNE v2026.27 — RISQUE D'ÉCRASEMENT DU FICHIER DU NAS — À DÉCIDER
+- Vérifié en lecture seule dans le dépôt Briefing-fdf : la pérenne publie toujours son texte NOTAM via notams-publish (publishBfgNpfNotamsSharedSnapshot_, appelée depuis l'import SDVFR, l'import NATS, la sauvegarde locale et la republication différée), avec le même format bfgNpfNotamsV1.
+- Conséquence : dès que le NAS est producteur, la pérenne utilisée sur le même iPad écrase npf-notams-snapshot-v1.json avec son texte AFFICHÉ — donc potentiellement du NATS — et sans les champs sourceKind ni coverage.
+- Trois voies possibles : livrer une pérenne corrigée ; protéger côté NAS en refusant un notams-publish qui écraserait un fichier dont source vaut NAS ; ou accepter le risque jusqu'à la promotion.
+- Aucune décision prise, aucune protection ajoutée au relais NAS à ce stade.
+
+RELAIS NAS — ACTION notams-state — ABANDONNÉE le 23/09/2026, RIEN LIVRÉ
+- Motif de l'abandon : décision du 23/09 — les cases cochées sont INDIVIDUELLES et ne doivent jamais être partagées entre utilisateurs. Le fichier npf-notams-snapshot-v1.json étant commun à tous, il ne doit plus porter les sélections de qui que ce soit. Une action qui y écrit un état va donc à l'encontre de cette règle, quelle que soit sa propreté technique.
+- L'action avait été écrite puis retirée du fichier livré : 5_npf-docs-api_v5.15.txt est revenu à l'identique de sa version précédente (1 412 lignes), sans aucune trace de notams-state. Rien n'a été copié sur le NAS.
+- Description conservée ici pour mémoire, l'essai ne devant pas être refait : l'action n'acceptait que {version, state}, ne modifiait que la clé `state`, ignorait un notamText envoyé par erreur, et opérait sous verrou exclusif sur le modèle de npf_bridge_mutate_state.
+- Constat qui reste valable indépendamment de l'abandon : notams-publish rejette une charge sans notamText et réécrit le fichier entier ; il ne permet donc pas de mettre à jour un état seul.
+- Constat préalable sur le code réel : notams-publish rejette une charge sans notamText et réécrit le fichier entier ; il ne permet donc pas de mettre à jour l'état seul.
+- Nouvelle action notams-state (POST, derrière npf_verify_session_token) : n'accepte que {version, state}, ne modifie que la clé `state` du fichier partagé, ignore explicitement un notamText envoyé par erreur et le signale dans sa réponse (notamTextIgnored).
+- Lecture-modification-écriture en place sous verrou exclusif, sur le modèle de npf_bridge_mutate_state, pour que deux mises à jour d'état concurrentes ne se perdent pas.
+- Limite connue : l'écriture du fichier par le NAS utilise tmp + rename et ne prend pas ce verrou. Une collision reste théoriquement possible entre une écriture du lot et une mise à jour d'état ; fenêtre de l'ordre de la milliseconde, non traitée à ce stade.
 
 CÔTÉ CLIENT — NON IMPLÉMENTÉ
 - BFG : lecture du fichier partagé à écrire (elle n'existe pas aujourd'hui) ; #notam-refresh-btn recâblé sur la nouvelle chaîne ; publishBfgNpfNotamsSharedSnapshot_ à neutraliser sans supprimer son code — elle publie le texte AFFICHÉ, donc potentiellement du NATS, ce que la nouvelle architecture interdit ; « Actualiser NATS » et le sélecteur de source conservés.
 - NPF : bouton dans « Gestion des Cartes » sous #simulation-mode-button, sur le gabarit de la section VAC ; attente avec progression reprise de waitForBriefingDocSourceRefresh ; garde SDVFR au chargement ; porte de fraîcheur généralisée avec repli sur notamsAutoPdfStatus.timestampIso.
 - Filtrage de l'affichage BFG inutile en phase 1 : il ne devient nécessaire qu'au passage à 122 terrains.
 
+DÉCISIONS DU 23/09/2026 POUR LE BOUTON BFG — À DÉCIDER levé, reste NON IMPLÉMENTÉ
+- Temporisation calée sur les mesures réelles et non sur NATS : pas d'interrogation 2 s, plafond de prise en charge 45 s en pending, plafond global 120 s (mesuré : prise en charge ~3 s, cycle complet 12 s). Les 240 s de NATS correspondent à une génération de PDF et ne sont pas repris. Le TTL de 600 s reste côté NAS.
+- Le champ message renvoyé par le NAS, déjà rédigé en français, est affiché tel quel : une seule source pour les libellés de progression, pas de duplication côté client.
+- Collision météo / NOTAM sur le slot SDVFR unique : le 409 request_already_active est reconnu et affiché explicitement (« téléchargement NOTAM en cours, réessayer dans quelques secondes »). La logique météo elle-même n'est pas modifiée ; refreshAllWeather_ continue d'utiliser getSdvfrPelicandromeTargets_().
+- Lecture automatique du fichier partagé, précisée le 23/09 : rendu direct AU DÉMARRAGE UNIQUEMENT. Au retour au premier plan, si le lot a changé, BFG affiche seulement une mention discrète « nouveau lot NOTAM disponible » et attend un appui de l'utilisateur ; aucun rendu non sollicité en cours de session.
+- Détection du changement sans téléchargement : notams-refresh-status renvoie déjà snapshot.publishedAt et notamCount sans transférer les ~72 Ko. Lot identique à celui déjà appliqué ⇒ aucun téléchargement, aucun rendu, aucune capture d'état, aucun accès au DOM.
+- Le rendu au démarrage reste soumis aux règles de défilement v4.82 / v4.83 : jamais pendant la stabilisation initiale (bfgStartupTopLockActive_), jamais de pilotage de la position verticale, et restitution de scrollY, des surlignages et des cases via l'état persistant existant.
+- Jeton NAS absent ou expiré (il expire à minuit et n'est obtenu qu'au login BFG) : message « Accès Briefing verrouillé », comme la chaîne SDVFR actuelle. Aucune nouvelle invite de mot de passe.
+- Tous les horodatages reçus du NAS sont analysés avec Date.parse() / new Date(), jamais par comparaison ni découpage de chaîne, du fait du mélange +02:00 / +00:00 constaté.
+
 À MESURER
-- Taille réelle de npf-notams-snapshot-v1.json, et marge sous les 8 Mo une fois le périmètre porté à 122 terrains.
-- Durée d'un lot SDVFR de 50 terrains, pour estimer un rafraîchissement complet en trois lots.
-- Cadence de relecture de la demande par le worker VPS : elle fixe le plancher du temps d'attente du bouton, quel que soit le code client.
+- Les deux actions web notams-refresh (POST) et notams-refresh-status (GET) : jamais appelées à ce jour, seul le chemin ligne de commande a été exercé.
+- Deux rafraîchissements concurrents, et libération du verrou dès qu'un résultat terminal porte le même requestId.
+- Phase 2, extrapolations à confirmer : à densité NOTAM comparable, 122 terrains donneraient environ 330 Ko (72 804 octets x 122/27), très en dessous du plafond de 8 Mo — la contrainte de taille n'est donc plus un sujet ; et environ trois lots séquentiels, soit un ordre de grandeur de 60 à 90 s si la durée d'un lot croît avec le nombre de terrains.
 
 À DÉCIDER
 - Élargissement aux 122 terrains : découpage en trois lots successifs côté NAS (un seul lot actif à la fois), filtrage de l'affichage côté BFG, couverture élargie côté NPF.
