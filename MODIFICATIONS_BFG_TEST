@@ -275,6 +275,65 @@ C. CONTRÔLES AVANT TOUTE LIVRAISON
       historique intégralement conservé.
 ===============================================================================
 
+TEST v5.18 — 2026-09-23
+Base : TEST v5.17
+===============================================================================
+
+BOUTON VAC — ALIGNEMENT À DROITE RENFORCÉ
+- La règle v5.17 `margin-left: auto` ne produisait pas l'effet attendu sur
+  l'iPad. Le fichier réellement servi par GitHub Pages a été vérifié : la règle
+  y était bien présente et sa spécificité (1,2,1) l'emportait sur la règle de
+  base `.vac-open-btn`. Le code déployé était donc correct.
+- Deux causes restaient possibles : un iPad n'ayant pas rechargé la page, ou une
+  observation faite dans la Météo manuelle, dont le `h3` n'est PAS le bandeau
+  flex de la section NOTAM et n'était donc pas concerné par la règle v5.17.
+- Les deux cas sont traités dans cette version.
+
+CE QUI CHANGE
+- Le `h3` des blocs de terrain de la Météo manuelle passe en `display: flex`
+  avec `align-items: center`, `gap: 10px` et `flex-wrap: wrap`, comme le bandeau
+  de la section NOTAM. Présentation quasi identique à l'œil : le contenu était
+  déjà du texte suivi de trois boutons en ligne.
+- Le bouton VAC reçoit, dans les DEUX sections :
+    margin-left: auto !important   -> absorbe tout l'espace libre à sa gauche
+    order: 99                      -> reste le dernier élément de sa ligne
+    flex-shrink: 0                 -> ne se comprime pas si la ligne est chargée
+- `!important` est ici volontaire : il rend l'alignement insensible à toute
+  règle ultérieure sur `.vac-open-btn`, et retire toute ambiguïté de
+  spécificité si un style est ajouté plus tard.
+- Si le nom du terrain est long, le bandeau se replie (`flex-wrap`) et le bouton
+  VAC passe à la ligne suivante, toujours aligné à droite.
+
+VERSION
+- Nouvelle règle de travail demandée par l'utilisateur : le numéro de version
+  est désormais incrémenté à CHAQUE modification livrée, et non plus seulement
+  lors d'une livraison complète. Cette version 5.18 applique cette règle.
+- ATTENTION : ceci contredit le point 5 de la section 0 ci-dessus
+  (« VERSION DE TRAVAIL STABLE PENDANT LES ITÉRATIONS »). La section 0 n'a pas
+  été modifiée sans accord explicite. STATUT : À DÉCIDER — mettre à jour le
+  point 5, ou le conserver et traiter le cas présent comme une exception.
+- Service worker en 5.18, nouveau cache `briefing-fdf-test-v5.18-vac-right-r1`.
+
+NON-RÉGRESSION
+- Modification exclusivement CSS : aucun JavaScript, aucun HTML touché.
+- Mécanique VAC inchangée : source, manifest, contrôle SHA-256, stockage
+  `BfgVacDB`, vérification quotidienne du cycle, bandeau d'avertissement,
+  ouverture en onglet.
+- Diagnostic temporaire v5.16 conservé intact et fonctionnel.
+- Garde-fou clavier, persistance NOTAM et surligneur Apple Pencil inchangés.
+- Aucun changement NAS / worker VPS / RTBA.
+- `BFG_REQUIRED_SW_VERSION_` et les URL en `?v=5.07` laissés inchangés,
+  conformément à la section 0.B1.
+- Version pérenne non touchée.
+
+CONTRÔLES AVANT LIVRAISON
+- Syntaxe des 3 blocs JavaScript inline d'index.html vérifiée.
+- Manifeste JSON vérifié.
+- Syntaxe du service worker vérifiée.
+- Cohérence APP_VERSION_NUMBER / BFG_SW_VERSION / description du manifest.
+- Filtre de purge d'activate toujours limité à `briefing-fdf-test-`.
+- Historique v5.17 et antérieur conservé intégralement.
+
 TEST v5.17 — 2026-09-23
 Base : TEST v5.16
 ===============================================================================

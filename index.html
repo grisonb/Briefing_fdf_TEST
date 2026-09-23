@@ -984,9 +984,21 @@
             margin-left: 6px;
             box-shadow: none;
         }
-        /* v5.17 — le bouton VAC est repoussé à l'extrémité droite du bandeau. */
-        #notam-display .airport-section-container > h3 .vac-open-btn {
-            margin-left: auto;
+        /* v5.18 — le bouton VAC est collé au bord droit du bandeau de terrain,
+           dans la section NOTAM comme en Météo manuelle.
+           `order` garantit qu'il reste le dernier élément de la ligne et
+           `margin-left: auto` absorbe tout l'espace libre à sa gauche. */
+        #manual-metar-display .airport-section-container > h3 {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        #notam-display .airport-section-container > h3 .vac-open-btn,
+        #manual-metar-display .airport-section-container > h3 .vac-open-btn {
+            margin-left: auto !important;
+            order: 99;
+            flex-shrink: 0;
         }
         #notam-display .airport-section-container:nth-of-type(even) > h3 {
             background: linear-gradient(90deg, #e8f3ea 0%, #f4fbf5 100%);
@@ -3190,8 +3202,8 @@
     <footer>Données : Météo-France, SIA, Windy.com, SDVFR. Page non commerciale, à usage personnel.</footer>
     
     <script>
-        const APP_VERSION_NUMBER = "5.17";
-        const APP_VERSION = `${APP_VERSION_NUMBER} TEST - CARTES VAC (+ DIAGNOSTIC DEMARRAGE)`;
+        const APP_VERSION_NUMBER = "5.18";
+        const APP_VERSION = `${APP_VERSION_NUMBER} TEST - BOUTON VAC A DROITE DU BANDEAU`;
 
 
         // v4.97 — diagnostic conservé ; plage NOTAM quotidienne et sélection prioritaire. Aucun code d'accès, token ou contenu NOTAM n'est exporté.
