@@ -1,5 +1,5 @@
-const BFG_SW_VERSION = '5.18';
-const CACHE_NAME = 'briefing-fdf-test-v5.18-vac-right-r1';
+const BFG_SW_VERSION = '5.19';
+const CACHE_NAME = 'briefing-fdf-test-v5.19-notam-layers-supaip-r1';
 
 const LOCAL_ASSETS = [
   './manifest.json',

@@ -275,6 +275,153 @@ C. CONTRÔLES AVANT TOUTE LIVRAISON
       surligneur, repli hors ligne NAS) ;
     - nouvelle entrée ajoutée EN TÊTE de ce journal, sous cette section 0,
       historique intégralement conservé.
+TEST v5.19 — 2026-09-23
+Base : TEST v5.18
+===============================================================================
+
+ÉTAT NOTAM — DEUX COUCHES SÉPARÉES
+- Les cases vertes, les cases noires et les surlignages suivent désormais tous
+  la même règle, répartis en deux couches qui ne se mélangent jamais.
+- COUCHE PERSONNELLE : `briefingFdfPersistentNotamStateV1`, inchangée.
+  Permanente tant que le NOTAM ne change pas, y compris les jours suivants.
+  Enregistrée sur l'iPad uniquement.
+- COUCHE REÇUE : nouvelle clé `briefingFdfReceivedNotamStateV1`. Elle contient
+  l'état d'un briefing partagé ouvert. Temporaire : `expiresAt` est fixé à
+  23h00 locales du jour, cohérent avec la fin de session Briefing.
+  Stockée en localStorage et non en sessionStorage, afin de survivre à une
+  fermeture puis relance de BFG dans la journée.
+- À l'affichage, la couche reçue est posée d'abord, la personnelle par-dessus.
+  En cas de conflit sur un même NOTAM, LE CHOIX PERSONNEL L'EMPORTE TOUJOURS.
+- Aucune distinction visuelle entre état reçu et état personnel.
+
+CORRECTION DU DÉFAUT CENTRAL
+- Jusqu'ici, l'ouverture d'un briefing partagé appelait `applySavedNotamState_`
+  puis immédiatement `persistCurrentNotamState_`, ce qui écrivait l'état de
+  l'autre dans la couche personnelle, définitivement et dès le rendu.
+- `parseAndDisplayNotams` accepte maintenant une origine. Avec l'origine
+  `received`, l'état est rangé dans la couche reçue et n'est JAMAIS persisté
+  dans la couche personnelle.
+- Les 10 appels à `persistCurrentNotamState_` ont été classés un par un :
+  1 restauration (le cas ci-dessus) et 9 gestes personnels.
+
+MARQUAGE PAR CHAMP
+- Corriger le seul appel de restauration ne suffisait pas : les 9 gestes
+  relisent tout le DOM, qui contient aussi l'état reçu après ouverture d'un
+  partage. Chaque geste aurait donc absorbé l'état de l'autre.
+- Trois marqueurs sont posés sur chaque NOTAM au moment où la couche reçue est
+  appliquée : `data-bfg-origin-checked`, `data-bfg-origin-hidden` et
+  `data-bfg-origin-highlight`. Ce dernier couvre le texte du NOTAM ET le bloc
+  de validité.
+- `captureCurrentNotamStateForPersistence_` ignore tout champ encore marqué
+  comme reçu.
+- Dès qu'un champ est touché, son marqueur tombe et le champ devient personnel.
+  C'est ce qui réalise « un geste fait pendant la consultation d'un partage va
+  dans la couche personnelle », au niveau du champ et non du NOTAM entier.
+- Décocher une case reçue retire l'entrée de la couche reçue uniquement, sans
+  rien écrire dans la couche personnelle.
+
+SURLIGNAGES MIXTES — LIMITE ASSUMÉE
+- Le surlignage est mémorisé sous forme de HTML du conteneur entier, non
+  surlignage par surlignage.
+- Conséquence : si un surlignage personnel est ajouté dans un NOTAM qui portait
+  déjà un surlignage reçu, le surlignage reçu devient personnel avec lui et
+  survivra donc à 23h00.
+- Comportement accepté et documenté. Le séparer supposerait de mémoriser les
+  surlignages par plage de texte plutôt que par HTML de conteneur.
+
+EXPIRATION À 23H00
+- Purge au démarrage si `expiresAt` est dépassé, puis à `pageshow` et au retour
+  au premier plan (`visibilitychange`).
+- Minuteur armé sur l'échéance : avec BFG resté ouvert, la couche reçue
+  disparaît AUSSI DE L'AFFICHAGE à 23h00, et pas seulement du stockage. Les
+  cases reçues sont décochées et les surlignages reçus retirés du DOM.
+- Un champ encore marqué comme reçu n'a par définition jamais été retouché :
+  son retrait ne peut pas altérer l'état personnel.
+
+EFFACEMENTS EXPLICITES
+- « Annuler Sélection » et « Annuler Surlignage » effacent LES DEUX COUCHES.
+- La couche personnelle conserve son marqueur d'effacement horodaté v5.15 ;
+  les champs correspondants sont en plus retirés de la couche reçue et leurs
+  marqueurs DOM supprimés.
+
+PARTAGE
+- `buildPortableSessionObject_` reçoit une option `mergeReceivedState`.
+- Un PARTAGE emporte tout l'état affiché : cases vertes, cases noires,
+  surlignages du texte ET surlignages de validité, couches reçue et
+  personnelle fusionnées. Un briefing reçu puis repartagé est donc un partage
+  à part entière.
+- Le nouveau champ `notamState.byId` porte les quatre champs. Les anciennes
+  clés `checkedIds`, `highlights`, `checkedSignatures` et `highlightSignatures`
+  sont conservées pour rester lisibles par les versions antérieures.
+- Correction associée : le partage ne transportait jusqu'ici NI les cases
+  noires NI les surlignages de validité.
+- Le SNAPSHOT LOCAL utilise le même constructeur mais avec
+  `mergeReceivedState` à false : il ne contient que la couche personnelle.
+  Sans cela, sa restauration aurait promu l'état reçu en permanent.
+
+EFFACER
+- Le bouton « Effacer » supprime aussi la couche reçue et la retire de
+  l'affichage.
+- À noter, comportement INCHANGÉ et antérieur à cette version : « Effacer » ne
+  supprime pas la couche personnelle `briefingFdfPersistentNotamStateV1` ni
+  `briefingFdfKeepSelectionBySourceV1`. STATUT : À DÉCIDER.
+
+TRANSFERT BFG -> NPF-Q400
+- `publishBfgNpfNotamsSharedSnapshot_` N'EST PAS MODIFIÉE, comme demandé.
+- Elle lit `readPersistentNotamState_()`, donc la seule couche personnelle.
+  NPF-Q400 ne reçoit plus l'état d'un briefing partagé ouvert dans BFG.
+  C'est un changement de comportement observable côté NPF-Q400, obtenu sans
+  toucher une ligne de cette fonction.
+
+SUP AIP — AFFICHAGE DES TRANCHES D'ALTITUDE
+- Vocabulaire aligné sur le SUP AIP officiel du SIA :
+    STD / FL              -> « FL195 »
+    ALT                   -> « 6000 ft AMSL »
+    HEI                   -> « 1000 ft ASFC »
+    0 FT HEI, SFC, GND    -> « SFC »
+    999 FL, UNL, msl 99900 -> « UNL »
+- Motif vérifié sur le SUP AIP 183/26 : le relais SDVFR code « illimité » par
+  la valeur sentinelle 999 FL, avec `upper_limit_msl` à 99900. BFG affichait
+  « 999 FL STD », ce qui laissait croire à un plafond réel au FL999 alors que
+  le document officiel indique UNL. De même, « 0 FT HEI » est affiché SFC dans
+  le PDF officiel.
+- Le PDF officiel `lf_sup_2026_183_fr.pdf` a été téléchargé et comparé : les
+  ensembles de tranches concordent, seuls les vocabulaires différaient.
+
+SUP AIP — FILTRAGE PAR LE FL MAX
+- Le relais fournit `lower_limit_msl` et `upper_limit_msl`, valeurs déjà
+  normalisées en pieds MSL, jusqu'ici ignorées. Elles servent désormais au
+  FILTRAGE ; l'affichage continue d'utiliser la valeur brute.
+- RÈGLE DE PRUDENCE : en cas de doute, la zone reste AFFICHÉE.
+    - référence HEI / ASFC / AGL : la conversion dépend du relief -> conservée ;
+    - valeur MSL absente ou aberrante -> repli sur le FL calculé ;
+    - aucune valeur exploitable -> conservée.
+  Mieux vaut une zone en trop qu'une zone active manquante.
+- La règle v5.07 est conservée : une zone dont le plancher est supérieur OU
+  ÉGAL au FL max reste masquée.
+- Alignement des bornes serveur et client : volontairement NON traité.
+  Constat mesuré à conserver : avec ceiling=115 le relais renvoie 11 des 32
+  zones du SUP AIP 183/26, dont ZRT MIKE au plancher exactement FL115, que le
+  filtre client masque ensuite. STATUT : À DÉCIDER.
+
+NON-RÉGRESSION
+- Diagnostic temporaire v5.16 conservé intact et fonctionnel.
+- Mécanique VAC v5.17/v5.18 inchangée, bouton toujours à droite du bandeau.
+- Garde-fou clavier, surligneur Apple Pencil et routage du service worker
+  inchangés.
+- Aucun changement NAS / worker VPS / RTBA. Aucun fichier à déposer sur le NAS.
+- `BFG_REQUIRED_SW_VERSION_` et les URL en `?v=5.07` laissés inchangés,
+  conformément à la section 0.B1.
+- Version pérenne non touchée.
+
+CONTRÔLES AVANT LIVRAISON
+- Syntaxe des 3 blocs JavaScript inline d'index.html vérifiée.
+- Manifeste JSON vérifié.
+- Syntaxe du service worker vérifiée.
+- Cohérence APP_VERSION_NUMBER / BFG_SW_VERSION / description du manifest.
+- Filtre de purge d'activate toujours limité à `briefing-fdf-test-`.
+- Historique v5.18 et antérieur conservé intégralement.
+
 ===============================================================================
 
 TEST v5.18 — 2026-09-23

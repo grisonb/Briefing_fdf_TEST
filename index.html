@@ -3202,8 +3202,8 @@
     <footer>Données : Météo-France, SIA, Windy.com, SDVFR. Page non commerciale, à usage personnel.</footer>
     
     <script>
-        const APP_VERSION_NUMBER = "5.18";
-        const APP_VERSION = `${APP_VERSION_NUMBER} TEST - BOUTON VAC A DROITE DU BANDEAU`;
+        const APP_VERSION_NUMBER = "5.19";
+        const APP_VERSION = `${APP_VERSION_NUMBER} TEST - ETAT NOTAM 2 COUCHES + ALTITUDES SUP AIP`;
 
 
         // v4.97 — diagnostic conservé ; plage NOTAM quotidienne et sélection prioritaire. Aucun code d'accès, token ou contenu NOTAM n'est exporté.
@@ -4408,7 +4408,7 @@ const tdfStages = [
             return { NATS: nats, SDVFR: String(bfgNotamSourceTexts_.SDVFR || '').trim() };
         }
 
-        function renderCombinedBfgNotamSources_(savedState = null) {
+        function renderCombinedBfgNotamSources_(savedState = null, options = {}) {
             const notamInput = document.getElementById('notam-input');
             if (!notamInput || typeof window.parseAndDisplayNotams !== 'function') return false;
             const source = getBfgDisplayedNotamSource_();
@@ -4422,7 +4422,7 @@ const tdfStages = [
             const displayedText = tagBfgNotamHeadersWithSource_(rawText, source);
             notamInput.value = displayedText;
             window.__notamTextFull = displayedText;
-            window.parseAndDisplayNotams(savedState);
+            window.parseAndDisplayNotams(savedState, options);
             updateBfgNotamSourceUi_();
             bfgDiagLog_('NOTAM-RENDER', 'Fin rendu NOTAM', { source, ...getBfgNotamVisibilitySnapshot_() });
             return true;
@@ -12013,7 +12013,12 @@ let activeShareApiBase = SHARE_API_BASE;
     window.clearWeatherForDailyLogout_ = clearWeatherForDailyLogout_;
 
     // ===== Export "portable" (partage/import) =====
-    async function buildPortableSessionObject_() {
+    // v5.19 — mergeReceivedState : true pour un PARTAGE (tout l'état affiché part,
+    // couches reçue + personnelle fusionnées, cases vertes ET noires, surlignages du
+    // texte ET de la validité) ; false pour le snapshot local, qui ne doit contenir
+    // que la couche personnelle sous peine de la contaminer à la restauration.
+    async function buildPortableSessionObject_(options = {}) {
+        const mergeReceivedState = options.mergeReceivedState === true;
         const checkedNotamIds = [], highlightedNotams = {}, checkedNotamSignatures = {}, highlightSignatures = {};
         document.querySelectorAll('#notam-display .notam-item').forEach(item => {
             const id = item.dataset.notamId; if (!id) return;
@@ -12069,6 +12074,12 @@ let activeShareApiBase = SHARE_API_BASE;
             notamState: {
                 capturedAt: new Date().toISOString(),
                 source: getBfgDisplayedNotamSource_(),
+                // v5.19 : byId porte les quatre champs (vert, noir, surlignage texte,
+                // surlignage validité). Les clés suivantes restent pour la compatibilité
+                // avec les partages et snapshots antérieurs.
+                byId: (typeof window.captureBfgNotamStateForSharing_ === 'function'
+                    ? window.captureBfgNotamStateForSharing_({ includeReceived: mergeReceivedState })
+                    : {}),
                 checkedIds: checkedNotamIds,
                 highlights: highlightedNotams,
                 checkedSignatures: checkedNotamSignatures,
@@ -12148,7 +12159,9 @@ let activeShareApiBase = SHARE_API_BASE;
         const fullNotams = portable.notamTextFull || portable.notamText || "";
         const restoredSources = restoreBfgNotamSources_(portable.notamSources || null, fullNotams);
         if (notamInput && (restoredSources.NATS || restoredSources.SDVFR)) {
-            renderCombinedBfgNotamSources_(portable.notamState || null);
+            // v5.19 — littéral volontaire : NOTAM_RECEIVED_ORIGIN_ est dans la portée
+            // de initializeNotamParser() et n'est pas visible ici.
+            renderCombinedBfgNotamSources_(portable.notamState || null, { origin: 'received' });
             saveBfgNotamQuickCache_();
             if (hasDisplayedBfgNotams_()) setBfgNotamLoadingBanner_(false);
         }
@@ -12466,7 +12479,7 @@ let activeShareApiBase = SHARE_API_BASE;
             let portable;
             try {
                 sessionStatus.textContent = "Préparation du partage...";
-                portable = await buildPortableSessionObject_();
+                portable = await buildPortableSessionObject_({ mergeReceivedState: true });
                 if (ENABLE_REMOTE_SHARE) {
                     const remoteShare = await createRemoteShare_(portable);
                     const shareCode = normalizeShareCode_(remoteShare.shareCode || remoteShare.shareId);
@@ -12910,6 +12923,11 @@ let activeShareApiBase = SHARE_API_BASE;
         localStorage.removeItem(NOTAMS_AUTO_STATUS_STORAGE_KEY);
         localStorage.removeItem(BFG_NOTAM_QUICK_CACHE_KEY_);
         localStorage.removeItem(BFG_SDVFR_DAILY_CACHE_KEY_);
+        // v5.19 : la couche NOTAM reçue est une donnée locale temporaire, elle part aussi.
+        localStorage.removeItem('briefingFdfReceivedNotamStateV1');
+        if (typeof window.enforceBfgReceivedNotamExpiry_ === 'function') {
+            try { window.enforceBfgReceivedNotamExpiry_(); } catch (_) {}
+        }
         sessionStorage.removeItem('skipAutoRestoreOnce');
 
         // Nettoyage immédiat des objets lourds en mémoire avant rechargement.
@@ -13536,6 +13554,216 @@ window.__notamTextFull = notamInput.value;
                 }
             }
 
+            /* ===== v5.19 — COUCHE REÇUE (état d'un briefing partagé ouvert) =====
+             * Deux couches strictement séparées :
+             *  - PERSONNELLE : briefingFdfPersistentNotamStateV1, permanente tant que le
+             *    NOTAM ne change pas. C'est la seule publiée vers NPF-Q400.
+             *  - REÇUE : briefingFdfReceivedNotamStateV1, temporaire, expire à 23h00 locales
+             *    comme la session Briefing. Jamais fusionnée dans la personnelle.
+             * À l'affichage, la couche reçue est posée d'abord, la personnelle par-dessus :
+             * en cas de conflit sur un même NOTAM, le choix personnel l'emporte toujours.
+             */
+            const NOTAM_RECEIVED_STATE_STORAGE_KEY_ = 'briefingFdfReceivedNotamStateV1';
+            const NOTAM_RECEIVED_ORIGIN_ = 'received';
+            let bfgReceivedNotamExpiryTimer_ = null;
+
+            function emptyReceivedNotamState_() {
+                return { version: 'receivedNotamStateV1', receivedAt: '', expiresAt: '', byId: {} };
+            }
+
+            function readReceivedNotamState_() {
+                try {
+                    const raw = localStorage.getItem(NOTAM_RECEIVED_STATE_STORAGE_KEY_);
+                    const parsed = raw ? JSON.parse(raw) : null;
+                    if (!parsed || typeof parsed !== 'object' || !parsed.byId) return emptyReceivedNotamState_();
+                    const expiresAt = Date.parse(parsed.expiresAt || '');
+                    if (!Number.isFinite(expiresAt) || expiresAt <= Date.now()) return emptyReceivedNotamState_();
+                    return parsed;
+                } catch (error) {
+                    console.warn('Impossible de relire l\u2019état NOTAM reçu:', error);
+                    return emptyReceivedNotamState_();
+                }
+            }
+
+            function writeReceivedNotamState_(state) {
+                try {
+                    localStorage.setItem(NOTAM_RECEIVED_STATE_STORAGE_KEY_, JSON.stringify(state));
+                } catch (error) {
+                    console.warn('Impossible de mémoriser l\u2019état NOTAM reçu:', error);
+                }
+            }
+
+            function clearReceivedNotamStateStorage_() {
+                try { localStorage.removeItem(NOTAM_RECEIVED_STATE_STORAGE_KEY_); } catch (_) {}
+            }
+
+            // Expiration alignée sur la fin de session Briefing : 23h00 locales du jour.
+            function buildReceivedNotamStateFromSaved_(savedState) {
+                const state = emptyReceivedNotamState_();
+                const nowIso = new Date().toISOString();
+                state.receivedAt = nowIso;
+                state.expiresAt = new Date(getBfgLoginExpiryForToday_()).toISOString();
+                state.source = savedState && savedState.source ? String(savedState.source) : '';
+
+                if (savedState && savedState.byId && typeof savedState.byId === 'object') {
+                    Object.entries(savedState.byId).forEach(([id, entry]) => {
+                        if (!entry || typeof entry !== 'object') return;
+                        state.byId[id] = {
+                            checked: !!entry.checked,
+                            hiddenUntilChanged: !!entry.hiddenUntilChanged,
+                            highlightHtml: entry.highlightHtml || '',
+                            validityHighlightHtml: entry.validityHighlightHtml || '',
+                            textSignature: entry.textSignature || entry.signature || ''
+                        };
+                    });
+                }
+
+                // Compatibilité avec les partages antérieurs à la v5.19.
+                (Array.isArray(savedState && savedState.checkedIds) ? savedState.checkedIds : []).forEach(id => {
+                    const existing = state.byId[id] || { checked: false, hiddenUntilChanged: false, highlightHtml: '', validityHighlightHtml: '', textSignature: '' };
+                    existing.checked = true;
+                    if (!existing.textSignature && savedState.checkedSignatures) {
+                        existing.textSignature = savedState.checkedSignatures[id] || '';
+                    }
+                    state.byId[id] = existing;
+                });
+                Object.entries((savedState && savedState.highlights) || {}).forEach(([id, html]) => {
+                    const existing = state.byId[id] || { checked: false, hiddenUntilChanged: false, highlightHtml: '', validityHighlightHtml: '', textSignature: '' };
+                    existing.highlightHtml = html || '';
+                    if (!existing.textSignature && savedState.highlightSignatures) {
+                        existing.textSignature = savedState.highlightSignatures[id] || '';
+                    }
+                    state.byId[id] = existing;
+                });
+
+                return state;
+            }
+
+            /* Un geste de l'utilisateur sur un champ le fait passer en personnel :
+             * le marqueur DOM tombe et le champ sort de la couche reçue. */
+            function claimNotamFieldAsPersonal_(item, field) {
+                if (!item) return;
+                const datasetKey = field === 'checked' ? 'bfgOriginChecked'
+                    : (field === 'hidden' ? 'bfgOriginHidden' : 'bfgOriginHighlight');
+                const wasReceived = item.dataset[datasetKey] === NOTAM_RECEIVED_ORIGIN_;
+                delete item.dataset[datasetKey];
+                if (!wasReceived) return;
+
+                const id = item.dataset.notamId;
+                if (!id) return;
+                const state = readReceivedNotamState_();
+                const entry = state.byId ? state.byId[id] : null;
+                if (!entry) return;
+                if (field === 'checked') entry.checked = false;
+                if (field === 'hidden') entry.hiddenUntilChanged = false;
+                if (field === 'highlight') { entry.highlightHtml = ''; entry.validityHighlightHtml = ''; }
+                if (!entry.checked && !entry.hiddenUntilChanged && !entry.highlightHtml && !entry.validityHighlightHtml) {
+                    delete state.byId[id];
+                }
+                writeReceivedNotamState_(state);
+            }
+
+            function clearReceivedNotamFields_(fields) {
+                const state = readReceivedNotamState_();
+                let changed = false;
+                Object.entries(state.byId || {}).forEach(([id, entry]) => {
+                    if (!entry) return;
+                    if (fields.includes('selection')) { entry.checked = false; entry.hiddenUntilChanged = false; }
+                    if (fields.includes('highlights')) { entry.highlightHtml = ''; entry.validityHighlightHtml = ''; }
+                    if (!entry.checked && !entry.hiddenUntilChanged && !entry.highlightHtml && !entry.validityHighlightHtml) {
+                        delete state.byId[id];
+                    }
+                    changed = true;
+                });
+                if (changed) writeReceivedNotamState_(state);
+
+                document.querySelectorAll('#notam-display .notam-item').forEach(item => {
+                    if (fields.includes('selection')) {
+                        delete item.dataset.bfgOriginChecked;
+                        delete item.dataset.bfgOriginHidden;
+                    }
+                    if (fields.includes('highlights')) delete item.dataset.bfgOriginHighlight;
+                });
+            }
+
+            function stripNotamHighlightMarks_(container) {
+                if (!container) return;
+                container.querySelectorAll('mark.highlighted-text').forEach(mark => {
+                    const parent = mark.parentNode;
+                    if (!parent) return;
+                    while (mark.firstChild) parent.insertBefore(mark.firstChild, mark);
+                    parent.removeChild(mark);
+                });
+                container.normalize();
+            }
+
+            /* v5.19 — à 23h00 avec BFG ouvert, l'état reçu disparaît aussi de l'écran,
+             * pas seulement du stockage. Un champ encore marqué « received » n'a jamais
+             * été retouché : on peut le retirer sans toucher à l'état personnel. */
+            function removeReceivedNotamStateFromDom_() {
+                document.querySelectorAll('#notam-display .notam-item').forEach(item => {
+                    if (item.dataset.bfgOriginChecked === NOTAM_RECEIVED_ORIGIN_) {
+                        const checkbox = item.querySelector('.notam-checkbox');
+                        if (checkbox) checkbox.checked = false;
+                        delete item.dataset.bfgOriginChecked;
+                    }
+                    if (item.dataset.bfgOriginHidden === NOTAM_RECEIVED_ORIGIN_) {
+                        const hideCheckbox = item.querySelector('.notam-hide-checkbox');
+                        if (hideCheckbox) hideCheckbox.checked = false;
+                        delete item.dataset.bfgOriginHidden;
+                    }
+                    if (item.dataset.bfgOriginHighlight === NOTAM_RECEIVED_ORIGIN_) {
+                        stripNotamHighlightMarks_(item.querySelector('.notam-text-content'));
+                        stripNotamHighlightMarks_(item.querySelector('.notam-validity'));
+                        delete item.dataset.bfgOriginHighlight;
+                    }
+                });
+                updatePersistentHiddenNotamsVisibility_();
+                applyLiveFilters();
+            }
+
+            function enforceBfgReceivedNotamExpiry_() {
+                let raw = null;
+                try { raw = localStorage.getItem(NOTAM_RECEIVED_STATE_STORAGE_KEY_); } catch (_) { raw = null; }
+                if (!raw) return false;
+                let expiresAt = NaN;
+                try { expiresAt = Date.parse((JSON.parse(raw) || {}).expiresAt || ''); } catch (_) { expiresAt = NaN; }
+                if (Number.isFinite(expiresAt) && expiresAt > Date.now()) return false;
+
+                clearReceivedNotamStateStorage_();
+                removeReceivedNotamStateFromDom_();
+                bfgDiagLog_('NOTAM-STATE', 'Couche NOTAM reçue expirée et retirée');
+                return true;
+            }
+
+            function scheduleBfgReceivedNotamExpiry_() {
+                if (bfgReceivedNotamExpiryTimer_ !== null) {
+                    clearTimeout(bfgReceivedNotamExpiryTimer_);
+                    bfgReceivedNotamExpiryTimer_ = null;
+                }
+                if (enforceBfgReceivedNotamExpiry_()) return;
+
+                let expiresAt = NaN;
+                try {
+                    const raw = localStorage.getItem(NOTAM_RECEIVED_STATE_STORAGE_KEY_);
+                    if (raw) expiresAt = Date.parse((JSON.parse(raw) || {}).expiresAt || '');
+                } catch (_) { expiresAt = NaN; }
+                if (!Number.isFinite(expiresAt)) return;
+
+                const delay = Math.max(100, Math.min(expiresAt - Date.now() + 150, 2147483000));
+                bfgReceivedNotamExpiryTimer_ = setTimeout(() => {
+                    bfgReceivedNotamExpiryTimer_ = null;
+                    enforceBfgReceivedNotamExpiry_();
+                }, delay);
+            }
+
+            window.enforceBfgReceivedNotamExpiry_ = enforceBfgReceivedNotamExpiry_;
+            window.clearReceivedNotamStateStorage_ = clearReceivedNotamStateStorage_;
+            window.addEventListener('pageshow', () => scheduleBfgReceivedNotamExpiry_());
+            document.addEventListener('visibilitychange', () => {
+                if (!document.hidden) scheduleBfgReceivedNotamExpiry_();
+            });
+
             function getNotamClearMarkersForSource_(state = null, source = getBfgDisplayedNotamSource_()) {
                 const snapshot = state && typeof state === 'object' ? state : readPersistentNotamState_();
                 const allMarkers = snapshot.clearMarkers && typeof snapshot.clearMarkers === 'object' ? snapshot.clearMarkers : {};
@@ -13701,8 +13929,14 @@ window.__notamTextFull = notamInput.value;
             }
 
             window.publishBfgNpfNotamsSharedSnapshot_ = publishBfgNpfNotamsSharedSnapshot_;
+            // v5.19 — exposé pour buildPortableSessionObject_, hors de cette portée.
+            window.captureBfgNotamStateForSharing_ = (options = {}) =>
+                captureCurrentNotamStateForPersistence_(options).byId || {};
 
-            function captureCurrentNotamStateForPersistence_() {
+            // v5.19 — includeReceived : false pour la couche personnelle et le snapshot
+            // local, true pour un partage, qui doit emporter tout l'état affiché.
+            function captureCurrentNotamStateForPersistence_(options = {}) {
+                const includeReceived = options.includeReceived === true;
                 const byId = {};
                 document.querySelectorAll('#notam-display .notam-item').forEach(item => {
                     const id = item.dataset.notamId;
@@ -13711,12 +13945,15 @@ window.__notamTextFull = notamInput.value;
                     const hideCheckbox = item.querySelector('.notam-hide-checkbox');
                     const contentEl = item.querySelector('.notam-text-content');
                     const validityEl = item.querySelector('.notam-validity');
-                    const html = contentEl?.innerHTML || '';
-                    const validityHtml = validityEl?.innerHTML || '';
+                    const checkedIsReceived = !includeReceived && item.dataset.bfgOriginChecked === NOTAM_RECEIVED_ORIGIN_;
+                    const hiddenIsReceived = !includeReceived && item.dataset.bfgOriginHidden === NOTAM_RECEIVED_ORIGIN_;
+                    const highlightIsReceived = !includeReceived && item.dataset.bfgOriginHighlight === NOTAM_RECEIVED_ORIGIN_;
+                    const html = highlightIsReceived ? '' : (contentEl?.innerHTML || '');
+                    const validityHtml = highlightIsReceived ? '' : (validityEl?.innerHTML || '');
                     const hasHighlight = html.includes('<mark');
                     const hasValidityHighlight = validityHtml.includes('<mark');
-                    const checked = !!checkbox?.checked;
-                    const hiddenUntilChanged = !!hideCheckbox?.checked;
+                    const checked = !checkedIsReceived && !!checkbox?.checked;
+                    const hiddenUntilChanged = !hiddenIsReceived && !!hideCheckbox?.checked;
                     if (!checked && !hiddenUntilChanged && !hasHighlight && !hasValidityHighlight) return;
                     const signature = item.dataset.notamSignature || createNotamStableSignature_(contentEl?.innerText || contentEl?.textContent || '');
                     byId[id] = {
@@ -13769,7 +14006,45 @@ window.__notamTextFull = notamInput.value;
                 });
             }
 
+            /* v5.19 — la couche reçue est posée AVANT la personnelle : tout champ
+             * réglé par la couche personnelle écrase le reçu et perd son marqueur,
+             * ce qui réalise « en cas de conflit, mon choix personnel l'emporte ». */
+            function applyReceivedNotamState_() {
+                const state = readReceivedNotamState_();
+                const byId = state.byId || {};
+                if (!Object.keys(byId).length) return;
+
+                Object.entries(byId).forEach(([id, entry]) => {
+                    const item = findNotamItemById_(id);
+                    if (!item || !entry) return;
+                    if (!stateEntryMatchesCurrentNotam_(item, entry)) return;
+
+                    const checkbox = item.querySelector('.notam-checkbox');
+                    const hideCheckbox = item.querySelector('.notam-hide-checkbox');
+                    if (checkbox && entry.checked) {
+                        checkbox.checked = true;
+                        item.dataset.bfgOriginChecked = NOTAM_RECEIVED_ORIGIN_;
+                    }
+                    if (hideCheckbox && entry.hiddenUntilChanged) {
+                        hideCheckbox.checked = true;
+                        item.dataset.bfgOriginHidden = NOTAM_RECEIVED_ORIGIN_;
+                    }
+                    if (entry.highlightHtml) {
+                        const contentEl = item.querySelector('.notam-text-content');
+                        if (contentEl) contentEl.innerHTML = entry.highlightHtml;
+                        item.dataset.bfgOriginHighlight = NOTAM_RECEIVED_ORIGIN_;
+                    }
+                    if (entry.validityHighlightHtml) {
+                        const validityEl = item.querySelector('.notam-validity');
+                        if (validityEl) validityEl.innerHTML = entry.validityHighlightHtml;
+                        item.dataset.bfgOriginHighlight = NOTAM_RECEIVED_ORIGIN_;
+                    }
+                });
+            }
+
             function applyPersistentNotamState_() {
+                enforceBfgReceivedNotamExpiry_();
+                applyReceivedNotamState_();
                 const state = readPersistentNotamState_();
                 const byId = state.byId || {};
                 let stateChanged = false;
@@ -13783,15 +14058,23 @@ window.__notamTextFull = notamInput.value;
                     }
                     const checkbox = item.querySelector('.notam-checkbox');
                     const hideCheckbox = item.querySelector('.notam-hide-checkbox');
-                    if (checkbox && entry.checked) checkbox.checked = true;
-                    if (hideCheckbox && entry.hiddenUntilChanged) hideCheckbox.checked = true;
+                    if (checkbox && entry.checked) {
+                        checkbox.checked = true;
+                        delete item.dataset.bfgOriginChecked;
+                    }
+                    if (hideCheckbox && entry.hiddenUntilChanged) {
+                        hideCheckbox.checked = true;
+                        delete item.dataset.bfgOriginHidden;
+                    }
                     if (entry.highlightHtml) {
                         const contentEl = item.querySelector('.notam-text-content');
                         if (contentEl) contentEl.innerHTML = entry.highlightHtml;
+                        delete item.dataset.bfgOriginHighlight;
                     }
                     if (entry.validityHighlightHtml) {
                         const validityEl = item.querySelector('.notam-validity');
                         if (validityEl) validityEl.innerHTML = entry.validityHighlightHtml;
+                        delete item.dataset.bfgOriginHighlight;
                     }
                 });
                 if (stateChanged) writePersistentNotamState_(state);
@@ -13857,7 +14140,7 @@ window.__notamTextFull = notamInput.value;
                 return hasChecked;
             }
 
-            window.parseAndDisplayNotams = function(savedState = null) {
+            window.parseAndDisplayNotams = function(savedState = null, options = {}) {
                 // v4.95 : le rendu repart techniquement en affichage complet, sans modifier
                 // la préférence mémorisée « Garder la sélection » de la source courante.
                 resetSelectionFilter({ persist: false });
@@ -13921,11 +14204,26 @@ window.__notamTextFull = notamInput.value;
                 
                 applyPersistentNotamState_();
                 if (savedState) {
-                    const hasCheckedSavedState = applySavedNotamState_(savedState);
-                    persistCurrentNotamState_();
+                    // v5.19 — origine 'received' : l'état vient d'un briefing partagé ouvert.
+                    // Il est rangé dans la couche reçue temporaire et N'EST JAMAIS persisté
+                    // dans la couche personnelle. C'était le défaut central des versions
+                    // antérieures, où persistCurrentNotamState_() absorbait l'état de l'autre.
+                    const isReceived = options && options.origin === NOTAM_RECEIVED_ORIGIN_;
+                    let hasCheckedSavedState = false;
+                    if (isReceived) {
+                        writeReceivedNotamState_(buildReceivedNotamStateFromSaved_(savedState));
+                        applyReceivedNotamState_();
+                        applyPersistentNotamState_();
+                        scheduleBfgReceivedNotamExpiry_();
+                        hasCheckedSavedState = document.querySelectorAll('#notam-display .notam-checkbox:checked').length > 0;
+                    } else {
+                        hasCheckedSavedState = applySavedNotamState_(savedState);
+                        persistCurrentNotamState_();
+                    }
                     // v4.95 : les coches/surlignages/masquages sont restaurés indépendamment
                     // de la préférence explicite « Garder la sélection » de la source courante.
                     bfgDiagLog_('NOTAM-FILTER', 'Etat NOTAM sauvegardé restauré', {
+                        origin: isReceived ? 'received' : 'local',
                         checkedRestored: !!hasCheckedSavedState,
                         keepSelectionStored: isNotamKeepSelectionEnabledForSource_(),
                         ...getBfgNotamVisibilitySnapshot_()
@@ -14003,6 +14301,8 @@ window.__notamTextFull = notamInput.value;
                 // cela neutralise aussi un ancien snapshot qui tenterait de les restaurer.
                 markNotamExplicitClear_('selection');
 
+                // v5.19 — l'effacement porte sur les deux couches : personnelle ET reçue.
+                clearReceivedNotamFields_(['selection']);
                 document.querySelectorAll('#notam-display .notam-checkbox:checked, #notam-display .notam-hide-checkbox:checked').forEach(checkbox => {
                     checkbox.checked = false;
                 });
@@ -14046,9 +14346,12 @@ window.__notamTextFull = notamInput.value;
                 if (!target) return;
                 const item = target.closest('.notam-item');
                 if (target.matches('.notam-checkbox')) {
+                    // v5.19 — geste personnel : le champ sort de la couche reçue.
+                    claimNotamFieldAsPersonal_(item, 'checked');
                     if (target.checked && item) {
                         const hideCheckbox = item.querySelector('.notam-hide-checkbox');
                         if (hideCheckbox) hideCheckbox.checked = false;
+                        claimNotamFieldAsPersonal_(item, 'hidden');
                     }
                     updatePersistentHiddenNotamsVisibility_();
                     persistCurrentNotamState_();
@@ -14058,9 +14361,12 @@ window.__notamTextFull = notamInput.value;
                     return;
                 }
                 if (target.matches('.notam-hide-checkbox')) {
+                    // v5.19 — geste personnel : le champ sort de la couche reçue.
+                    claimNotamFieldAsPersonal_(item, 'hidden');
                     if (target.checked && item) {
                         const keepCheckbox = item.querySelector('.notam-checkbox');
                         if (keepCheckbox) keepCheckbox.checked = false;
+                        claimNotamFieldAsPersonal_(item, 'checked');
                     }
                     updatePersistentHiddenNotamsVisibility_();
                     persistCurrentNotamState_();
@@ -14098,6 +14404,7 @@ window.__notamTextFull = notamInput.value;
                 if (Date.now() - lastPencilHighlightEndAt_ < 1200) return;
                 const mark = t.closest('mark.highlighted-text');
                 if (mark && !window.getSelection().toString()) {
+                    claimNotamFieldAsPersonal_(mark.closest('.notam-item'), 'highlight');
                     const p = mark.parentNode;
                     while (mark.firstChild) p.insertBefore(mark.firstChild, mark);
                     p.removeChild(mark);
@@ -14131,7 +14438,10 @@ window.__notamTextFull = notamInput.value;
                     let applied = false;
                     try { newRange.surroundContents(mark); applied = true; } catch (e) { console.warn("Surlignage impossible.", e); }
                     newSelection.removeAllRanges();
-                    if (applied) persistCurrentNotamState_();
+                    if (applied) {
+                        claimNotamFieldAsPersonal_(textContentDiv.closest('.notam-item'), 'highlight');
+                        persistCurrentNotamState_();
+                    }
                 }, 10);
             }
 
@@ -14244,6 +14554,8 @@ window.__notamTextFull = notamInput.value;
                 // y compris Pencil, doigt et titres de validité, puis invalide les anciens snapshots.
                 pencilHighlightUndoStack_.length = 0;
                 markNotamExplicitClear_('highlights');
+                // v5.19 — l'effacement porte sur les deux couches : personnelle ET reçue.
+                clearReceivedNotamFields_(['highlights']);
 
                 const marks = Array.from(document.querySelectorAll('#notam-display mark.highlighted-text'));
                 marks.forEach(removeHighlightedMark_);
@@ -14564,6 +14876,7 @@ window.__notamTextFull = notamInput.value;
                         event.stopPropagation();
                         const previousHtml = pending.container.innerHTML;
                         pencilHighlightUndoStack_.push({ container: pending.container, previousHtml });
+                        claimNotamFieldAsPersonal_(pending.container.closest('.notam-item'), 'highlight');
                         removeHighlightedMark_(markToRemove);
                         persistCurrentNotamState_();
                         lastPencilHighlightEndAt_ = Date.now();
@@ -14597,6 +14910,7 @@ window.__notamTextFull = notamInput.value;
                         const applied = applyMarkByTextOffsets_(container, start, end, 'highlighted-text');
                         if (applied) {
                             pencilHighlightUndoStack_.push({ container, previousHtml });
+                            claimNotamFieldAsPersonal_(container.closest('.notam-item'), 'highlight');
                             persistCurrentNotamState_();
                         }
                     }
@@ -14772,11 +15086,15 @@ window.__notamTextFull = notamInput.value;
             const upperUnit = bfgPickFirst_(p, ['upperUnit', 'ceilingUnit', 'altitudeUnit', 'unit', 'upper_limit_unit']) || '';
             const lowerFl = bfgAltitudeToFl_(lowerRaw, lowerUnit);
             const upperFl = bfgAltitudeToFl_(upperRaw, upperUnit);
+            // v5.19 — le relais fournit des valeurs déjà normalisées en pieds MSL.
+            // Elles servent au FILTRAGE ; l'affichage continue d'utiliser le brut.
+            const lowerMsl = Number(bfgPickFirst_(p, ['lower_limit_msl', 'lowerLimitMsl']));
+            const upperMsl = Number(bfgPickFirst_(p, ['upper_limit_msl', 'upperLimitMsl']));
             const directPdf = String(bfgPickFirst_(p, ['pdfUrl', 'documentUrl', 'documentURL', 'url', 'href']) || '').trim();
             const description = String(bfgPickFirst_(p, ['description', 'text', 'comment', 'remarks']) || '').trim();
             const lowerReference = String(bfgPickFirst_(p, ['lowerReference', 'floorReference', 'lower_limit_reference']) || '').trim();
             const upperReference = String(bfgPickFirst_(p, ['upperReference', 'ceilingReference', 'upper_limit_reference']) || '').trim();
-            return { item: p, label, typeText: typeText || 'SUP AIP', geometry, start, end, lowerRaw, upperRaw, lowerUnit, upperUnit, lowerReference, upperReference, lowerFl, upperFl, directPdf, description };
+            return { item: p, label, typeText: typeText || 'SUP AIP', geometry, start, end, lowerRaw, upperRaw, lowerUnit, upperUnit, lowerReference, upperReference, lowerFl, upperFl, lowerMsl, upperMsl, directPdf, description };
         }
 
         function bfgBuildOfficialSupAipPdf_(zone) {
@@ -14804,6 +15122,38 @@ window.__notamTextFull = notamInput.value;
         function bfgFormatDateFr_(date) {
             if (!(date instanceof Date) || Number.isNaN(date.getTime())) return 'Non précisée';
             return date.toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+        }
+
+        /* v5.19 — vocabulaire aligné sur le SUP AIP officiel :
+         *   STD / FL -> « FL195 »      ALT -> « 6000 ft AMSL »    HEI -> « 1000 ft ASFC »
+         *   0 FT HEI, SFC, GND -> « SFC »        999 FL, UNL, msl 99900 -> « UNL »
+         * Le relais SDVFR code « illimité » par la valeur sentinelle 999 FL
+         * (upper_limit_msl = 99900) : l'afficher tel quel laisserait croire à un
+         * plafond réel au FL999. */
+        function bfgFormatSupAipAltitude_(raw, fl, unitHint = '', reference = '', msl = null) {
+            if (raw === null || raw === undefined || raw === '') {
+                return Number.isFinite(fl) ? `FL${Math.round(fl)}` : 'Non précisé';
+            }
+            const text = String(raw).trim().toUpperCase();
+            const ref = String(reference || '').trim().toUpperCase();
+            const unit = String(unitHint || '').trim().toUpperCase();
+            const numeric = Number((text.match(/-?\d+(?:[.,]\d+)?/) || [])[0]?.replace(',', '.'));
+            const mslValue = Number(msl);
+
+            if (text.includes('UNL')
+                || (Number.isFinite(mslValue) && mslValue >= 99900)
+                || (numeric === 999 && (unit.includes('FL') || ref === 'STD'))) {
+                return 'UNL';
+            }
+            if (text === 'SFC' || text === 'GND') return 'SFC';
+            if (numeric === 0 && (ref === 'HEI' || ref === 'ASFC' || ref === 'AGL' || unit.includes('FT'))) return 'SFC';
+            if (!Number.isFinite(numeric)) {
+                return `${String(raw)}${unit ? ' ' + unit : ''}${ref ? ' ' + ref : ''}`;
+            }
+            if (unit.includes('FL') || ref === 'STD') return `FL${Math.round(numeric)}`;
+            if (ref === 'ALT' || ref === 'AMSL') return `${Math.round(numeric)} ft AMSL`;
+            if (ref === 'HEI' || ref === 'ASFC' || ref === 'AGL') return `${Math.round(numeric)} ft ASFC`;
+            return `${String(raw)}${unit ? ' ' + unit : ''}${ref ? ' ' + ref : ''}`;
         }
 
         function bfgFormatAltitude_(raw, fl, unitHint = '', reference = '') {
@@ -15005,8 +15355,27 @@ window.__notamTextFull = notamInput.value;
             // v5.07 : filtre supérieur strict. Une zone dont le plancher est exactement
             // égal au FL max sélectionné est masquée (ex. plancher FL115 avec MAX FL115).
             // Seules les zones dont le plancher est strictement inférieur au FL max sont conservées.
-            if (Number.isFinite(maxFl) && Number.isFinite(zone.lowerFl) && zone.lowerFl >= maxFl) return false;
+            // v5.19 : la comparaison utilise le plancher normalisé (voir ci-dessous).
+            const lowerForFilter = bfgSupAipLowerFlForFilter_(zone);
+            if (Number.isFinite(maxFl) && Number.isFinite(lowerForFilter) && lowerForFilter >= maxFl) return false;
             return true;
+        }
+
+        /* v5.19 — plancher retenu pour le filtre « FL max ».
+         * Règle de prudence : au moindre doute on renvoie null, ce qui CONSERVE la zone.
+         * Mieux vaut une zone en trop qu'une zone active manquante.
+         *  - référence HEI/ASFC/AGL : la conversion dépend du relief -> zone conservée ;
+         *  - valeur MSL absente ou aberrante -> repli sur le FL calculé ;
+         *  - aucune valeur exploitable -> zone conservée. */
+        function bfgSupAipLowerFlForFilter_(zone) {
+            if (!zone) return null;
+            const ref = String(zone.lowerReference || '').trim().toUpperCase();
+            if (ref === 'HEI' || ref === 'ASFC' || ref === 'AGL') return null;
+
+            const msl = Number(zone.lowerMsl);
+            if (Number.isFinite(msl) && msl >= 0 && msl < 99900) return msl / 100;
+
+            return Number.isFinite(zone.lowerFl) ? zone.lowerFl : null;
         }
 
         function bfgSupAipCategory_(zone) {
@@ -15070,8 +15439,8 @@ window.__notamTextFull = notamInput.value;
             return `<div class="bfg-supaip-popup-title">${escapeHtml_(zone.label)}</div>` +
                 `<div class="bfg-supaip-popup-row"><strong>Type :</strong> ${escapeHtml_(zone.typeText || 'SUP AIP')}</div>` +
                 `<div class="bfg-supaip-popup-row"><strong>Validité :</strong> ${escapeHtml_(bfgFormatDateFr_(zone.start))} → ${escapeHtml_(bfgFormatDateFr_(zone.end))}</div>` +
-                `<div class="bfg-supaip-popup-row"><strong>Plancher :</strong> ${escapeHtml_(bfgFormatAltitude_(zone.lowerRaw, zone.lowerFl, zone.lowerUnit, zone.lowerReference))}</div>` +
-                `<div class="bfg-supaip-popup-row"><strong>Plafond :</strong> ${escapeHtml_(bfgFormatAltitude_(zone.upperRaw, zone.upperFl, zone.upperUnit, zone.upperReference))}</div>` +
+                `<div class="bfg-supaip-popup-row"><strong>Plancher :</strong> ${escapeHtml_(bfgFormatSupAipAltitude_(zone.lowerRaw, zone.lowerFl, zone.lowerUnit, zone.lowerReference, zone.lowerMsl))}</div>` +
+                `<div class="bfg-supaip-popup-row"><strong>Plafond :</strong> ${escapeHtml_(bfgFormatSupAipAltitude_(zone.upperRaw, zone.upperFl, zone.upperUnit, zone.upperReference, zone.upperMsl))}</div>` +
                 desc + pdfLink;
         }
 
