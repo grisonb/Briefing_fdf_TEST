@@ -275,6 +275,140 @@ C. CONTRÔLES AVANT TOUTE LIVRAISON
       surligneur, repli hors ligne NAS) ;
     - nouvelle entrée ajoutée EN TÊTE de ce journal, sous cette section 0,
       historique intégralement conservé.
+NAS — 2026-09-23b — NOTAM DES 122 TERRAINS NPF
+===============================================================================
+
+*** TRAVAIL CÔTÉ NAS UNIQUEMENT — index.html N'EST PAS MODIFIÉ ***
+Fichiers préparés dans ~/nas-a-copier/, non installés. Aucun commit.
+Le bouton NOTAM de BFG est reporté ; BFG continue de télécharger ses propres
+NOTAM pour ses 27 pélicandromes, seule sa PUBLICATION vers le NAS est refusée.
+
+PÉRIMÈTRE — 122 TERRAINS
+- Passage de 27 pélicandromes à 122 terrains, tous sans exception.
+- Source, en lecture seule dans NPF-Q400-TEST/script.js : `pelicanAirports`
+  (27) + `otherAirports` (95) = 122, sans aucun doublon OACI — compté, non
+  supposé. `piafMetropolitanAerodromes` n'entre PAS dans le périmètre.
+- Format inchangé, celui qu'attend déjà request-sdvfr-notams.php :
+  { icao, lat, lon, halfLat: 0.015, halfLon: 0.018 }.
+- `npf_notams_airport_label()` est portée de 28 à 122 entrées. SANS CELA, les
+  94 terrains ajoutés se seraient affichés « LFxx - INCONNU » dans BFG comme
+  dans NPF.
+
+LOTS DE 50, ENCHAÎNÉS
+- `NPF_NOTAMS_SDVFR_BATCH_SIZE` = 50, limite de request-sdvfr-notams.php.
+- 122 terrains => 3 lots : 50 + 50 + 22. Vérifié par exécution réelle.
+- Un seul lot actif à la fois ; `npf_notams_refresh_start_next_batch()`
+  enchaîne le suivant à la fin du précédent.
+- Progression exposée au client : `batchIndex`, `batchCount` et `batchLabel`
+  (« lot 2/3 »), repris dans les messages d'état et dans le journal.
+
+RÈGLE DU TOUT OU RIEN
+- Les lots réussis sont accumulés dans `sdvfr-batch-accumulator.json`, HORS du
+  fichier partagé.
+- Le fichier partagé n'est écrit QU'APRÈS le dernier lot, et seulement si tous
+  les lots ont abouti.
+- Tout échec laisse le fichier précédent intact et bascule l'état en `error`
+  avec un message explicite.
+- Nuance : en multi-lots, un lot SANS AUCUN NOTAM est légitime (ses terrains
+  peuvent n'avoir aucun NOTAM du jour) et n'est donc pas un échec. Le garde-fou
+  « résultat vide » ne s'applique qu'au cumul final et au mode mono-lot.
+
+CRÉNEAU SDVFR OCCUPÉ ENTRE DEUX LOTS
+- BFG partage la même file. Si le créneau est pris entre deux lots, la chaîne
+  ATTEND et réessaie au lieu d'échouer.
+- Plafond `NPF_NOTAMS_BATCH_SLOT_MAX_WAIT` = 600 s, au-delà duquel l'échec est
+  propre et le fichier précédent conservé.
+
+GARDE SUR notams-publish
+- npf-docs-api.php refuse désormais (HTTP 409, `snapshot_owned_by_nas`) toute
+  publication applicative si le fichier en place porte `source: "NAS"`.
+- Sans cette garde, chaque interaction NOTAM dans BFG aurait ramené le fichier
+  partagé à ses 27 pélicandromes.
+- VÉRIFIÉ EN LECTURE SEULE dans Briefing_fdf_TEST ET dans Briefing-fdf
+  (pérenne) : le refus est sans conséquence.
+  `publishBfgNpfNotamsSharedSnapshot_` intercepte l'échec dans son propre
+  try/catch, se contente d'un `console.warn`, écrit ensuite ses copies locales
+  et renvoie « écrit ». Les 4 appelants sont tous protégés : trois par
+  `.catch(console.warn)`, le quatrième (`flushExplicitNotamClear_`) par un
+  try/catch. AUCUN message d'erreur affiché, AUCUNE perturbation de l'import
+  NOTAM. Le code est identique dans les deux versions.
+- Seule trace : un `console.warn` par tentative, invisible sur iPad.
+
+PURGE DU STATE
+- Le fichier partagé ne porte plus aucune sélection : ni `state`, ni reprise de
+  l'état de la veille. Il ne transporte que le texte NOTAM et sa couverture.
+- VÉRIFIÉ EN LECTURE SEULE dans NPF-Q400-TEST : l'absence de `state` est
+  supportée. script.js ~L.32182 lit `payload?.state?.byId || {}` et ~L.32193
+  recrée la structure localement si elle manque.
+
+VERROU D'ÉCRITURE
+- `npf_notams_with_lock()` pose un `flock(LOCK_EX)` sur un fichier `.lock`
+  dédié avant toute écriture du fichier partagé. Le verrou ne porte jamais sur
+  la cible elle-même, afin que le `rename()` atomique reste possible.
+- Un verrou indisponible ne bloque jamais l'écriture : on dégrade sans échouer.
+- Le verrou anti-chevauchement des exécutions planifiées existait déjà.
+
+TÂCHE PLANIFIÉE
+- UN SEUL chargement par jour, à 06h30. Aucun rafraîchissement automatique
+  ensuite : les NOTAM du jour n'apparaissent pas en cours de journée.
+- Délai d'attente porté de 300 s à 1800 s pour couvrir 3 lots plus l'attente
+  éventuelle d'un créneau.
+- Journal applicatif déplacé HORS du dossier web, qui est public :
+  /volume1/briefing-logs/npf-notams-auto-refresh.log, dossier créé en 0750.
+
+FICHIERS PRÉPARÉS — NON INSTALLÉS
+- ~/nas-a-copier/5_notams-sdvfr-shared_2026-09-23b.txt
+- ~/nas-a-copier/5_npf-docs-api_2026-09-23b.txt
+- ~/nas-a-copier/5_notams-auto-refresh_2026-09-23b.txt
+Les trois passent `php -l`. Les `_v5.15`, qui correspondent à ce qui est
+installé sur le NAS, ne sont pas touchés.
+
+CONTRÔLES EFFECTUÉS
+- `php -l` sur les trois fichiers.
+- Exécution réelle de la bibliothèque : 122 terrains, 3 lots de 50 + 50 + 22,
+  aucun lot au-dessus de 50, couverture identique au périmètre, aucun doublon
+  OACI, aucun libellé « INCONNU », format de cible conforme.
+
+STATUT : À INSTALLER ET À MESURER.
+Durée réelle et taille du fichier pour 122 terrains inconnues tant que le
+premier lancement manuel n'a pas eu lieu.
+
+INSTALLATION ET VALIDATION — 2026-09-23
+- Installés dans /volume1/web/briefing-api/, fichiers 2026-09-23b :
+  - notams-sdvfr-shared.php (46 693 octets) ;
+  - npf-docs-api.php (66 052 octets) ;
+  - notams-auto-refresh.php (4 466 octets).
+  Tailles identiques aux fichiers livrés. Anciennes versions sauvegardées en
+  `.v515`.
+- Tâche DSM « BFG NPF - NOTAM 122 terrains » : utilisateur root, script lancé
+  via `sudo -u http /bin/php`, planification quotidienne à 06h30, une seule
+  exécution par jour.
+- Test manuel lancé depuis le Planificateur de tâches : état « Normal ».
+  Relevé de npf-notams-refresh-v1.json :
+  - 3 lots en ~61 s (16:00:52 → 16:01:53) ;
+  - aucune attente de créneau (`slotWaitingSince` 0) ;
+  - 926 NOTAM sur 110 terrains, pour 122 interrogés (12 terrains couverts
+    sans NOTAM).
+  npf-notams-snapshot-v1.json passé de 74 Ko à 248 Ko.
+- Garde vérifiée en réel : BFG encaisse le refus de publication sans erreur
+  visible ; NPF accepte le fichier sans sélection. BFG fonctionne comme avant
+  pour ses 27 pélicandromes.
+
+DÉFAUT CONSTATÉ DEPUIS (session NPF)
+- L'action web `notams-refresh` envoie les 122 terrains en un seul lot
+  (`npf_notams_create_request`) au lieu de passer par
+  `npf_notams_refresh_start_batched`. Le NAS répond HTTP 500 « Trop de
+  terrains pour une seule demande SDVFR (50 maximum) ».
+- Seule la tâche de 06h30 découpe en lots.
+- Correction en préparation dans la session NPF.
+- Second point à vérifier : `npf_notams_refresh_follow()` pourrait perdre les
+  informations de lots.
+
+STATUT (mise à jour 2026-09-23, remplace le statut de préparation ci-dessus) :
+- Chaîne par lots via la tâche planifiée de 06h30 : VALIDÉ.
+- Action web `notams-refresh` : À REVOIR (défaut ci-dessus, correction en
+  cours dans la session NPF).
+
 TEST v5.19 — 2026-09-23
 Base : TEST v5.18
 ===============================================================================
