@@ -311,6 +311,10 @@ B5. LISTE DE CONTRÔLE DE PROMOTION — MENTIONS VISIBLES DE « SDVFR » (v5.23)
       importation impossible : …)                   les généraliser côté BFG à
                                                     la promotion, sans supposer
                                                     leur contenu.
+    Bandeau « Actualiser » (v5.26) : libellés    -> vérifier à la promotion
+      sans SDVFR ; seul le détail d'un élément      que le détail d'erreur
+      en échec reprend le message de l'erreur       affiché ne contient pas
+      remontée (entre parenthèses)                  SDVFR (sinon le généraliser)
     Tout autre texte visible mentionnant SDVFR   -> reformulé sans le nom.
 
     Non concernés (jamais affichés hors diagnostic) : identifiants et clés
@@ -334,6 +338,81 @@ C. CONTRÔLES AVANT TOUTE LIVRAISON
       surligneur, repli hors ligne NAS) ;
     - nouvelle entrée ajoutée EN TÊTE de ce journal, sous cette section 0,
       historique intégralement conservé.
+TEST v5.26 — 2026-09-24
+Base : TEST v5.25
+===============================================================================
+
+Dernière version TEST avant la promotion partielle vers la pérenne. Aucune
+modification du NAS ni du worker.
+
+1. BOUTON « ACTUALISER » : TOUT ACTUALISER
+- Le bouton vert « Actualiser » du panneau Accès Briefing actualise désormais :
+  données Briefing (même ensemble qu'avant : avions / pélicandromes, FDF CNCASC,
+  FDS et GAAR via Gmail, cartes des risques) ; NOTAM SDVFR (importSdvfrNotams_,
+  logique « Actualiser NOTAM ») puis import NATS (importAutomaticNotamsFromNas_) ;
+  météo METAR / TAF (refreshAllWeather_) ; TEMSI (refreshTemsiFromNas_) ; carte
+  SUP AIP (bfgLoadAndRenderSupAipMap_(true), logique de son bouton) ; RTBA
+  (bfgRefreshRtba_ en demande explicite : sans anti-rafale 60 s, SANS force=1,
+  cache NAS de 5 min conservé) ; cartes VAC (ensureBfgVacDailyManifestCheck_
+  avec force : vérification du cycle et téléchargement des cartes manquantes,
+  même si la vérification du jour est déjà faite).
+- Fonctions existantes réutilisées, pas réécrites. Seuls ajouts : valeur de
+  retour true / false de importSdvfrNotams_ et de refreshAllWeather_ (true
+  seulement si la météo a été reçue), option explicit et résultat de
+  bfgRefreshRtba_ (une demande RTBA déjà en cours est attendue, pas doublée).
+  Les autres appelants ignorent ces valeurs : comportement inchangé.
+- Parallélisme : tout part en même temps SAUF les deux demandes SDVFR. NOTAM
+  SDVFR d'abord, puis NATS et météo en parallèle (comme à la connexion : rien
+  ne garantit que le NAS accepte deux demandes SDVFR simultanées, et l'import
+  NATS relit le texte SDVFR du jour). Un échec n'empêche pas les autres.
+- Bouton désactivé pendant toute l'actualisation (verrou interne contre le
+  double lancement + MutationObserver qui le redésactive si une fonction
+  réutilisée le réactive, ex. fetchAbeDispo_).
+- Session non valide : comportement inchangé. Hors ligne : « Actualisation
+  impossible hors ligne », rien n'est effacé.
+- Autres boutons d'actualisation et règle « NOTAM une fois par jour » à
+  l'ouverture : inchangés.
+
+2. BANDEAU D'ACTUALISATION (#global-refresh-banner)
+- Masqué au repos, sans place réservée ; même style que les bandeaux NOTAM / VAC.
+- Chaque élément avec son état : « … » en cours, ✓ terminé, ⚠️ en échec, ex.
+  « Données Briefing ✓ · NOTAM (récupération des NOTAM en cours)… · Météo ✓ ·
+  TEMSI ✓ · SUP AIP ✓ · RTBA ✓ · Cartes VAC 2/3… ».
+- Fin : « Tout est à jour » 4 s, ou « ⚠️ Actualisation incomplète — en échec :
+  … » (avec le détail éventuel : cartes VAC non téléchargées, alerte AIRAC),
+  affiché jusqu'à fermeture par ✕.
+- Pas de doublon : pendant cette actualisation, les messages des bandeaux NOTAM
+  (étapes) et VAC (compteur, échecs, alerte AIRAC) sont redirigés vers ce
+  bandeau ; hors de cette actualisation, ces bandeaux sont inchangés.
+- Limite connue : les données Briefing, TEMSI et SUP AIP gèrent leurs erreurs
+  elles-mêmes ; leur ⚠️ repose sur une promesse rejetée ou sur l'état
+  d'avertissement de leur propre statut (TEMSI, carte SUP AIP). Une erreur que
+  ces fonctions masquent entièrement peut rester ✓.
+- Règle « NPF-Q400 » respectée. Liste 0.B5 complétée (détail d'erreur).
+- Simulation Node (fonctions extraites d'index.html, actualisations bouchonnées) :
+  ordre NOTAM SDVFR -> NATS + météo vérifié ; échec TEMSI isolé et listé ;
+  cas tout réussi -> « Tout est à jour » ; alerte AIRAC reprise dans la liste
+  finale ; double clic sans effet ; bouton désactivé du début à la fin ; hors
+  ligne -> message attendu.
+
+3. ESSAIS
+- v5.20 : boutons de trace retirés du panneau Diagnostic : VALIDÉ ; clavier au
+  toucher sur le champ : VALIDÉ.
+- v5.19 : partage entre deux appareils (PC Windows -> iPad), deux sélections
+  visibles, conservées après fermeture et relance : VALIDÉ.
+- v5.25 : popup R45 S3 avec ses deux créneaux en UTC : VALIDÉ.
+- À MESURER : bascule de 18:14Z popup ouvert ; effacement des cases reçues à
+  23:00 ; passage de minuit R45 N2 à N5 ; cases du lendemain ; NOTAM une fois
+  par jour et météo à chaque ouverture ; bouton « Actualiser » complet.
+
+VERSIONS
+- APP_VERSION_NUMBER 5.26, BFG_SW_VERSION 5.26, CACHE_NAME
+  'briefing-fdf-test-v5.26-refresh-all-r1', description du manifest. sw.js :
+  version seule. Constantes figées à 5.07 NON modifiées (cf. 0.B1).
+
+STATUTS v5.26
+- Bouton « Actualiser » complet et son bandeau : À MESURER sur iPad.
+
 TEST v5.25 — 2026-09-24
 Base : TEST v5.24
 ===============================================================================

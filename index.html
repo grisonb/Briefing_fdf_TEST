@@ -2449,6 +2449,50 @@
         }
         #notam-loading-banner.visible { display: block; }
         #vac-loading-banner.visible { display: block; }
+        /* v5.26 — bandeau de l'actualisation complète (bouton « Actualiser »). Masqué au
+           repos, sans place réservée ; même style que les bandeaux NOTAM et VAC. */
+        #global-refresh-banner {
+            display: none;
+            position: relative;
+            box-sizing: border-box;
+            max-width: 900px;
+            margin: 10px auto 0 auto;
+            padding: 11px 44px 11px 14px;
+            border: 1px solid #1b5e20;
+            border-left: 6px solid #145a32;
+            border-radius: 9px;
+            background: #2e7d32;
+            color: #ffffff;
+            font-weight: 900;
+            text-align: center;
+            line-height: 1.4;
+            box-shadow: 0 2px 6px rgba(20,90,50,0.18);
+        }
+        #global-refresh-banner.visible { display: block; }
+        #global-refresh-banner.warning {
+            border-color: #e0a800;
+            border-left-color: #b8860b;
+            background: #fff8e1;
+            color: #7a5200;
+        }
+        #global-refresh-banner-close {
+            display: none;
+            position: absolute;
+            top: 50%;
+            right: 8px;
+            transform: translateY(-50%);
+            width: 30px;
+            height: 30px;
+            padding: 0;
+            border: none;
+            border-radius: 50%;
+            background: transparent;
+            color: inherit;
+            font-size: 18px;
+            font-weight: 900;
+            cursor: pointer;
+        }
+        #global-refresh-banner.closable #global-refresh-banner-close { display: block; }
         #notam-loading-banner.error {
             border-color: #ef9a9a;
             border-left-color: #c62828;
@@ -2538,6 +2582,7 @@
             <button id="cncasc-lock-btn" class="link-button" style="background-color:var(--sc-red);">Déconnexion</button>
         </div>
         <p id="cncasc-auth-status">Accès Briefing verrouillé.</p>
+        <div id="global-refresh-banner" role="status" aria-live="polite"><span id="global-refresh-banner-text"></span><button id="global-refresh-banner-close" type="button" aria-label="Fermer">✕</button></div>
         <div id="notam-loading-banner" role="status" aria-live="polite"></div>
         <div id="vac-loading-banner" role="status" aria-live="polite"><span id="vac-loading-banner-text"></span><button id="vac-loading-banner-close" type="button" aria-label="Fermer">✕</button></div>
         <p id="cncasc-warning" class="cncasc-warning"></p>
@@ -2962,8 +3007,8 @@
     <footer>Données : Météo-France, SIA, Windy.com, SDVFR. Page non commerciale, à usage personnel.</footer>
     
     <script>
-        const APP_VERSION_NUMBER = "5.25";
-        const APP_VERSION = `${APP_VERSION_NUMBER} TEST - RTBA PAR SECTEUR + UTC`;
+        const APP_VERSION_NUMBER = "5.26";
+        const APP_VERSION = `${APP_VERSION_NUMBER} TEST - ACTUALISER TOUT`;
 
 
         // v4.97 — diagnostic conservé ; plage NOTAM quotidienne et sélection prioritaire. Aucun code d'accès, token ou contenu NOTAM n'est exporté.
@@ -4082,6 +4127,74 @@ const tdfStages = [
             return document.querySelectorAll('#notam-display .notam-item').length > 0;
         }
 
+        /* ===== v5.26 — BANDEAU DE L'ACTUALISATION COMPLÈTE (bouton « Actualiser ») =====
+         * Pendant cette actualisation, les messages des bandeaux NOTAM et VAC sont
+         * redirigés ici (aucun doublon). En dehors, ces bandeaux fonctionnent comme avant. */
+        const bfgGlobalRefresh_ = { active: false, items: [], hideTimer: null };
+
+        function bfgGlobalRefreshItem_(key) {
+            return bfgGlobalRefresh_.items.find(item => item.key === key) || null;
+        }
+
+        function bfgGlobalRefreshSetItem_(key, state, detail) {
+            const item = bfgGlobalRefreshItem_(key);
+            if (!item) return;
+            item.state = state;
+            if (detail !== undefined) item.detail = String(detail || '');
+            bfgRenderGlobalRefreshBanner_();
+        }
+
+        function bfgRenderGlobalRefreshBanner_(finalState = null) {
+            const banner = document.getElementById('global-refresh-banner');
+            const text = document.getElementById('global-refresh-banner-text');
+            if (!banner || !text) return;
+            if (bfgGlobalRefresh_.hideTimer) {
+                clearTimeout(bfgGlobalRefresh_.hideTimer);
+                bfgGlobalRefresh_.hideTimer = null;
+            }
+            banner.classList.add('visible');
+            if (finalState === 'ok') {
+                text.textContent = 'Tout est à jour';
+                banner.classList.remove('warning', 'closable');
+                bfgGlobalRefresh_.hideTimer = setTimeout(hideBfgGlobalRefreshBanner_, 4000);
+                return;
+            }
+            if (finalState === 'error') {
+                const failed = bfgGlobalRefresh_.items.filter(item => item.state === 'error');
+                text.textContent = `⚠️ Actualisation incomplète — en échec : `
+                    + failed.map(item => (item.detail ? `${item.label} (${item.detail})` : item.label)).join(' · ');
+                banner.classList.add('warning', 'closable');
+                return;
+            }
+            text.textContent = bfgGlobalRefresh_.items.map(item => {
+                if (item.state === 'ok') return `${item.label} ✓`;
+                if (item.state === 'error') return `${item.label} ⚠️`;
+                return `${item.label}${item.detail ? ' ' + item.detail : ''}…`;
+            }).join(' · ');
+            banner.classList.remove('warning', 'closable');
+        }
+
+        function hideBfgGlobalRefreshBanner_() {
+            if (bfgGlobalRefresh_.hideTimer) {
+                clearTimeout(bfgGlobalRefresh_.hideTimer);
+                bfgGlobalRefresh_.hideTimer = null;
+            }
+            const banner = document.getElementById('global-refresh-banner');
+            if (banner) banner.classList.remove('visible', 'warning', 'closable');
+        }
+
+        document.getElementById('global-refresh-banner-close')?.addEventListener('click', hideBfgGlobalRefreshBanner_);
+
+        // Messages du bandeau NOTAM pendant l'actualisation complète : étape en cours
+        // reprise dans l'élément « NOTAM » ; l'état final vient du résultat des fonctions.
+        function bfgGlobalRefreshNotamMessage_(visible, message) {
+            const item = bfgGlobalRefreshItem_('notam');
+            if (!item || item.state !== 'running' || !visible) return;
+            const text = String(message || '').replace(/(?:…|\.\.\.)\s*$/, '').trim();
+            if (!text || /NOTAM à jour|impossible/i.test(text)) return;
+            bfgGlobalRefreshSetItem_('notam', 'running', `(${text.charAt(0).toLowerCase()}${text.slice(1)})`);
+        }
+
         // v5.20 — pendant une actualisation (connexion, démarrage avec session valide,
         // bouton « Actualiser NOTAM »), le bandeau affiche les étapes réelles et
         // seules ces étapes le pilotent : une restauration locale qui masque le
@@ -4092,6 +4205,11 @@ const tdfStages = [
         function setBfgNotamLoadingBanner_(visible, message = 'Chargement des NOTAM en cours...', options = {}) {
             if (bfgNotamStepsActive_ && !options.step) {
                 bfgDiagLog_('NOTAM-UI', 'Bandeau piloté par les étapes : demande ignorée', { visible: !!visible, message: String(message || '') });
+                return;
+            }
+            // v5.26 — actualisation complète en cours : message redirigé, bandeau NOTAM masqué.
+            if (bfgGlobalRefresh_.active) {
+                bfgGlobalRefreshNotamMessage_(visible, message);
                 return;
             }
             bfgDiagLog_('NOTAM-UI', `Bandeau téléchargement ${visible ? 'AFFICHÉ' : 'MASQUÉ'}`, { message: String(message || ''), error: !!options.error });
@@ -5699,6 +5817,7 @@ const tdfStages = [
                     const suffix = partial ? ' — résultat partiel' : '';
                     statusElement.textContent = `NOTAM : ${sourceCount} NOTAM(s) téléchargé(s)${suffix}.`;
                 }
+                return true;   // v5.26 — résultat lu par l'actualisation complète
             } catch (error) {
                 console.error('Erreur import SDVFR NOTAMs:', error);
                 if (bfgNotamStepsActive_) endBfgNotamSteps_(false, 'error');
@@ -5706,6 +5825,7 @@ const tdfStages = [
                     statusElement.classList.add('warning');
                     statusElement.textContent = `NOTAM : actualisation impossible — ${error.message || error}`;
                 }
+                return false;
             } finally {
                 if (button) button.disabled = false;
             }
@@ -6789,6 +6909,14 @@ const tdfStages = [
             ]);
         }
 
+        /* v5.26 — bouton « Actualiser » : TOUT ce qui est actualisable, en réutilisant les
+         * fonctions existantes de chaque élément. Ce qui est indépendant part en parallèle ;
+         * un échec n'empêche pas les autres. Seules les deux demandes SDVFR (NOTAM puis
+         * météo) sont enchaînées : rien ne garantit que le NAS accepte deux demandes SDVFR
+         * simultanées. Les autres boutons d'actualisation et la règle « NOTAM une fois par
+         * jour » à l'ouverture ne changent pas. */
+        let bfgGlobalRefreshRunning_ = false;
+
         async function actualiserToutBriefing_() {
             const globalRefreshBtn = document.getElementById('cncasc-global-refresh-btn');
             const originalText = globalRefreshBtn ? globalRefreshBtn.textContent : 'Actualiser';
@@ -6799,37 +6927,125 @@ const tdfStages = [
                 setCncascWarning_('⚠️ Actualisation globale impossible : saisir le code accès Briefing puis cliquer sur Connexion.');
                 return;
             }
+            if (bfgGlobalRefreshRunning_) return;   // pas de double lancement
+            if (!navigator.onLine) {
+                // Rien n'est effacé : les données en mémoire restent affichées.
+                setCncascWarning_('Actualisation impossible hors ligne');
+                return;
+            }
+
+            bfgGlobalRefreshRunning_ = true;
+            // Les fonctions réutilisées réactivent ce bouton en fin de tâche : il est
+            // redésactivé à chaque étape tant que l'actualisation complète n'est pas finie.
+            const keepButtonDisabled = () => {
+                if (!globalRefreshBtn) return;
+                globalRefreshBtn.disabled = true;
+                globalRefreshBtn.textContent = 'Actualisation...';
+            };
+            keepButtonDisabled();
+            // Réaction immédiate si une fonction réutilisée réactive le bouton en cours de route.
+            let buttonGuard = null;
+            if (globalRefreshBtn && typeof MutationObserver === 'function') {
+                buttonGuard = new MutationObserver(() => {
+                    if (bfgGlobalRefreshRunning_ && !globalRefreshBtn.disabled) keepButtonDisabled();
+                });
+                buttonGuard.observe(globalRefreshBtn, { attributes: true, attributeFilter: ['disabled'] });
+            }
+            clearCncascWarning_();
+
+            bfgGlobalRefresh_.items = [
+                { key: 'briefing', label: 'Données Briefing', state: 'running', detail: '' },
+                { key: 'notam', label: 'NOTAM', state: 'running', detail: '' },
+                { key: 'meteo', label: 'Météo', state: 'running', detail: '' },
+                { key: 'temsi', label: 'TEMSI', state: 'running', detail: '' },
+                { key: 'supaip', label: 'SUP AIP', state: 'running', detail: '' },
+                { key: 'rtba', label: 'RTBA', state: 'running', detail: '' },
+                { key: 'vac', label: 'Cartes VAC', state: 'running', detail: '' }
+            ];
+            bfgGlobalRefresh_.active = true;
+            // Pas de doublon : les bandeaux NOTAM et VAC sont masqués pendant l'actualisation.
+            document.getElementById('notam-loading-banner')?.classList.remove('visible', 'error');
+            hideBfgVacBanner_();
+            bfgRenderGlobalRefreshBanner_();
+            bfgDiagLog_('ACTUALISER', 'Actualisation complète démarrée');
+
+            const track = (key, run) => (async () => {
+                let ok = false;
+                let detail;
+                try {
+                    const result = await run();
+                    ok = result !== false;
+                } catch (error) {
+                    ok = false;
+                    detail = error && error.message ? String(error.message).slice(0, 120) : undefined;
+                }
+                const item = bfgGlobalRefreshItem_(key);
+                // Un avertissement déjà remonté (ex. cartes VAC en échec, alerte AIRAC) prime.
+                if (item && item.state === 'error' && ok) {
+                    keepButtonDisabled();
+                    return;
+                }
+                bfgGlobalRefreshSetItem_(key, ok ? 'ok' : 'error', ok ? '' : detail);
+                bfgDiagLog_('ACTUALISER', `${item ? item.label : key} : ${ok ? 'OK' : 'ÉCHEC'}`);
+                keepButtonDisabled();
+            })();
 
             try {
-                if (globalRefreshBtn) {
-                    globalRefreshBtn.disabled = true;
-                    globalRefreshBtn.textContent = 'Actualisation...';
-                }
-
-                clearCncascWarning_();
-                setCncascWarning_('Actualisation globale du briefing en cours : FDS, GAAR, avions, pélicandromes, FDF CNCASC, risques et TEMSI...');
-
-                const tasks = [
-                    fetchAbeDispo_(),
-                    fetchCncascFdf_(),
-                    actualiserFeuilleServiceDepuisGmail_(),
-                    actualiserGaarDepuisGmail_(),
-                    loadRiskMaps_()
-                ];
-
-                if (typeof window.refreshTemsiFromNas_ === 'function') {
-                    tasks.push(window.refreshTemsiFromNas_());
-                }
-
-                const results = await Promise.allSettled(tasks);
-                const failures = results.filter(result => result.status === 'rejected');
-
-                if (failures.length > 0) {
-                    setCncascWarning_(`⚠️ Actualisation globale terminée avec ${failures.length} erreur(s). Vérifier les messages de chaque rubrique.`);
-                } else {
-                    setCncascWarning_('Actualisation globale terminée. Les rubriques disponibles ont été rechargées.', { success: true });
-                }
+                await Promise.allSettled([
+                    // Données Briefing : même ensemble qu'avant la v5.26 (hors TEMSI, suivi à part).
+                    track('briefing', async () => {
+                        const results = await Promise.allSettled([
+                            fetchAbeDispo_(),
+                            fetchCncascFdf_(),
+                            actualiserFeuilleServiceDepuisGmail_(),
+                            actualiserGaarDepuisGmail_(),
+                            loadRiskMaps_()
+                        ]);
+                        return !results.some(result => result.status === 'rejected');
+                    }),
+                    // NOTAM SDVFR d'abord (logique « Actualiser NOTAM »), puis, comme à la
+                    // connexion, import NATS ; la météo (seconde demande SDVFR) attend aussi la
+                    // fin de la demande NOTAM SDVFR, puis part en parallèle de NATS.
+                    (async () => {
+                        const sdvfrPromise = importSdvfrNotams_(null).catch(() => false);
+                        const natsPromise = sdvfrPromise.then(() => importAutomaticNotamsFromNas_(null)).catch(() => false);
+                        await Promise.allSettled([
+                            track('notam', async () => {
+                                const [sdvfrOk, natsOk] = await Promise.all([sdvfrPromise, natsPromise]);
+                                return sdvfrOk === true && natsOk === true;
+                            }),
+                            track('meteo', async () => {
+                                await sdvfrPromise;
+                                return typeof window.refreshAllWeather_ === 'function'
+                                    ? window.refreshAllWeather_('manual')
+                                    : false;
+                            })
+                        ]);
+                    })(),
+                    track('temsi', async () => {
+                        if (typeof window.refreshTemsiFromNas_ !== 'function') return false;
+                        await window.refreshTemsiFromNas_();
+                        const info = document.getElementById('temsi-info-carte');
+                        return !(info && info.classList.contains('temsi-status-warning'));
+                    }),
+                    track('supaip', async () => {
+                        await bfgLoadAndRenderSupAipMap_(true);
+                        const status = document.getElementById('sup-aip-map-status');
+                        return !(status && status.classList.contains('warning'));
+                    }),
+                    track('rtba', () => bfgRefreshRtba_('bouton Actualiser', { explicit: true })),
+                    track('vac', async () => {
+                        await ensureBfgVacDailyManifestCheck_({ force: true });
+                        return true;
+                    })
+                ]);
             } finally {
+                if (buttonGuard) buttonGuard.disconnect();
+                bfgGlobalRefresh_.active = false;
+                bfgGlobalRefreshRunning_ = false;
+                const failed = bfgGlobalRefresh_.items.filter(item => item.state === 'error');
+                bfgRenderGlobalRefreshBanner_(failed.length ? 'error' : 'ok');
+                bfgDiagLog_('ACTUALISER', 'Actualisation complète terminée', { échecs: failed.map(item => item.label).join(' ') });
                 if (globalRefreshBtn) {
                     globalRefreshBtn.disabled = false;
                     globalRefreshBtn.textContent = originalText || 'Actualiser';
@@ -9239,6 +9455,13 @@ const tdfStages = [
         let bfgVacBannerHideTimer_ = null;
 
         function setBfgVacBanner_(message, options = {}) {
+            // v5.26 — actualisation complète en cours : information redirigée vers son bandeau.
+            if (bfgGlobalRefresh_.active) {
+                const counter = String(message || '').match(/(\d+\/\d+)/);
+                if (options.warning) bfgGlobalRefreshSetItem_('vac', 'error', String(message || ''));
+                else if (counter && /Téléchargement/.test(String(message))) bfgGlobalRefreshSetItem_('vac', 'running', counter[1]);
+                return;
+            }
             const banner = document.getElementById('vac-loading-banner');
             const text = document.getElementById('vac-loading-banner-text');
             if (!banner || !text) return;
@@ -13670,17 +13893,21 @@ window.__notamTextFull = notamInput.value;
                     .filter(container => Boolean(container.dataset.icao));
 
                 try {
+                    // v5.26 — true seulement si la météo a réellement été reçue (lu par
+                    // l'actualisation complète ; les autres appelants ignorent ce résultat).
+                    let weatherReceived = false;
                     try {
                         // v4.84 : actualisation météo SDVFR uniquement ; CheckWX est totalement désactivé.
                         // Important v4.77 : l'actualisation météo ne modifie PAS le cache quotidien des NOTAMs.
                         const payload = await fetchSdvfrTargetsOnce_(getSdvfrPelicandromeTargets_());
                         applySdvfrWeatherFromPayload_(payload);
+                        weatherReceived = true;
                     } catch (error) {
                         console.warn('Météo SDVFR indisponible ; aucun secours CheckWX.', error);
                     }
 
                     checkWeatherValidity();
-                    return true;
+                    return weatherReceived;
                 } finally {
                     bfgWeatherRefreshInProgress_ = false;
                     if (manualLoadWeatherBtn) {
@@ -16342,18 +16569,33 @@ window.__notamTextFull = notamInput.value;
             bfgRtbaLog_('Données indisponibles, aucun cache', { raison: reason });
         }
 
-        async function bfgRefreshRtba_(reason = '') {
-            if (!bfgRtbaFranceLayer_) return;
-            if (bfgRtbaInFlight_) return;
+        /* v5.26 — options.explicit : demande explicite du bouton « Actualiser » : pas
+         * d'anti-rafale 60 s, mais SANS force=1 (le cache NAS de 5 min protège le compte
+         * SDVFR). Renvoie true si une réponse valide a été obtenue. Une demande déjà en
+         * cours est attendue plutôt que doublée. */
+        let bfgRtbaInFlightPromise_ = null;
+
+        async function bfgRefreshRtba_(reason = '', options = {}) {
+            if (!bfgRtbaFranceLayer_) return false;
+            if (bfgRtbaInFlight_) return bfgRtbaInFlightPromise_ || false;
             const now = Date.now();
-            if (now - bfgRtbaLastRequestAt_ < BFG_RTBA_MIN_INTERVAL_MS_) {
+            if (!options.explicit && now - bfgRtbaLastRequestAt_ < BFG_RTBA_MIN_INTERVAL_MS_) {
                 bfgRtbaLog_('Demande ignorée (anti-rafale 60 s)', { raison: reason });
-                return;
+                return false;
             }
             if (!navigator.onLine) {
                 if (!Array.isArray(bfgRtbaAirspaces_) || !bfgRtbaFromCache_) bfgRtbaShowCacheOrUnavailable_('hors ligne');
-                return;
+                return false;
             }
+            bfgRtbaInFlightPromise_ = bfgRefreshRtbaRequest_(reason, now);
+            try {
+                return await bfgRtbaInFlightPromise_;
+            } finally {
+                bfgRtbaInFlightPromise_ = null;
+            }
+        }
+
+        async function bfgRefreshRtbaRequest_(reason, now) {
 
             bfgRtbaInFlight_ = true;
             bfgRtbaLastRequestAt_ = now;
@@ -16407,12 +16649,14 @@ window.__notamTextFull = notamInput.value;
                     source: bfgRtbaDiag_.relaySource, zones: airspaces.length, cacheNas: fromNasCache, récupéréesÀ: fetchedAt.toISOString()
                 });
                 bfgRenderRtbaLayer_();
+                return true;
             } catch (error) {
                 const message = error && error.name === 'AbortError' ? 'délai dépassé' : (error && error.message || String(error));
                 bfgRtbaDiag_.lastResult = 'ERREUR';
                 bfgRtbaDiag_.error = message;
                 bfgRtbaLog_('Échec RTBA', { message });
                 bfgRtbaShowCacheOrUnavailable_(message);
+                return false;
             } finally {
                 clearTimeout(timer);
                 bfgRtbaInFlight_ = false;
