@@ -86,6 +86,17 @@ messages d'erreur), l'application sœur s'appelle toujours « NPF-Q400 ». Jamai
 renommés pour autant (cf. persistance NOTAM). Relevé v5.20 : aucun texte affiché
 de BFG TEST n'enfreignait la règle.
 
+### 4. « SDVFR » : visible en TEST, jamais en pérenne
+
+- **Versions TEST** : les mentions visibles de SDVFR sont autorisées.
+- **Versions PÉRENNES** : **aucune mention visible de SDVFR, jamais.**
+- Le panneau « Diagnostic BFG » n'est pas concerné, dans aucune version.
+
+Ne jamais retirer SDVFR des textes de la TEST pour cette règle. Les
+remplacements se font uniquement lors d'une promotion, à partir de la liste de
+contrôle de la section 0.B5 du journal, à tenir à jour à chaque nouveau texte
+visible mentionnant SDVFR.
+
 ## ⚠️ Ce projet n'est PAS NPF-Q400
 
 Ne pas transposer les réflexes de l'autre dépôt. Ici :

@@ -2906,8 +2906,8 @@
                 <span class="bfg-supaip-legend-item" style="color:#2563eb;"><span class="bfg-supaip-legend-swatch"></span>CTR/TMA</span>
                 <span class="bfg-supaip-legend-item" style="color:#7e22ce;"><span class="bfg-supaip-legend-swatch"></span>Autre</span>
                 <span class="bfg-supaip-legend-note">Pulsation légère = début de validité à venir</span>
-                <span class="bfg-supaip-legend-item" style="color:#be185d;"><span class="bfg-supaip-legend-swatch"></span>RTBA actif</span>
-                <span class="bfg-supaip-legend-item" style="color:#0f766e;"><span class="bfg-supaip-legend-swatch"></span>RTBA à venir (&lt; 2 h)</span>
+                <span class="bfg-supaip-legend-item" style="color:#d1007a;"><span class="bfg-supaip-legend-swatch"></span>RTBA actif (clignotant)</span>
+                <span class="bfg-supaip-legend-item" style="color:#f08cc4;"><span class="bfg-supaip-legend-swatch"></span>RTBA à venir (&lt; 2 h)</span>
             </div>
             <div id="sup-aip-france-map" aria-label="Carte de France des SUP AIP"></div>
             <p id="sup-aip-map-status">Carte SUP AIP non chargée.</p>
@@ -2962,8 +2962,8 @@
     <footer>Données : Météo-France, SIA, Windy.com, SDVFR. Page non commerciale, à usage personnel.</footer>
     
     <script>
-        const APP_VERSION_NUMBER = "5.22";
-        const APP_VERSION = `${APP_VERSION_NUMBER} TEST - RTBA SDVFR SUR CARTE FRANCE`;
+        const APP_VERSION_NUMBER = "5.23";
+        const APP_VERSION = `${APP_VERSION_NUMBER} TEST - RTBA ACTIF CLIGNOTANT + STATUT`;
 
 
         // v4.97 — diagnostic conservé ; plage NOTAM quotidienne et sélection prioritaire. Aucun code d'accès, token ou contenu NOTAM n'est exporté.
@@ -15964,9 +15964,13 @@ window.__notamTextFull = notamInput.value;
         const BFG_RTBA_MIN_INTERVAL_MS_ = 60 * 1000; // anti-rafale
         const BFG_RTBA_STATUS_TICK_MS_ = 60 * 1000;  // recalcul local des statuts, sans réseau
         const BFG_RTBA_FETCH_TIMEOUT_MS_ = 25000;
-        // Couleurs provisoires, à ajuster après essai sur iPad. Traits pleins.
-        const BFG_RTBA_STYLE_ACTIVE_ = { color: '#be185d', fillColor: '#ec4899', weight: 2, opacity: 0.95, fillOpacity: 0.22 };
-        const BFG_RTBA_STYLE_UPCOMING_ = { color: '#0f766e', fillColor: '#14b8a6', weight: 2, opacity: 0.95, fillOpacity: 0.18 };
+        // v5.23 — présentation issue des essais iPad. Traits pleins.
+        //   actif    : magenta VIF, CLIGNOTANT ;
+        //   à venir  : magenta PASTEL (rose clair), FIXE.
+        const BFG_RTBA_STYLE_ACTIVE_ = { color: '#d1007a', fillColor: '#ff1aa3', weight: 2.5, opacity: 1, fillOpacity: 0.32 };
+        const BFG_RTBA_STYLE_UPCOMING_ = { color: '#f08cc4', fillColor: '#fbc6e3', weight: 2, opacity: 0.95, fillOpacity: 0.28 };
+        // État « éteint » du clignotement des zones actives.
+        const BFG_RTBA_STYLE_ACTIVE_PULSE_OFF_ = { opacity: 0.3, fillOpacity: 0.06 };
 
         let bfgRtbaFranceLayer_ = null;
         let bfgRtbaRenderer_ = null;
@@ -16120,7 +16124,9 @@ window.__notamTextFull = notamInput.value;
             bfgRtbaPulseState_ = true;
         }
 
-        // Clignotement propre au RTBA : zones « à venir » seulement ; les zones actives ne clignotent pas.
+        // v5.23 — clignotement propre au RTBA : zones ACTIVES seulement ; les zones à venir
+        // restent fixes. setStyle sur les seules couches RTBA : le clignotement SUP AIP
+        // n'est pas touché et un popup ouvert n'est pas refermé.
         function bfgStartRtbaPulse_() {
             if (!bfgRtbaPulseLayers_.length) return;
             bfgRtbaPulseState_ = true;
@@ -16129,8 +16135,8 @@ window.__notamTextFull = notamInput.value;
                 bfgRtbaPulseLayers_.forEach(({ layer, style }) => {
                     try {
                         layer.setStyle({
-                            opacity: bfgRtbaPulseState_ ? style.opacity : 0.3,
-                            fillOpacity: bfgRtbaPulseState_ ? style.fillOpacity : 0.04
+                            opacity: bfgRtbaPulseState_ ? style.opacity : BFG_RTBA_STYLE_ACTIVE_PULSE_OFF_.opacity,
+                            fillOpacity: bfgRtbaPulseState_ ? style.fillOpacity : BFG_RTBA_STYLE_ACTIVE_PULSE_OFF_.fillOpacity
                         });
                     } catch (_) {}
                 });
@@ -16174,7 +16180,7 @@ window.__notamTextFull = notamInput.value;
                     if (!layer.getBounds().isValid()) { counts.invalid += 1; return; }
                     layer.bindPopup(bfgRtbaPopupHtml_(zone, status), { maxWidth: 360 });
                     layer.addTo(bfgRtbaFranceLayer_);
-                    if (status === 'upcoming') bfgRtbaPulseLayers_.push({ layer, style });
+                    if (status === 'active') bfgRtbaPulseLayers_.push({ layer, style });
                     if (status === 'upcoming') counts.upcoming += 1; else counts.active += 1;
                     drawn += 1;
                 } catch (error) {
@@ -16277,18 +16283,22 @@ window.__notamTextFull = notamInput.value;
                 bfgRtbaDiag_.relayVersion = String(data.relayVersion || '');
                 bfgRtbaDiag_.workerVersion = String((data.relayDiagnostic && data.relayDiagnostic.workerVersion) || '');
 
+                // v5.23 — toute réponse VALIDE du NAS, y compris servie par son cache (5 min,
+                // ou dernière carte si le worker est occupé), s'affiche « mis à jour à HH:MM ».
+                // HH:MM = heure RÉELLE de récupération auprès de SDVFR : finishedAt (worker)
+                // ou savedAt (cache NAS), jamais l'heure de l'appel de BFG.
+                // « Données en cache » est réservé au cache LOCAL bfgRtbaCacheV1, affiché
+                // quand BFG n'obtient aucune réponse valide.
                 const fetchedAt = bfgParseFlexibleDate_(data.finishedAt || data.savedAt) || new Date();
-                // Le NAS peut répondre avec sa dernière carte valide si le worker est occupé
-                // ou trop lent (stale) : c'est du cache, jamais présenté comme frais.
-                const stale = data.stale === true;
-                if (!stale) bfgRtbaWriteCache_(airspaces, fetchedAt);
+                const fromNasCache = /^nas-cache/.test(String(data.source || '')) || data.stale === true;
+                bfgRtbaWriteCache_(airspaces, fetchedAt);
                 bfgRtbaAirspaces_ = airspaces;
                 bfgRtbaFetchedAt_ = fetchedAt;
-                bfgRtbaFromCache_ = stale;
+                bfgRtbaFromCache_ = false;
                 bfgRtbaDiag_.fetchedAt = fetchedAt.toISOString();
-                bfgRtbaDiag_.lastResult = stale ? 'cache NAS (worker indisponible)' : (airspaces.length ? 'OK' : 'OK, réponse vide');
+                bfgRtbaDiag_.lastResult = `${airspaces.length ? 'OK' : 'OK, réponse vide'}${fromNasCache ? ` (cache NAS${data.stale === true ? ', worker indisponible' : ''})` : ''}`;
                 bfgRtbaLog_('Réponse RTBA valide', {
-                    source: bfgRtbaDiag_.relaySource, zones: airspaces.length, stale, récupéréesÀ: fetchedAt.toISOString()
+                    source: bfgRtbaDiag_.relaySource, zones: airspaces.length, cacheNas: fromNasCache, récupéréesÀ: fetchedAt.toISOString()
                 });
                 bfgRenderRtbaLayer_({ force: true });
             } catch (error) {

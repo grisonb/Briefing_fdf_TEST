@@ -100,6 +100,14 @@ A. RÈGLES GÉNÉRALES
    affichés (BFG_NPF_*, npf-docs-api.php, clés bfgNpf*) ne sont pas concernés et
    ne sont pas renommés (cf. B2).
 
+11. « SDVFR » : VISIBLE EN TEST, JAMAIS EN PÉRENNE — RÈGLE PERMANENTE (v5.23).
+   Versions TEST : les mentions visibles de SDVFR sont autorisées.
+   Versions PÉRENNES : aucune mention visible de SDVFR, jamais.
+   Le panneau « Diagnostic BFG » n'est pas concerné, dans aucune version.
+   Les textes de la TEST ne sont PAS modifiés pour cette règle : les
+   remplacements se font uniquement à la promotion, selon la liste B5, qui doit
+   être complétée à chaque nouveau texte visible mentionnant SDVFR.
+
 -------------------------------------------------------------------------------
 B. POINTS SENSIBLES DU CODE — NE PAS TOUCHER SANS DEMANDE EXPLICITE
 -------------------------------------------------------------------------------
@@ -267,6 +275,50 @@ B4. DELTAS TEST / PÉRENNE — À RELIRE AVANT TOUTE PROMOTION
     intégrale d'index.html. Reprendre cette liste écart par écart, la mettre à
     jour si elle a bougé, et faire valider avant livraison.
 
+B5. LISTE DE CONTRÔLE DE PROMOTION — MENTIONS VISIBLES DE « SDVFR » (v5.23)
+    À appliquer UNIQUEMENT lors d'une promotion vers la pérenne (règle A.11).
+    Ne rien modifier dans la TEST. Le panneau « Diagnostic BFG » n'est pas
+    concerné. Relevé fait sur index.html v5.23 (repères de ligne indicatifs).
+
+    Texte TEST                                   -> Texte pérenne
+    ---------------------------------------------------------------------------
+    Popup RTBA « Source : SDVFR — récupéré à     -> ligne « Source » supprimée
+      HH:MM » (bfgRtbaPopupHtml_)                   (garder l'heure si utile :
+                                                    « Récupéré à HH:MM »)
+    « Aucun RTBA retourné par SDVFR              -> « Aucune activation RTBA reçue
+      actuellement. » (bfgRenderRtbaLayer_)         pour les 2 prochaines heures. »
+    « ⚠️ RTBA : N zone(s) reçue(s), affichage    -> « … Consulter la page AZBA
+      non disponible dans cette version de          du SIA. » (et retirer « dans
+      test. Consulter SDVFR. »                      cette version de test »)
+    Météo « Non disponible via SDVFR. » —        -> « Non disponible. »
+      4 occurrences : METAR et TAF, dans
+      fetchAndDisplayWeather (~L.9980) et dans
+      le clic d'actualisation météo d'un
+      terrain de la section NOTAM (~L.14782)
+    Pied de page « Données : Météo-France, SIA,  -> « Données : Météo-France, SIA,
+      Windy.com, SDVFR. Page non commerciale… »     Windy.com. Page non
+                                                    commerciale… »
+    APP_VERSION TEST (affiché dans #app-version) -> sans objet : en pérenne,
+      ex. « … TEST - RTBA SDVFR SUR CARTE           APP_VERSION vaut le numéro
+      FRANCE » (v5.22)                              seul (cf. B4). Vérifier
+                                                    qu'aucun libellé TEST n'est
+                                                    repris.
+    Textes d'erreur RELAYÉS depuis le NAS ou le  -> à surveiller : ils viennent
+      worker et affichés tels quels dans les        du serveur (ex. « Aucun
+      statuts NOTAM / météo (« NOTAM : erreur —     terrain SDVFR n'a pu être
+      … », « Erreur : … » en Météo manuelle,        récupéré. »). Les masquer ou
+      importation impossible : …)                   les généraliser côté BFG à
+                                                    la promotion, sans supposer
+                                                    leur contenu.
+    Tout autre texte visible mentionnant SDVFR   -> reformulé sans le nom.
+
+    Non concernés (jamais affichés hors diagnostic) : identifiants et clés
+    (BFG_NOTAM_SOURCE_SDVFR_, briefingFdfSdvfrDailyNotamsV1,
+    BriefingFdfSdvfrNotamsV1, briefing-fdf-sdvfr-notams-offline-v1, URL
+    *-sdvfr-*.php), messages console, journal de diagnostic, erreurs de la
+    carte SUP AIP (affichées seulement dans le diagnostic ; l'utilisateur voit
+    « Carte SUP AIP indisponible… »), id HTML notam-sdvfr-import-status.
+
 -------------------------------------------------------------------------------
 C. CONTRÔLES AVANT TOUTE LIVRAISON
 -------------------------------------------------------------------------------
@@ -281,6 +333,77 @@ C. CONTRÔLES AVANT TOUTE LIVRAISON
       surligneur, repli hors ligne NAS) ;
     - nouvelle entrée ajoutée EN TÊTE de ce journal, sous cette section 0,
       historique intégralement conservé.
+TEST v5.23 — 2026-09-24
+Base : TEST v5.22
+===============================================================================
+
+Réglages RTBA issus des essais de la v5.22 et nouvelle règle permanente sur
+SDVFR. Aucune modification du NAS ni du worker.
+
+1. NOUVELLE PRÉSENTATION RTBA
+- Actif : magenta VIF (BFG_RTBA_STYLE_ACTIVE_, trait #d1007a, fond #ff1aa3),
+  CLIGNOTANT.
+- À venir (< 2 h) : magenta PASTEL / rose clair (BFG_RTBA_STYLE_UPCOMING_,
+  trait #f08cc4, fond #fbc6e3), FIXE.
+- Terminé : non affiché (inchangé).
+- Clignotement propre au RTBA inversé : il porte désormais sur les zones
+  ACTIVES. setStyle sur les seules couches RTBA ; clignotement SUP AIP non
+  touché ; un popup ouvert n'est pas refermé par le clignotement.
+- Le recalcul local chaque minute fait basculer une zone de « à venir »
+  (pastel fixe) à « actif » (vif clignotant) sans appel réseau.
+- Légende : « RTBA actif (clignotant) » et « RTBA à venir (< 2 h) » aux
+  nouvelles couleurs. Entrées SUP AIP inchangées. Traits pleins.
+
+2. MESSAGE DE STATUT RTBA
+- « RTBA : mis à jour à HH:MM » pour toute réponse VALIDE du NAS, y compris
+  servie par son cache (5 min, ou dernière carte si le worker est occupé).
+  HH:MM = heure réelle de récupération auprès de SDVFR (finishedAt du worker ou
+  savedAt du cache NAS), jamais l'heure de l'appel de BFG.
+- « RTBA : données en cache (HH:MM) » UNIQUEMENT quand BFG n'obtient aucune
+  réponse valide (erreur, hors ligne) et affiche son propre cache
+  bfgRtbaCacheV1 ; HH:MM = heure de récupération de ces données. La mention
+  « Données en cache » du popup suit la même règle.
+- Une réponse valide servie par le cache NAS met aussi à jour bfgRtbaCacheV1
+  (avec son heure réelle). Le diagnostic précise « (cache NAS) ».
+- Autres textes de statut inchangés.
+
+3. RÈGLE PERMANENTE « SDVFR »
+- Ajoutée en section 0.A (règle 11) et dans CLAUDE.md (règle permanente 4) :
+  mentions visibles de SDVFR autorisées en TEST, interdites en pérenne ;
+  panneau « Diagnostic BFG » non concerné.
+- Liste de contrôle de promotion ajoutée en section 0.B5, avec le relevé
+  complet des textes visibles mentionnant SDVFR dans index.html : popup RTBA,
+  « Aucun RTBA retourné par SDVFR actuellement. », « … Consulter SDVFR. »,
+  4 « Non disponible via SDVFR. » (METAR / TAF), pied de page, libellé
+  APP_VERSION TEST de la v5.22, et textes d'erreur relayés depuis le NAS ou le
+  worker.
+- AUCUN texte de la TEST modifié pour cette règle.
+
+4. ESSAIS DE LA v5.22
+- Couche RTBA affichée, popup au bon format : VALIDÉ.
+- Comparaison avec l'activité publiée par le SIA le 24/09/2026 : COHÉRENTE
+  (R45 S3, S4 11:30-15:00 ; R45 B, C, S5, S6.1, S6.2, S7 13:30-15:00 ; créneaux
+  du soir attendus environ 2 h avant leur début, limite de la fenêtre de
+  120 min).
+- À MESURER :
+  - créneaux de nuit qui passent minuit (R45 N2 à N5 jusqu'à 05:10Z le
+    25/09) : l'horaire du popup affiche alors la date devant l'heure quand le
+    jour diffère d'aujourd'hui ;
+  - disparition d'une zone à sa fin sans rechargement ;
+  - case « RTBA » ;
+  - mode hors ligne (« RTBA : données en cache (HH:MM) ») ;
+  - nouvelle présentation (actif vif clignotant, à venir pastel fixe).
+
+VERSIONS
+- APP_VERSION_NUMBER 5.23, BFG_SW_VERSION 5.23, CACHE_NAME
+  'briefing-fdf-test-v5.23-rtba-style-r1', description du manifest. sw.js :
+  version seule. Constantes figées à 5.07 NON modifiées (cf. 0.B1).
+
+STATUTS v5.23
+- Nouvelle présentation RTBA : À MESURER.
+- Statut « mis à jour » / « données en cache » : À MESURER.
+- Règle SDVFR et liste B5 : en place, à appliquer à la promotion.
+
 TEST v5.22 — 2026-09-24
 Base : TEST v5.21
 ===============================================================================

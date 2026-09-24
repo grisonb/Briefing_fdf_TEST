@@ -1,7 +1,7 @@
 {
   "name": "Briefing FDF TEST",
   "short_name": "Briefing TEST",
-  "description": "Briefing FDF TEST v5.22 — activations RTBA SDVFR sur la carte France SUP AIP",
+  "description": "Briefing FDF TEST v5.23 — RTBA actif clignotant, à venir fixe, statut mis à jour",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
