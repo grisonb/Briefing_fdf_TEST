@@ -281,6 +281,122 @@ C. CONTRÔLES AVANT TOUTE LIVRAISON
       surligneur, repli hors ligne NAS) ;
     - nouvelle entrée ajoutée EN TÊTE de ce journal, sous cette section 0,
       historique intégralement conservé.
+TEST v5.22 — 2026-09-24
+Base : TEST v5.21
+===============================================================================
+
+ACTIVATIONS RTBA (AZBA) SUR LA CARTE FRANCE SUP AIP — SOURCE SDVFR
+
+AIDE À LA PRÉPARATION UNIQUEMENT : le RTBA ne remplace ni les NOTAM, ni les SUP
+AIP, ni l'AIP.
+
+1. ARCHITECTURE (worker + NAS, déployés le 2026-09-24, hors dépôt)
+- Chaîne : BFG (iPad) -> NAS -> worker VPS -> SDVFR -> worker -> NAS -> BFG.
+  Le navigateur ne contacte jamais SDVFR ; session, cookies, CSRF et
+  identifiants restent sur le VPS. Pas de SIA (ni API, ni scraping).
+- Worker bfg-sdvfr-worker.py v5.22 (même fichier, pas de second worker) :
+  une SEULE fonction générique pour SUP AIP et RTBA (même login /security/login,
+  même session, CSRF, X-Requested-With, validation, délais). Payload RTBA
+  imposé par le worker : { ceiling, azbaEnabled: true, supAipEnabled: false,
+  zsmEnabled: false, anticipation: 120 } sur /auto-temporary-airspaces.
+  /search-temporary-airspaces NON utilisé (il n'a renvoyé que SUP AIP et ZSM).
+  Validation : HTTP 200, pas de redirection vers le login, pas de HTML, JSON
+  valide, tableau airspaces présent ; tout le reste est une ERREUR.
+  Extraits d'erreur sanitisés (CSRF, cookie, PHPSESSID, mot de passe masqués),
+  aussi pour les SUP AIP. Log [RTBA-SDVFR] sanitisé ; premier RTBA réel
+  conservé en exemple sanitisé sur le VPS (rtba-sample.json).
+  Le worker ne traite une demande RTBA que si le NAS confirme type=rtba.
+- NAS : même mécanisme que les SUP AIP, paramètre type=supaip (défaut,
+  comportement inchangé) ou type=rtba, sur les 3 fichiers
+  get-sdvfr-temporary-airspaces.php, get-sdvfr-temporary-airspaces-request.php,
+  update-sdvfr-temporary-airspaces-result.php. Files, résultats et caches
+  séparés (rtba-request/result/cache.json). Cache NAS RTBA : 300 s (au plus
+  ~12 connexions SDVFR par heure). relayVersion 5.22 (SUP AIP compris).
+  Paramètre plutôt que nouveau fichier : le service worker exclut déjà
+  get-sdvfr-temporary-airspaces.php, sw.js n'a donc pas à être modifié.
+- Déploiement : NAS d'abord (anciens fichiers sauvegardés en .v521, carte SUP
+  AIP vérifiée), puis worker (sauvegarde bfg-sdvfr-worker.py.v521-20260924-
+  151250, contrôle de compilation sur le VPS, remplacement, redémarrage du
+  service seul). Journal : « Worker BFG SDVFR v5.22 démarré (NOTAM + METAR/TAF
+  + SUP AIP + RTBA) », aucune erreur de file RTBA.
+- Livraisons conservées hors dépôt : ~/vps-a-copier/bfg-sdvfr-worker_rtba.py,
+  ~/nas-a-copier/a-installer-rtba/ (3 fichiers PHP).
+
+2. TEST DE BOUT EN BOUT — VALIDÉ (2026-09-24 13:26 UTC)
+- Appel NAS type=rtba : HTTP 200 en 5,9 s, ok, source vps-worker, relais et
+  worker 5.22, payload envoyé AZBA seul, SDVFR HTTP 200 JSON en 46 ms.
+- 11 zones RTBA réelles reçues (secteur R45 : AUTUNOIS, ARBOIS, MACONNAIS,
+  JURA, DAMBLAIN, FRANCHE-COMTE, LANGRES, YONNE). Aucun secret dans la réponse.
+
+3. STRUCTURE RÉELLE (phase B, montrée avant écriture du parser)
+- Objet : id, code, label, type 'AZBA', clazz null, local_type 'RTBA',
+  description (FR + EN, horaires en clair), coordinates 'SRID=4326;POLYGON(...)',
+  lower_limit / _unit / _reference, upper_limit / _unit / _reference,
+  minimum_limit* et maximum_limit* (toujours nuls), lower_limit_msl,
+  upper_limit_msl, start_validity, end_validity (ISO UTC), min_elevation,
+  max_elevation. Mêmes clés pour les 11 zones.
+- UNE plage horaire par objet. Planchers tous en HEI (0 ou 800 ft).
+- FENÊTRE DE 2 H CONFIRMÉE : aucune zone ne commençait au-delà de l'heure de
+  la demande + 120 min. « À venir » = dans moins de 2 h.
+- Format NAS -> BFG : réponse SDVFR transmise telle quelle (comme les SUP AIP),
+  normalisée dans BFG sur les seuls champs réels. Aucun champ inventé.
+
+4. BFG — COUCHE RTBA (phases A + B)
+- Couche Leaflet séparée bfgRtbaFranceLayer_, dans un pane dédié au-dessus des
+  SUP AIP. Jamais dans bfgSupAipFranceLayer_. Cache, tableaux, diagnostic et
+  clignotement séparés. Actualisation : clearLayers() de la seule couche RTBA,
+  jamais de fitBounds, de zoom ni de déplacement.
+- Géométrie : bfgParseWktGeometry_ existant ; géométrie invalide ignorée.
+- Statuts : actif (début <= maintenant < fin), à venir (début > maintenant,
+  clignote), terminé (fin <= maintenant, jamais affiché). Recalcul local
+  chaque minute sans réseau ; pas de redessin si rien n'a changé (un popup
+  ouvert n'est pas refermé).
+- Popup : « RTBA », code, statut Actif / À venir, plancher et plafond au format
+  SUP AIP, horaire « 13:30Z → 15:00Z (15:30 → 17:00 locale) », « Source : SDVFR »
+  et heure de récupération, « Données en cache » si besoin. Ni description ni
+  détail technique.
+- Filtre FL max : même règle que les SUP AIP (plancher strictement inférieur) ;
+  plancher HEI / ASFC / AGL ou illisible => zone AFFICHÉE ; lower_limit_msl
+  non utilisé. Conséquence constatée : tous les RTBA reçus ont un plancher HEI,
+  le filtre FL max ne masque donc aucun RTBA.
+- Dates Du / Au NON appliquées au RTBA (pas de recherche sur période SDVFR).
+- Case « RTBA » cochée par défaut : masque / affiche la couche, sans réseau ni
+  effacement du cache.
+- Légende : « RTBA actif » et « RTBA à venir (< 2 h) » ajoutés ; entrées SUP AIP
+  inchangées. Couleurs provisoires (BFG_RTBA_STYLE_ACTIVE_ / _UPCOMING_).
+- Statuts texte, uniquement : « RTBA : chargement… », « RTBA : mis à jour à
+  HH:MM », « Aucun RTBA retourné par SDVFR actuellement. », « RTBA : données
+  indisponibles », « RTBA : données en cache (HH:MM) », et « ⚠️ RTBA : N zone(s)
+  reçue(s), affichage non disponible dans cette version de test. Consulter
+  SDVFR. » si des zones non terminées ne peuvent pas être dessinées.
+  Une erreur n'est jamais présentée comme une absence de RTBA. Réponse NAS
+  « stale » (worker occupé ou lent) = données en cache.
+- Actualisation : ouverture, retour au premier plan, toutes les 5 min (carte
+  présente, premier plan, en ligne), bouton « Actualiser SUP AIP ».
+  Anti-rafale 60 s. Plafond de demande fixe FL195 (cache NAS stable).
+  Indépendante des SUP AIP : un échec de l'un n'affecte pas l'autre.
+- Cache bfgRtbaCacheV1 (dernier résultat VALIDE, y compris vide, avec
+  fetchedAt), affiché d'emblée à l'ouverture et hors ligne. « Effacer » :
+  préfixe 'bfgRtba' ajouté au balayage.
+- Diagnostic BFG : section « RTBA » (dernier essai, résultat, source, versions,
+  heure des données, zones reçues / affichées / non affichées, cache) ; logs
+  [RTBA-SDVFR]. Aucun secret, aucune URL SDVFR.
+- Aucun autre module modifié. SUP AIP : code, écouteurs, couleurs, légende,
+  popups, filtres, clignotement et cadrage inchangés.
+
+VERSIONS
+- APP_VERSION_NUMBER 5.22, BFG_SW_VERSION 5.22, CACHE_NAME
+  'briefing-fdf-test-v5.22-rtba-r1', description du manifest. sw.js : version
+  seule. Constantes figées à 5.07 NON modifiées (cf. 0.B1).
+
+STATUTS v5.22
+- Worker + NAS RTBA et test de bout en bout : VALIDÉ.
+- Couche RTBA BFG (affichage, popups, clignotement, statuts, cache, 5 min) :
+  À MESURER sur iPad.
+- Couleurs RTBA : À DÉCIDER après essai sur iPad.
+- Nettoyage VPS (bfg-sdvfr-worker.py.new, /tmp/rtba-check.py) : à faire par
+  l'utilisateur.
+
 TEST v5.21 — 2026-09-24
 Base : TEST v5.20
 ===============================================================================

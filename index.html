@@ -1328,6 +1328,21 @@
             min-height: 1.3em;
         }
         #sup-aip-map-status.warning { color: #9a3412; }
+        /* v5.22 — RTBA : statut, case et légende propres, sans toucher aux styles SUP AIP. */
+        #rtba-map-status {
+            margin: 4px 0 0 0;
+            text-align: center;
+            font-weight: 700;
+            color: #475569;
+            min-height: 1.3em;
+        }
+        #rtba-map-status.warning { color: #9a3412; }
+        #sup-aip-map-filters input#rtba-layer-toggle {
+            width: 20px;
+            min-width: 0;
+            height: 20px;
+            margin: 0;
+        }
         /* v5.06 — légende des catégories SUP AIP. Traits volontairement pleins. */
         #sup-aip-map-legend {
             display: flex;
@@ -2891,13 +2906,17 @@
                 <span class="bfg-supaip-legend-item" style="color:#2563eb;"><span class="bfg-supaip-legend-swatch"></span>CTR/TMA</span>
                 <span class="bfg-supaip-legend-item" style="color:#7e22ce;"><span class="bfg-supaip-legend-swatch"></span>Autre</span>
                 <span class="bfg-supaip-legend-note">Pulsation légère = début de validité à venir</span>
+                <span class="bfg-supaip-legend-item" style="color:#be185d;"><span class="bfg-supaip-legend-swatch"></span>RTBA actif</span>
+                <span class="bfg-supaip-legend-item" style="color:#0f766e;"><span class="bfg-supaip-legend-swatch"></span>RTBA à venir (&lt; 2 h)</span>
             </div>
             <div id="sup-aip-france-map" aria-label="Carte de France des SUP AIP"></div>
             <p id="sup-aip-map-status">Carte SUP AIP non chargée.</p>
+            <p id="rtba-map-status" role="status" aria-live="polite"></p>
             <div id="sup-aip-map-filters">
                 <label>Du <input type="date" id="sup-aip-map-date-from"></label>
                 <label>au <input type="date" id="sup-aip-map-date-to"></label>
                 <label>FL max <input type="number" id="sup-aip-map-max-fl" min="0" max="660" step="5" value="115" inputmode="numeric"></label>
+                <label>RTBA <input type="checkbox" id="rtba-layer-toggle" checked></label>
                 <button id="sup-aip-map-refresh-btn" class="link-button" type="button">Actualiser SUP AIP</button>
             </div>
         </div>
@@ -2943,8 +2962,8 @@
     <footer>Données : Météo-France, SIA, Windy.com, SDVFR. Page non commerciale, à usage personnel.</footer>
     
     <script>
-        const APP_VERSION_NUMBER = "5.21";
-        const APP_VERSION = `${APP_VERSION_NUMBER} TEST - HORS LIGNE APRES EFFACER + NOTAM 1X/JOUR`;
+        const APP_VERSION_NUMBER = "5.22";
+        const APP_VERSION = `${APP_VERSION_NUMBER} TEST - RTBA SDVFR SUR CARTE FRANCE`;
 
 
         // v4.97 — diagnostic conservé ; plage NOTAM quotidienne et sélection prioritaire. Aucun code d'accès, token ou contenu NOTAM n'est exporté.
@@ -3206,6 +3225,26 @@
                     push('Cache local carte SUP AIP :', `ERREUR ${cacheError && cacheError.message || cacheError}`);
                 }
             } catch (e) { push('Diagnostic SUP AIP :', `ERREUR ${e && e.message || e}`); }
+            lines.push('');
+            // v5.22 — RTBA : section séparée, aucun secret (ni URL SDVFR, ni session).
+            lines.push('=== RTBA (SDVFR via NAS + worker VPS) ===');
+            try {
+                const r = bfgRtbaDiag_;
+                push('Dernier essai :', r.lastAttemptAt || 'AUCUN');
+                push('Résultat :', r.lastResult || 'inconnu');
+                if (Number.isFinite(Number(r.httpStatus))) push('BFG -> NAS :', `HTTP ${r.httpStatus}`);
+                if (r.relaySource) push('Source relais :', r.relaySource);
+                if (r.relayVersion) push('Version relais :', r.relayVersion);
+                if (r.workerVersion) push('Version worker VPS :', r.workerVersion);
+                push('Données récupérées à :', r.fetchedAt || 'aucune');
+                push('Zones reçues :', r.zonesReceived === null ? 'inconnu' : String(r.zonesReceived));
+                push('Zones affichées :', `${r.zonesActive} active(s), ${r.zonesUpcoming} à venir`);
+                push('Zones non affichées :', `${r.zonesEnded} terminée(s), ${r.zonesFilteredFl} filtrée(s) FL max, ${r.zonesInvalidGeometry} géométrie invalide`);
+                push('Affichées depuis le cache :', bfgRtbaFromCache_ ? 'OUI' : 'NON');
+                const rtbaCache = bfgRtbaReadCache_();
+                push('Cache local RTBA :', rtbaCache ? `OK | ${rtbaCache.airspaces.length} zone(s) | ${rtbaCache.fetchedAt.toISOString()}` : 'ABSENT');
+                if (r.error) push('Erreur RTBA :', r.error);
+            } catch (e) { push('Diagnostic RTBA :', `ERREUR ${e && e.message || e}`); }
             lines.push('');
             lines.push('=== METEO ===');
             try {
@@ -13216,7 +13255,8 @@ let activeShareApiBase = SHARE_API_BASE;
      * En revanche la SESSION NPF-Q400 Docs (bfgNpfNotamsNasToken*) est effacée :
      * elle est réobtenue à chaque connexion Briefing par
      * authorizeNpfNotamsNasFromBfgPassword_. */
-    const BFG_LOCAL_STORAGE_PREFIXES_ = ['briefingFdf', 'bfgNpf', 'bfgVac', 'bfgPdfAnnotations:'];
+    // v5.22 — 'bfgRtba' : cache RTBA (bfgRtbaCacheV1).
+    const BFG_LOCAL_STORAGE_PREFIXES_ = ['briefingFdf', 'bfgNpf', 'bfgVac', 'bfgPdfAnnotations:', 'bfgRtba'];
 
     // v5.20 — la trace de démarrage v5.16 est retirée. Sa clé n'entre dans aucun
     // préfixe ci-dessus : elle est supprimée une fois pour toutes au chargement.
@@ -15894,7 +15934,426 @@ window.__notamTextFull = notamInput.value;
             refreshBtn?.addEventListener('click', () => bfgLoadAndRenderSupAipMap_(true));
             setTimeout(() => bfgSupAipFranceMap_?.invalidateSize(false), 100);
             bfgLoadAndRenderSupAipMap_(false);
+            // v5.22 — RTBA : module indépendant. Les SUP AIP s'affichent sans l'attendre.
+            initializeBfgRtba_();
         }
+
+        /* ===================== v5.22 — RTBA (AZBA) SUR LA CARTE FRANCE =====================
+         * Source UNIQUE : SDVFR, via BFG -> NAS (get-sdvfr-temporary-airspaces.php?type=rtba)
+         * -> worker VPS -> SDVFR /auto-temporary-airspaces (azbaEnabled seul). Le navigateur ne
+         * contacte jamais SDVFR ; session et identifiants restent sur le VPS.
+         *
+         * FENÊTRE LIÉE AU MOMENT PRÉSENT : l'endpoint SDVFR renvoie les activations en cours
+         * et celles qui débutent dans les 120 min (anticipation 120). « À venir » signifie donc
+         * « dans moins de 2 h » : une activation plus tardive dans la journée n'apparaît
+         * qu'environ 2 h avant son début. Les dates Du / Au de la carte ne s'appliquent PAS au
+         * RTBA, SDVFR ne permettant pas de recherche sur période : la couche montre la
+         * fenêtre réelle de SDVFR.
+         *
+         * Structure réelle observée le 24/09/2026 (11 zones) : objets { id, code, label,
+         * type: 'AZBA', local_type: 'RTBA', coordinates: 'SRID=4326;POLYGON(...)',
+         * lower_limit / _unit / _reference, upper_limit / _unit / _reference,
+         * lower_limit_msl, upper_limit_msl, start_validity, end_validity (ISO UTC) }.
+         * Une seule plage horaire par objet. Aucun autre champ n'est interprété.
+         *
+         * Aide à la préparation uniquement : ne remplace ni les NOTAM, ni les SUP AIP, ni l'AIP.
+         */
+        const BFG_RTBA_CACHE_KEY_ = 'bfgRtbaCacheV1';
+        const BFG_RTBA_CEILING_ = 195;              // fixe : cache NAS stable ; filtre FL max local
+        const BFG_RTBA_REFRESH_MS_ = 5 * 60 * 1000;
+        const BFG_RTBA_MIN_INTERVAL_MS_ = 60 * 1000; // anti-rafale
+        const BFG_RTBA_STATUS_TICK_MS_ = 60 * 1000;  // recalcul local des statuts, sans réseau
+        const BFG_RTBA_FETCH_TIMEOUT_MS_ = 25000;
+        // Couleurs provisoires, à ajuster après essai sur iPad. Traits pleins.
+        const BFG_RTBA_STYLE_ACTIVE_ = { color: '#be185d', fillColor: '#ec4899', weight: 2, opacity: 0.95, fillOpacity: 0.22 };
+        const BFG_RTBA_STYLE_UPCOMING_ = { color: '#0f766e', fillColor: '#14b8a6', weight: 2, opacity: 0.95, fillOpacity: 0.18 };
+
+        let bfgRtbaFranceLayer_ = null;
+        let bfgRtbaRenderer_ = null;
+        let bfgRtbaAirspaces_ = null;       // tableau brut SDVFR du dernier résultat affiché
+        let bfgRtbaFetchedAt_ = null;       // Date de récupération SDVFR de ces données
+        let bfgRtbaFromCache_ = false;
+        let bfgRtbaInFlight_ = false;
+        let bfgRtbaLastRequestAt_ = 0;
+        let bfgRtbaRenderSignature_ = '';
+        let bfgRtbaPulseTimer_ = null;
+        let bfgRtbaPulseLayers_ = [];
+        let bfgRtbaPulseState_ = true;
+        const bfgRtbaDiag_ = {
+            lastAttemptAt: '',
+            lastResult: '',
+            httpStatus: null,
+            relaySource: '',
+            relayVersion: '',
+            workerVersion: '',
+            zonesReceived: null,
+            zonesActive: 0,
+            zonesUpcoming: 0,
+            zonesEnded: 0,
+            zonesFilteredFl: 0,
+            zonesInvalidGeometry: 0,
+            fetchedAt: '',
+            error: ''
+        };
+
+        function bfgRtbaLog_(message, data) {
+            bfgDiagLog_('RTBA-SDVFR', message, data || {});
+        }
+
+        function bfgRtbaHhMm_(date) {
+            if (!(date instanceof Date) || Number.isNaN(date.getTime())) return '--:--';
+            return date.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+        }
+
+        function bfgRtbaSetStatus_(text, warning = false) {
+            const el = document.getElementById('rtba-map-status');
+            if (!el) return;
+            el.textContent = text;
+            el.classList.toggle('warning', !!warning);
+        }
+
+        function bfgRtbaReadCache_() {
+            try {
+                const parsed = JSON.parse(localStorage.getItem(BFG_RTBA_CACHE_KEY_) || 'null');
+                if (!parsed || !Array.isArray(parsed.airspaces)) return null;
+                const fetchedAt = new Date(parsed.fetchedAt || '');
+                if (Number.isNaN(fetchedAt.getTime())) return null;
+                return { airspaces: parsed.airspaces, fetchedAt };
+            } catch (_) {
+                return null;
+            }
+        }
+
+        // Seul un résultat VALIDE (y compris vide) est mis en cache.
+        function bfgRtbaWriteCache_(airspaces, fetchedAt) {
+            try {
+                localStorage.setItem(BFG_RTBA_CACHE_KEY_, JSON.stringify({
+                    version: 1,
+                    fetchedAt: fetchedAt.toISOString(),
+                    storedAt: new Date().toISOString(),
+                    airspaces
+                }));
+            } catch (error) {
+                console.warn('BFG RTBA : cache local impossible.', error);
+            }
+        }
+
+        // Normalisation stricte sur les champs RÉELS de SDVFR. null si l'objet est inexploitable.
+        function bfgNormalizeRtbaZone_(item) {
+            if (!item || typeof item !== 'object') return null;
+            const start = bfgParseFlexibleDate_(item.start_validity);
+            const end = bfgParseFlexibleDate_(item.end_validity);
+            const lowerUnit = item.lower_limit_unit || '';
+            const upperUnit = item.upper_limit_unit || '';
+            return {
+                id: String(item.id || ''),
+                code: String(item.code || item.label || '').trim() || 'RTBA',
+                localType: String(item.local_type || ''),
+                geometry: typeof item.coordinates === 'string' ? bfgParseWktGeometry_(item.coordinates) : null,
+                start,
+                end,
+                lowerRaw: item.lower_limit,
+                lowerUnit,
+                lowerReference: String(item.lower_limit_reference || '').trim(),
+                lowerFl: bfgAltitudeToFl_(item.lower_limit, lowerUnit),
+                lowerMsl: item.lower_limit_msl,
+                upperRaw: item.upper_limit,
+                upperUnit,
+                upperReference: String(item.upper_limit_reference || '').trim(),
+                upperFl: bfgAltitudeToFl_(item.upper_limit, upperUnit),
+                upperMsl: item.upper_limit_msl
+            };
+        }
+
+        // 'active' : début ≤ maintenant < fin ; 'upcoming' : début > maintenant ; 'ended' : fin ≤ maintenant.
+        // Horaire illisible : zone considérée active (prudence : affichée, sans clignoter).
+        function bfgRtbaZoneStatus_(zone, nowMs = Date.now()) {
+            const startMs = zone.start instanceof Date ? zone.start.getTime() : NaN;
+            const endMs = zone.end instanceof Date ? zone.end.getTime() : NaN;
+            if (Number.isFinite(endMs) && endMs <= nowMs) return 'ended';
+            if (Number.isFinite(startMs) && startMs > nowMs) return 'upcoming';
+            return 'active';
+        }
+
+        /* Filtre FL max : même règle que les SUP AIP (plancher STRICTEMENT inférieur au FL
+         * max), même prudence : plancher HEI / ASFC / AGL ou illisible => zone AFFICHÉE.
+         * lower_limit_msl n'est volontairement pas utilisé (il dépend du relief). */
+        function bfgRtbaZonePassesFlFilter_(zone) {
+            const maxFlInput = document.getElementById('sup-aip-map-max-fl');
+            const maxFl = maxFlInput && maxFlInput.value !== '' ? Number(maxFlInput.value) : null;
+            if (!Number.isFinite(maxFl)) return true;
+            const ref = String(zone.lowerReference || '').toUpperCase();
+            if (ref === 'HEI' || ref === 'ASFC' || ref === 'AGL') return true;
+            if (!Number.isFinite(zone.lowerFl)) return true;
+            return zone.lowerFl < maxFl;
+        }
+
+        function bfgRtbaFormatSchedule_(zone) {
+            const utc = (d) => (d instanceof Date && !Number.isNaN(d.getTime()))
+                ? `${String(d.getUTCHours()).padStart(2, '0')}:${String(d.getUTCMinutes()).padStart(2, '0')}Z`
+                : '?';
+            const local = (d) => (d instanceof Date && !Number.isNaN(d.getTime())) ? bfgRtbaHhMm_(d) : '?';
+            const today = new Date().toDateString();
+            const dayPrefix = (d) => (d instanceof Date && !Number.isNaN(d.getTime()) && d.toDateString() !== today)
+                ? `${d.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' })} `
+                : '';
+            return `${dayPrefix(zone.start)}${utc(zone.start)} → ${dayPrefix(zone.end)}${utc(zone.end)}`
+                + ` (${local(zone.start)} → ${local(zone.end)} locale)`;
+        }
+
+        function bfgRtbaPopupHtml_(zone, status) {
+            const row = (label, value) => `<div class="bfg-supaip-popup-row"><strong>${label} :</strong> ${escapeHtml_(value)}</div>`;
+            return `<div class="bfg-supaip-popup-title">RTBA</div>`
+                + `<div class="bfg-supaip-popup-row"><strong>${escapeHtml_(zone.code)}</strong></div>`
+                + row('Statut', status === 'upcoming' ? 'À venir' : 'Actif')
+                + row('Plancher', bfgFormatSupAipAltitude_(zone.lowerRaw, zone.lowerFl, zone.lowerUnit, zone.lowerReference, zone.lowerMsl))
+                + row('Plafond', bfgFormatSupAipAltitude_(zone.upperRaw, zone.upperFl, zone.upperUnit, zone.upperReference, zone.upperMsl))
+                + row('Horaire', bfgRtbaFormatSchedule_(zone))
+                + `<div class="bfg-supaip-popup-row">Source : SDVFR — récupéré à ${escapeHtml_(bfgRtbaHhMm_(bfgRtbaFetchedAt_))}</div>`
+                + (bfgRtbaFromCache_ ? `<div class="bfg-supaip-popup-row"><strong>Données en cache</strong></div>` : '');
+        }
+
+        function bfgStopRtbaPulse_() {
+            if (bfgRtbaPulseTimer_) clearInterval(bfgRtbaPulseTimer_);
+            bfgRtbaPulseTimer_ = null;
+            bfgRtbaPulseLayers_ = [];
+            bfgRtbaPulseState_ = true;
+        }
+
+        // Clignotement propre au RTBA : zones « à venir » seulement ; les zones actives ne clignotent pas.
+        function bfgStartRtbaPulse_() {
+            if (!bfgRtbaPulseLayers_.length) return;
+            bfgRtbaPulseState_ = true;
+            bfgRtbaPulseTimer_ = setInterval(() => {
+                bfgRtbaPulseState_ = !bfgRtbaPulseState_;
+                bfgRtbaPulseLayers_.forEach(({ layer, style }) => {
+                    try {
+                        layer.setStyle({
+                            opacity: bfgRtbaPulseState_ ? style.opacity : 0.3,
+                            fillOpacity: bfgRtbaPulseState_ ? style.fillOpacity : 0.04
+                        });
+                    } catch (_) {}
+                });
+            }, 850);
+        }
+
+        /* Rendu de la SEULE couche RTBA : clearLayers(), jamais de fitBounds ni de changement
+         * de zoom ou de position. Statuts recalculés localement à chaque appel.
+         * Renvoie le statut texte à afficher (texte autorisé uniquement). */
+        function bfgRenderRtbaLayer_(options = {}) {
+            if (!bfgRtbaFranceLayer_ || !Array.isArray(bfgRtbaAirspaces_)) return;
+            const nowMs = Date.now();
+            const zones = bfgRtbaAirspaces_.map(bfgNormalizeRtbaZone_).filter(Boolean);
+            const counts = { active: 0, upcoming: 0, ended: 0, filteredFl: 0, invalid: 0 };
+            const drawable = [];
+            zones.forEach(zone => {
+                const status = bfgRtbaZoneStatus_(zone, nowMs);
+                if (status === 'ended') { counts.ended += 1; return; }   // terminée : jamais affichée
+                if (!zone.geometry) { counts.invalid += 1; return; }
+                if (!bfgRtbaZonePassesFlFilter_(zone)) { counts.filteredFl += 1; return; }
+                drawable.push({ zone, status });
+            });
+
+            // Pas de redessin inutile (il fermerait un popup ouvert) si rien n'a changé.
+            const signature = `${bfgRtbaFromCache_}|${bfgRtbaFetchedAt_ && bfgRtbaFetchedAt_.getTime()}|`
+                + drawable.map(({ zone, status }) => `${zone.id}:${zone.code}:${status}`).join(',');
+            if (!options.force && signature === bfgRtbaRenderSignature_) return;
+            bfgRtbaRenderSignature_ = signature;
+
+            bfgStopRtbaPulse_();
+            bfgRtbaFranceLayer_.clearLayers();
+            let drawn = 0;
+            drawable.forEach(({ zone, status }) => {
+                try {
+                    const style = status === 'upcoming' ? BFG_RTBA_STYLE_UPCOMING_ : BFG_RTBA_STYLE_ACTIVE_;
+                    const layer = L.geoJSON({ type: 'Feature', geometry: zone.geometry, properties: {} }, {
+                        pane: 'bfgRtbaPane',
+                        renderer: bfgRtbaRenderer_,
+                        style: () => ({ ...style })
+                    });
+                    if (!layer.getBounds().isValid()) { counts.invalid += 1; return; }
+                    layer.bindPopup(bfgRtbaPopupHtml_(zone, status), { maxWidth: 360 });
+                    layer.addTo(bfgRtbaFranceLayer_);
+                    if (status === 'upcoming') bfgRtbaPulseLayers_.push({ layer, style });
+                    if (status === 'upcoming') counts.upcoming += 1; else counts.active += 1;
+                    drawn += 1;
+                } catch (error) {
+                    counts.invalid += 1;
+                    console.warn('BFG RTBA : géométrie ignorée.', error, zone.code);
+                }
+            });
+            bfgStartRtbaPulse_();
+
+            Object.assign(bfgRtbaDiag_, {
+                zonesReceived: bfgRtbaAirspaces_.length,
+                zonesActive: counts.active,
+                zonesUpcoming: counts.upcoming,
+                zonesEnded: counts.ended,
+                zonesFilteredFl: counts.filteredFl,
+                zonesInvalidGeometry: counts.invalid
+            });
+
+            // Statut : une erreur n'est jamais présentée comme une absence de RTBA.
+            if (bfgRtbaFromCache_) {
+                bfgRtbaSetStatus_(`RTBA : données en cache (${bfgRtbaHhMm_(bfgRtbaFetchedAt_)})`, true);
+            } else if (counts.invalid > 0) {
+                bfgRtbaSetStatus_(`⚠️ RTBA : ${counts.invalid} zone(s) reçue(s), affichage non disponible dans cette version de test. Consulter SDVFR.`, true);
+            } else if (bfgRtbaAirspaces_.length === 0) {
+                bfgRtbaSetStatus_('Aucun RTBA retourné par SDVFR actuellement.');
+            } else {
+                bfgRtbaSetStatus_(`RTBA : mis à jour à ${bfgRtbaHhMm_(bfgRtbaFetchedAt_)}`);
+            }
+            bfgRtbaLog_('Couche RTBA redessinée', {
+                reçues: bfgRtbaAirspaces_.length, actives: counts.active, aVenir: counts.upcoming,
+                terminées: counts.ended, filtréesFl: counts.filteredFl, géométrieInvalide: counts.invalid,
+                cache: bfgRtbaFromCache_
+            });
+        }
+
+        function bfgRtbaShowCacheOrUnavailable_(reason) {
+            const cached = bfgRtbaReadCache_();
+            if (cached) {
+                bfgRtbaAirspaces_ = cached.airspaces;
+                bfgRtbaFetchedAt_ = cached.fetchedAt;
+                bfgRtbaFromCache_ = true;
+                bfgRtbaDiag_.fetchedAt = cached.fetchedAt.toISOString();
+                bfgRenderRtbaLayer_({ force: true });
+                bfgRtbaLog_('Données en cache affichées', { raison: reason, récupéréesÀ: cached.fetchedAt.toISOString() });
+                return;
+            }
+            // Pas de cache : aucune zone dessinée, et surtout pas « aucun RTBA ».
+            bfgRtbaAirspaces_ = null;
+            bfgRtbaRenderSignature_ = '';
+            bfgStopRtbaPulse_();
+            if (bfgRtbaFranceLayer_) bfgRtbaFranceLayer_.clearLayers();
+            bfgRtbaSetStatus_('RTBA : données indisponibles', true);
+            bfgRtbaLog_('Données indisponibles, aucun cache', { raison: reason });
+        }
+
+        async function bfgRefreshRtba_(reason = '') {
+            if (!bfgRtbaFranceLayer_) return;
+            if (bfgRtbaInFlight_) return;
+            const now = Date.now();
+            if (now - bfgRtbaLastRequestAt_ < BFG_RTBA_MIN_INTERVAL_MS_) {
+                bfgRtbaLog_('Demande ignorée (anti-rafale 60 s)', { raison: reason });
+                return;
+            }
+            if (!navigator.onLine) {
+                if (!Array.isArray(bfgRtbaAirspaces_) || !bfgRtbaFromCache_) bfgRtbaShowCacheOrUnavailable_('hors ligne');
+                return;
+            }
+
+            bfgRtbaInFlight_ = true;
+            bfgRtbaLastRequestAt_ = now;
+            bfgRtbaDiag_.lastAttemptAt = new Date(now).toISOString();
+            bfgRtbaDiag_.error = '';
+            bfgRtbaDiag_.httpStatus = null;
+            if (!Array.isArray(bfgRtbaAirspaces_)) bfgRtbaSetStatus_('RTBA : chargement…');
+            bfgRtbaLog_('Demande RTBA envoyée au NAS', { raison: reason });
+
+            const controller = new AbortController();
+            const timer = setTimeout(() => controller.abort(), BFG_RTBA_FETCH_TIMEOUT_MS_);
+            try {
+                const url = `${SDVFR_TEMPORARY_AIRSPACES_API_URL}?type=rtba&ceiling=${BFG_RTBA_CEILING_}&t=${Date.now()}`;
+                const response = await fetch(url, {
+                    method: 'GET',
+                    cache: 'no-store',
+                    credentials: 'omit',
+                    headers: { 'Accept': 'application/json' },
+                    signal: controller.signal
+                });
+                bfgRtbaDiag_.httpStatus = response.status;
+                if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                let data;
+                try { data = await response.json(); }
+                catch (_) { throw new Error('réponse non JSON'); }
+
+                // Réponse valide uniquement si tout est reconnu ; sinon ERREUR.
+                const airspaces = data && data.payload && data.payload.airspaces;
+                if (!data || data.ok !== true || data.type !== 'rtba' || !Array.isArray(airspaces)) {
+                    throw new Error(data && data.error ? String(data.error) : 'structure de réponse non reconnue');
+                }
+                bfgRtbaDiag_.relaySource = String(data.source || '');
+                bfgRtbaDiag_.relayVersion = String(data.relayVersion || '');
+                bfgRtbaDiag_.workerVersion = String((data.relayDiagnostic && data.relayDiagnostic.workerVersion) || '');
+
+                const fetchedAt = bfgParseFlexibleDate_(data.finishedAt || data.savedAt) || new Date();
+                // Le NAS peut répondre avec sa dernière carte valide si le worker est occupé
+                // ou trop lent (stale) : c'est du cache, jamais présenté comme frais.
+                const stale = data.stale === true;
+                if (!stale) bfgRtbaWriteCache_(airspaces, fetchedAt);
+                bfgRtbaAirspaces_ = airspaces;
+                bfgRtbaFetchedAt_ = fetchedAt;
+                bfgRtbaFromCache_ = stale;
+                bfgRtbaDiag_.fetchedAt = fetchedAt.toISOString();
+                bfgRtbaDiag_.lastResult = stale ? 'cache NAS (worker indisponible)' : (airspaces.length ? 'OK' : 'OK, réponse vide');
+                bfgRtbaLog_('Réponse RTBA valide', {
+                    source: bfgRtbaDiag_.relaySource, zones: airspaces.length, stale, récupéréesÀ: fetchedAt.toISOString()
+                });
+                bfgRenderRtbaLayer_({ force: true });
+            } catch (error) {
+                const message = error && error.name === 'AbortError' ? 'délai dépassé' : (error && error.message || String(error));
+                bfgRtbaDiag_.lastResult = 'ERREUR';
+                bfgRtbaDiag_.error = message;
+                bfgRtbaLog_('Échec RTBA', { message });
+                bfgRtbaShowCacheOrUnavailable_(message);
+            } finally {
+                clearTimeout(timer);
+                bfgRtbaInFlight_ = false;
+            }
+        }
+
+        function bfgRtbaMapIsDisplayed_() {
+            const el = document.getElementById('sup-aip-france-map');
+            return !!(el && el.offsetParent !== null);
+        }
+
+        function initializeBfgRtba_() {
+            if (!bfgSupAipFranceMap_ || !window.L || bfgRtbaFranceLayer_) return;
+            // Pane dédié au-dessus des SUP AIP : popups RTBA atteignables au toucher.
+            const pane = bfgSupAipFranceMap_.createPane('bfgRtbaPane');
+            pane.style.zIndex = 450;
+            bfgRtbaRenderer_ = L.canvas({ pane: 'bfgRtbaPane' });
+            bfgRtbaFranceLayer_ = L.featureGroup();
+
+            const toggle = document.getElementById('rtba-layer-toggle');
+            const applyToggle = () => {
+                // Masque / affiche seulement la couche : pas d'appel réseau, cache intact.
+                if (!toggle || toggle.checked) bfgRtbaFranceLayer_.addTo(bfgSupAipFranceMap_);
+                else bfgSupAipFranceMap_.removeLayer(bfgRtbaFranceLayer_);
+            };
+            toggle?.addEventListener('change', applyToggle);
+            applyToggle();
+
+            // Dernier résultat valide affiché tout de suite (hors ligne compris), puis actualisation.
+            const cached = bfgRtbaReadCache_();
+            if (cached) {
+                bfgRtbaAirspaces_ = cached.airspaces;
+                bfgRtbaFetchedAt_ = cached.fetchedAt;
+                bfgRtbaFromCache_ = true;
+                bfgRtbaDiag_.fetchedAt = cached.fetchedAt.toISOString();
+                bfgRenderRtbaLayer_({ force: true });
+            }
+
+            const maxFlInput = document.getElementById('sup-aip-map-max-fl');
+            maxFlInput?.addEventListener('input', () => bfgRenderRtbaLayer_());
+            maxFlInput?.addEventListener('change', () => bfgRenderRtbaLayer_());
+            document.getElementById('sup-aip-map-refresh-btn')?.addEventListener('click', () => bfgRefreshRtba_('bouton Actualiser SUP AIP'));
+
+            document.addEventListener('visibilitychange', () => {
+                if (!document.hidden) bfgRefreshRtba_('retour au premier plan');
+            });
+            setInterval(() => {
+                if (document.hidden || !navigator.onLine || !bfgRtbaMapIsDisplayed_()) return;
+                bfgRefreshRtba_('actualisation 5 min');
+            }, BFG_RTBA_REFRESH_MS_);
+            // Recalcul local CHAQUE MINUTE : une zone « à venir » cesse de clignoter à son
+            // début et disparaît à sa fin, même entre deux actualisations réseau.
+            setInterval(() => bfgRenderRtbaLayer_(), BFG_RTBA_STATUS_TICK_MS_);
+
+            bfgRefreshRtba_('ouverture');
+        }
+        /* =================== FIN RTBA =================== */
 
         function initializeManualMetarFetch() {
             const fetchBtn = document.getElementById('manual-metar-fetch-btn');
