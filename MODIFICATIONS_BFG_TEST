@@ -286,7 +286,8 @@ B5. LISTE DE CONTRÔLE DE PROMOTION — MENTIONS VISIBLES DE « SDVFR » (v5.23)
       HH:MM » (bfgRtbaPopupHtml_)                   (garder l'heure si utile :
                                                     « Récupéré à HH:MM »)
     « Aucun RTBA retourné par SDVFR              -> « Aucune activation RTBA reçue
-      actuellement. » (bfgRenderRtbaLayer_)         pour les 2 prochaines heures. »
+      actuellement. » (bfgRenderRtbaLayer_)         pour les 4 prochaines heures. »
+                                                    (v5.24 : 4 h, fenêtre 240 min)
     « ⚠️ RTBA : N zone(s) reçue(s), affichage    -> « … Consulter la page AZBA
       non disponible dans cette version de          du SIA. » (et retirer « dans
       test. Consulter SDVFR. »                      cette version de test »)
@@ -333,6 +334,71 @@ C. CONTRÔLES AVANT TOUTE LIVRAISON
       surligneur, repli hors ligne NAS) ;
     - nouvelle entrée ajoutée EN TÊTE de ce journal, sous cette section 0,
       historique intégralement conservé.
+TEST v5.24 — 2026-09-24
+Base : TEST v5.23
+===============================================================================
+
+RTBA : FENÊTRE D'ANTICIPATION PORTÉE DE 120 À 240 MINUTES (4 H)
+
+1. WORKER VPS v5.24 (hors dépôt, déployé le 2026-09-24 à 16:11 locale)
+- Seul changement fonctionnel : la demande RTBA imposée par le worker passe à
+  anticipation 240, valeur MAXIMALE proposée par SDVFR pour les AZBA.
+  Commentaire mis à jour (fenêtre liée au moment présent). WORKER_VERSION
+  porté à 5.24 pour identifier le fichier en service.
+- Demande SUP AIP STRICTEMENT identique (valeurs reprises de la file NAS).
+- NAS non modifié : sa réponse publique montre toujours requestPayload avec
+  anticipation 120 (demande écrite dans sa file) ; c'est le worker qui impose
+  240. Ce qui est réellement envoyé figure dans workerDiagnostic.sentPayload du
+  fichier rtba-result.json du NAS.
+- Livraison : ~/vps-a-copier/bfg-sdvfr-worker_rtba240.py (py_compile OK).
+- Déploiement guidé depuis PowerShell : envoi sous le nom .new, sauvegarde
+  bfg-sdvfr-worker.py.v523-20260924-160957 (worker 5.22), compilation dans
+  /tmp (COMPILE_OK), remplacement, redémarrage du service seul. Journal :
+  « Worker BFG SDVFR v5.24 démarré (NOTAM + METAR/TAF + SUP AIP + RTBA) »,
+  service active.
+- Retour arrière disponible : réinstaller la sauvegarde .v523-20260924-160957
+  puis redémarrer le service.
+
+2. TEST DE BOUT EN BOUT 240 MIN — VALIDÉ
+- Essai 1 (demande SDVFR à 14:12Z, fenêtre jusqu'à 18:12Z) : 8 zones, toutes
+  déjà actives, début le plus tardif 13:30Z. Non concluant à lui seul.
+- Essai 2 (demande SDVFR à 14:16:04Z, fenêtre jusqu'à 18:16Z) : worker 5.24,
+  SDVFR HTTP 200 JSON, 24 zones dont 16 créneaux du soir commençant à 18:14Z,
+  soit 237 min après la demande (> 120 min) :
+  R45 A, B, C jusqu'à 22:59Z ; R45 N2, N3, N4, N5.1, N5.2 jusqu'au 25/09
+  05:10Z ; R45 NS, S2, S3, S4, S5, S6.1, S6.2, S7 jusqu'à 23:59Z.
+- Les deux essais se recoupent : 18:14Z hors de la fenêtre du premier, dans
+  celle du second. 18:14Z est bien l'heure réelle de début, pas une borne.
+- Aucun secret dans les réponses.
+
+3. BFG v5.24
+- Légende : « RTBA à venir (< 4 h) ».
+- Commentaires du module RTBA : fenêtre de 4 h (240 min) au lieu de 2 h.
+- Liste de contrôle 0.B5 : texte pérenne « Aucune activation RTBA reçue pour
+  les 4 prochaines heures. »
+- Rien d'autre ne change.
+
+4. CONSTAT À MESURER (non modifié, présentation inchangée)
+- Un même secteur peut revenir plusieurs fois avec des id différents et la
+  même géométrie (ex. R45 S3 YONNE 11:30-15:00Z active ET 18:14-23:59Z à
+  venir). BFG dessine les deux plages superposées : magenta vif clignotant
+  par-dessus le rose fixe. Au toucher, seul le popup de la couche du dessus
+  s'ouvre. À MESURER sur iPad ; regroupement des plages d'un même secteur
+  dans un seul popup : À DÉCIDER.
+- Créneaux de nuit passant minuit (N2 à N5 jusqu'à 05:10Z le 25/09) désormais
+  visibles dès 14:14Z : affichage de la date dans l'horaire du popup,
+  À MESURER.
+
+VERSIONS
+- APP_VERSION_NUMBER 5.24, BFG_SW_VERSION 5.24, CACHE_NAME
+  'briefing-fdf-test-v5.24-rtba-4h-r1', description du manifest. sw.js :
+  version seule. Constantes figées à 5.07 NON modifiées (cf. 0.B1).
+
+STATUTS v5.24
+- Worker 240 min et test de bout en bout : VALIDÉ.
+- Légende « < 4 h » sur iPad : À MESURER.
+- Nettoyage VPS des fichiers temporaires : à faire par l'utilisateur.
+
 TEST v5.23 — 2026-09-24
 Base : TEST v5.22
 ===============================================================================

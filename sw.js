@@ -1,5 +1,5 @@
-const BFG_SW_VERSION = '5.23';
-const CACHE_NAME = 'briefing-fdf-test-v5.23-rtba-style-r1';
+const BFG_SW_VERSION = '5.24';
+const CACHE_NAME = 'briefing-fdf-test-v5.24-rtba-4h-r1';
 
 const LOCAL_ASSETS = [
   './manifest.json',

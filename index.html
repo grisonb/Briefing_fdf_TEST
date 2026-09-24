@@ -2907,7 +2907,7 @@
                 <span class="bfg-supaip-legend-item" style="color:#7e22ce;"><span class="bfg-supaip-legend-swatch"></span>Autre</span>
                 <span class="bfg-supaip-legend-note">Pulsation légère = début de validité à venir</span>
                 <span class="bfg-supaip-legend-item" style="color:#d1007a;"><span class="bfg-supaip-legend-swatch"></span>RTBA actif (clignotant)</span>
-                <span class="bfg-supaip-legend-item" style="color:#f08cc4;"><span class="bfg-supaip-legend-swatch"></span>RTBA à venir (&lt; 2 h)</span>
+                <span class="bfg-supaip-legend-item" style="color:#f08cc4;"><span class="bfg-supaip-legend-swatch"></span>RTBA à venir (&lt; 4 h)</span>
             </div>
             <div id="sup-aip-france-map" aria-label="Carte de France des SUP AIP"></div>
             <p id="sup-aip-map-status">Carte SUP AIP non chargée.</p>
@@ -2962,8 +2962,8 @@
     <footer>Données : Météo-France, SIA, Windy.com, SDVFR. Page non commerciale, à usage personnel.</footer>
     
     <script>
-        const APP_VERSION_NUMBER = "5.23";
-        const APP_VERSION = `${APP_VERSION_NUMBER} TEST - RTBA ACTIF CLIGNOTANT + STATUT`;
+        const APP_VERSION_NUMBER = "5.24";
+        const APP_VERSION = `${APP_VERSION_NUMBER} TEST - RTBA FENETRE 4 H`;
 
 
         // v4.97 — diagnostic conservé ; plage NOTAM quotidienne et sélection prioritaire. Aucun code d'accès, token ou contenu NOTAM n'est exporté.
@@ -15944,9 +15944,10 @@ window.__notamTextFull = notamInput.value;
          * contacte jamais SDVFR ; session et identifiants restent sur le VPS.
          *
          * FENÊTRE LIÉE AU MOMENT PRÉSENT : l'endpoint SDVFR renvoie les activations en cours
-         * et celles qui débutent dans les 120 min (anticipation 120). « À venir » signifie donc
-         * « dans moins de 2 h » : une activation plus tardive dans la journée n'apparaît
-         * qu'environ 2 h avant son début. Les dates Du / Au de la carte ne s'appliquent PAS au
+         * et celles qui débutent dans les 240 min (anticipation 240, valeur MAXIMALE proposée
+         * par SDVFR pour les AZBA, imposée par le worker depuis sa v5.24 ; 120 min avant).
+         * « À venir » signifie donc « dans moins de 4 h » : une activation plus tardive dans la
+         * journée n'apparaît qu'environ 4 h avant son début. Les dates Du / Au de la carte ne s'appliquent PAS au
          * RTBA, SDVFR ne permettant pas de recherche sur période : la couche montre la
          * fenêtre réelle de SDVFR.
          *
