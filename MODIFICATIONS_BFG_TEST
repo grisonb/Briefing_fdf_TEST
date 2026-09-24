@@ -334,6 +334,73 @@ C. CONTRÔLES AVANT TOUTE LIVRAISON
       surligneur, repli hors ligne NAS) ;
     - nouvelle entrée ajoutée EN TÊTE de ce journal, sous cette section 0,
       historique intégralement conservé.
+TEST v5.25 — 2026-09-24
+Base : TEST v5.24
+===============================================================================
+
+RTBA : REGROUPEMENT DES CRÉNEAUX PAR SECTEUR, HORAIRES EN UTC UNIQUEMENT
+Aucune modification du NAS ni du worker.
+
+1. REGROUPEMENT PAR SECTEUR — lève le point À DÉCIDER de la v5.24
+- Constat v5.24 : avec 4 h d'anticipation, un même secteur revient plusieurs
+  fois (ex. R45 S3 YONNE active 11:30Z → 15:00Z puis à venir 18:14Z → 23:59Z) ;
+  BFG dessinait deux zones superposées, un seul créneau accessible au toucher.
+- bfgBuildRtbaGroups_ regroupe les créneaux par secteur = même code ET même
+  géométrie. Deux objets de même code mais de géométries différentes restent
+  séparés et sont signalés dans le diagnostic (« Codes à géométries
+  différentes »).
+- UNE seule zone dessinée par secteur. Couleur selon le créneau le plus
+  urgent : un créneau actif => magenta vif clignotant ; sinon => rose clair
+  fixe. Créneaux terminés retirés ; le secteur disparaît quand tous ses
+  créneaux sont terminés. Filtre FL max appliqué à chaque créneau (règle et
+  prudence inchangées).
+- Mise à jour INCRÉMENTALE : une couche Leaflet par secteur, conservée d'un
+  recalcul à l'autre. Au changement de statut : setStyle et setPopupContent
+  SUR PLACE — un popup ouvert n'est pas refermé et affiche le nouveau contenu.
+  Seuls les secteurs sans créneau restant sont retirés. Même mécanisme à
+  l'arrivée de nouvelles données (actualisation 5 min). Le clignotement relit
+  la liste des secteurs actifs à chaque battement.
+
+2. POPUP
+- « RTBA », code du secteur, « Statut : Actif » ou « À venir ».
+- Plancher et plafond une seule fois s'ils sont identiques pour tous les
+  créneaux ; sinon indiqués sur chaque ligne de créneau.
+- « Créneaux (UTC) » : TOUS les créneaux non terminés, ordre chronologique,
+  chacun avec son statut, ex. « Actif : 11:30Z → 15:00Z » puis
+  « À venir : 18:14Z → 23:59Z ».
+- Heure locale SUPPRIMÉE de tous les textes RTBA. Date (jj/mm, UTC) ajoutée
+  quand l'instant n'est pas le jour UTC courant (ex. après minuit :
+  « Actif : 24/09 18:14Z → 05:10Z »).
+- Source, heure de récupération et « Données en cache » inchangés.
+
+3. ESSAIS NODE SUR LES RÉPONSES RÉELLES (fonctions extraites d'index.html)
+- rtba-test-1.json : 13:27Z => 11 secteurs (5 actifs, 6 à venir) ; 13:31Z =>
+  8 secteurs actifs, 3 créneaux terminés retirés.
+- rtba-test-240b.json (24 objets) :
+  14:17Z => 16 secteurs (8 actifs, 8 à venir), 8 secteurs à deux créneaux
+  (R45 S3, S4, S5, S6.1, S6.2, S7, B, C) ; popup S3 : « Actif : 11:30Z →
+  15:00Z » et « À venir : 18:14Z → 23:59Z », limites affichées une fois ;
+  15:01Z => 16 secteurs à venir, 8 créneaux terminés ;
+  18:15Z => 16 secteurs actifs (bascule automatique) ;
+  00:30Z le 25/09 => 5 secteurs actifs (N2 à N5.2), date affichée ;
+  05:11Z le 25/09 => plus aucun secteur.
+- Rendu incrémental (faux Leaflet) : 16 couches créées une fois ; à 14:18Z
+  aucune opération ; à 15:01Z 8 setStyle + 8 popups mis à jour, 0 couche
+  retirée ou recréée ; à 18:15Z 16 setStyle + 16 popups ; à 05:11Z les 16
+  couches retirées.
+- Même code, géométrie différente (cas simulé) : 2 secteurs séparés et code
+  signalé.
+
+VERSIONS
+- APP_VERSION_NUMBER 5.25, BFG_SW_VERSION 5.25, CACHE_NAME
+  'briefing-fdf-test-v5.25-rtba-sectors-r1', description du manifest. sw.js :
+  version seule. Constantes figées à 5.07 NON modifiées (cf. 0.B1).
+
+STATUTS v5.25
+- Regroupement par secteur et horaires UTC : À MESURER sur iPad.
+- À MESURER : secteur avec deux créneaux (ex. R45 S3 ce soir), passage de
+  minuit (R45 N2 à N5), bascule automatique à 18:14Z sans refermer un popup.
+
 TEST v5.24 — 2026-09-24
 Base : TEST v5.23
 ===============================================================================

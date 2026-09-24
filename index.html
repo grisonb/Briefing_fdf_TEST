@@ -2962,8 +2962,8 @@
     <footer>Données : Météo-France, SIA, Windy.com, SDVFR. Page non commerciale, à usage personnel.</footer>
     
     <script>
-        const APP_VERSION_NUMBER = "5.24";
-        const APP_VERSION = `${APP_VERSION_NUMBER} TEST - RTBA FENETRE 4 H`;
+        const APP_VERSION_NUMBER = "5.25";
+        const APP_VERSION = `${APP_VERSION_NUMBER} TEST - RTBA PAR SECTEUR + UTC`;
 
 
         // v4.97 — diagnostic conservé ; plage NOTAM quotidienne et sélection prioritaire. Aucun code d'accès, token ou contenu NOTAM n'est exporté.
@@ -3238,8 +3238,9 @@
                 if (r.workerVersion) push('Version worker VPS :', r.workerVersion);
                 push('Données récupérées à :', r.fetchedAt || 'aucune');
                 push('Zones reçues :', r.zonesReceived === null ? 'inconnu' : String(r.zonesReceived));
-                push('Zones affichées :', `${r.zonesActive} active(s), ${r.zonesUpcoming} à venir`);
-                push('Zones non affichées :', `${r.zonesEnded} terminée(s), ${r.zonesFilteredFl} filtrée(s) FL max, ${r.zonesInvalidGeometry} géométrie invalide`);
+                push('Secteurs affichés :', `${r.sectorsActive} actif(s), ${r.sectorsUpcoming} à venir`);
+                push('Créneaux non affichés :', `${r.zonesEnded} terminé(s), ${r.zonesFilteredFl} filtré(s) FL max, ${r.zonesInvalidGeometry} géométrie invalide`);
+                push('Codes à géométries différentes :', r.codesWithSeveralGeometries && r.codesWithSeveralGeometries.length ? r.codesWithSeveralGeometries.join(' | ') : 'aucun');
                 push('Affichées depuis le cache :', bfgRtbaFromCache_ ? 'OUI' : 'NON');
                 const rtbaCache = bfgRtbaReadCache_();
                 push('Cache local RTBA :', rtbaCache ? `OK | ${rtbaCache.airspaces.length} zone(s) | ${rtbaCache.fetchedAt.toISOString()}` : 'ABSENT');
@@ -15980,7 +15981,6 @@ window.__notamTextFull = notamInput.value;
         let bfgRtbaFromCache_ = false;
         let bfgRtbaInFlight_ = false;
         let bfgRtbaLastRequestAt_ = 0;
-        let bfgRtbaRenderSignature_ = '';
         let bfgRtbaPulseTimer_ = null;
         let bfgRtbaPulseLayers_ = [];
         let bfgRtbaPulseState_ = true;
@@ -15992,8 +15992,9 @@ window.__notamTextFull = notamInput.value;
             relayVersion: '',
             workerVersion: '',
             zonesReceived: null,
-            zonesActive: 0,
-            zonesUpcoming: 0,
+            sectorsActive: 0,
+            sectorsUpcoming: 0,
+            codesWithSeveralGeometries: [],
             zonesEnded: 0,
             zonesFilteredFl: 0,
             zonesInvalidGeometry: 0,
@@ -16093,29 +16094,107 @@ window.__notamTextFull = notamInput.value;
             return zone.lowerFl < maxFl;
         }
 
-        function bfgRtbaFormatSchedule_(zone) {
-            const utc = (d) => (d instanceof Date && !Number.isNaN(d.getTime()))
-                ? `${String(d.getUTCHours()).padStart(2, '0')}:${String(d.getUTCMinutes()).padStart(2, '0')}Z`
-                : '?';
-            const local = (d) => (d instanceof Date && !Number.isNaN(d.getTime())) ? bfgRtbaHhMm_(d) : '?';
-            const today = new Date().toDateString();
-            const dayPrefix = (d) => (d instanceof Date && !Number.isNaN(d.getTime()) && d.toDateString() !== today)
-                ? `${d.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' })} `
-                : '';
-            return `${dayPrefix(zone.start)}${utc(zone.start)} → ${dayPrefix(zone.end)}${utc(zone.end)}`
-                + ` (${local(zone.start)} → ${local(zone.end)} locale)`;
+        // v5.25 — horaires RTBA en UTC UNIQUEMENT. La date (jj/mm, UTC) est ajoutée quand
+        // l'instant n'est pas le jour UTC courant (créneaux qui passent minuit).
+        function bfgRtbaFormatUtc_(date, nowMs = Date.now()) {
+            if (!(date instanceof Date) || Number.isNaN(date.getTime())) return '?';
+            const today = new Date(nowMs);
+            const sameDay = date.getUTCFullYear() === today.getUTCFullYear()
+                && date.getUTCMonth() === today.getUTCMonth()
+                && date.getUTCDate() === today.getUTCDate();
+            const hhmm = `${String(date.getUTCHours()).padStart(2, '0')}:${String(date.getUTCMinutes()).padStart(2, '0')}Z`;
+            if (sameDay) return hhmm;
+            return `${String(date.getUTCDate()).padStart(2, '0')}/${String(date.getUTCMonth() + 1).padStart(2, '0')} ${hhmm}`;
         }
 
-        function bfgRtbaPopupHtml_(zone, status) {
+        function bfgRtbaFormatSchedule_(zone, nowMs = Date.now()) {
+            return `${bfgRtbaFormatUtc_(zone.start, nowMs)} → ${bfgRtbaFormatUtc_(zone.end, nowMs)}`;
+        }
+
+        function bfgRtbaFormatLimits_(zone) {
+            return {
+                lower: bfgFormatSupAipAltitude_(zone.lowerRaw, zone.lowerFl, zone.lowerUnit, zone.lowerReference, zone.lowerMsl),
+                upper: bfgFormatSupAipAltitude_(zone.upperRaw, zone.upperFl, zone.upperUnit, zone.upperReference, zone.upperMsl)
+            };
+        }
+
+        /* v5.25 — popup d'un SECTEUR : code, statut actuel, puis TOUS les créneaux non
+         * terminés dans l'ordre chronologique, chacun avec son statut, en UTC.
+         * Plancher / plafond une seule fois s'ils sont identiques pour tous les créneaux,
+         * sinon indiqués pour chaque créneau. */
+        function bfgRtbaPopupHtml_(group, nowMs = Date.now()) {
             const row = (label, value) => `<div class="bfg-supaip-popup-row"><strong>${label} :</strong> ${escapeHtml_(value)}</div>`;
+            const limits = group.slots.map(({ zone }) => bfgRtbaFormatLimits_(zone));
+            const sameLimits = limits.every(l => l.lower === limits[0].lower && l.upper === limits[0].upper);
+            const statusText = (status) => (status === 'active' ? 'Actif' : 'À venir');
+            const slotRows = group.slots.map(({ zone, status }, index) => {
+                const extra = sameLimits ? '' : ` — ${limits[index].lower} / ${limits[index].upper}`;
+                return `<div class="bfg-supaip-popup-row">${escapeHtml_(`${statusText(status)} : ${bfgRtbaFormatSchedule_(zone, nowMs)}${extra}`)}</div>`;
+            }).join('');
             return `<div class="bfg-supaip-popup-title">RTBA</div>`
-                + `<div class="bfg-supaip-popup-row"><strong>${escapeHtml_(zone.code)}</strong></div>`
-                + row('Statut', status === 'upcoming' ? 'À venir' : 'Actif')
-                + row('Plancher', bfgFormatSupAipAltitude_(zone.lowerRaw, zone.lowerFl, zone.lowerUnit, zone.lowerReference, zone.lowerMsl))
-                + row('Plafond', bfgFormatSupAipAltitude_(zone.upperRaw, zone.upperFl, zone.upperUnit, zone.upperReference, zone.upperMsl))
-                + row('Horaire', bfgRtbaFormatSchedule_(zone))
+                + `<div class="bfg-supaip-popup-row"><strong>${escapeHtml_(group.code)}</strong></div>`
+                + row('Statut', statusText(group.status))
+                + (sameLimits ? row('Plancher', limits[0].lower) + row('Plafond', limits[0].upper) : '')
+                + `<div class="bfg-supaip-popup-row"><strong>Créneau${group.slots.length > 1 ? 'x' : ''} (UTC) :</strong></div>`
+                + slotRows
                 + `<div class="bfg-supaip-popup-row">Source : SDVFR — récupéré à ${escapeHtml_(bfgRtbaHhMm_(bfgRtbaFetchedAt_))}</div>`
                 + (bfgRtbaFromCache_ ? `<div class="bfg-supaip-popup-row"><strong>Données en cache</strong></div>` : '');
+        }
+
+        /* v5.25 — regroupement des créneaux par SECTEUR (même code ET même géométrie).
+         * Deux objets de même code mais de géométries différentes restent séparés
+         * (signalés dans le diagnostic). Créneaux terminés retirés ; filtre FL max appliqué
+         * à chaque créneau ; le secteur disparaît quand il ne lui reste aucun créneau.
+         * Statut du secteur : un créneau actif => actif ; sinon => à venir. */
+        function bfgBuildRtbaGroups_(airspaces, nowMs = Date.now()) {
+            const counts = { slotsEnded: 0, slotsFilteredFl: 0, slotsInvalid: 0 };
+            const byKey = new Map();
+            const geometriesByCode = new Map();
+            (airspaces || []).forEach(item => {
+                const zone = bfgNormalizeRtbaZone_(item);
+                if (!zone) return;
+                const geometryText = typeof (item && item.coordinates) === 'string' ? item.coordinates.trim() : '';
+                if (!geometriesByCode.has(zone.code)) geometriesByCode.set(zone.code, new Set());
+                geometriesByCode.get(zone.code).add(geometryText);
+                const status = bfgRtbaZoneStatus_(zone, nowMs);
+                if (status === 'ended') { counts.slotsEnded += 1; return; }   // terminé : retiré
+                if (!zone.geometry) { counts.slotsInvalid += 1; return; }
+                if (!bfgRtbaZonePassesFlFilter_(zone)) { counts.slotsFilteredFl += 1; return; }
+                const key = `${zone.code}|${geometryText}`;
+                if (!byKey.has(key)) byKey.set(key, { key, code: zone.code, geometry: zone.geometry, slots: [] });
+                byKey.get(key).slots.push({ zone, status });
+            });
+            const groups = Array.from(byKey.values()).map(group => {
+                group.slots.sort((x, y) => {
+                    const xs = x.zone.start instanceof Date ? x.zone.start.getTime() : 0;
+                    const ys = y.zone.start instanceof Date ? y.zone.start.getTime() : 0;
+                    return xs - ys;
+                });
+                group.status = group.slots.some(slot => slot.status === 'active') ? 'active' : 'upcoming';
+                return group;
+            });
+            const codesWithSeveralGeometries = Array.from(geometriesByCode.entries())
+                .filter(([, set]) => set.size > 1)
+                .map(([code]) => code);
+            return { groups, counts, codesWithSeveralGeometries };
+        }
+
+        // v5.25 — une couche Leaflet par secteur, mise à jour SUR PLACE (setStyle,
+        // setPopupContent) : un popup ouvert n'est jamais refermé par le recalcul.
+        const bfgRtbaSectorLayers_ = new Map();   // clé secteur -> { layer, status, popupHtml }
+
+        function bfgSyncRtbaPulse_() {
+            bfgRtbaPulseLayers_ = [];
+            bfgRtbaSectorLayers_.forEach(entry => {
+                if (entry.status === 'active') bfgRtbaPulseLayers_.push({ layer: entry.layer, style: BFG_RTBA_STYLE_ACTIVE_ });
+            });
+            if (!bfgRtbaPulseLayers_.length) {
+                if (bfgRtbaPulseTimer_) clearInterval(bfgRtbaPulseTimer_);
+                bfgRtbaPulseTimer_ = null;
+                bfgRtbaPulseState_ = true;
+                return;
+            }
+            if (!bfgRtbaPulseTimer_) bfgStartRtbaPulse_();
         }
 
         function bfgStopRtbaPulse_() {
@@ -16128,6 +16207,7 @@ window.__notamTextFull = notamInput.value;
         // v5.23 — clignotement propre au RTBA : zones ACTIVES seulement ; les zones à venir
         // restent fixes. setStyle sur les seules couches RTBA : le clignotement SUP AIP
         // n'est pas touché et un popup ouvert n'est pas refermé.
+        // v5.25 — la liste des couches clignotantes est relue à chaque battement.
         function bfgStartRtbaPulse_() {
             if (!bfgRtbaPulseLayers_.length) return;
             bfgRtbaPulseState_ = true;
@@ -16144,77 +16224,104 @@ window.__notamTextFull = notamInput.value;
             }, 850);
         }
 
-        /* Rendu de la SEULE couche RTBA : clearLayers(), jamais de fitBounds ni de changement
-         * de zoom ou de position. Statuts recalculés localement à chaque appel.
-         * Renvoie le statut texte à afficher (texte autorisé uniquement). */
-        function bfgRenderRtbaLayer_(options = {}) {
+        function bfgClearRtbaSectors_() {
+            bfgStopRtbaPulse_();
+            bfgRtbaSectorLayers_.clear();
+            if (bfgRtbaFranceLayer_) bfgRtbaFranceLayer_.clearLayers();
+        }
+
+        /* Rendu de la SEULE couche RTBA, jamais de fitBounds ni de changement de zoom ou de
+         * position. v5.25 : mise à jour incrémentale par secteur ; statuts recalculés
+         * localement à chaque appel (chaque minute, ou à l'arrivée de nouvelles données). */
+        function bfgRenderRtbaLayer_() {
             if (!bfgRtbaFranceLayer_ || !Array.isArray(bfgRtbaAirspaces_)) return;
             const nowMs = Date.now();
-            const zones = bfgRtbaAirspaces_.map(bfgNormalizeRtbaZone_).filter(Boolean);
-            const counts = { active: 0, upcoming: 0, ended: 0, filteredFl: 0, invalid: 0 };
-            const drawable = [];
-            zones.forEach(zone => {
-                const status = bfgRtbaZoneStatus_(zone, nowMs);
-                if (status === 'ended') { counts.ended += 1; return; }   // terminée : jamais affichée
-                if (!zone.geometry) { counts.invalid += 1; return; }
-                if (!bfgRtbaZonePassesFlFilter_(zone)) { counts.filteredFl += 1; return; }
-                drawable.push({ zone, status });
-            });
+            const { groups, counts, codesWithSeveralGeometries } = bfgBuildRtbaGroups_(bfgRtbaAirspaces_, nowMs);
+            let changed = false;
+            let sectorsActive = 0;
+            let sectorsUpcoming = 0;
+            let invalidSectors = 0;
+            const seen = new Set();
 
-            // Pas de redessin inutile (il fermerait un popup ouvert) si rien n'a changé.
-            const signature = `${bfgRtbaFromCache_}|${bfgRtbaFetchedAt_ && bfgRtbaFetchedAt_.getTime()}|`
-                + drawable.map(({ zone, status }) => `${zone.id}:${zone.code}:${status}`).join(',');
-            if (!options.force && signature === bfgRtbaRenderSignature_) return;
-            bfgRtbaRenderSignature_ = signature;
-
-            bfgStopRtbaPulse_();
-            bfgRtbaFranceLayer_.clearLayers();
-            let drawn = 0;
-            drawable.forEach(({ zone, status }) => {
+            groups.forEach(group => {
+                const style = group.status === 'active' ? BFG_RTBA_STYLE_ACTIVE_ : BFG_RTBA_STYLE_UPCOMING_;
+                const popupHtml = bfgRtbaPopupHtml_(group, nowMs);
+                const existing = bfgRtbaSectorLayers_.get(group.key);
                 try {
-                    const style = status === 'upcoming' ? BFG_RTBA_STYLE_UPCOMING_ : BFG_RTBA_STYLE_ACTIVE_;
-                    const layer = L.geoJSON({ type: 'Feature', geometry: zone.geometry, properties: {} }, {
-                        pane: 'bfgRtbaPane',
-                        renderer: bfgRtbaRenderer_,
-                        style: () => ({ ...style })
-                    });
-                    if (!layer.getBounds().isValid()) { counts.invalid += 1; return; }
-                    layer.bindPopup(bfgRtbaPopupHtml_(zone, status), { maxWidth: 360 });
-                    layer.addTo(bfgRtbaFranceLayer_);
-                    if (status === 'active') bfgRtbaPulseLayers_.push({ layer, style });
-                    if (status === 'upcoming') counts.upcoming += 1; else counts.active += 1;
-                    drawn += 1;
+                    if (existing) {
+                        if (existing.status !== group.status) {
+                            existing.layer.setStyle({ ...style });
+                            existing.status = group.status;
+                            changed = true;
+                        }
+                        if (existing.popupHtml !== popupHtml) {
+                            existing.layer.setPopupContent(popupHtml);   // popup ouvert : contenu mis à jour, non refermé
+                            existing.popupHtml = popupHtml;
+                            changed = true;
+                        }
+                    } else {
+                        const layer = L.geoJSON({ type: 'Feature', geometry: group.geometry, properties: {} }, {
+                            pane: 'bfgRtbaPane',
+                            renderer: bfgRtbaRenderer_,
+                            style: () => ({ ...style })
+                        });
+                        if (!layer.getBounds().isValid()) {
+                            invalidSectors += 1;
+                            counts.slotsInvalid += group.slots.length;
+                            return;
+                        }
+                        layer.bindPopup(popupHtml, { maxWidth: 360 });
+                        layer.addTo(bfgRtbaFranceLayer_);
+                        bfgRtbaSectorLayers_.set(group.key, { layer, status: group.status, popupHtml });
+                        changed = true;
+                    }
+                    seen.add(group.key);
+                    if (group.status === 'active') sectorsActive += 1; else sectorsUpcoming += 1;
                 } catch (error) {
-                    counts.invalid += 1;
-                    console.warn('BFG RTBA : géométrie ignorée.', error, zone.code);
+                    invalidSectors += 1;
+                    counts.slotsInvalid += group.slots.length;
+                    console.warn('BFG RTBA : géométrie ignorée.', error, group.code);
                 }
             });
-            bfgStartRtbaPulse_();
+
+            // Secteurs dont tous les créneaux sont terminés (ou absents des nouvelles données).
+            Array.from(bfgRtbaSectorLayers_.keys()).forEach(key => {
+                if (seen.has(key)) return;
+                const entry = bfgRtbaSectorLayers_.get(key);
+                try { bfgRtbaFranceLayer_.removeLayer(entry.layer); } catch (_) {}
+                bfgRtbaSectorLayers_.delete(key);
+                changed = true;
+            });
+            bfgSyncRtbaPulse_();
 
             Object.assign(bfgRtbaDiag_, {
                 zonesReceived: bfgRtbaAirspaces_.length,
-                zonesActive: counts.active,
-                zonesUpcoming: counts.upcoming,
-                zonesEnded: counts.ended,
-                zonesFilteredFl: counts.filteredFl,
-                zonesInvalidGeometry: counts.invalid
+                sectorsActive,
+                sectorsUpcoming,
+                zonesEnded: counts.slotsEnded,
+                zonesFilteredFl: counts.slotsFilteredFl,
+                zonesInvalidGeometry: counts.slotsInvalid,
+                codesWithSeveralGeometries
             });
 
             // Statut : une erreur n'est jamais présentée comme une absence de RTBA.
             if (bfgRtbaFromCache_) {
                 bfgRtbaSetStatus_(`RTBA : données en cache (${bfgRtbaHhMm_(bfgRtbaFetchedAt_)})`, true);
-            } else if (counts.invalid > 0) {
-                bfgRtbaSetStatus_(`⚠️ RTBA : ${counts.invalid} zone(s) reçue(s), affichage non disponible dans cette version de test. Consulter SDVFR.`, true);
+            } else if (counts.slotsInvalid > 0) {
+                bfgRtbaSetStatus_(`⚠️ RTBA : ${counts.slotsInvalid} zone(s) reçue(s), affichage non disponible dans cette version de test. Consulter SDVFR.`, true);
             } else if (bfgRtbaAirspaces_.length === 0) {
                 bfgRtbaSetStatus_('Aucun RTBA retourné par SDVFR actuellement.');
             } else {
                 bfgRtbaSetStatus_(`RTBA : mis à jour à ${bfgRtbaHhMm_(bfgRtbaFetchedAt_)}`);
             }
-            bfgRtbaLog_('Couche RTBA redessinée', {
-                reçues: bfgRtbaAirspaces_.length, actives: counts.active, aVenir: counts.upcoming,
-                terminées: counts.ended, filtréesFl: counts.filteredFl, géométrieInvalide: counts.invalid,
-                cache: bfgRtbaFromCache_
-            });
+            if (changed) {
+                bfgRtbaLog_('Couche RTBA mise à jour', {
+                    reçues: bfgRtbaAirspaces_.length, secteursActifs: sectorsActive, secteursAVenir: sectorsUpcoming,
+                    créneauxTerminés: counts.slotsEnded, créneauxFiltrésFl: counts.slotsFilteredFl,
+                    géométrieInvalide: counts.slotsInvalid, codesMultiGéométrie: codesWithSeveralGeometries.join(' '),
+                    cache: bfgRtbaFromCache_
+                });
+            }
         }
 
         function bfgRtbaShowCacheOrUnavailable_(reason) {
@@ -16224,15 +16331,13 @@ window.__notamTextFull = notamInput.value;
                 bfgRtbaFetchedAt_ = cached.fetchedAt;
                 bfgRtbaFromCache_ = true;
                 bfgRtbaDiag_.fetchedAt = cached.fetchedAt.toISOString();
-                bfgRenderRtbaLayer_({ force: true });
+                bfgRenderRtbaLayer_();
                 bfgRtbaLog_('Données en cache affichées', { raison: reason, récupéréesÀ: cached.fetchedAt.toISOString() });
                 return;
             }
             // Pas de cache : aucune zone dessinée, et surtout pas « aucun RTBA ».
             bfgRtbaAirspaces_ = null;
-            bfgRtbaRenderSignature_ = '';
-            bfgStopRtbaPulse_();
-            if (bfgRtbaFranceLayer_) bfgRtbaFranceLayer_.clearLayers();
+            bfgClearRtbaSectors_();
             bfgRtbaSetStatus_('RTBA : données indisponibles', true);
             bfgRtbaLog_('Données indisponibles, aucun cache', { raison: reason });
         }
@@ -16301,7 +16406,7 @@ window.__notamTextFull = notamInput.value;
                 bfgRtbaLog_('Réponse RTBA valide', {
                     source: bfgRtbaDiag_.relaySource, zones: airspaces.length, cacheNas: fromNasCache, récupéréesÀ: fetchedAt.toISOString()
                 });
-                bfgRenderRtbaLayer_({ force: true });
+                bfgRenderRtbaLayer_();
             } catch (error) {
                 const message = error && error.name === 'AbortError' ? 'délai dépassé' : (error && error.message || String(error));
                 bfgRtbaDiag_.lastResult = 'ERREUR';
@@ -16343,7 +16448,7 @@ window.__notamTextFull = notamInput.value;
                 bfgRtbaFetchedAt_ = cached.fetchedAt;
                 bfgRtbaFromCache_ = true;
                 bfgRtbaDiag_.fetchedAt = cached.fetchedAt.toISOString();
-                bfgRenderRtbaLayer_({ force: true });
+                bfgRenderRtbaLayer_();
             }
 
             const maxFlInput = document.getElementById('sup-aip-map-max-fl');

@@ -1,7 +1,7 @@
 {
   "name": "Briefing FDF TEST",
   "short_name": "Briefing TEST",
-  "description": "Briefing FDF TEST v5.24 — RTBA : fenêtre d'anticipation de 4 heures",
+  "description": "Briefing FDF TEST v5.25 — RTBA regroupés par secteur, horaires en UTC",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
