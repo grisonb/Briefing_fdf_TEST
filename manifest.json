@@ -1,7 +1,7 @@
 {
   "name": "Briefing FDF TEST",
   "short_name": "Briefing TEST",
-  "description": "Briefing FDF TEST v5.19 — état NOTAM en deux couches et altitudes SUP AIP",
+  "description": "Briefing FDF TEST v5.20 — cartes VAC hors ligne, alerte AIRAC et étapes NOTAM",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",

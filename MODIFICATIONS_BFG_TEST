@@ -94,6 +94,12 @@ A. RÈGLES GÉNÉRALES
    Ne jamais travailler hors du dossier Briefing_fdf_TEST/ sans demande :
    Briefing-fdf/ (pérenne) et NPF-Q400/ sont des dépôts distincts.
 
+10. « NPF-Q400 », JAMAIS « NPF » SEUL — RÈGLE PERMANENTE (v5.20).
+   Dans tous les textes affichés (alertes, bandeaux, boutons, aides, messages
+   d'erreur), toujours écrire « NPF-Q400 ». Les identifiants internes jamais
+   affichés (BFG_NPF_*, npf-docs-api.php, clés bfgNpf*) ne sont pas concernés et
+   ne sont pas renommés (cf. B2).
+
 -------------------------------------------------------------------------------
 B. POINTS SENSIBLES DU CODE — NE PAS TOUCHER SANS DEMANDE EXPLICITE
 -------------------------------------------------------------------------------
@@ -275,6 +281,138 @@ C. CONTRÔLES AVANT TOUTE LIVRAISON
       surligneur, repli hors ligne NAS) ;
     - nouvelle entrée ajoutée EN TÊTE de ce journal, sous cette section 0,
       historique intégralement conservé.
+TEST v5.20 — 2026-09-24
+Base : TEST v5.19
+===============================================================================
+
+Corrections issues des essais de la v5.19.
+
+1. BOUTON VAC GRISÉ
+- Le manifest VAC reçu (vérification du jour ou premier clic) est conservé sur
+  l'iPad, en copie réduite, dans la nouvelle clé localStorage
+  `bfgVacManifestV1` (par source : sourceCycle, et par terrain disponibilité,
+  fichier, sha256, taille, cycle, nom).
+- Quand il est connu, le bouton VAC est grisé (`.vac-unavailable`,
+  aria-disabled) pour tout terrain sans carte : non publié (LFBM) ou absent du
+  manifest (terrain étranger en Météo manuelle). Appliqué à la création de
+  chaque section et après chaque manifest reçu.
+- Toucher un bouton grisé : message « Aucune carte VAC disponible pour XXXX »,
+  AUCUN onglet ouvert. La décision est lue de façon synchrone AVANT
+  `window.open`.
+- Tous les chemins d'échec de `openBfgVacPdf_` referment l'onglet ouvert
+  (déjà le cas, revérifié) : plus d'onglet vide.
+- Aucun manifest connu (nouvel iPad, après « Effacer ») : boutons actifs,
+  comportement antérieur. « Effacer » supprime la clé (préfixe `bfgVac`) et
+  `clearBfgVacDb_()` remet les boutons à l'état actif.
+- Le grisage suit `BFG_VAC_SOURCES_` : un terrain n'est grisé que si TOUTES
+  les sources déclarées sont connues et qu'aucune ne le publie. Une source
+  militaire ajoutée plus tard réactivera LFBM sans autre modification.
+
+2. TÉLÉCHARGEMENT AUTOMATIQUE DES VAC
+- `ensureBfgVacDailyManifestCheck_` (vérification du jour, première connexion
+  Briefing du jour, non bloquante) télécharge en arrière-plan, une par une, les
+  VAC manquantes ou dont le sha256 a changé, pour les terrains de
+  `getSdvfrPelicandromeTargets_()` (pélicandromes sans LFMT), en plus des
+  cartes déjà stockées. Contrôles inchangés (`storeBfgVacEntry_` : signature
+  PDF, taille, SHA-256).
+- Jours où tout est à jour : seul le manifest est téléchargé.
+- Échecs mémorisés dans `bfgVacPendingDownloadsV1` : nouvel essai à la
+  connexion suivante, même le jour même. Une carte en attente reste signalée
+  « non vérifiée » à l'ouverture et passe par la vérification ciblée.
+
+3. BANDEAU VAC À LA CONNEXION
+- Nouveau `#vac-loading-banner`, sous le bandeau NOTAM, même style.
+- Pas de message « Vérification du cycle VAC… » (décision utilisateur) : le
+  bandeau apparaît directement à « Téléchargement des cartes VAC n/N… »,
+  uniquement s'il y a des cartes à télécharger ou une alerte de cycle.
+- Fin : « Cartes VAC à jour (cycle 03 SEP 2026) » 4 s puis disparition.
+- Échec partiel : bandeau orange « N cartes VAC non téléchargées, nouvel essai
+  à la prochaine connexion », fermé seulement par le bouton ✕.
+
+4. ALERTE CYCLE AIRAC
+- Cycle en vigueur calculé sur le calendrier fixe de 28 jours, référence
+  03_SEP_2026 (00:00 UTC) ; cycle suivant 01_OCT_2026.
+- sourceCycle du manifest antérieur au cycle en vigueur : « ⚠️ Cartes VAC non à
+  jour : cycle XX disponible, cycle en vigueur YY. Effectuer la mise à jour des
+  cartes VAC depuis NPF-Q400. » Cycles affichés au format « 03 SEP 2026 ».
+- Emplacements : bandeau VAC de connexion (orange, fermé par ✕) et bandeau
+  orange `.vac-stale-warning` de la section du terrain dans BFG, au-dessus de
+  la carte ouverte. BFG ne peut rien afficher DANS l'onglet PDF.
+- L'alerte ne bloque pas l'ouverture des cartes.
+
+5. ÉTAPES DU CHARGEMENT DES NOTAM
+- Affichées à CHAQUE actualisation (connexion, démarrage avec session valide,
+  bouton « Actualiser NOTAM »), même quand des NOTAM sont déjà affichés.
+  Aucun temps écoulé.
+- Correspondance avec le code :
+    « Chargement des données Briefing… » : connexion seulement, pendant
+        `fetchAllCncascData_` ;
+    « Demande envoyée… » : `requestSdvfrNotams_` (request-sdvfr-notams.php) ;
+    « Récupération des NOTAM en cours… » : requestId reçu, attente dans
+        `waitForSdvfrNotams_` ;
+    « Affichage des NOTAM… » : `rememberFreshSdvfrNotamsFromPayload_` puis
+        `renderCombinedBfgNotamSources_` (une image est laissée au navigateur
+        pour peindre le message, le rendu étant synchrone) ;
+    « NOTAM à jour » : 3 s puis bandeau masqué.
+- NATS reste actualisé ENSUITE (`importAutomaticNotamsFromNas_`), hors
+  étapes, comme avant. En cas d'échec SDVFR à la connexion ou au démarrage, le
+  bandeau reprend le comportement antérieur avant le relais NATS.
+- Pendant une séquence d'étapes, seules les étapes pilotent le bandeau : les
+  masquages demandés par les restaurations locales sont ignorés.
+- `fetchSdvfrTargetsOnce_` reçoit un rappel d'étape optionnel ; ses autres
+  appelants (actualisation d'un terrain) sont inchangés.
+- PLACE RÉSERVÉE : les bandeaux NOTAM (46 px) et VAC (68 px, deux lignes)
+  gardent leur place en permanence, invisibles au repos (`visibility` et non
+  plus `display`), pour qu'aucune apparition ni disparition ne décale la page.
+
+6. RÈGLE PERMANENTE « NPF-Q400 »
+- Ajoutée en section 0.A (règle 10) et dans CLAUDE.md (règles permanentes).
+- Relevé : aucun texte affiché de BFG TEST n'écrivait « NPF » seul ; rien à
+  corriger. Les nouveaux textes v5.20 respectent la règle.
+
+7. NETTOYAGE
+- Diagnostic temporaire v5.16 retiré entièrement : bloc du <head>, boutons
+  « Trace démarrage / Copier trace / Vider trace » du panneau Diagnostic BFG,
+  4 lignes de trace. Clé `bfgDiagStartupTraceV1` supprimée au chargement
+  (hors préfixes balayés par « Effacer ») et retirée des exceptions
+  d'« Effacer ».
+- Garde-fou clavier retiré : `blurIfAutomaticStartupFocus_`, ses 4 minuteurs,
+  son écouteur pageshow, `userHasInteracted_` et ses 4 écouteurs
+  (pointerdown, touchstart, mousedown, keydown).
+- CONSERVÉS : ouverture du clavier au toucher sur le champ
+  (`focusFromRealTap_`, v4.84 / v4.85) et `hardenSensitiveInputsAgainstAutofill_`.
+
+8. CONSTATS ET DÉCISIONS
+- Clavier au démarrage : CAUSE IDENTIFIÉE. Entrée github.io du trousseau iOS
+  (panneau « Se connecter » avec Touch ID), confirmée par la trace v5.16 et une
+  vidéo. Résolu côté utilisateur : entrée supprimée, réponse « Jamais pour ce
+  site ». Aucun correctif applicatif nécessaire.
+- DÉCISION : les NOTAM déjà téléchargés sont conservés après une déconnexion
+  manuelle (comportement voulu).
+
+TESTS v5.19
+- Altitudes SUP AIP : VALIDÉ.
+- Bouton « Effacer » : VALIDÉ.
+- VAC LFTW et hors ligne : VALIDÉ.
+- Bouton VAC à droite : VALIDÉ.
+- LFBM : À REVOIR en v5.19, traité en v5.20 (bouton grisé).
+- À FAIRE AVANT PROMOTION : partage entre deux appareils, expiration de la
+  couche reçue à 23h00, vérification le lendemain.
+
+VERSIONS
+- APP_VERSION_NUMBER 5.20, BFG_SW_VERSION 5.20, nouveau CACHE_NAME
+  'briefing-fdf-test-v5.20-vac-notam-steps-r1', description du manifest.
+- Constantes figées à 5.07 NON modifiées (cf. 0.B1). sw.js : version seule.
+
+STATUTS v5.20
+- Bouton VAC grisé : À MESURER.
+- Téléchargement automatique et bandeau VAC : À MESURER.
+- Alerte AIRAC : À MESURER (visible réellement à partir du 01_OCT_2026 si le
+  manifest reste au cycle 03_SEP_2026).
+- Étapes NOTAM et place réservée des bandeaux : À MESURER.
+- Nettoyage diagnostic et clavier : À MESURER (clavier toujours ouvert au
+  toucher sur le champ).
+
 NAS — 2026-09-23b — NOTAM DES 122 TERRAINS NPF
 ===============================================================================
 

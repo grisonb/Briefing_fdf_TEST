@@ -48,7 +48,7 @@ avant de commencer une session — elle peut évoluer. Résumé de l'essentiel :
 
 ## 🚫 RÈGLES PERMANENTES — sans exception, sans expiration
 
-Ces deux règles ne se périment pas et ne se déduisent jamais du contexte. Une
+Ces règles ne se périment pas et ne se déduisent jamais du contexte. Une
 autorisation donnée une fois ne vaut jamais pour la suivante.
 
 ### 1. Aucun `git push` sans accord écrit dans le chat
@@ -76,6 +76,15 @@ ces dépôts reste permise pour comparer ou analyser — c'est ainsi que sont
 relevés les écarts TEST/pérenne de la section 0.B4 du journal. Toute promotion
 vers la pérenne est une opération manuelle de l'utilisateur, jamais de Claude
 Code.
+
+### 3. Toujours écrire « NPF-Q400 », jamais « NPF » seul
+
+Dans **tous les textes affichés** par BFG (alertes, bandeaux, boutons, aides,
+messages d'erreur), l'application sœur s'appelle toujours « NPF-Q400 ». Jamais
+« NPF » seul. Les identifiants internes jamais affichés (`BFG_NPF_*`,
+`npf-docs-api.php`, clés `bfgNpf*`) ne sont pas concernés et ne doivent pas être
+renommés pour autant (cf. persistance NOTAM). Relevé v5.20 : aucun texte affiché
+de BFG TEST n'enfreignait la règle.
 
 ## ⚠️ Ce projet n'est PAS NPF-Q400
 

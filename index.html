@@ -11,297 +11,6 @@
             history.scrollRestoration = 'manual';
         }
     </script>
-    <!-- ===== BFG DIAG TEMPORAIRE v5.16 — DÉBUT =====
-         Version de diagnostic temporaire, destinée à capturer le démarrage à froid
-         autour du champ « Code accès Briefing ». Purement passif : aucun
-         preventDefault, aucun focus/blur, aucun scroll provoqué.
-         RETRAIT : supprimer ce bloc, le bloc DIAG du panneau « Diagnostic BFG »
-         dans le corps de page, et les 4 lignes balisées « BFG DIAG TEMPORAIRE
-         v5.16 » dans le script principal. -->
-    <script>
-    (function () {
-        'use strict';
-        try {
-            var STORAGE_KEY = 'bfgDiagStartupTraceV1';
-            var MAX_LAUNCHES = 3;
-            var WINDOW_MS = 15000;
-            var MAX_EVENTS = 900;
-
-            var startedAt = new Date();
-            var launchId = 'L' + startedAt.getTime() + '-' + Math.floor(Math.random() * 1000);
-            var events = [];
-            var stopped = false;
-            var saveTimer = null;
-            var lastScrollLogged = -9999;
-            var lastActiveDesc = '';
-
-            function now_() {
-                try { return Math.round(performance.now()); }
-                catch (_) { return Date.now() - startedAt.getTime(); }
-            }
-
-            function pad_(value) {
-                var s = String(value);
-                while (s.length < 6) s = ' ' + s;
-                return s;
-            }
-
-            function desc_(node) {
-                if (!node) return 'null';
-                if (node === document.documentElement) return 'html';
-                if (node === document.body) return 'body';
-                var tag = String(node.tagName || node).toLowerCase();
-                return node.id ? tag + '#' + node.id : tag;
-            }
-
-            function readStore_() {
-                try {
-                    var raw = localStorage.getItem(STORAGE_KEY);
-                    var parsed = raw ? JSON.parse(raw) : null;
-                    if (parsed && Object.prototype.toString.call(parsed.launches) === '[object Array]') return parsed;
-                } catch (_) {}
-                return { v: 1, launches: [] };
-            }
-
-            function save_() {
-                try {
-                    var store = readStore_();
-                    store.launches = store.launches.filter(function (entry) {
-                        return entry && entry.id !== launchId;
-                    });
-                    store.launches.push({
-                        id: launchId,
-                        startedIso: startedAt.toISOString(),
-                        appVersion: '5.16',
-                        path: String(location.pathname || ''),
-                        events: events
-                    });
-                    while (store.launches.length > MAX_LAUNCHES) store.launches.shift();
-                    localStorage.setItem(STORAGE_KEY, JSON.stringify(store));
-                } catch (_) {}
-            }
-
-            function scheduleSave_() {
-                if (saveTimer !== null) return;
-                saveTimer = setTimeout(function () { saveTimer = null; save_(); }, 500);
-            }
-
-            function log_(type, detail) {
-                if (stopped) return;
-                if (events.length >= MAX_EVENTS) return;
-                events.push({ t: now_(), e: String(type), d: detail == null ? '' : String(detail) });
-                scheduleSave_();
-            }
-
-            // État du jeton lu DIRECTEMENT, sans passer par getStoredCncascToken_()
-            // qui supprimerait les clés au passage. La valeur du jeton n'est jamais journalisée.
-            try {
-                var rawToken = localStorage.getItem('bfg_cncasc_token_v1') || '';
-                var rawExp = Number(localStorage.getItem('bfg_cncasc_token_exp_v1') || 0);
-                var tokenState = (!rawToken || !rawExp) ? 'aucun' : (rawExp <= Date.now() ? 'expire' : 'valide');
-                log_('jeton', 'etat=' + tokenState
-                    + ' expIso=' + (rawExp ? new Date(rawExp).toISOString() : '-')
-                    + ' dansMin=' + (rawExp ? Math.round((rawExp - Date.now()) / 60000) : '-'));
-            } catch (_) {
-                log_('jeton', 'lecture impossible');
-            }
-
-            log_('boot', 'readyState=' + document.readyState
-                + ' activeElement=' + desc_(document.activeElement)
-                + ' innerH=' + window.innerHeight
-                + ' vvH=' + (window.visualViewport ? Math.round(window.visualViewport.height) : '-'));
-            lastActiveDesc = desc_(document.activeElement);
-
-            document.addEventListener('focusin', function (ev) {
-                log_('focusin', desc_(ev.target) + ' isTrusted=' + !!ev.isTrusted + ' scrollY=' + Math.round(window.scrollY));
-            }, true);
-            document.addEventListener('focusout', function (ev) {
-                log_('focusout', desc_(ev.target) + ' isTrusted=' + !!ev.isTrusted + ' scrollY=' + Math.round(window.scrollY));
-            }, true);
-
-            ['pointerdown', 'touchstart'].forEach(function (name) {
-                document.addEventListener(name, function (ev) {
-                    var id = ev.target && ev.target.id;
-                    if (id === 'cncasc-access-code-input' || id === 'shared-code-input') {
-                        log_(name, '#' + id + ' isTrusted=' + !!ev.isTrusted);
-                    }
-                }, { capture: true, passive: true });
-            });
-
-            var activePollTimer = setInterval(function () {
-                if (stopped) { clearInterval(activePollTimer); return; }
-                var current = desc_(document.activeElement);
-                if (current !== lastActiveDesc) {
-                    lastActiveDesc = current;
-                    log_('activeElement', current + ' scrollY=' + Math.round(window.scrollY));
-                }
-            }, 250);
-
-            window.addEventListener('scroll', function () {
-                var y = Math.round(window.scrollY);
-                if (Math.abs(y - lastScrollLogged) < 4) return;
-                lastScrollLogged = y;
-                log_('scroll', 'scrollY=' + y);
-            }, { capture: true, passive: true });
-
-            if (window.visualViewport) {
-                var vv = window.visualViewport;
-                ['resize', 'scroll'].forEach(function (name) {
-                    vv.addEventListener(name, function () {
-                        log_('vv-' + name, 'h=' + Math.round(vv.height)
-                            + ' offTop=' + Math.round(vv.offsetTop)
-                            + ' scrollY=' + Math.round(window.scrollY));
-                    }, { passive: true });
-                });
-            }
-
-            window.addEventListener('load', function () {
-                log_('load', 'scrollY=' + Math.round(window.scrollY));
-            }, { passive: true });
-            window.addEventListener('pageshow', function (ev) {
-                log_('pageshow', 'persisted=' + !!(ev && ev.persisted));
-            }, { passive: true });
-            window.addEventListener('pagehide', function () { save_(); }, { passive: true });
-            document.addEventListener('visibilitychange', function () {
-                log_('visibilitychange', 'hidden=' + document.hidden);
-            }, { passive: true });
-
-            try {
-                if (navigator.serviceWorker) {
-                    navigator.serviceWorker.addEventListener('controllerchange', function () {
-                        log_('sw-controllerchange', navigator.serviceWorker.controller ? 'controleur present' : 'aucun controleur');
-                    });
-                }
-            } catch (_) {}
-
-            // Point d'entrée utilisé par les 4 lignes balisées du script principal.
-            window.__bfgDiagMark_ = function (name, detail) {
-                log_('mark:' + name, detail == null ? '' : String(detail));
-            };
-
-            function formatTrace_() {
-                var store = readStore_();
-                if (!store.launches.length) return 'Aucune trace de démarrage enregistrée.';
-                var lines = [];
-                store.launches.forEach(function (entry, index) {
-                    lines.push('=== Lancement ' + (index + 1) + '/' + store.launches.length
-                        + ' — ' + (entry.startedIso || '?')
-                        + ' — BFG v' + (entry.appVersion || '?') + ' ===');
-                    (entry.events || []).forEach(function (ev) {
-                        lines.push(pad_(ev.t) + ' ms  ' + ev.e + (ev.d ? '  ' + ev.d : ''));
-                    });
-                    lines.push('');
-                });
-                return lines.join('\n');
-            }
-
-            function wireButtons_() {
-                var showBtn = document.getElementById('bfg-diag-startup-show-btn');
-                var copyBtn = document.getElementById('bfg-diag-startup-copy-btn');
-                var clearBtn = document.getElementById('bfg-diag-startup-clear-btn');
-                var output = document.getElementById('bfg-diag-startup-output');
-                var status = document.getElementById('bfg-diag-startup-status');
-
-                if (showBtn && output) {
-                    showBtn.addEventListener('click', function () {
-                        output.value = formatTrace_();
-                        output.style.display = 'block';
-                        if (status) status.textContent = 'Trace affichée. Enregistrement ' + (stopped ? 'terminé.' : 'en cours.');
-                    });
-                }
-                if (copyBtn) {
-                    copyBtn.addEventListener('click', function () {
-                        var text = formatTrace_();
-                        if (output) { output.value = text; output.style.display = 'block'; }
-                        try {
-                            if (navigator.clipboard && navigator.clipboard.writeText) {
-                                navigator.clipboard.writeText(text).then(function () {
-                                    if (status) status.textContent = 'Trace copiée dans le presse-papiers.';
-                                }, function () {
-                                    if (status) status.textContent = 'Copie automatique refusée : sélectionner le texte ci-dessous.';
-                                });
-                            } else if (status) {
-                                status.textContent = 'Copie automatique indisponible : sélectionner le texte ci-dessous.';
-                            }
-                        } catch (_) {
-                            if (status) status.textContent = 'Copie automatique impossible : sélectionner le texte ci-dessous.';
-                        }
-                    });
-                }
-                if (clearBtn) {
-                    clearBtn.addEventListener('click', function () {
-                        try { localStorage.removeItem(STORAGE_KEY); } catch (_) {}
-                        events = [];
-                        if (output) { output.value = ''; output.style.display = 'none'; }
-                        if (status) status.textContent = 'Trace vidée.';
-                    });
-                }
-            }
-
-            function onDomReady_() {
-                try {
-                    var panel = document.getElementById('cncasc-auth-panel');
-                    var banner = document.getElementById('notam-loading-banner');
-                    var warning = document.getElementById('cncasc-warning');
-                    var input = document.getElementById('cncasc-access-code-input');
-
-                    if (input) {
-                        log_('champ', '#cncasc-access-code-input top=' + Math.round(input.getBoundingClientRect().top));
-                    }
-                    if (panel) {
-                        var rect = panel.getBoundingClientRect();
-                        log_('panneau', 'h=' + Math.round(rect.height) + ' top=' + Math.round(rect.top));
-                    }
-                    if (banner) {
-                        log_('banniere', 'visible=' + banner.classList.contains('visible'));
-                    }
-
-                    if (banner && window.MutationObserver) {
-                        new MutationObserver(function () {
-                            log_('banniere', 'visible=' + banner.classList.contains('visible')
-                                + ' h=' + Math.round(banner.getBoundingClientRect().height)
-                                + ' scrollY=' + Math.round(window.scrollY));
-                        }).observe(banner, { attributes: true, attributeFilter: ['class'], childList: true, characterData: true, subtree: true });
-                    }
-                    if (warning && window.MutationObserver) {
-                        new MutationObserver(function () {
-                            log_('avertissement', 'len=' + String(warning.textContent || '').length
-                                + ' h=' + Math.round(warning.getBoundingClientRect().height));
-                        }).observe(warning, { childList: true, characterData: true, subtree: true });
-                    }
-                    if (panel && window.ResizeObserver) {
-                        new ResizeObserver(function () {
-                            var r = panel.getBoundingClientRect();
-                            log_('panneau', 'h=' + Math.round(r.height)
-                                + ' top=' + Math.round(r.top)
-                                + ' scrollY=' + Math.round(window.scrollY));
-                        }).observe(panel);
-                    }
-
-                    wireButtons_();
-                } catch (_) {}
-            }
-
-            if (document.readyState === 'loading') {
-                document.addEventListener('DOMContentLoaded', onDomReady_, { once: true });
-            } else {
-                onDomReady_();
-            }
-
-            setTimeout(function () {
-                log_('stop', 'fin de la fenetre de ' + Math.round(WINDOW_MS / 1000) + ' s');
-                stopped = true;
-                if (saveTimer !== null) { clearTimeout(saveTimer); saveTimer = null; }
-                save_();
-            }, WINDOW_MS);
-
-            window.__bfgDiagStartupTrace_ = { key: STORAGE_KEY, read: readStore_, format: formatTrace_ };
-        } catch (_) {
-            // Le diagnostic ne doit jamais empêcher BFG de démarrer.
-        }
-    })();
-    </script>
-    <!-- ===== BFG DIAG TEMPORAIRE v5.16 — FIN ===== -->
     <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0">
     <title>Briefing Fdf TEST v5.07</title>
     <link rel="manifest" href="./manifest.json?v=5.07">
@@ -1420,6 +1129,10 @@
         .vac-open-btn { background-color: #6f42c1; color: white; border: none; padding: 5px 12px; font-size: 0.8em; font-weight: 700; cursor: pointer; border-radius: 4px; margin-left: 10px; vertical-align: middle; letter-spacing: .04em; }
         .vac-open-btn:hover { background-color: #5a349f; }
         .vac-open-btn:disabled { background-color: #9b8bc4; cursor: progress; }
+        /* v5.20 — terrain sans carte VAC connue : grisé mais toujours touchable,
+           pour afficher le message au lieu d'ouvrir un onglet vide. */
+        .vac-open-btn.vac-unavailable,
+        .vac-open-btn.vac-unavailable:hover { background-color: #b8b8b8; color: #f4f4f4; cursor: not-allowed; }
         .vac-stale-warning {
             margin: 0 0 12px 0;
             padding: 9px 12px;
@@ -2700,8 +2413,14 @@
         #notam-auto-import-status.warning {
             color: #856404;
         }
-        #notam-loading-banner {
-            display: none;
+        /* v5.20 — la place des bandeaux NOTAM et VAC est réservée en permanence :
+           hauteur fixe, invisibles au repos (visibility et non display), pour que
+           leur apparition ou leur disparition ne décale jamais la page. */
+        #notam-loading-banner,
+        #vac-loading-banner {
+            display: block;
+            visibility: hidden;
+            box-sizing: border-box;
             max-width: 900px;
             margin: 10px auto 0 auto;
             padding: 11px 14px;
@@ -2714,13 +2433,56 @@
             text-align: center;
             box-shadow: 0 2px 6px rgba(20,90,50,0.18);
         }
-        #notam-loading-banner.visible { display: block; }
+        #notam-loading-banner {
+            height: 46px;
+            line-height: 22px;
+            overflow: hidden;
+            white-space: nowrap;
+            text-overflow: ellipsis;
+        }
+        #notam-loading-banner.visible,
+        #vac-loading-banner.visible { visibility: visible; }
         #notam-loading-banner.error {
             border-color: #ef9a9a;
             border-left-color: #c62828;
             background: #ffebee;
             color: #8e1b1b;
         }
+        #vac-loading-banner {
+            position: relative;
+            height: 68px;
+            line-height: 21px;
+            font-size: 0.95em;
+            overflow: auto;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding-right: 44px;
+        }
+        #vac-loading-banner.warning {
+            border-color: #e0a800;
+            border-left-color: #b8860b;
+            background: #fff8e1;
+            color: #7a5200;
+        }
+        #vac-loading-banner-close {
+            display: none;
+            position: absolute;
+            top: 50%;
+            right: 8px;
+            transform: translateY(-50%);
+            width: 30px;
+            height: 30px;
+            padding: 0;
+            border: none;
+            border-radius: 50%;
+            background: transparent;
+            color: inherit;
+            font-size: 18px;
+            font-weight: 900;
+            cursor: pointer;
+        }
+        #vac-loading-banner.closable #vac-loading-banner-close { display: block; }
         .notam-auto-import-timestamp {
             display: block;
             margin-top: 4px;
@@ -2774,7 +2536,8 @@
             <button id="cncasc-lock-btn" class="link-button" style="background-color:var(--sc-red);">Déconnexion</button>
         </div>
         <p id="cncasc-auth-status">Accès Briefing verrouillé.</p>
-        <div id="notam-loading-banner" role="status" aria-live="polite">Chargement des NOTAM en cours...</div>
+        <div id="notam-loading-banner" role="status" aria-live="polite"></div>
+        <div id="vac-loading-banner" role="status" aria-live="polite"><span id="vac-loading-banner-text"></span><button id="vac-loading-banner-close" type="button" aria-label="Fermer">✕</button></div>
         <p id="cncasc-warning" class="cncasc-warning"></p>
         <div id="bfg-npf-bridge-panel" style="margin-top:12px;padding-top:10px;border-top:1px solid #d7dee8;">
             <details id="bfg-npf-bridge-collapsible" style="margin-top:0;">
@@ -2802,15 +2565,6 @@
                 </div>
                 <p id="bfg-diag-status" style="margin:8px 0 0 0;font-weight:700;color:#34495e;"></p>
                 <textarea id="bfg-diag-output" aria-label="Diagnostic BFG" style="display:none;min-height:280px;margin-top:10px;font:12px/1.4 monospace;white-space:pre;overflow:auto;"></textarea>
-                <!-- ===== BFG DIAG TEMPORAIRE v5.16 — DÉBUT ===== -->
-                <div class="cncasc-auth-row" style="margin-top:14px;">
-                    <button id="bfg-diag-startup-show-btn" type="button" class="link-button" style="background-color:#8e44ad;">Trace démarrage</button>
-                    <button id="bfg-diag-startup-copy-btn" type="button" class="link-button" style="background-color:#16a085;">Copier trace</button>
-                    <button id="bfg-diag-startup-clear-btn" type="button" class="link-button" style="background-color:var(--sc-red);">Vider trace</button>
-                </div>
-                <p id="bfg-diag-startup-status" style="margin:8px 0 0 0;font-weight:700;color:#34495e;"></p>
-                <textarea id="bfg-diag-startup-output" aria-label="Trace de démarrage BFG" style="display:none;min-height:280px;margin-top:10px;font:12px/1.4 monospace;white-space:pre;overflow:auto;"></textarea>
-                <!-- ===== BFG DIAG TEMPORAIRE v5.16 — FIN ===== -->
             </div>
         </details>
     </div>
@@ -3202,8 +2956,8 @@
     <footer>Données : Météo-France, SIA, Windy.com, SDVFR. Page non commerciale, à usage personnel.</footer>
     
     <script>
-        const APP_VERSION_NUMBER = "5.19";
-        const APP_VERSION = `${APP_VERSION_NUMBER} TEST - ETAT NOTAM 2 COUCHES + ALTITUDES SUP AIP`;
+        const APP_VERSION_NUMBER = "5.20";
+        const APP_VERSION = `${APP_VERSION_NUMBER} TEST - VAC HORS LIGNE + ETAPES NOTAM`;
 
 
         // v4.97 — diagnostic conservé ; plage NOTAM quotidienne et sélection prioritaire. Aucun code d'accès, token ou contenu NOTAM n'est exporté.
@@ -4274,13 +4028,69 @@ const tdfStages = [
             return document.querySelectorAll('#notam-display .notam-item').length > 0;
         }
 
+        // v5.20 — pendant une actualisation (connexion, démarrage avec session valide,
+        // bouton « Actualiser NOTAM »), le bandeau affiche les étapes réelles et
+        // seules ces étapes le pilotent : une restauration locale qui masque le
+        // bandeau en cours de route est alors ignorée.
+        let bfgNotamStepsActive_ = false;
+        let bfgNotamBannerHideTimer_ = null;
+
         function setBfgNotamLoadingBanner_(visible, message = 'Chargement des NOTAM en cours...', options = {}) {
+            if (bfgNotamStepsActive_ && !options.step) {
+                bfgDiagLog_('NOTAM-UI', 'Bandeau piloté par les étapes : demande ignorée', { visible: !!visible, message: String(message || '') });
+                return;
+            }
             bfgDiagLog_('NOTAM-UI', `Bandeau téléchargement ${visible ? 'AFFICHÉ' : 'MASQUÉ'}`, { message: String(message || ''), error: !!options.error });
+            if (bfgNotamBannerHideTimer_) {
+                clearTimeout(bfgNotamBannerHideTimer_);
+                bfgNotamBannerHideTimer_ = null;
+            }
             const banner = document.getElementById('notam-loading-banner');
             if (!banner) return;
             banner.textContent = String(message || 'Chargement des NOTAM en cours...');
             banner.classList.toggle('visible', !!visible);
             banner.classList.toggle('error', !!(visible && options.error));
+            const autoHideMs = Number(options.autoHideMs) || 0;
+            if (visible && autoHideMs > 0) {
+                bfgNotamBannerHideTimer_ = setTimeout(() => {
+                    bfgNotamBannerHideTimer_ = null;
+                    banner.classList.remove('visible', 'error');
+                }, autoHideMs);
+            }
+        }
+
+        function setBfgNotamStep_(message) {
+            bfgNotamStepsActive_ = true;
+            setBfgNotamLoadingBanner_(true, message, { step: true });
+        }
+
+        // Rappel passé à fetchSdvfrTargetsOnce_ : suit la demande SDVFR réelle.
+        function bfgNotamStepFromSdvfr_(step) {
+            setBfgNotamStep_(step === 'request' ? 'Demande envoyée…' : 'Récupération des NOTAM en cours…');
+        }
+
+        // Laisse le navigateur peindre « Affichage des NOTAM… » avant le rendu,
+        // qui est synchrone.
+        function bfgNextPaint_() {
+            return new Promise(resolve => requestAnimationFrame(() => setTimeout(resolve, 0)));
+        }
+
+        /* Fin de séquence. En cas d'échec :
+         *   - 'fallback' : NATS prend le relais (connexion, démarrage) — même
+         *     bandeau qu'avant la v5.20 si aucun NOTAM n'est affiché ;
+         *   - 'error'    : bandeau d'erreur si aucun NOTAM n'est affiché ;
+         *   - 'hide'     : bandeau masqué. */
+        function endBfgNotamSteps_(success, failureMode = 'hide') {
+            bfgNotamStepsActive_ = false;
+            if (success) {
+                setBfgNotamLoadingBanner_(true, 'NOTAM à jour', { autoHideMs: 3000 });
+            } else if (failureMode === 'fallback' && !hasDisplayedBfgNotams_()) {
+                setBfgNotamLoadingBanner_(true, 'Chargement des NOTAM en cours...');
+            } else if (failureMode === 'error' && !hasDisplayedBfgNotams_()) {
+                setBfgNotamLoadingBanner_(true, 'Téléchargement des NOTAM impossible.', { error: true });
+            } else {
+                setBfgNotamLoadingBanner_(false);
+            }
         }
 
         function restoreBfgNotamQuickCache_() {
@@ -5149,15 +4959,6 @@ const tdfStages = [
 
             if (guardedInputs.length === 0) return;
 
-            // v4.84 : le garde-fou ne vaut que tant que l'utilisateur n'a encore rien touché.
-            // Le premier toucher réel sur un champ doit donc être accepté immédiatement.
-            let userHasInteracted_ = false;
-            const markUserInteraction_ = () => { userHasInteracted_ = true; };
-            document.addEventListener('pointerdown', markUserInteraction_, { capture: true, passive: true, once: true });
-            document.addEventListener('touchstart', markUserInteraction_, { capture: true, passive: true, once: true });
-            document.addEventListener('mousedown', markUserInteraction_, { capture: true, passive: true, once: true });
-            document.addEventListener('keydown', markUserInteraction_, { capture: true, once: true });
-
             guardedInputs.forEach((input) => {
                 input.removeAttribute('autofocus');
                 input.autofocus = false;
@@ -5179,7 +4980,6 @@ const tdfStages = [
                 };
 
                 const focusFromRealTap_ = () => {
-                    userHasInteracted_ = true;
                     // v4.85 : ne plus bloquer le scroll natif Safari au premier toucher.
                     // Le clavier doit s'ouvrir ET la page doit remonter dès ce même toucher.
                     try { input.focus(); } catch (_) {}
@@ -5201,24 +5001,9 @@ const tdfStages = [
                     input.addEventListener('mousedown', focusFromRealTap_);
                 }
 
-                const blurIfAutomaticStartupFocus_ = () => {
-                    /* BFG DIAG TEMPORAIRE v5.16 */ if (window.__bfgDiagMark_) window.__bfgDiagMark_('blurIfAutomaticStartupFocus_', '#' + input.id + ' interaction=' + userHasInteracted_ + ' focalise=' + (document.activeElement === input) + ' scrollY=' + Math.round(window.scrollY));
-                    if (!userHasInteracted_ && document.activeElement === input) input.blur();
-                };
-
-                // Ces contrôles empêchent toujours un focus automatique au chargement,
-                // mais deviennent inactifs dès le premier geste de l'utilisateur.
-                window.setTimeout(blurIfAutomaticStartupFocus_, 0);
-                window.setTimeout(blurIfAutomaticStartupFocus_, 50);
-                window.setTimeout(blurIfAutomaticStartupFocus_, 300);
-                window.setTimeout(blurIfAutomaticStartupFocus_, 1000);
-
-                window.addEventListener('pageshow', () => {
-                    if (!userHasInteracted_) {
-                        window.setTimeout(blurIfAutomaticStartupFocus_, 50);
-                        window.setTimeout(blurIfAutomaticStartupFocus_, 300);
-                    }
-                });
+                // v5.20 — le garde-fou blurIfAutomaticStartupFocus_ (minuteurs et
+                // écouteur pageshow) est retiré : il était sans effet sur la cause
+                // réelle, le panneau « Se connecter » du trousseau iOS.
             });
         }
 
@@ -5708,16 +5493,19 @@ const tdfStages = [
             return true;
         }
 
-        async function fetchSdvfrTargetsOnce_(targets, statusElement = null) {
+        async function fetchSdvfrTargetsOnce_(targets, statusElement = null, onStep = null) {
             const tokenInfo = getStoredCncascToken_();
             if (!tokenInfo) throw new Error("Accès Briefing verrouillé.");
+            if (typeof onStep === 'function') onStep('request');
             const requestPayload = await requestSdvfrNotams_(tokenInfo.token, targets);
+            if (typeof onStep === 'function') onStep('waiting');
             return await waitForSdvfrNotams_(requestPayload.requestId, tokenInfo.token, statusElement);
         }
 
         async function ensureSdvfrAllData_(options = {}) {
             const force = options.force === true;
             const statusElement = options.statusElement || null;
+            const onStep = typeof options.onStep === 'function' ? options.onStep : null;
 
             if (!force) {
                 const cached = loadSdvfrDailyCache_();
@@ -5732,7 +5520,7 @@ const tdfStages = [
             if (bfgSdvfrAllDataPromise_) return bfgSdvfrAllDataPromise_;
 
             bfgSdvfrAllDataPromise_ = (async () => {
-                const resultPayload = await fetchSdvfrTargetsOnce_(getSdvfrPelicandromeTargets_(), statusElement);
+                const resultPayload = await fetchSdvfrTargetsOnce_(getSdvfrPelicandromeTargets_(), statusElement, onStep);
                 bfgSdvfrLatestResult_ = resultPayload;
                 const rawText = buildBfgNotamTextFromSdvfrResult_(resultPayload);
                 if (rawText.trim()) {
@@ -5788,15 +5576,18 @@ const tdfStages = [
                     statusElement.textContent = `NOTAM : actualisation en cours...`;
                 }
 
-                const resultPayload = await ensureSdvfrAllData_({ force: true, statusElement });
+                const resultPayload = await ensureSdvfrAllData_({ force: true, statusElement, onStep: bfgNotamStepFromSdvfr_ });
                 const rawText = String(bfgNotamSourceTexts_.SDVFR || '').trim();
                 if (!rawText) throw new Error('Aucun NOTAM exploitable reçu pour les pélicandromes.');
 
+                setBfgNotamStep_('Affichage des NOTAM…');
+                await bfgNextPaint_();
                 applySdvfrWeatherFromPayload_(resultPayload);
                 if (getBfgDisplayedNotamSource_() === BFG_NOTAM_SOURCE_SDVFR_ && !renderCombinedBfgNotamSources_()) {
                     throw new Error('Analyseur NOTAM BFG indisponible.');
                 }
                 updateNotamDownloadStatus_();
+                endBfgNotamSteps_(true);
 
                 const displayedCount = document.querySelectorAll('#notam-display .notam-item').length;
                 const sourceCount = Number(resultPayload.totalNotams || 0);
@@ -5818,6 +5609,7 @@ const tdfStages = [
                 }
             } catch (error) {
                 console.error('Erreur import SDVFR NOTAMs:', error);
+                if (bfgNotamStepsActive_) endBfgNotamSteps_(false, 'error');
                 if (statusElement) {
                     statusElement.classList.add('warning');
                     statusElement.textContent = `NOTAM : actualisation impossible — ${error.message || error}`;
@@ -6304,27 +6096,31 @@ const tdfStages = [
                 clearCncascWarning_();
                 updateCncascAuthUi_();
                 setCncascWarning_('Connexion Briefing réussie. Chargement des données...');
-                if (!hasDisplayedBfgNotams_()) {
-                    setBfgNotamLoadingBanner_(true, 'Chargement des NOTAM en cours...');
-                }
+                // v5.20 — étapes affichées à chaque connexion, même si des NOTAM
+                // sont déjà affichés.
+                setBfgNotamStep_('Chargement des données Briefing…');
 
                 await fetchAllCncascData_();
 
                 // v4.85 : météo SDVFR fraîche AVANT les NOTAM NATS.
                 // Ne jamais réutiliser ici resultPayload du cache quotidien NOTAM SDVFR :
                 // il peut contenir une météo plus ancienne et écraser celle déjà à jour.
+                let freshSdvfrNotamsShown = false;
                 try {
                     const weatherPayload = await fetchSdvfrTargetsOnce_(
                         getSdvfrPelicandromeTargets_(),
-                        document.getElementById('notam-sdvfr-import-status')
+                        document.getElementById('notam-sdvfr-import-status'),
+                        bfgNotamStepFromSdvfr_
                     );
+                    setBfgNotamStep_('Affichage des NOTAM…');
+                    await bfgNextPaint_();
                     applySdvfrWeatherFromPayload_(weatherPayload);
-                    rememberFreshSdvfrNotamsFromPayload_(weatherPayload);
+                    freshSdvfrNotamsShown = rememberFreshSdvfrNotamsFromPayload_(weatherPayload);
                     checkWeatherValidity();
-                    if (hasDisplayedBfgNotams_()) setBfgNotamLoadingBanner_(false);
                 } catch (weatherError) {
                     console.warn('Chargement météo SDVFR fraîche de connexion incomplet ; aucun secours CheckWX.', weatherError);
                 }
+                endBfgNotamSteps_(freshSdvfrNotamsShown, 'fallback');
 
                 // NATS est ensuite actualisé. Son chargement ne doit plus modifier la météo affichée.
                 await importAutomaticNotamsFromNas_(null);
@@ -6340,6 +6136,7 @@ const tdfStages = [
                     });
                 });
             } catch (error) {
+                if (bfgNotamStepsActive_) endBfgNotamSteps_(false, 'hide');
                 clearCncascToken_();
                 updateCncascAuthUi_();
                 setCncascWarning_(`⚠️ Accès Briefing impossible : ${error.message}`);
@@ -7041,24 +6838,27 @@ const tdfStages = [
             // v4.86 : avec une session encore valide, réafficher d’abord les NOTAM du jour puis charger une météo SDVFR fraîche,
             // puis seulement actualiser NATS. Le cache quotidien SDVFR reste un cache NOTAM.
             // SDVFR reste affiché par défaut ; NATS ne devient visible que sur sélection explicite de l’utilisateur.
+            // v5.20 — le bandeau NOTAM n'apparaît plus qu'au moment réel de la
+            // demande SDVFR, puis suit ses étapes, même si des NOTAM sont affichés.
             if (getStoredCncascToken_()) {
-                if (!hasDisplayedBfgNotams_()) {
-                    setBfgNotamLoadingBanner_(true, 'Chargement des NOTAM en cours...');
-                }
                 fetchAllCncascData_();
                 setTimeout(async () => {
+                    let freshSdvfrNotamsShown = false;
                     try {
                         const weatherPayload = await fetchSdvfrTargetsOnce_(
                             getSdvfrPelicandromeTargets_(),
-                            document.getElementById('notam-sdvfr-import-status')
+                            document.getElementById('notam-sdvfr-import-status'),
+                            bfgNotamStepFromSdvfr_
                         );
+                        setBfgNotamStep_('Affichage des NOTAM…');
+                        await bfgNextPaint_();
                         applySdvfrWeatherFromPayload_(weatherPayload);
-                        rememberFreshSdvfrNotamsFromPayload_(weatherPayload);
+                        freshSdvfrNotamsShown = rememberFreshSdvfrNotamsFromPayload_(weatherPayload);
                         checkWeatherValidity();
-                        if (hasDisplayedBfgNotams_()) setBfgNotamLoadingBanner_(false);
                     } catch (weatherError) {
                         console.warn('Actualisation météo SDVFR fraîche de démarrage non terminée.', weatherError);
                     }
+                    endBfgNotamSteps_(freshSdvfrNotamsShown, 'fallback');
                     try {
                         await importAutomaticNotamsFromNas_(null);
                     } catch (error) {
@@ -8519,13 +8319,11 @@ const tdfStages = [
         }
 
         function forceBriefingStartAtTop() {
-            /* BFG DIAG TEMPORAIRE v5.16 */ if (window.__bfgDiagMark_) window.__bfgDiagMark_('forceBriefingStartAtTop', 'verrouActif=' + bfgStartupTopLockActive_ + ' scrollY=' + Math.round(window.scrollY));
             if (!bfgStartupTopLockActive_) return;
             setBriefingWindowScrollInstant_(0);
         }
 
         function scheduleBfgInitialTopLock_() {
-            /* BFG DIAG TEMPORAIRE v5.16 */ if (window.__bfgDiagMark_) window.__bfgDiagMark_('scheduleBfgInitialTopLock_', 'scrollY=' + Math.round(window.scrollY));
             const timer = setTimeout(() => {
                 bfgStartupTopLockActive_ = false;
             }, 0);
@@ -9008,10 +8806,18 @@ const tdfStages = [
         const BFG_VAC_STORE_ = 'vacPdfs';
         const BFG_VAC_LAST_CHECK_DAY_KEY_ = 'bfgVacLastManifestCheckDayV1';
         const BFG_VAC_LAST_CHECK_ISO_KEY_ = 'bfgVacLastManifestCheckIsoV1';
+        // v5.20 — copie réduite du dernier manifest reçu, par source : elle sert à
+        // griser hors ligne les boutons des terrains sans carte. Absente (nouvel
+        // iPad, après « Effacer ») : tous les boutons restent actifs.
+        const BFG_VAC_KNOWN_MANIFESTS_KEY_ = 'bfgVacManifestV1';
+        // v5.20 — terrains dont le téléchargement a échoué : nouvel essai à la
+        // prochaine connexion Briefing, même le jour même.
+        const BFG_VAC_PENDING_DOWNLOADS_KEY_ = 'bfgVacPendingDownloadsV1';
 
         let bfgVacDb_ = null;
         let bfgVacDailyCheckPromise_ = null;
         const bfgVacManifestSessionCache_ = new Map();
+        let bfgVacKnownManifests_ = null;
 
         function normalizeBfgVacOaci_(oaci) {
             return String(oaci || '').trim().toUpperCase().replace(/[^A-Z0-9]/g, '');
@@ -9107,9 +8913,202 @@ const tdfStages = [
             try {
                 localStorage.removeItem(BFG_VAC_LAST_CHECK_DAY_KEY_);
                 localStorage.removeItem(BFG_VAC_LAST_CHECK_ISO_KEY_);
+                localStorage.removeItem(BFG_VAC_KNOWN_MANIFESTS_KEY_);
+                localStorage.removeItem(BFG_VAC_PENDING_DOWNLOADS_KEY_);
             } catch (_) {}
             bfgVacManifestSessionCache_.clear();
+            bfgVacKnownManifests_ = null;
+            applyAllBfgVacButtonsAvailability_();
+            hideBfgVacBanner_();
         }
+
+        /* ---------- v5.20 — manifest connu et grisage des boutons ---------- */
+
+        function loadBfgVacKnownManifests_() {
+            if (bfgVacKnownManifests_) return bfgVacKnownManifests_;
+            let parsed = null;
+            try { parsed = JSON.parse(localStorage.getItem(BFG_VAC_KNOWN_MANIFESTS_KEY_) || 'null'); }
+            catch (_) { parsed = null; }
+            bfgVacKnownManifests_ = (parsed && typeof parsed === 'object' && parsed.sources && typeof parsed.sources === 'object')
+                ? parsed
+                : { version: 1, sources: {} };
+            return bfgVacKnownManifests_;
+        }
+
+        function rememberBfgVacManifest_(source, manifest) {
+            const airports = {};
+            Object.entries(manifest.airports || {}).forEach(([oaci, raw]) => {
+                const key = normalizeBfgVacOaci_(oaci);
+                if (!key || !raw || typeof raw !== 'object') return;
+                airports[key] = raw.available === true
+                    ? {
+                        available: true,
+                        file: raw.file,
+                        sha256: raw.sha256,
+                        size: raw.size,
+                        cycle: raw.cycle,
+                        name: raw.name
+                    }
+                    : { available: false };
+            });
+            const known = loadBfgVacKnownManifests_();
+            known.sources[source.id] = {
+                schemaVersion: 1,
+                sourceCycle: String(manifest.sourceCycle || ''),
+                savedAt: new Date().toISOString(),
+                airports
+            };
+            try { localStorage.setItem(BFG_VAC_KNOWN_MANIFESTS_KEY_, JSON.stringify(known)); }
+            catch (error) { console.warn('Mémorisation du manifest VAC impossible :', error); }
+            applyAllBfgVacButtonsAvailability_();
+        }
+
+        /* 'available' dès qu'une source publie la carte ; 'unavailable' seulement
+         * si TOUTES les sources de BFG_VAC_SOURCES_ sont connues et qu'aucune ne la
+         * publie ; 'unknown' sinon. Une source ajoutée plus tard et pas encore
+         * consultée laisse donc le bouton actif. */
+        function getBfgVacKnownAvailability_(oaci) {
+            const key = normalizeBfgVacOaci_(oaci);
+            if (!key) return 'unknown';
+            const known = loadBfgVacKnownManifests_();
+            let allSourcesKnown = true;
+            for (const source of BFG_VAC_SOURCES_) {
+                const manifest = known.sources[source.id];
+                if (!manifest || !manifest.airports) {
+                    allSourcesKnown = false;
+                    continue;
+                }
+                const found = readBfgVacManifestEntry_(manifest, key);
+                if (found && found.usable) return 'available';
+            }
+            return allSourcesKnown ? 'unavailable' : 'unknown';
+        }
+
+        function applyBfgVacButtonAvailability_(button) {
+            if (!button) return;
+            const oaci = normalizeBfgVacOaci_(button.dataset.icao || '');
+            // Le grisage ne doit jamais empêcher la création d'une section NOTAM :
+            // en cas d'erreur, le bouton reste actif (comportement d'avant v5.20).
+            let unavailable = false;
+            try { unavailable = getBfgVacKnownAvailability_(oaci) === 'unavailable'; }
+            catch (error) { console.warn('Disponibilité VAC indéterminée :', error); }
+            button.classList.toggle('vac-unavailable', unavailable);
+            button.setAttribute('aria-disabled', unavailable ? 'true' : 'false');
+            button.title = unavailable ? `Aucune carte VAC disponible pour ${oaci}` : `Carte VAC ${oaci}`;
+        }
+
+        function applyAllBfgVacButtonsAvailability_() {
+            document.querySelectorAll('.vac-open-btn').forEach(applyBfgVacButtonAvailability_);
+        }
+
+        function loadBfgVacPendingDownloads_() {
+            try {
+                const parsed = JSON.parse(localStorage.getItem(BFG_VAC_PENDING_DOWNLOADS_KEY_) || '[]');
+                return Array.isArray(parsed) ? parsed.map(normalizeBfgVacOaci_).filter(Boolean) : [];
+            } catch (_) { return []; }
+        }
+
+        function saveBfgVacPendingDownloads_(list) {
+            const unique = Array.from(new Set((list || []).map(normalizeBfgVacOaci_).filter(Boolean)));
+            try {
+                if (unique.length) localStorage.setItem(BFG_VAC_PENDING_DOWNLOADS_KEY_, JSON.stringify(unique));
+                else localStorage.removeItem(BFG_VAC_PENDING_DOWNLOADS_KEY_);
+            } catch (_) {}
+        }
+
+        function removeBfgVacPendingDownload_(oaci) {
+            const key = normalizeBfgVacOaci_(oaci);
+            const pending = loadBfgVacPendingDownloads_();
+            if (pending.includes(key)) saveBfgVacPendingDownloads_(pending.filter(item => item !== key));
+        }
+
+        /* ---------- v5.20 — cycle AIRAC ----------
+         * Calendrier fixe de 28 jours, référence : cycle du 03_SEP_2026.
+         * Les cycles entrent en vigueur à 00:00 UTC. */
+        const BFG_AIRAC_REFERENCE_UTC_ = Date.UTC(2026, 8, 3);
+        const BFG_AIRAC_CYCLE_MS_ = 28 * 24 * 60 * 60 * 1000;
+        const BFG_AIRAC_MONTHS_ = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
+
+        // « 03_SEP_2026 » (format du manifest) -> horodatage UTC, ou null.
+        function parseBfgAiracCycle_(text) {
+            const match = String(text || '').trim().toUpperCase().match(/^(\d{1,2})[_\s-]([A-Z]{3})[_\s-](\d{4})$/);
+            if (!match) return null;
+            const month = BFG_AIRAC_MONTHS_.indexOf(match[2]);
+            if (month < 0) return null;
+            return Date.UTC(Number(match[3]), month, Number(match[1]));
+        }
+
+        function getBfgCurrentAiracCycleUtc_(now = Date.now()) {
+            const index = Math.floor((now - BFG_AIRAC_REFERENCE_UTC_) / BFG_AIRAC_CYCLE_MS_);
+            return BFG_AIRAC_REFERENCE_UTC_ + index * BFG_AIRAC_CYCLE_MS_;
+        }
+
+        // Horodatage UTC ou texte du manifest -> « 03 SEP 2026 ».
+        function formatBfgAiracCycle_(value) {
+            const time = typeof value === 'number' ? value : parseBfgAiracCycle_(value);
+            if (time === null || !Number.isFinite(time)) return String(value || '').replace(/_/g, ' ');
+            const date = new Date(time);
+            return `${String(date.getUTCDate()).padStart(2, '0')} ${BFG_AIRAC_MONTHS_[date.getUTCMonth()]} ${date.getUTCFullYear()}`;
+        }
+
+        function getBfgVacAiracAlertForCycle_(sourceCycle) {
+            const sourceTime = parseBfgAiracCycle_(sourceCycle);
+            if (sourceTime === null) return '';
+            const currentTime = getBfgCurrentAiracCycleUtc_();
+            if (sourceTime >= currentTime) return '';
+            return `⚠️ Cartes VAC non à jour : cycle ${formatBfgAiracCycle_(sourceTime)} disponible,`
+                + ` cycle en vigueur ${formatBfgAiracCycle_(currentTime)}.`
+                + ` Effectuer la mise à jour des cartes VAC depuis NPF-Q400.`;
+        }
+
+        // Alerte du premier manifest connu en retard, dans l'ordre des sources.
+        function getBfgVacKnownAiracAlert_(sourceId = null) {
+            const known = loadBfgVacKnownManifests_();
+            const sources = sourceId
+                ? BFG_VAC_SOURCES_.filter(source => source.id === sourceId)
+                : BFG_VAC_SOURCES_;
+            for (const source of sources) {
+                const manifest = known.sources[source.id];
+                const alertText = manifest ? getBfgVacAiracAlertForCycle_(manifest.sourceCycle) : '';
+                if (alertText) return alertText;
+            }
+            return '';
+        }
+
+        /* ---------- v5.20 — bandeau VAC de connexion ---------- */
+        let bfgVacBannerHideTimer_ = null;
+
+        function setBfgVacBanner_(message, options = {}) {
+            const banner = document.getElementById('vac-loading-banner');
+            const text = document.getElementById('vac-loading-banner-text');
+            if (!banner || !text) return;
+            if (bfgVacBannerHideTimer_) {
+                clearTimeout(bfgVacBannerHideTimer_);
+                bfgVacBannerHideTimer_ = null;
+            }
+            text.textContent = String(message || '');
+            banner.classList.add('visible');
+            banner.classList.toggle('warning', !!options.warning);
+            banner.classList.toggle('closable', !!options.closable);
+            const autoHideMs = Number(options.autoHideMs) || 0;
+            if (autoHideMs > 0) {
+                bfgVacBannerHideTimer_ = setTimeout(hideBfgVacBanner_, autoHideMs);
+            }
+        }
+
+        function hideBfgVacBanner_() {
+            if (bfgVacBannerHideTimer_) {
+                clearTimeout(bfgVacBannerHideTimer_);
+                bfgVacBannerHideTimer_ = null;
+            }
+            const banner = document.getElementById('vac-loading-banner');
+            if (banner) banner.classList.remove('visible', 'warning', 'closable');
+        }
+
+        (() => {
+            const closeButton = document.getElementById('vac-loading-banner-close');
+            if (closeButton) closeButton.addEventListener('click', hideBfgVacBanner_);
+        })();
 
         async function bfgVacSha256Hex_(buffer) {
             if (!window.crypto || !window.crypto.subtle || !window.crypto.subtle.digest) {
@@ -9145,6 +9144,7 @@ const tdfStages = [
                     throw new Error(`manifest VAC ${source.id} invalide`);
                 }
                 bfgVacManifestSessionCache_.set(source.id, manifest);
+                rememberBfgVacManifest_(source, manifest);
                 return manifest;
             } finally {
                 clearTimeout(timer);
@@ -9286,10 +9286,17 @@ const tdfStages = [
 
         /* Vérification du cycle AIRAC : une seule fois par jour, déclenchée par la
          * première connexion Briefing réussie. Aucune requête VAC au démarrage.
-         * En cas d'échec, la date du jour n'est PAS mémorisée : les ouvertures
-         * ultérieures resteront signalées comme non vérifiées. */
+         * En cas d'échec du manifest, la date du jour n'est PAS mémorisée : les
+         * ouvertures ultérieures resteront signalées comme non vérifiées.
+         * v5.20 — la même vérification télécharge en arrière-plan, une par une, les
+         * VAC manquantes ou modifiées des pélicandromes (getSdvfrPelicandromeTargets_,
+         * donc sans LFMT), avec les contrôles d'intégrité habituels. Les terrains en
+         * échec sont mémorisés et repris à la connexion suivante, même le jour même.
+         * Tout à jour : seul le manifest est téléchargé, aucun bandeau. */
         async function ensureBfgVacDailyManifestCheck_(options = {}) {
-            if (!options.force && bfgVacCheckedToday_()) return { skipped: true, checked: true };
+            if (!options.force && bfgVacCheckedToday_() && !loadBfgVacPendingDownloads_().length) {
+                return { skipped: true, checked: true };
+            }
             if (bfgVacDailyCheckPromise_) return bfgVacDailyCheckPromise_;
 
             bfgVacDailyCheckPromise_ = (async () => {
@@ -9303,7 +9310,8 @@ const tdfStages = [
                 }
 
                 const records = await getAllBfgVacRecords_();
-                let updated = 0;
+                const storedOaci = new Set();
+                const jobs = [];
                 let removed = 0;
                 let unchanged = 0;
 
@@ -9314,22 +9322,62 @@ const tdfStages = [
                         removed += 1;
                         continue;
                     }
+                    storedOaci.add(normalizeBfgVacOaci_(record.oaci));
                     const localSha = String(record.sha256 || '').toLowerCase();
                     const remoteSha = String(found.entry.sha256 || '').toLowerCase();
                     if (localSha && remoteSha && localSha === remoteSha) {
                         unchanged += 1;
                         continue;
                     }
-                    await storeBfgVacEntry_(found.source, found.entry, found.manifest);
-                    updated += 1;
+                    jobs.push(found);
                 }
 
+                // Pélicandromes sans copie locale : téléchargés s'ils sont publiés.
+                for (const target of getSdvfrPelicandromeTargets_()) {
+                    const key = normalizeBfgVacOaci_(target.icao);
+                    if (!key || storedOaci.has(key)) continue;
+                    storedOaci.add(key);
+                    const found = await findBfgVacEntryAcrossSources_(key);
+                    if (found && !found.unavailable) jobs.push(found);
+                }
+
+                const airacAlert = getBfgVacKnownAiracAlert_();
+                const failed = [];
+                let updated = 0;
+
+                for (let index = 0; index < jobs.length; index += 1) {
+                    const found = jobs[index];
+                    setBfgVacBanner_(`Téléchargement des cartes VAC ${index + 1}/${jobs.length}…`);
+                    try {
+                        await storeBfgVacEntry_(found.source, found.entry, found.manifest);
+                        updated += 1;
+                    } catch (error) {
+                        console.warn(`Téléchargement VAC ${found.entry.oaci} impossible :`, error);
+                        failed.push(found.entry.oaci);
+                    }
+                }
+
+                saveBfgVacPendingDownloads_(failed);
                 markBfgVacCheckedToday_();
-                clearAllBfgVacStaleWarnings_();
+                refreshBfgVacWarningsAfterDailyCheck_(failed);
+
+                if (failed.length) {
+                    const failedText = failed.length === 1
+                        ? '1 carte VAC non téléchargée, nouvel essai à la prochaine connexion.'
+                        : `${failed.length} cartes VAC non téléchargées, nouvel essai à la prochaine connexion.`;
+                    setBfgVacBanner_(airacAlert ? `${failedText} ${airacAlert}` : failedText, { warning: true, closable: true });
+                } else if (airacAlert) {
+                    setBfgVacBanner_(airacAlert, { warning: true, closable: true });
+                } else if (jobs.length) {
+                    const cycle = formatBfgAiracCycle_((jobs[0].manifest && jobs[0].manifest.sourceCycle) || '');
+                    setBfgVacBanner_(`Cartes VAC à jour (cycle ${cycle})`, { autoHideMs: 4000 });
+                }
+
                 bfgDiagLog_('VAC', 'Vérification quotidienne du cycle terminée', {
-                    total: records.length, updated, removed, unchanged
+                    total: records.length, downloads: jobs.length, updated, removed, unchanged,
+                    failed: failed.join(' '), airacAlert: !!airacAlert
                 });
-                return { checked: true, total: records.length, updated, removed, unchanged };
+                return { checked: true, total: records.length, downloads: jobs.length, updated, removed, unchanged, failed };
             })();
 
             try {
@@ -9355,6 +9403,43 @@ const tdfStages = [
                 + ` Se connecter à Internet puis se connecter au Briefing pour la vérifier.`;
         }
 
+        /* v5.20 — bandeau orange au-dessus de la carte ouverte : avertissement
+         * « non vérifiée » (inchangé) et/ou alerte de cycle AIRAC. */
+        function updateBfgVacCardWarning_(container, oaci, record, verified) {
+            if (!container) return;
+            if (!verified) showBfgVacStaleWarning_(container, oaci, record);
+            else clearBfgVacStaleWarning_(container);
+            const airacAlert = getBfgVacKnownAiracAlert_(record && record.sourceId ? record.sourceId : null);
+            if (!airacAlert) return;
+            const banner = container.querySelector('.vac-stale-warning');
+            if (banner) {
+                banner.textContent = `${airacAlert} ${banner.textContent}`;
+                return;
+            }
+            const alertBanner = document.createElement('p');
+            alertBanner.className = 'vac-stale-warning';
+            alertBanner.textContent = airacAlert;
+            const title = container.querySelector('h3');
+            if (title && title.nextSibling) container.insertBefore(alertBanner, title.nextSibling);
+            else container.insertBefore(alertBanner, container.firstChild);
+        }
+
+        // Après la vérification du jour : les cartes vérifiées perdent leur
+        // avertissement « non vérifiée » ; l'alerte AIRAC éventuelle reste.
+        function refreshBfgVacWarningsAfterDailyCheck_(failedOaci = []) {
+            const failed = new Set((failedOaci || []).map(normalizeBfgVacOaci_));
+            document.querySelectorAll('.vac-stale-warning').forEach(node => {
+                const container = node.closest('.airport-section-container');
+                const key = normalizeBfgVacOaci_(container && container.dataset ? container.dataset.icao : '');
+                if (!container || !key) {
+                    node.remove();
+                    return;
+                }
+                if (failed.has(key)) return;
+                updateBfgVacCardWarning_(container, key, null, true);
+            });
+        }
+
         function clearBfgVacStaleWarning_(container) {
             if (!container) return;
             const banner = container.querySelector('.vac-stale-warning');
@@ -9378,6 +9463,14 @@ const tdfStages = [
             if (!key) return false;
 
             const container = buttonEl ? buttonEl.closest('.airport-section-container') : null;
+
+            // v5.20 — terrain connu sans carte : message seul, AUCUN onglet ouvert.
+            // Lecture synchrone du manifest mémorisé, avant window.open.
+            if (getBfgVacKnownAvailability_(key) === 'unavailable') {
+                alert(`Aucune carte VAC disponible pour ${key}`);
+                return false;
+            }
+
             const openedWindow = window.open('', '_blank');
             const originalLabel = buttonEl ? buttonEl.textContent : '';
             if (buttonEl) {
@@ -9388,7 +9481,7 @@ const tdfStages = [
             try {
                 let record = await getBfgVacRecord_(key);
                 let hasBlob = !!(record && record.blob instanceof Blob);
-                let verified = hasBlob && bfgVacCheckedToday_();
+                let verified = hasBlob && bfgVacCheckedToday_() && !loadBfgVacPendingDownloads_().includes(key);
 
                 if (!verified) {
                     // VAC absente, ou cycle non vérifié aujourd'hui : tentative de
@@ -9410,6 +9503,7 @@ const tdfStages = [
                             record = await storeBfgVacEntry_(found.source, found.entry, found.manifest);
                             hasBlob = true;
                         }
+                        removeBfgVacPendingDownload_(key);
                         verified = true;
                     } catch (error) {
                         if (!hasBlob) {
@@ -9430,8 +9524,7 @@ const tdfStages = [
                     return false;
                 }
 
-                if (verified) clearBfgVacStaleWarning_(container);
-                else showBfgVacStaleWarning_(container, key, record);
+                updateBfgVacCardWarning_(container, key, record, verified);
 
                 const pdfUrl = URL.createObjectURL(record.blob);
                 if (openedWindow) openedWindow.location.href = pdfUrl;
@@ -9493,6 +9586,7 @@ const tdfStages = [
             vacButton.dataset.icao = icao;
             vacButton.title = `Carte VAC ${icao}`;
             vacButton.textContent = 'VAC';
+            applyBfgVacButtonAvailability_(vacButton);
 
             airportTitle.appendChild(tafToggleButton);
             airportTitle.appendChild(refreshButton);
@@ -11993,7 +12087,6 @@ let activeShareApiBase = SHARE_API_BASE;
     window.restoreWeatherDataSnapshot_ = restoreWeatherDataSnapshot_;
 
     function clearWeatherForDailyLogout_() {
-        /* BFG DIAG TEMPORAIRE v5.16 */ if (window.__bfgDiagMark_) window.__bfgDiagMark_('clearWeatherForDailyLogout_', 'scrollY=' + Math.round(window.scrollY));
         document.querySelectorAll('#notam-display .airport-section-container').forEach(container => {
             const metar = container.querySelector('.metar-container');
             const taf = container.querySelector('.taf-container');
@@ -12947,7 +13040,6 @@ let activeShareApiBase = SHARE_API_BASE;
      * Balayage par préfixe plutôt que liste de clés, pour qu'une clé ajoutée
      * plus tard soit prise en compte sans qu'on ait à penser à l'inscrire ici.
      * EXCEPTIONS VOLONTAIRES, toutes listées dans BFG_LOCAL_STORAGE_KEEP_ :
-     *   - bfgDiagStartupTraceV1         : trace de diagnostic de démarrage v5.16 ;
      *   - bfg_cncasc_token_v1 / _exp_v1 : connexion Briefing, qui a son propre
      *     bouton « Déconnexion » ;
      *   - les 5 clés du PONT NPF-Q400   : l'association est une opération
@@ -12958,8 +13050,11 @@ let activeShareApiBase = SHARE_API_BASE;
      * elle est réobtenue à chaque connexion Briefing par
      * authorizeNpfNotamsNasFromBfgPassword_. */
     const BFG_LOCAL_STORAGE_PREFIXES_ = ['briefingFdf', 'bfgNpf', 'bfgVac', 'bfgPdfAnnotations:'];
+
+    // v5.20 — la trace de démarrage v5.16 est retirée. Sa clé n'entre dans aucun
+    // préfixe ci-dessus : elle est supprimée une fois pour toutes au chargement.
+    try { localStorage.removeItem('bfgDiagStartupTraceV1'); } catch (_) {}
     const BFG_LOCAL_STORAGE_KEEP_ = [
-        'bfgDiagStartupTraceV1',
         'bfg_cncasc_token_v1',
         'bfg_cncasc_token_exp_v1',
         // Association NPF-Q400 — conservée.
