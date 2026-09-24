@@ -338,6 +338,89 @@ C. CONTRÔLES AVANT TOUTE LIVRAISON
       surligneur, repli hors ligne NAS) ;
     - nouvelle entrée ajoutée EN TÊTE de ce journal, sous cette section 0,
       historique intégralement conservé.
+TEST v5.27 — 2026-09-24
+Base : TEST v5.26
+===============================================================================
+
+Corrections du bouton « Actualiser » après l'essai iPad de la v5.26. Aucune
+modification du NAS ni du worker.
+
+1. CAUSE (diagnostic iPad du 24/09/2026, 17:24:58 -> 17:31:50)
+- Le NAS n'a qu'UN créneau SDVFR : une seconde demande pendant qu'une première
+  est « pending » ou « running » est refusée par HTTP 409 « Une demande SDVFR est
+  déjà en cours. » (request-sdvfr-notams.php, copie de référence du 24/09,
+  lignes 266-276).
+- 17:24:59 : la météo silencieuse d'ouverture occupe ce créneau (terminée à
+  17:25:16). 17:25:06,624 : « Actualiser » envoie la demande NOTAM SDVFR ->
+  409 immédiat, sans trace (les demandes SDVFR n'étaient pas journalisées).
+  importSdvfrNotams_ échoue en quelques ms ; NATS, enchaîné sur sa FIN, démarre
+  à 17:25:06,702 ; la météo reçoit le même 409 -> « Météo : ÉCHEC » à
+  17:25:06,827. Le texte SDVFR reste celui de 15:10:31Z ; bandeau figé sur
+  « NOTAM (demande envoyée) » ; « NOTAM : ÉCHEC » à 17:25:44, fin de NATS.
+- Ni la garde « NOTAM une fois par jour », ni la session n'étaient en cause.
+
+2. CORRECTIONS
+- FILE SDVFR côté BFG (fetchSdvfrTargetsOnce_, fonction commune à toutes les
+  demandes SDVFR : NOTAM, météo, terrain isolé, Météo manuelle) : les demandes
+  de BFG partent l'une après l'autre, jamais en parallèle.
+- 409 venant d'un AUTRE client (autre appareil, NPF-Q400, tâche planifiée) :
+  nouvel essai toutes les 3 s pendant 90 s au plus, puis échec affiché.
+  requestSdvfrNotams_ attache le statut HTTP à l'erreur.
+- Journal [SDVFR] : demande en file d'attente, demande envoyée, créneau occupé
+  (409), demande refusée, résultat reçu.
+- ACTUALISATION DÉJÀ EN COURS : attendue, son résultat repris, pour chaque
+  élément :
+  - météo : refreshAllWeather_ et refreshBfgWeatherSilently_ partagent
+    bfgWeatherRefreshPromise_ (silencieuse d'ouverture, auto 35 min, bouton) ;
+  - NOTAM SDVFR : importSdvfrNotams_ rejoint un import en cours
+    (bfgSdvfrImportPromise_) ; c'est toujours une vraie demande SDVFR ; une
+    demande SDVFR de connexion / ouverture en cours passe avant grâce à la file ;
+  - NATS : importAutomaticNotamsFromNas_ rejoint un import en cours
+    (bfgNatsImportPromise_) au lieu d'une seconde demande de génération ;
+  - SUP AIP : si le chargement est en cours (son bouton est alors désactivé),
+    il est attendu puis son résultat lu ; code SUP AIP non modifié ;
+  - RTBA : demande en cours attendue (v5.26) ;
+  - VAC : vérification en cours rejointe (v5.20) ;
+  - TEMSI et données Briefing : un second appel relance simplement la lecture,
+    sans risque de fausse alerte.
+- ORDRE : NOTAM SDVFR, puis NATS une fois SDVFR TERMINÉ ; météo après SDVFR.
+- BANDEAU : l'étape en cours (« demande envoyée ») est un champ séparé du détail
+  d'échec : plus de « NOTAM ((demande envoyée)) ». Le détail d'échec ne reprend
+  qu'un message d'erreur réel.
+- Diagnostic RTBA : clé « codesMultiGéométrie » renommée « multiGéométrie » (le
+  filtre anti-secret du diagnostic masquait toute clé contenant « code »).
+
+3. ESSAIS NODE (fonctions extraites d'index.html, NAS simulé à un créneau)
+- Reproduction de l'incident (météo silencieuse, NATS, SUP AIP, RTBA et VAC déjà
+  en cours) : NOTAM SDVFR mis en file puis envoyé après la météo, NATS après la
+  fin de SDVFR, SUP AIP en cours rejoint (1 seul chargement) -> « Tout est à
+  jour ».
+- Échec réel TEMSI et NATS -> « en échec : NOTAM · TEMSI », les autres ✓.
+- Créneau occupé 100 ms par un autre client -> 409, nouveaux essais, réussite.
+- Créneau occupé au-delà de l'attente maximale -> « en échec : NOTAM · Météo »,
+  NATS lancé quand même après la fin de SDVFR.
+- Reprise : météo manuelle pendant la silencieuse, deux météos simultanées,
+  deux imports NOTAM SDVFR, deux imports NATS -> même résultat, UNE seule
+  demande à chaque fois.
+- Aucune double parenthèse dans le bandeau.
+
+4. ESSAIS v5.26
+- Bouton « Actualiser » : RTBA, cartes VAC, TEMSI, SUP AIP, données Briefing :
+  VALIDÉ. Défauts météo (fausse alerte) et NOTAM SDVFR (non actualisés, ordre non
+  respecté) : corrigés en v5.27.
+
+VERSIONS
+- APP_VERSION_NUMBER 5.27, BFG_SW_VERSION 5.27, CACHE_NAME
+  'briefing-fdf-test-v5.27-sdvfr-queue-r1', description du manifest. sw.js :
+  version seule. Constantes figées à 5.07 NON modifiées (cf. 0.B1).
+
+STATUTS v5.27
+- File SDVFR et reprise des actualisations en cours : À MESURER sur iPad
+  (refaire l'essai : ouvrir BFG puis « Actualiser » aussitôt).
+- À MESURER (reportés) : bascule de 18:14Z popup ouvert ; cases reçues à 23:00 ;
+  passage de minuit R45 N2 à N5 ; cases du lendemain ; NOTAM une fois par jour
+  et météo à chaque ouverture.
+
 TEST v5.26 — 2026-09-24
 Base : TEST v5.25
 ===============================================================================

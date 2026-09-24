@@ -3007,8 +3007,8 @@
     <footer>Données : Météo-France, SIA, Windy.com, SDVFR. Page non commerciale, à usage personnel.</footer>
     
     <script>
-        const APP_VERSION_NUMBER = "5.26";
-        const APP_VERSION = `${APP_VERSION_NUMBER} TEST - ACTUALISER TOUT`;
+        const APP_VERSION_NUMBER = "5.27";
+        const APP_VERSION = `${APP_VERSION_NUMBER} TEST - ACTUALISER : FILE SDVFR`;
 
 
         // v4.97 — diagnostic conservé ; plage NOTAM quotidienne et sélection prioritaire. Aucun code d'accès, token ou contenu NOTAM n'est exporté.
@@ -3860,6 +3860,9 @@ const tdfStages = [
         let bfgSdvfrAllDataPromise_ = null;
         const BFG_SDVFR_DAILY_CACHE_KEY_ = 'briefingFdfSdvfrDailyNotamsV1';
         let bfgWeatherRefreshInProgress_ = false;
+        // v5.27 — actualisation météo en cours (silencieuse, auto, manuelle) : les suivantes
+        // la rejoignent et reprennent son résultat au lieu d'échouer.
+        let bfgWeatherRefreshPromise_ = null;
         let bfgLastAutoWeatherRefreshAt_ = 0;
         const BFG_AUTO_WEATHER_REFRESH_COOLDOWN_MS_ = 5 * 60 * 1000;
 
@@ -4141,6 +4144,7 @@ const tdfStages = [
             if (!item) return;
             item.state = state;
             if (detail !== undefined) item.detail = String(detail || '');
+            if (state !== 'running') item.step = '';   // l'étape en cours ne devient jamais un détail d'échec
             bfgRenderGlobalRefreshBanner_();
         }
 
@@ -4169,7 +4173,9 @@ const tdfStages = [
             text.textContent = bfgGlobalRefresh_.items.map(item => {
                 if (item.state === 'ok') return `${item.label} ✓`;
                 if (item.state === 'error') return `${item.label} ⚠️`;
-                return `${item.label}${item.detail ? ' ' + item.detail : ''}…`;
+                // v5.27 — étape en cours (NOTAM) entre parenthèses, compteur (VAC) nu.
+                const progress = item.step ? ` (${item.step})` : (item.detail ? ` ${item.detail}` : '');
+                return `${item.label}${progress}…`;
             }).join(' · ');
             banner.classList.remove('warning', 'closable');
         }
@@ -4192,7 +4198,8 @@ const tdfStages = [
             if (!item || item.state !== 'running' || !visible) return;
             const text = String(message || '').replace(/(?:…|\.\.\.)\s*$/, '').trim();
             if (!text || /NOTAM à jour|impossible/i.test(text)) return;
-            bfgGlobalRefreshSetItem_('notam', 'running', `(${text.charAt(0).toLowerCase()}${text.slice(1)})`);
+            item.step = `${text.charAt(0).toLowerCase()}${text.slice(1)}`;
+            bfgRenderGlobalRefreshBanner_();
         }
 
         // v5.20 — pendant une actualisation (connexion, démarrage avec session valide,
@@ -4277,6 +4284,16 @@ const tdfStages = [
         // texte NOTAM du jour et son cache ne sont pas touchés (même règle que
         // refreshAllWeather_ depuis la v4.77). Aucun bandeau, aucun statut NOTAM.
         async function refreshBfgWeatherSilently_(reason = '') {
+            if (bfgWeatherRefreshPromise_) return bfgWeatherRefreshPromise_;
+            bfgWeatherRefreshPromise_ = refreshBfgWeatherSilentlyRun_(reason);
+            try {
+                return await bfgWeatherRefreshPromise_;
+            } finally {
+                bfgWeatherRefreshPromise_ = null;
+            }
+        }
+
+        async function refreshBfgWeatherSilentlyRun_(reason) {
             try {
                 const payload = await fetchSdvfrTargetsOnce_(getSdvfrPelicandromeTargets_());
                 applySdvfrWeatherFromPayload_(payload);
@@ -5473,7 +5490,9 @@ const tdfStages = [
                 const message = payload && (payload.message || payload.error)
                     ? (payload.message || payload.error)
                     : `HTTP ${response.status}`;
-                throw new Error(message);
+                const error = new Error(message);
+                error.status = response.status;   // v5.27 — 409 = créneau SDVFR du NAS occupé
+                throw error;
             }
 
             return payload;
@@ -5703,13 +5722,60 @@ const tdfStages = [
             return true;
         }
 
+        /* v5.27 — le NAS n'a qu'UN créneau SDVFR : une seconde demande pendant qu'une
+         * première est en cours est refusée (HTTP 409 « Une demande SDVFR est déjà en
+         * cours. », request-sdvfr-notams.php). BFG envoyait pourtant ses demandes en
+         * parallèle (ex. météo silencieuse d'ouverture + « Actualiser ») : la seconde
+         * échouait aussitôt. Désormais :
+         *   - toutes les demandes SDVFR de BFG (NOTAM, météo, terrain isolé, Météo
+         *     manuelle) passent par cette FILE et partent l'une après l'autre ;
+         *   - un 409 venant d'un autre client (autre appareil, NPF-Q400, tâche
+         *     planifiée) est réessayé toutes les 3 s pendant 90 s au plus, puis échoue. */
+        const BFG_SDVFR_SLOT_RETRY_MS_ = 3000;
+        const BFG_SDVFR_SLOT_MAX_WAIT_MS_ = 90000;
+        let bfgSdvfrQueue_ = Promise.resolve();
+        let bfgSdvfrQueueLength_ = 0;
+
         async function fetchSdvfrTargetsOnce_(targets, statusElement = null, onStep = null) {
             const tokenInfo = getStoredCncascToken_();
             if (!tokenInfo) throw new Error("Accès Briefing verrouillé.");
-            if (typeof onStep === 'function') onStep('request');
-            const requestPayload = await requestSdvfrNotams_(tokenInfo.token, targets);
-            if (typeof onStep === 'function') onStep('waiting');
-            return await waitForSdvfrNotams_(requestPayload.requestId, tokenInfo.token, statusElement);
+            const targetCount = Array.isArray(targets) ? targets.length : 0;
+
+            const previous = bfgSdvfrQueue_;
+            let release;
+            const mine = new Promise(resolve => { release = resolve; });
+            bfgSdvfrQueue_ = previous.then(() => mine);
+            bfgSdvfrQueueLength_ += 1;
+            if (bfgSdvfrQueueLength_ > 1) {
+                bfgDiagLog_('SDVFR', 'Demande en file d\'attente (une demande SDVFR de BFG est en cours)', { terrains: targetCount });
+            }
+            await previous;
+            try {
+                if (typeof onStep === 'function') onStep('request');
+                const startedAt = Date.now();
+                let requestPayload = null;
+                while (!requestPayload) {
+                    try {
+                        bfgDiagLog_('SDVFR', 'Demande envoyée au NAS', { terrains: targetCount });
+                        requestPayload = await requestSdvfrNotams_(tokenInfo.token, targets);
+                    } catch (error) {
+                        if (error && error.status === 409 && Date.now() - startedAt < BFG_SDVFR_SLOT_MAX_WAIT_MS_) {
+                            bfgDiagLog_('SDVFR', 'Créneau SDVFR du NAS occupé (409), nouvel essai dans 3 s', { terrains: targetCount });
+                            await new Promise(resolve => setTimeout(resolve, BFG_SDVFR_SLOT_RETRY_MS_));
+                            continue;
+                        }
+                        bfgDiagLog_('SDVFR', 'Demande refusée', { terrains: targetCount, http: error && error.status || null, message: error && error.message || String(error) });
+                        throw error;
+                    }
+                }
+                if (typeof onStep === 'function') onStep('waiting');
+                const result = await waitForSdvfrNotams_(requestPayload.requestId, tokenInfo.token, statusElement);
+                bfgDiagLog_('SDVFR', 'Résultat reçu', { terrains: targetCount, statut: result && result.status || '', notam: result && result.totalNotams || 0 });
+                return result;
+            } finally {
+                bfgSdvfrQueueLength_ -= 1;
+                release();
+            }
         }
 
         async function ensureSdvfrAllData_(options = {}) {
@@ -5760,11 +5826,25 @@ const tdfStages = [
             }
         }
 
+        // v5.27 — import NOTAM SDVFR déjà en cours (bouton « Actualiser NOTAM ») : rejoint,
+        // son résultat est repris. C'est une vraie demande SDVFR dans tous les cas.
+        let bfgSdvfrImportPromise_ = null;
+
         async function importSdvfrNotams_(event) {
             if (event) {
                 event.preventDefault();
                 event.stopPropagation();
             }
+            if (bfgSdvfrImportPromise_) return bfgSdvfrImportPromise_;
+            bfgSdvfrImportPromise_ = importSdvfrNotamsRun_();
+            try {
+                return await bfgSdvfrImportPromise_;
+            } finally {
+                bfgSdvfrImportPromise_ = null;
+            }
+        }
+
+        async function importSdvfrNotamsRun_() {
 
             const button = document.getElementById('notam-refresh-btn');
             const statusElement = document.getElementById('notam-sdvfr-import-status');
@@ -6123,7 +6203,28 @@ const tdfStages = [
             });
         }
 
+        // v5.27 — import NATS déjà en cours (démarrage, connexion, bouton) : rejoint,
+        // son résultat est repris, au lieu d'une seconde demande de génération au NAS.
+        let bfgNatsImportPromise_ = null;
+
         async function importAutomaticNotamsFromNas_(event) {
+            if (bfgNatsImportPromise_) {
+                if (event) {
+                    event.preventDefault();
+                    event.stopPropagation();
+                }
+                bfgDiagLog_('NATS', 'Import NATS déjà en cours : résultat attendu');
+                return bfgNatsImportPromise_;
+            }
+            bfgNatsImportPromise_ = importAutomaticNotamsFromNasRun_(event);
+            try {
+                return await bfgNatsImportPromise_;
+            } finally {
+                bfgNatsImportPromise_ = null;
+            }
+        }
+
+        async function importAutomaticNotamsFromNasRun_(event) {
             bfgDiagLog_('NATS', 'Import NATS démarré', { userAction: !!event, displayedSource: (() => { try { return getBfgDisplayedNotamSource_(); } catch (_) { return ''; } })() });
             if (event) {
                 event.preventDefault();
@@ -7008,6 +7109,7 @@ const tdfStages = [
                     // fin de la demande NOTAM SDVFR, puis part en parallèle de NATS.
                     (async () => {
                         const sdvfrPromise = importSdvfrNotams_(null).catch(() => false);
+                        // NATS seulement quand la demande NOTAM SDVFR est TERMINÉE.
                         const natsPromise = sdvfrPromise.then(() => importAutomaticNotamsFromNas_(null)).catch(() => false);
                         await Promise.allSettled([
                             track('notam', async () => {
@@ -7029,7 +7131,18 @@ const tdfStages = [
                         return !(info && info.classList.contains('temsi-status-warning'));
                     }),
                     track('supaip', async () => {
-                        await bfgLoadAndRenderSupAipMap_(true);
+                        // v5.27 — un chargement SUP AIP déjà en cours (son bouton est alors
+                        // désactivé) est attendu, puis son résultat est lu ; sinon, nouveau
+                        // chargement comme avec le bouton « Actualiser SUP AIP ».
+                        const supButton = document.getElementById('sup-aip-map-refresh-btn');
+                        if (supButton && supButton.disabled) {
+                            const waitStart = Date.now();
+                            while (supButton.disabled && Date.now() - waitStart < 40000) {
+                                await new Promise(resolve => setTimeout(resolve, 250));
+                            }
+                        } else {
+                            await bfgLoadAndRenderSupAipMap_(true);
+                        }
                         const status = document.getElementById('sup-aip-map-status');
                         return !(status && status.classList.contains('warning'));
                     }),
@@ -13882,6 +13995,17 @@ window.__notamTextFull = notamInput.value;
             const manualLoadWeatherBtn = document.getElementById('manual-load-weather-btn');
 
             async function refreshAllWeather_(reason = 'manual') {
+                // v5.27 — actualisation déjà en cours : on attend sa fin et on reprend son résultat.
+                if (bfgWeatherRefreshPromise_) return bfgWeatherRefreshPromise_;
+                bfgWeatherRefreshPromise_ = refreshAllWeatherRun_(reason);
+                try {
+                    return await bfgWeatherRefreshPromise_;
+                } finally {
+                    bfgWeatherRefreshPromise_ = null;
+                }
+            }
+
+            async function refreshAllWeatherRun_(reason) {
                 if (bfgWeatherRefreshInProgress_) return false;
                 bfgWeatherRefreshInProgress_ = true;
                 const defaultWeatherButtonText = 'Actualiser Météo';
@@ -16545,7 +16669,7 @@ window.__notamTextFull = notamInput.value;
                 bfgRtbaLog_('Couche RTBA mise à jour', {
                     reçues: bfgRtbaAirspaces_.length, secteursActifs: sectorsActive, secteursAVenir: sectorsUpcoming,
                     créneauxTerminés: counts.slotsEnded, créneauxFiltrésFl: counts.slotsFilteredFl,
-                    géométrieInvalide: counts.slotsInvalid, codesMultiGéométrie: codesWithSeveralGeometries.join(' '),
+                    géométrieInvalide: counts.slotsInvalid, multiGéométrie: codesWithSeveralGeometries.join(' '),   // v5.27 : clé sans « code » (masquée par le diagnostic)
                     cache: bfgRtbaFromCache_
                 });
             }
