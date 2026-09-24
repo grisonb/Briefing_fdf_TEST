@@ -1,7 +1,7 @@
 {
   "name": "Briefing FDF TEST",
   "short_name": "Briefing TEST",
-  "description": "Briefing FDF TEST v5.20 — cartes VAC hors ligne, alerte AIRAC et étapes NOTAM",
+  "description": "Briefing FDF TEST v5.21 — hors ligne après Effacer, NOTAM une fois par jour, VAC en parallèle",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",

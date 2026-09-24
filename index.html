@@ -2413,13 +2413,12 @@
         #notam-auto-import-status.warning {
             color: #856404;
         }
-        /* v5.20 — la place des bandeaux NOTAM et VAC est réservée en permanence :
-           hauteur fixe, invisibles au repos (visibility et non display), pour que
-           leur apparition ou leur disparition ne décale jamais la page. */
+        /* v5.21 — les bandeaux NOTAM et VAC ne réservent plus de place au repos
+           (retour à display: none) : le panneau Accès Briefing reprend sa taille
+           adaptée au contenu. Le décalage à l'apparition est accepté. */
         #notam-loading-banner,
         #vac-loading-banner {
-            display: block;
-            visibility: hidden;
+            display: none;
             box-sizing: border-box;
             max-width: 900px;
             margin: 10px auto 0 auto;
@@ -2433,15 +2432,8 @@
             text-align: center;
             box-shadow: 0 2px 6px rgba(20,90,50,0.18);
         }
-        #notam-loading-banner {
-            height: 46px;
-            line-height: 22px;
-            overflow: hidden;
-            white-space: nowrap;
-            text-overflow: ellipsis;
-        }
-        #notam-loading-banner.visible,
-        #vac-loading-banner.visible { visibility: visible; }
+        #notam-loading-banner.visible { display: block; }
+        #vac-loading-banner.visible { display: block; }
         #notam-loading-banner.error {
             border-color: #ef9a9a;
             border-left-color: #c62828;
@@ -2450,13 +2442,8 @@
         }
         #vac-loading-banner {
             position: relative;
-            height: 68px;
-            line-height: 21px;
+            line-height: 1.35;
             font-size: 0.95em;
-            overflow: auto;
-            display: flex;
-            align-items: center;
-            justify-content: center;
             padding-right: 44px;
         }
         #vac-loading-banner.warning {
@@ -2956,8 +2943,8 @@
     <footer>Données : Météo-France, SIA, Windy.com, SDVFR. Page non commerciale, à usage personnel.</footer>
     
     <script>
-        const APP_VERSION_NUMBER = "5.20";
-        const APP_VERSION = `${APP_VERSION_NUMBER} TEST - VAC HORS LIGNE + ETAPES NOTAM`;
+        const APP_VERSION_NUMBER = "5.21";
+        const APP_VERSION = `${APP_VERSION_NUMBER} TEST - HORS LIGNE APRES EFFACER + NOTAM 1X/JOUR`;
 
 
         // v4.97 — diagnostic conservé ; plage NOTAM quotidienne et sélection prioritaire. Aucun code d'accès, token ou contenu NOTAM n'est exporté.
@@ -3375,11 +3362,38 @@
             }
         }
 
+        // v5.21 — l'écouteur est en phase de capture : il reçoit aussi les ÉCHECS DE
+        // CHARGEMENT de ressources (<img>, <link>, <script>…). Ce sont de simples
+        // Event, sans message ni fichier ni ligne : ils apparaissaient comme
+        // « Erreur JavaScript | source "", ligne 0, colonne 0 ». Ils sont désormais
+        // journalisés à part, avec la balise et l'adresse SANS paramètres (aucun
+        // jeton ne doit sortir dans le diagnostic).
         window.addEventListener('error', event => {
+            const target = event && event.target;
+            if (target && target !== window && target.tagName) {
+                const rawUrl = String(target.currentSrc || target.src || target.href || '');
+                let url = rawUrl;
+                try {
+                    const parsed = new URL(rawUrl, window.location.href);
+                    url = parsed.protocol === 'blob:' || parsed.protocol === 'data:'
+                        ? `${parsed.protocol} (contenu local)`
+                        : `${parsed.origin}${parsed.pathname}`;
+                } catch (_) {
+                    url = rawUrl.split('?')[0].slice(0, 200);
+                }
+                bfgDiagLog_('RESSOURCE', `Chargement impossible <${String(target.tagName).toLowerCase()}>`, {
+                    url,
+                    id: target.id || '',
+                    online: navigator.onLine
+                });
+                return;
+            }
+            const error = event && event.error;
             bfgDiagLog_('JS-ERROR', event.message || 'Erreur JavaScript', {
                 source: event.filename ? String(event.filename).split('/').pop() : '',
                 line: event.lineno || 0,
-                column: event.colno || 0
+                column: event.colno || 0,
+                detail: error ? String(error.stack || error.message || error).slice(0, 300) : ''
             });
         }, true);
         window.addEventListener('unhandledrejection', event => {
@@ -4080,6 +4094,44 @@ const tdfStages = [
          *     bandeau qu'avant la v5.20 si aucun NOTAM n'est affiché ;
          *   - 'error'    : bandeau d'erreur si aucun NOTAM n'est affiché ;
          *   - 'hide'     : bandeau masqué. */
+        /* v5.21 — NOTAM une fois par jour.
+         * « NOTAM du jour en mémoire » = texte SDVFR du jour présent dans la copie
+         * localStorage, réparée au démarrage depuis la meilleure des trois copies
+         * (restoreBfgSdvfrPersistentCache_) avant toute décision réseau. */
+        const BFG_NOTAM_LOGIN_DAY_KEY_ = 'briefingFdfNotamLoginDayV1';
+
+        function hasTodayBfgNotamsInMemory_() {
+            return !!loadSdvfrDailyCache_();
+        }
+
+        function isBfgNotamDownloadDueAtLogin_() {
+            let firstLoginToday = true;
+            try { firstLoginToday = localStorage.getItem(BFG_NOTAM_LOGIN_DAY_KEY_) !== bfgTodayLocalKey_(); }
+            catch (_) {}
+            return firstLoginToday || !hasTodayBfgNotamsInMemory_();
+        }
+
+        function markBfgNotamLoginDoneToday_() {
+            try { localStorage.setItem(BFG_NOTAM_LOGIN_DAY_KEY_, bfgTodayLocalKey_()); } catch (_) {}
+        }
+
+        // Météo seule : la réponse SDVFR met à jour METAR/TAF et rien d'autre. Le
+        // texte NOTAM du jour et son cache ne sont pas touchés (même règle que
+        // refreshAllWeather_ depuis la v4.77). Aucun bandeau, aucun statut NOTAM.
+        async function refreshBfgWeatherSilently_(reason = '') {
+            try {
+                const payload = await fetchSdvfrTargetsOnce_(getSdvfrPelicandromeTargets_());
+                applySdvfrWeatherFromPayload_(payload);
+                checkWeatherValidity();
+                bfgDiagLog_('METEO', `Actualisation silencieuse terminée (${reason})`);
+                return true;
+            } catch (error) {
+                console.warn(`Actualisation météo silencieuse impossible (${reason}) :`, error);
+                bfgDiagLog_('METEO', `Actualisation silencieuse impossible (${reason})`, { message: error && error.message || String(error) });
+                return false;
+            }
+        }
+
         function endBfgNotamSteps_(success, failureMode = 'hide') {
             bfgNotamStepsActive_ = false;
             if (success) {
@@ -6096,45 +6148,56 @@ const tdfStages = [
                 clearCncascWarning_();
                 updateCncascAuthUi_();
                 setCncascWarning_('Connexion Briefing réussie. Chargement des données...');
-                // v5.20 — étapes affichées à chaque connexion, même si des NOTAM
-                // sont déjà affichés.
-                setBfgNotamStep_('Chargement des données Briefing…');
+
+                // v5.21 — VAC lancée DÈS la connexion réussie, en parallèle : elle
+                // n'attend plus les NOTAM SDVFR ni l'import NATS. Toujours une seule
+                // vérification par jour (plus les cartes en attente), non bloquante.
+                startBfgVacDailyCheck_('connexion');
+
+                // v5.21 — NOTAM SDVFR et NATS seulement à la première connexion du jour,
+                // ou si aucun NOTAM du jour n'est en mémoire. Sinon : météo seule,
+                // silencieuse, sans bandeau NOTAM.
+                const notamDownloadDue = isBfgNotamDownloadDueAtLogin_();
+                markBfgNotamLoginDoneToday_();
+                bfgDiagLog_('NOTAM', 'Connexion : téléchargement NOTAM ' + (notamDownloadDue ? 'lancé' : 'non nécessaire (NOTAM du jour en mémoire)'));
+
+                if (notamDownloadDue) {
+                    // v5.20 — étapes affichées, même si des NOTAM sont déjà affichés.
+                    setBfgNotamStep_('Chargement des données Briefing…');
+                }
 
                 await fetchAllCncascData_();
 
-                // v4.85 : météo SDVFR fraîche AVANT les NOTAM NATS.
-                // Ne jamais réutiliser ici resultPayload du cache quotidien NOTAM SDVFR :
-                // il peut contenir une météo plus ancienne et écraser celle déjà à jour.
-                let freshSdvfrNotamsShown = false;
-                try {
-                    const weatherPayload = await fetchSdvfrTargetsOnce_(
-                        getSdvfrPelicandromeTargets_(),
-                        document.getElementById('notam-sdvfr-import-status'),
-                        bfgNotamStepFromSdvfr_
-                    );
-                    setBfgNotamStep_('Affichage des NOTAM…');
-                    await bfgNextPaint_();
-                    applySdvfrWeatherFromPayload_(weatherPayload);
-                    freshSdvfrNotamsShown = rememberFreshSdvfrNotamsFromPayload_(weatherPayload);
-                    checkWeatherValidity();
-                } catch (weatherError) {
-                    console.warn('Chargement météo SDVFR fraîche de connexion incomplet ; aucun secours CheckWX.', weatherError);
+                if (notamDownloadDue) {
+                    // v4.85 : météo SDVFR fraîche AVANT les NOTAM NATS.
+                    // Ne jamais réutiliser ici resultPayload du cache quotidien NOTAM SDVFR :
+                    // il peut contenir une météo plus ancienne et écraser celle déjà à jour.
+                    let freshSdvfrNotamsShown = false;
+                    try {
+                        const weatherPayload = await fetchSdvfrTargetsOnce_(
+                            getSdvfrPelicandromeTargets_(),
+                            document.getElementById('notam-sdvfr-import-status'),
+                            bfgNotamStepFromSdvfr_
+                        );
+                        setBfgNotamStep_('Affichage des NOTAM…');
+                        await bfgNextPaint_();
+                        applySdvfrWeatherFromPayload_(weatherPayload);
+                        freshSdvfrNotamsShown = rememberFreshSdvfrNotamsFromPayload_(weatherPayload);
+                        checkWeatherValidity();
+                    } catch (weatherError) {
+                        console.warn('Chargement météo SDVFR fraîche de connexion incomplet ; aucun secours CheckWX.', weatherError);
+                    }
+                    endBfgNotamSteps_(freshSdvfrNotamsShown, 'fallback');
+
+                    // NATS est ensuite actualisé. Son chargement ne doit plus modifier la météo affichée.
+                    await importAutomaticNotamsFromNas_(null);
+                    setCncascWarning_('NOTAM et METAR/TAF chargés.', { success: true });
+                } else {
+                    const weatherRefreshed = await refreshBfgWeatherSilently_('connexion');
+                    setCncascWarning_(weatherRefreshed
+                        ? 'METAR/TAF actualisés. NOTAM du jour déjà chargés.'
+                        : 'NOTAM du jour déjà chargés. Actualisation METAR/TAF impossible.', { success: weatherRefreshed });
                 }
-                endBfgNotamSteps_(freshSdvfrNotamsShown, 'fallback');
-
-                // NATS est ensuite actualisé. Son chargement ne doit plus modifier la météo affichée.
-                await importAutomaticNotamsFromNas_(null);
-                setCncascWarning_('NOTAM et METAR/TAF chargés.', { success: true });
-
-                // VAC : vérification du cycle une seule fois par jour, à la première
-                // connexion réussie. Non bloquante — un échec ne remet pas en cause
-                // la connexion, mais laisse les VAC signalées comme non vérifiées.
-                ensureBfgVacDailyManifestCheck_().catch(vacError => {
-                    console.warn('Vérification quotidienne du cycle VAC impossible :', vacError);
-                    bfgDiagLog_('VAC', 'Vérification quotidienne impossible', {
-                        message: vacError && vacError.message || String(vacError)
-                    });
-                });
             } catch (error) {
                 if (bfgNotamStepsActive_) endBfgNotamSteps_(false, 'hide');
                 clearCncascToken_();
@@ -6840,9 +6903,19 @@ const tdfStages = [
             // SDVFR reste affiché par défaut ; NATS ne devient visible que sur sélection explicite de l’utilisateur.
             // v5.20 — le bandeau NOTAM n'apparaît plus qu'au moment réel de la
             // demande SDVFR, puis suit ses étapes, même si des NOTAM sont affichés.
+            // v5.21 — à l'ouverture avec session valide, NOTAM SDVFR et NATS ne sont
+            // téléchargés QUE si aucun NOTAM du jour n'est en mémoire (ex. après
+            // « Effacer »). Sinon : météo seule, silencieuse, sans bandeau NOTAM.
+            // La vérification VAC du jour est aussi lancée si elle n'a pas été faite.
             if (getStoredCncascToken_()) {
                 fetchAllCncascData_();
+                if (!bfgVacCheckedToday_()) startBfgVacDailyCheck_('ouverture');
                 setTimeout(async () => {
+                    if (hasTodayBfgNotamsInMemory_()) {
+                        bfgDiagLog_('NOTAM', 'Ouverture : NOTAM du jour en mémoire, aucune demande NOTAM ni import NATS');
+                        await refreshBfgWeatherSilently_('ouverture');
+                        return;
+                    }
                     let freshSdvfrNotamsShown = false;
                     try {
                         const weatherPayload = await fetchSdvfrTargetsOnce_(
@@ -8813,6 +8886,10 @@ const tdfStages = [
         // v5.20 — terrains dont le téléchargement a échoué : nouvel essai à la
         // prochaine connexion Briefing, même le jour même.
         const BFG_VAC_PENDING_DOWNLOADS_KEY_ = 'bfgVacPendingDownloadsV1';
+        // v5.21 — liste des OACI dont la VAC est enregistrée dans BfgVacDB, tenue à
+        // jour à chaque enregistrement ou suppression : elle permet de savoir de
+        // façon SYNCHRONE, avant window.open, si une carte est disponible hors ligne.
+        const BFG_VAC_STORED_LIST_KEY_ = 'bfgVacStoredListV1';
 
         let bfgVacDb_ = null;
         let bfgVacDailyCheckPromise_ = null;
@@ -8874,26 +8951,68 @@ const tdfStages = [
 
         async function putBfgVacRecord_(record) {
             const db = await openBfgVacDb_();
-            return new Promise((resolve, reject) => {
+            await new Promise((resolve, reject) => {
                 const tx = db.transaction(BFG_VAC_STORE_, 'readwrite');
                 tx.objectStore(BFG_VAC_STORE_).put(record);
                 tx.oncomplete = () => resolve(record);
                 tx.onerror = () => reject(tx.error);
                 tx.onabort = () => reject(tx.error);
             });
+            updateBfgVacStoredList_(record && record.oaci, true);
+            return record;
+        }
+
+        /* ---------- v5.21 — liste synchrone des VAC enregistrées ---------- */
+
+        // null = liste inconnue (pas encore reconstruite) : comportement antérieur.
+        function loadBfgVacStoredList_() {
+            try {
+                const raw = localStorage.getItem(BFG_VAC_STORED_LIST_KEY_);
+                if (raw === null) return null;
+                const parsed = JSON.parse(raw);
+                return Array.isArray(parsed) ? parsed.map(normalizeBfgVacOaci_).filter(Boolean) : null;
+            } catch (_) { return null; }
+        }
+
+        function saveBfgVacStoredList_(list) {
+            const unique = Array.from(new Set((list || []).map(normalizeBfgVacOaci_).filter(Boolean))).sort();
+            try { localStorage.setItem(BFG_VAC_STORED_LIST_KEY_, JSON.stringify(unique)); } catch (_) {}
+        }
+
+        function updateBfgVacStoredList_(oaci, stored) {
+            const key = normalizeBfgVacOaci_(oaci);
+            if (!key) return;
+            const list = loadBfgVacStoredList_() || [];
+            const next = stored ? list.concat(key) : list.filter(item => item !== key);
+            saveBfgVacStoredList_(next);
+        }
+
+        // Reconstruite depuis la base au démarrage si elle manque (iPad déjà en
+        // v5.20 avec des cartes enregistrées). Lecture locale seule, aucun réseau.
+        async function rebuildBfgVacStoredListIfMissing_() {
+            if (loadBfgVacStoredList_() !== null) return;
+            try {
+                const records = await getAllBfgVacRecords_();
+                saveBfgVacStoredList_(records
+                    .filter(record => record && record.blob instanceof Blob)
+                    .map(record => record.oaci));
+            } catch (error) {
+                console.warn('Liste des VAC enregistrées non reconstruite :', error);
+            }
         }
 
         async function deleteBfgVacRecord_(oaci) {
             const key = normalizeBfgVacOaci_(oaci);
             if (!key) return;
             const db = await openBfgVacDb_();
-            return new Promise((resolve, reject) => {
+            await new Promise((resolve, reject) => {
                 const tx = db.transaction(BFG_VAC_STORE_, 'readwrite');
                 tx.objectStore(BFG_VAC_STORE_).delete(key);
                 tx.oncomplete = () => resolve();
                 tx.onerror = () => reject(tx.error);
                 tx.onabort = () => reject(tx.error);
             });
+            updateBfgVacStoredList_(key, false);
         }
 
         // Appelée par le bouton « Effacer » : les VAC sont des données locales BFG.
@@ -8915,6 +9034,7 @@ const tdfStages = [
                 localStorage.removeItem(BFG_VAC_LAST_CHECK_ISO_KEY_);
                 localStorage.removeItem(BFG_VAC_KNOWN_MANIFESTS_KEY_);
                 localStorage.removeItem(BFG_VAC_PENDING_DOWNLOADS_KEY_);
+                localStorage.removeItem(BFG_VAC_STORED_LIST_KEY_);
             } catch (_) {}
             bfgVacManifestSessionCache_.clear();
             bfgVacKnownManifests_ = null;
@@ -9110,6 +9230,8 @@ const tdfStages = [
             if (closeButton) closeButton.addEventListener('click', hideBfgVacBanner_);
         })();
 
+        setTimeout(() => { rebuildBfgVacStoredListIfMissing_(); }, 0);
+
         async function bfgVacSha256Hex_(buffer) {
             if (!window.crypto || !window.crypto.subtle || !window.crypto.subtle.digest) {
                 throw new Error('contrôle SHA-256 indisponible sur cet appareil');
@@ -9293,6 +9415,18 @@ const tdfStages = [
          * donc sans LFMT), avec les contrôles d'intégrité habituels. Les terrains en
          * échec sont mémorisés et repris à la connexion suivante, même le jour même.
          * Tout à jour : seul le manifest est téléchargé, aucun bandeau. */
+        // v5.21 — lanceur commun (connexion, ouverture) : jamais bloquant.
+        function startBfgVacDailyCheck_(reason = '') {
+            bfgDiagLog_('VAC', `Vérification du jour demandée (${reason})`);
+            ensureBfgVacDailyManifestCheck_().catch(vacError => {
+                console.warn('Vérification quotidienne du cycle VAC impossible :', vacError);
+                bfgDiagLog_('VAC', 'Vérification quotidienne impossible', {
+                    reason,
+                    message: vacError && vacError.message || String(vacError)
+                });
+            });
+        }
+
         async function ensureBfgVacDailyManifestCheck_(options = {}) {
             if (!options.force && bfgVacCheckedToday_() && !loadBfgVacPendingDownloads_().length) {
                 return { skipped: true, checked: true };
@@ -9469,6 +9603,16 @@ const tdfStages = [
             if (getBfgVacKnownAvailability_(key) === 'unavailable') {
                 alert(`Aucune carte VAC disponible pour ${key}`);
                 return false;
+            }
+
+            // v5.21 — hors ligne et carte non enregistrée : message seul, AUCUN
+            // onglet (il restait blanc). Liste inconnue : comportement antérieur.
+            if (!navigator.onLine) {
+                const storedList = loadBfgVacStoredList_();
+                if (storedList && !storedList.includes(key)) {
+                    alert(`Carte VAC de ${key} non disponible hors ligne. L'ouvrir une fois en ligne pour la conserver.`);
+                    return false;
+                }
             }
 
             const openedWindow = window.open('', '_blank');
@@ -13008,15 +13152,38 @@ let activeShareApiBase = SHARE_API_BASE;
      * usage opérationnel. Il est désormais explicitement préservé.
      * Les caches de DONNÉES partagés sont en revanche effacés : ils se
      * retéléchargent, contrairement à la coque applicative. */
+    /* v5.21 — « Effacer » ne doit pas non plus casser le démarrage hors ligne de
+     * la TEST elle-même : la suppression du cache applicatif 'briefing-fdf-test-*'
+     * (index.html, manifest, icônes, Tour de France) empêchait toute ouverture en
+     * mode avion. Ces caches sont conservés ; seules les DONNÉES qu'ils contiennent
+     * (réponses NAS, images TEMSI : toute entrée d'une autre origine) en sont
+     * retirées. Tous les autres caches de données restent supprimés. */
     async function clearBfgLocalCaches_() {
         if (!('caches' in window)) return;
         const names = await caches.keys();
         const isPerennialAppShell = (name) => /^briefing-fdf-v\d/.test(name);
+        const isTestAppShell = (name) => name.startsWith('briefing-fdf-test-');
         await Promise.all(
             names
-                .filter(name => (name.startsWith('briefing-fdf') || name.startsWith('bfg-npf')) && !isPerennialAppShell(name))
+                .filter(name => (name.startsWith('briefing-fdf') || name.startsWith('bfg-npf'))
+                    && !isPerennialAppShell(name)
+                    && !isTestAppShell(name))
                 .map(name => caches.delete(name).catch(() => false))
         );
+        await Promise.all(names.filter(isTestAppShell).map(async (name) => {
+            try {
+                const cache = await caches.open(name);
+                const requests = await cache.keys();
+                await Promise.all(requests
+                    .filter(request => {
+                        try { return new URL(request.url).origin !== window.location.origin; }
+                        catch (_) { return false; }
+                    })
+                    .map(request => cache.delete(request).catch(() => false)));
+            } catch (error) {
+                console.warn(`Nettoyage des données du cache ${name} impossible :`, error);
+            }
+        }));
     }
 
     /* v5.19 — annotations PDF (FDS / GAAR / SUP AIP) : base et copies locales.

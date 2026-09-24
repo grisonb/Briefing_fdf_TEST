@@ -281,6 +281,129 @@ C. CONTRÔLES AVANT TOUTE LIVRAISON
       surligneur, repli hors ligne NAS) ;
     - nouvelle entrée ajoutée EN TÊTE de ce journal, sous cette section 0,
       historique intégralement conservé.
+TEST v5.21 — 2026-09-24
+Base : TEST v5.20
+===============================================================================
+
+Corrections issues des essais de la v5.20.
+
+1. « EFFACER » NE CASSE PLUS LE HORS LIGNE
+- Constat : après « Effacer », BFG ne s'ouvrait plus en mode avion (erreur
+  FetchEvent). `clearBfgLocalCaches_()` supprimait tous les caches
+  'briefing-fdf*' sauf la coque PÉRENNE, donc aussi le cache applicatif de la
+  TEST en cours ('briefing-fdf-test-v…' : index.html, manifest, icônes, Tour
+  de France), qui n'était pas reconstitué. Résolu seulement par Forcer MAJ.
+- Correction : les caches 'briefing-fdf-test-*' sont CONSERVÉS. Seules les
+  DONNÉES qu'ils contiennent (toute entrée d'une autre origine : réponses NAS
+  risques/FdS/GAAR, images TEMSI) en sont retirées. Les autres caches de
+  données (SDVFR, SUP AIP, TEMSI, bfg-npf-shared-notams-v1) restent supprimés.
+  La coque pérenne reste préservée (v5.19).
+- sw.js, robustesse : une navigation hors ligne sans copie en cache renvoie
+  './index.html' depuis le cache ; à défaut, une page simple « BFG
+  indisponible hors ligne — Ouvrir BFG une fois en ligne pour le conserver
+  sur cet appareil » (HTTP 503), jamais une erreur FetchEvent.
+- sw.js : une navigation réussie en ligne recrée la copie de repli
+  './index.html' si elle manque.
+- Ordre des règles du listener fetch et filtre de purge d'activate INCHANGÉS.
+- « Forcer MAJ » : comportement inchangé.
+
+2. ESPACE RÉSERVÉ DES BANDEAUX SUPPRIMÉ
+- Retour à `display: none` au repos pour #notam-loading-banner et
+  #vac-loading-banner, hauteur adaptée au contenu. Le décalage du contenu à
+  l'apparition est accepté (décision utilisateur). Le choix v5.20 de la place
+  réservée est ABANDONNÉ.
+
+3. NOTAM UNE FOIS PAR JOUR, MÉTÉO À CHAQUE OUVERTURE
+- NOTAM SDVFR et import NATS téléchargés uniquement :
+    a) à la connexion Briefing réussie, si c'est la première du jour
+       (nouvelle clé `briefingFdfNotamLoginDayV1`, effacée par « Effacer »)
+       OU si aucun NOTAM du jour n'est en mémoire ;
+    b) par « Actualiser NOTAM » et « Actualiser NATS » (inchangés) ;
+    c) à l'ouverture avec session valide, si aucun NOTAM du jour n'est en
+       mémoire (ex. après « Effacer »).
+  Les étapes du bandeau NOTAM ne s'affichent que dans ces cas.
+- « NOTAM du jour en mémoire » = texte SDVFR du jour dans la copie
+  localStorage `briefingFdfSdvfrDailyNotamsV1`, réparée au démarrage depuis la
+  meilleure des trois copies avant toute décision réseau (initializeAbeDispo
+  attend les restaurations locales).
+- Ouverture avec session valide et NOTAM du jour en mémoire : aucune demande
+  NOTAM, aucun import NATS, aucun bandeau NOTAM.
+- Météo : actualisée à chaque ouverture (et à une connexion qui ne télécharge
+  pas les NOTAM), silencieusement, par `refreshBfgWeatherSilently_()` : la
+  réponse SDVFR met à jour METAR/TAF seulement ; le texte NOTAM du jour et son
+  cache ne sont pas modifiés (même règle que refreshAllWeather_ depuis v4.77).
+- Actualisation automatique d'un METAR de plus de 35 min : inchangée.
+- Le choix « Afficher NATS » sans texte NATS en mémoire déclenche toujours un
+  import NATS (action utilisateur, inchangé).
+- Aucune couche de persistance NOTAM ajoutée, renommée ou supprimée (0.B2).
+
+4. ERREUR JAVASCRIPT AU DÉMARRAGE
+- Origine : l'écouteur `error` du diagnostic est en phase de CAPTURE. Il
+  reçoit donc aussi les échecs de chargement de ressources (<img>, <link>,
+  <script>…), qui sont de simples Event sans message, fichier ni ligne : d'où
+  « Erreur JavaScript | source "", ligne 0, colonne 0 ». Ce n'est pas une
+  exception du code BFG (une exception BFG porte un message et une ligne ; une
+  erreur de script externe porte « Script error. »).
+- Correction : ces échecs sont journalisés à part, catégorie RESSOURCE, avec
+  la balise, l'identifiant et l'adresse SANS paramètres (aucun jeton exporté),
+  et l'état en ligne. Les vraies erreurs JS gardent leur ligne, avec en plus
+  la pile (300 caractères).
+- La ressource en cause n'est pas encore connue : À MESURER au prochain
+  diagnostic de démarrage.
+
+5. VAC EN PARALLÈLE
+- Constat : vérification VAC lancée 47 s après la connexion, après les NOTAM
+  SDVFR (13 s) et l'import NATS (31 s), pour 9 s de téléchargement (26 cartes).
+- `startBfgVacDailyCheck_('connexion')` est lancé dès la connexion réussie,
+  avant les données Briefing, sans attendre NOTAM ni NATS. Non bloquant.
+
+6. VÉRIFICATION VAC À L'OUVERTURE
+- À l'ouverture avec session valide, si la vérification du jour n'a pas été
+  faite (ex. après « Effacer », la connexion étant conservée) :
+  `startBfgVacDailyCheck_('ouverture')`. Hors ligne, l'échec est journalisé.
+
+7. PLUS DE PAGE BLANCHE POUR UNE VAC HORS LIGNE
+- Nouvelle clé `bfgVacStoredListV1` : liste des OACI enregistrés dans
+  BfgVacDB, mise à jour à chaque enregistrement (putBfgVacRecord_) ou
+  suppression (deleteBfgVacRecord_), effacée avec « Effacer ». Reconstruite
+  au démarrage depuis la base si elle manque (iPad venant de v5.20).
+- Avant window.open, vérification synchrone : hors ligne et carte non
+  enregistrée => message seul « Carte VAC de XXXX non disponible hors ligne.
+  L'ouvrir une fois en ligne pour la conserver. », AUCUN onglet.
+- Liste inconnue : comportement antérieur.
+
+8. COMPTEUR VAC
+- Vérifié : N compte déjà les CARTES réellement à télécharger (publiées,
+  manquantes ou modifiées), jamais les terrains. Contrôlé contre le manifest
+  du jour : 27 pélicandromes ciblés, 26 cartes disponibles, LFBM sans carte.
+  Aucune modification nécessaire.
+
+TESTS v5.20
+- Bouton VAC grisé LFBM : VALIDÉ (grisé après réception du manifest).
+- Téléchargement VAC et ouverture hors ligne (LFKF) : VALIDÉ après
+  reconnexion ; bandeau trop tardif (corrigé point 5).
+- Page blanche hors ligne : corrigée point 7.
+- « Effacer » cassait le hors ligne : corrigé point 1.
+- Espace vide trop important : corrigé point 2.
+- NOTAM et NATS retéléchargés à chaque ouverture : corrigé point 3.
+- À VÉRIFIER : disparition des boutons de trace de démarrage dans le panneau
+  Diagnostic BFG ; ouverture du clavier au toucher sur le champ.
+- À FAIRE AVANT PROMOTION : partage entre deux appareils, expiration de la
+  couche reçue à 23h00, vérification le lendemain.
+
+VERSIONS
+- APP_VERSION_NUMBER 5.21, BFG_SW_VERSION 5.21, nouveau CACHE_NAME
+  'briefing-fdf-test-v5.21-offline-notam-daily-r1', description du manifest.
+- Constantes figées à 5.07 NON modifiées (cf. 0.B1).
+
+STATUTS v5.21
+- Hors ligne après « Effacer » et repli du service worker : À MESURER
+  (essai : Effacer, puis mode avion, puis ouverture).
+- NOTAM une fois par jour, météo silencieuse à l'ouverture : À MESURER.
+- Diagnostic des erreurs de ressources : À MESURER.
+- VAC en parallèle et à l'ouverture : À MESURER.
+- VAC hors ligne sans page blanche : À MESURER.
+
 TEST v5.20 — 2026-09-24
 Base : TEST v5.19
 ===============================================================================
