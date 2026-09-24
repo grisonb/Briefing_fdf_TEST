@@ -2923,7 +2923,7 @@
         <span id="tdf-stage-date" style="display: none;"></span>
     </div>
     <div style="text-align: center; margin-top: 20px; margin-bottom: 20px;">
-        <img id="tdf-stage-map" src="" alt="Carte de l'étape du Tour de France" style="max-width: 100%; height: auto; border: 1px solid #ddd; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.08);">
+        <img id="tdf-stage-map" alt="Carte de l'étape du Tour de France" style="max-width: 100%; height: auto; border: 1px solid #ddd; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.08);">
     </div>
     <div style="text-align: center; margin-top: 15px;">
         <a id="tdf-sup-aip-link" href="#" class="link-button" style="display: none; background-color: #c0392b;"></a>
@@ -3007,8 +3007,8 @@
     <footer>Données : Météo-France, SIA, Windy.com, SDVFR. Page non commerciale, à usage personnel.</footer>
     
     <script>
-        const APP_VERSION_NUMBER = "5.27";
-        const APP_VERSION = `${APP_VERSION_NUMBER} TEST - ACTUALISER : FILE SDVFR`;
+        const APP_VERSION_NUMBER = "5.28";
+        const APP_VERSION = `${APP_VERSION_NUMBER} TEST - SDVFR : RESEAU + CRENEAU REESSAYES`;
 
 
         // v4.97 — diagnostic conservé ; plage NOTAM quotidienne et sélection prioritaire. Aucun code d'accès, token ou contenu NOTAM n'est exporté.
@@ -5471,18 +5471,27 @@ const tdfStages = [
                 ? targetsOverride
                 : getSdvfrPelicandromeTargets_();
             if (!targets.length) throw new Error('Aucun terrain NOTAM configuré.');
-            const response = await fetch(SDVFR_NOTAMS_REQUEST_API_URL, {
-                method: 'POST',
-                cache: 'no-store',
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Accept': 'application/json',
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    targets
-                })
-            });
+            let response;
+            try {
+                response = await fetch(SDVFR_NOTAMS_REQUEST_API_URL, {
+                    method: 'POST',
+                    cache: 'no-store',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Accept': 'application/json',
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        targets
+                    })
+                });
+            } catch (networkError) {
+                // v5.28 — « Load failed » / « Failed to fetch » : réponse illisible (page
+                // d'erreur DSM sans en-têtes CORS avant le 24/09/2026, ou coupure réseau).
+                const error = new Error(networkError && networkError.message || 'Erreur réseau');
+                error.network = true;
+                throw error;
+            }
 
             const payload = await response.json().catch(() => null);
 
@@ -5491,7 +5500,12 @@ const tdfStages = [
                     ? (payload.message || payload.error)
                     : `HTTP ${response.status}`;
                 const error = new Error(message);
-                error.status = response.status;   // v5.27 — 409 = créneau SDVFR du NAS occupé
+                // v5.27 — 409 = créneau SDVFR du NAS occupé.
+                // v5.28 — depuis le 24/09/2026, le NAS répond en HTTP 200 avec ok: false,
+                // le code HTTP d'origine dans httpStatus et le code applicatif dans error
+                // (request_already_active). Les deux formats sont reconnus.
+                error.status = Number(payload && payload.httpStatus) || response.status;
+                error.code = payload && typeof payload.error === 'string' ? payload.error : '';
                 throw error;
             }
 
@@ -5500,14 +5514,22 @@ const tdfStages = [
 
         async function getSdvfrNotamsResult_(requestId, token) {
             const url = `${SDVFR_NOTAMS_RESULT_API_URL}?requestId=${encodeURIComponent(requestId)}`;
-            const response = await fetch(url, {
-                method: 'GET',
-                cache: 'no-store',
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Accept': 'application/json'
-                }
-            });
+            let response;
+            try {
+                response = await fetch(url, {
+                    method: 'GET',
+                    cache: 'no-store',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Accept': 'application/json'
+                    }
+                });
+            } catch (networkError) {
+                // v5.28 — erreur réseau pendant le suivi : marquée, retentée par l'appelant.
+                const error = new Error(networkError && networkError.message || 'Erreur réseau');
+                error.network = true;
+                throw error;
+            }
 
             const payload = await response.json().catch(() => null);
 
@@ -5527,7 +5549,17 @@ const tdfStages = [
             const pollMs = 1500;
 
             while (Date.now() - startedAt < timeoutMs) {
-                const payload = await getSdvfrNotamsResult_(requestId, token);
+                let payload;
+                try {
+                    payload = await getSdvfrNotamsResult_(requestId, token);
+                } catch (error) {
+                    // v5.28 — une erreur réseau pendant le suivi est retentée dans la même
+                    // fenêtre de 60 s ; toute autre erreur reste immédiate.
+                    if (!error || !error.network) throw error;
+                    bfgDiagLog_('SDVFR', 'Erreur réseau pendant le suivi du résultat (réponse illisible), nouvel essai', { message: error.message || '' });
+                    await sleepNotamsAuto_(pollMs);
+                    continue;
+                }
                 const status = String(payload.status || '').toLowerCase();
 
                 if (statusElement) {
@@ -5759,12 +5791,29 @@ const tdfStages = [
                         bfgDiagLog_('SDVFR', 'Demande envoyée au NAS', { terrains: targetCount });
                         requestPayload = await requestSdvfrNotams_(tokenInfo.token, targets);
                     } catch (error) {
-                        if (error && error.status === 409 && Date.now() - startedAt < BFG_SDVFR_SLOT_MAX_WAIT_MS_) {
-                            bfgDiagLog_('SDVFR', 'Créneau SDVFR du NAS occupé (409), nouvel essai dans 3 s', { terrains: targetCount });
+                        // v5.28 — trois cas distincts dans le diagnostic :
+                        //   créneau occupé : HTTP 409 réel, ou code request_already_active ;
+                        //   erreur réseau  : réponse illisible (CORS, coupure) ;
+                        //   refus          : tout autre code (non réessayé).
+                        const slotBusy = !!error && (error.status === 409 || error.code === 'request_already_active');
+                        const network = !!error && error.network === true;
+                        const canRetry = Date.now() - startedAt < BFG_SDVFR_SLOT_MAX_WAIT_MS_;
+                        if ((slotBusy || network) && canRetry) {
+                            bfgDiagLog_('SDVFR', slotBusy
+                                ? 'Créneau occupé (409), nouvel essai dans 3 s'
+                                : 'Erreur réseau (réponse illisible), nouvel essai dans 3 s', {
+                                terrains: targetCount,
+                                message: error.message || ''
+                            });
                             await new Promise(resolve => setTimeout(resolve, BFG_SDVFR_SLOT_RETRY_MS_));
                             continue;
                         }
-                        bfgDiagLog_('SDVFR', 'Demande refusée', { terrains: targetCount, http: error && error.status || null, message: error && error.message || String(error) });
+                        bfgDiagLog_('SDVFR', slotBusy
+                            ? 'Créneau toujours occupé après 90 s : abandon'
+                            : (network ? 'Erreur réseau persistante après 90 s : abandon' : `Demande refusée (HTTP ${error && error.status || '?'}${error && error.code ? ', ' + error.code : ''})`), {
+                            terrains: targetCount,
+                            message: error && error.message || String(error)
+                        });
                         throw error;
                     }
                 }

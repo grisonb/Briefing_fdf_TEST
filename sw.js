@@ -1,5 +1,5 @@
-const BFG_SW_VERSION = '5.27';
-const CACHE_NAME = 'briefing-fdf-test-v5.27-sdvfr-queue-r1';
+const BFG_SW_VERSION = '5.28';
+const CACHE_NAME = 'briefing-fdf-test-v5.28-sdvfr-retry-r1';
 
 const LOCAL_ASSETS = [
   './manifest.json',

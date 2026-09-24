@@ -304,6 +304,9 @@ B5. LISTE DE CONTRÔLE DE PROMOTION — MENTIONS VISIBLES DE « SDVFR » (v5.23)
       FRANCE » (v5.22)                              seul (cf. B4). Vérifier
                                                     qu'aucun libellé TEST n'est
                                                     repris.
+    (2026-09-24) Messages d'erreur de            -> déjà sans SDVFR depuis leur
+      request-sdvfr-notams.php et de                reformulation NAS du 24/09
+      get-sdvfr-notams-result.php                   (« NOTAM / météo »)
     Textes d'erreur RELAYÉS depuis le NAS ou le  -> à surveiller : ils viennent
       worker et affichés tels quels dans les        du serveur (ex. « Aucun
       statuts NOTAM / météo (« NOTAM : erreur —     terrain SDVFR n'a pu être
@@ -338,6 +341,96 @@ C. CONTRÔLES AVANT TOUTE LIVRAISON
       surligneur, repli hors ligne NAS) ;
     - nouvelle entrée ajoutée EN TÊTE de ce journal, sous cette section 0,
       historique intégralement conservé.
+TEST v5.28 — 2026-09-24
+Base : TEST v5.27
+===============================================================================
+
+NOTAM / MÉTÉO : « LOAD FAILED » — CAUSE NAS CORRIGÉE, ERREURS RÉSEAU RÉESSAYÉES
+
+1. CAUSE (essai v5.27, diagnostic du 24/09/2026 17:50)
+- « [SDVFR] Demande refusée | http: null, message: Load failed » à l'ouverture
+  puis deux fois pendant « Actualiser », en moins d'une seconde, alors que le
+  relais SUP AIP et le RTBA réussissaient.
+- Vérifié par curl (Origin compris) : le serveur web de Synology DSM REMPLACE
+  toute réponse HTTP 4xx / 5xx par sa page d'erreur HTML (text/html, 3566
+  octets) SANS Access-Control-Allow-Origin. Le PHP envoyait bien ses en-têtes
+  CORS, mais DSM les supprimait. Safari bloque la réponse : BFG ne voit que
+  « Load failed » et ne peut ni lire le refus, ni savoir qu'il faut réessayer.
+- request-sdvfr-notams.php répondait 409 quand le créneau SDVFR était pris
+  (créneau partagé avec les lots NPF-Q400 de notams-sdvfr-shared.php, qui
+  écrivent le même sdvfr-request.json avec requestedBy 'BFG'). Le relais SUP AIP
+  et le RTBA échappaient au problème : ils répondent toujours en HTTP 200.
+- Verrou « demande en cours » : 600 s au plus (request-sdvfr-notams.php et
+  NPF_NOTAMS_SDVFR_REQUEST_TTL) ; libéré par le résultat final du worker ;
+  jamais définitif.
+
+2. NAS — DÉPLOYÉ LE 2026-09-24 (hors dépôt)
+- Deux fichiers seulement, ceux qu'appelle le navigateur :
+  request-sdvfr-notams.php et get-sdvfr-notams-result.php.
+  - Erreurs applicatives en HTTP 200 avec ok: false, codes applicatifs
+    inchangés (error : request_already_active, unauthorized…), code HTTP
+    d'origine dans httpStatus.
+  - get-sdvfr-notams-result.php : status 'error', message lisible dans error,
+    code dans errorCode (sinon BFG attendait 60 s avant d'échouer).
+  - Filet de sécurité : exception ou erreur fatale PHP -> JSON HTTP 200 (ligne
+    d'état forcée : après une fatale, PHP impose 500 et http_response_code(200)
+    seul ne suffit pas).
+  - Messages reformulés sans « SDVFR » (« NOTAM / météo ») : ils deviennent
+    visibles dans la pérenne, où SDVFR est interdit (règle 0.A.11).
+- Non modifiés : get-sdvfr-notams-request.php et update-sdvfr-notams-result.php
+  (worker, serveur à serveur, dépend des codes HTTP via raise_for_status),
+  notams-sdvfr-shared.php, npf-docs-api.php, notams-auto-refresh.php.
+- Vérifié avant dépôt : pérenne v2026.27 (lit déjà ok: false et message ; lit
+  status 'error' au suivi) ; NPF-Q400 et tâche de 06:30 (passent par
+  notams-sdvfr-shared.php, sans appel HTTP à ces fichiers) ; worker (fichiers non
+  modifiés). Aucune modification nécessaire de leur côté.
+- php -l OK ; simulation locale : OPTIONS 204, ex-401, ex-409, ex-400, ex-405,
+  ex-500, exception et erreur fatale -> HTTP 200 JSON avec CORS.
+- Livraison : ~/nas-a-copier/a-installer-sdvfr-http200/.
+- SAUVEGARDE : les anciennes versions ont été téléchargées sur le PC de
+  l'utilisateur (File Station), et NON copiées en .v527 sur le NAS. Retour
+  arrière : redéposer ces deux fichiers depuis le PC.
+- Contrôle après dépôt (curl) : OPTIONS 204 avec CORS ; POST sans autorisation
+  en HTTP 200 avec CORS et {"ok": false, "error": "unauthorized",
+  "httpStatus": 401}. VALIDÉ.
+
+3. BFG v5.28
+- requestSdvfrNotams_ : erreur réseau marquée (network) ; ok: false porte
+  status (httpStatus ou code HTTP) et code (error). Les deux formats NAS
+  (ancien 409, nouveau 200 + ok: false) sont reconnus.
+- fetchSdvfrTargetsOnce_ : créneau occupé (409 ou request_already_active) ET
+  erreur réseau réessayés toutes les 3 s pendant 90 s au plus ; tout autre refus
+  échoue aussitôt. Diagnostic distinct : « Créneau occupé (409), nouvel essai »,
+  « Erreur réseau (réponse illisible), nouvel essai », « Demande refusée (HTTP
+  x, code) », et abandon après 90 s.
+- getSdvfrNotamsResult_ / waitForSdvfrNotams_ : erreur réseau pendant le suivi
+  retentée dans la fenêtre de 60 s existante ; status 'error' = échec immédiat.
+- Image du Tour de France : src="" retiré de #tdf-stage-map (un src vide était
+  résolu en index.html, d'où « [RESSOURCE] Chargement impossible <img> » à
+  chaque démarrage). Le JS pose la vraie adresse à la sélection d'une étape.
+- Essais Node (fonctions extraites d'index.html, fetch simulé) : créneau occupé
+  nouveau NAS puis libre -> réussite ; vrai 409 ancien NAS -> réussite ; erreur
+  réseau passagère -> réussite ; erreur réseau persistante -> abandon
+  « Load failed » ; créneau occupé trop longtemps -> abandon avec le message du
+  NAS ; refus 401 -> échec immédiat, sans nouvel essai ; erreur réseau pendant
+  le suivi -> réussite ; status 'error' au suivi -> échec immédiat.
+
+4. POUR LA PÉRENNE
+- Le correctif NAS profite dès maintenant à la pérenne : créneau occupé ou
+  erreur désormais LISIBLES (message affiché) au lieu de « Load failed ». La
+  pérenne ne réessaie toujours pas : le correctif BFG v5.28 (file SDVFR v5.27 +
+  nouvels essais) est à reprendre lors de la promotion.
+
+VERSIONS
+- APP_VERSION_NUMBER 5.28, BFG_SW_VERSION 5.28, CACHE_NAME
+  'briefing-fdf-test-v5.28-sdvfr-retry-r1', description du manifest. sw.js :
+  version seule. Constantes figées à 5.07 NON modifiées (cf. 0.B1).
+
+STATUTS v5.28
+- Correctif NAS HTTP 200 : VALIDÉ (curl).
+- Nouvels essais BFG et disparition de l'erreur <img> : À MESURER sur iPad
+  (ouvrir BFG puis « Actualiser » : NOTAM SDVFR et météo doivent aboutir).
+
 TEST v5.27 — 2026-09-24
 Base : TEST v5.26
 ===============================================================================
