@@ -1337,6 +1337,15 @@
             min-height: 1.3em;
         }
         #rtba-map-status.warning { color: #9a3412; }
+        /* v5.30 — avertissement permanent sur la fenêtre RTBA, sous la ligne d'état. */
+        #rtba-map-notice {
+            margin: 2px 0 0 0;
+            text-align: center;
+            font-size: 0.85em;
+            font-weight: 600;
+            color: #64748b;
+        }
+        #rtba-map-notice a { color: #9a3412; font-weight: 700; }
         #sup-aip-map-filters input#rtba-layer-toggle {
             width: 20px;
             min-width: 0;
@@ -2957,6 +2966,7 @@
             <div id="sup-aip-france-map" aria-label="Carte de France des SUP AIP"></div>
             <p id="sup-aip-map-status">Carte SUP AIP non chargée.</p>
             <p id="rtba-map-status" role="status" aria-live="polite"></p>
+            <p id="rtba-map-notice" hidden>ⓘ Seules les activations des <span id="rtba-map-notice-window">4 prochaines heures</span> sont affichées. Pour la suite de la journée, consulter la <a href="https://www.sia.aviation-civile.gouv.fr/schedules" target="_blank" rel="noopener">page AZBA du SIA</a>.</p>
             <div id="sup-aip-map-filters">
                 <label>Du <input type="date" id="sup-aip-map-date-from"></label>
                 <label>au <input type="date" id="sup-aip-map-date-to"></label>
@@ -3007,8 +3017,8 @@
     <footer>Données : Météo-France, SIA, Windy.com, SDVFR. Page non commerciale, à usage personnel.</footer>
     
     <script>
-        const APP_VERSION_NUMBER = "5.29";
-        const APP_VERSION = `${APP_VERSION_NUMBER} TEST - CACHE NAS NOTAM / METEO`;
+        const APP_VERSION_NUMBER = "5.30";
+        const APP_VERSION = `${APP_VERSION_NUMBER} TEST - AVERTISSEMENT FENETRE RTBA`;
 
 
         // v4.97 — diagnostic conservé ; plage NOTAM quotidienne et sélection prioritaire. Aucun code d'accès, token ou contenu NOTAM n'est exporté.
@@ -16417,6 +16427,9 @@ window.__notamTextFull = notamInput.value;
         const BFG_RTBA_REFRESH_MS_ = 5 * 60 * 1000;
         const BFG_RTBA_MIN_INTERVAL_MS_ = 60 * 1000; // anti-rafale
         const BFG_RTBA_STATUS_TICK_MS_ = 60 * 1000;  // recalcul local des statuts, sans réseau
+        // v5.30 — libellé de la fenêtre RTBA dans l'avertissement sous la carte. À adapter
+        // si l'anticipation change (ex. anticipation évolutive jusqu'à 23:00, non codée).
+        const BFG_RTBA_WINDOW_LABEL_ = '4 prochaines heures';
         const BFG_RTBA_FETCH_TIMEOUT_MS_ = 25000;
         // v5.23 — présentation issue des essais iPad. Traits pleins.
         //   actif    : magenta VIF, CLIGNOTANT ;
@@ -16902,10 +16915,15 @@ window.__notamTextFull = notamInput.value;
             bfgRtbaFranceLayer_ = L.featureGroup();
 
             const toggle = document.getElementById('rtba-layer-toggle');
+            // v5.30 — avertissement sur la fenêtre RTBA : visible tant que la case est cochée.
+            const notice = document.getElementById('rtba-map-notice');
+            const noticeWindow = document.getElementById('rtba-map-notice-window');
+            if (noticeWindow) noticeWindow.textContent = BFG_RTBA_WINDOW_LABEL_;
             const applyToggle = () => {
                 // Masque / affiche seulement la couche : pas d'appel réseau, cache intact.
                 if (!toggle || toggle.checked) bfgRtbaFranceLayer_.addTo(bfgSupAipFranceMap_);
                 else bfgSupAipFranceMap_.removeLayer(bfgRtbaFranceLayer_);
+                if (notice) notice.hidden = !!(toggle && !toggle.checked);
             };
             toggle?.addEventListener('change', applyToggle);
             applyToggle();

@@ -341,6 +341,49 @@ C. CONTRÔLES AVANT TOUTE LIVRAISON
       surligneur, repli hors ligne NAS) ;
     - nouvelle entrée ajoutée EN TÊTE de ce journal, sous cette section 0,
       historique intégralement conservé.
+TEST v5.30 — 2026-09-25
+Base : TEST v5.29
+===============================================================================
+
+AVERTISSEMENT SUR LA FENÊTRE RTBA. Aucune modification du NAS ni du worker.
+
+1. AJOUT
+- Sous la carte AZBA / SUP AIP, juste sous la ligne d'état du RTBA
+  (#rtba-map-notice) : « ⓘ Seules les activations des 4 prochaines heures sont
+  affichées. Pour la suite de la journée, consulter la page AZBA du SIA. »
+- « page AZBA du SIA » : lien vers https://www.sia.aviation-civile.gouv.fr/schedules,
+  ouvert dans un nouvel onglet (<a target="_blank" rel="noopener">, même méthode
+  que le bouton « AZBA SIA » existant).
+- Visible tant que la case « RTBA » est cochée, masqué quand elle est décochée ;
+  masqué par défaut tant que la couche RTBA n'est pas initialisée (carte non
+  chargée). Pas de bouton de fermeture. Petit texte gris, lien orangé, sous la
+  carte : aucun décalage de la carte.
+- Libellé de la fenêtre dans la constante BFG_RTBA_WINDOW_LABEL_
+  ('4 prochaines heures'), en prévision d'une anticipation évolutive.
+- Aucune mention de SDVFR : texte utilisable tel quel dans la pérenne.
+
+2. DÉCISION NOTÉE POUR PLUS TARD — NON CODÉE
+- Anticipation RTBA évolutive, calculée par le worker :
+  anticipation = max(240 min, minutes restant jusqu'à 23:00 heure de Paris).
+  À tester un jour d'activité RTBA au-delà de 4 h avant tout déploiement
+  (SDVFR a proposé 240 min comme valeur maximale pour les AZBA : le
+  comportement au-delà n'est PAS connu). BFG_RTBA_WINDOW_LABEL_ et la légende
+  « RTBA à venir (< 4 h) » seront alors à adapter. STATUT : NON IMPLÉMENTÉ.
+
+3. ESSAIS v5.29
+- « Actualiser » : 40 s au total ; UNE seule demande NOTAM (3 s, 27 terrains
+  servis par le cache NAS) ; météo sans seconde demande ; puis NATS 37 s et
+  données Briefing 26 s : VALIDÉ.
+- Cases reçues par partage expirées le lendemain : VALIDÉ.
+
+VERSIONS
+- APP_VERSION_NUMBER 5.30, BFG_SW_VERSION 5.30, CACHE_NAME
+  'briefing-fdf-test-v5.30-rtba-notice-r1', description du manifest. sw.js :
+  version seule. Constantes figées à 5.07 NON modifiées (cf. 0.B1).
+
+STATUTS v5.30
+- Avertissement RTBA : À MESURER sur iPad (affichage, lien, case RTBA).
+
 TEST v5.29 — 2026-09-25
 Base : TEST v5.28
 ===============================================================================
