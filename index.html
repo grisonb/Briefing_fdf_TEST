@@ -2965,6 +2965,8 @@
                 <label>Du <input type="date" id="sup-aip-map-date-from"></label>
                 <label>au <input type="date" id="sup-aip-map-date-to"></label>
                 <label>FL max <input type="number" id="sup-aip-map-max-fl" min="0" max="660" step="5" value="115" inputmode="numeric"></label>
+                <!-- v5.32 — TEST UNIQUEMENT (à retirer à la promotion, cf. 0.B5) : désactive le seul filtre des créneaux. -->
+                <label><input type="checkbox" id="sup-aip-map-show-all" autocomplete="off"> Afficher toutes les zones</label>
                 <button id="sup-aip-map-refresh-btn" class="link-button" type="button">Actualiser SUP AIP</button>
             </div>
         </div>
@@ -3010,8 +3012,8 @@
     <footer>Données : Météo-France, SIA, Windy.com, SDVFR. Page non commerciale, à usage personnel.</footer>
     
     <script>
-        const APP_VERSION_NUMBER = "5.31";
-        const APP_VERSION = `${APP_VERSION_NUMBER} TEST - RTBA PERMANENT + CORRECTIF 23H + FILTRE MER`;
+        const APP_VERSION_NUMBER = "5.32";
+        const APP_VERSION = `${APP_VERSION_NUMBER} TEST - CRENEAUX SUP AIP + NUIT CIVILE`;
 
 
         // v4.97 — diagnostic conservé ; plage NOTAM quotidienne et sélection prioritaire. Aucun code d'accès, token ou contenu NOTAM n'est exporté.
@@ -3274,6 +3276,27 @@
                 }
             } catch (e) { push('Diagnostic SUP AIP :', `ERREUR ${e && e.message || e}`); }
             lines.push('');
+            // v5.32 — créneaux SUP AIP (PDF du SIA via VPS + NAS).
+            lines.push('=== CRÉNEAUX SUP AIP (PDF SIA via NAS) ===');
+            try {
+                const c = bfgSupAipSchedDiag_;
+                const f = bfgSupAipSchedules_;
+                push('Fichier utilisé :', c.source + (c.fetchedAt ? ` | lu le ${c.fetchedAt}` : ''));
+                push('Fichier généré le :', c.fileGeneratedAt || 'aucun');
+                if (f) {
+                    push('Analyseur / script :', `${f.analyzerVersion || '?'} / ${f.scriptVersion || '?'}`);
+                    push('Couverture (UTC) :', `${f.coverage.fromUtc} -> ${f.coverage.toUtc}`);
+                    push('Auto-test :', f.selfTest && f.selfTest.summary || '?');
+                    push('Contrôle NOTAM :', f.notamCheck && f.notamCheck.ok ? 'OK' : `IMPOSSIBLE${f.notamCheck && f.notamCheck.cause ? ` (${f.notamCheck.cause})` : ''}`);
+                    push('SUP AIP dans le fichier :', String(Object.keys(f.supaip || {}).length));
+                }
+                push('Filtre des créneaux :', c.usable ? 'ACTIF' : `INACTIF (${c.unusableReason || '?'}) : toutes les zones affichées`);
+                push('Zones masquées :', `${c.zonesHiddenNoSlot} sans créneau restant, ${c.zonesHiddenNightOnly} avec créneaux de nuit seulement`);
+                push('Zones affichées :', `${c.zonesFiableShown} fiable(s) avec créneau de jour, ${c.zonesNonFiable} non fiable(s), ${c.zonesUnmatched} sans correspondance`);
+                push('Dernier calcul :', c.lastRenderAt || 'aucun');
+                if (c.error) push('Erreur lecture :', c.error);
+            } catch (e) { push('Diagnostic créneaux SUP AIP :', `ERREUR ${e && e.message || e}`); }
+            lines.push('');
             // v5.22 — RTBA : section séparée, aucun secret (ni URL SDVFR, ni session).
             lines.push('=== RTBA (SDVFR via NAS + worker VPS) ===');
             try {
@@ -3287,7 +3310,7 @@
                 push('Données récupérées à :', r.fetchedAt || 'aucune');
                 push('Zones reçues :', r.zonesReceived === null ? 'inconnu' : String(r.zonesReceived));
                 push('Secteurs affichés :', `${r.sectorsActive} actif(s), ${r.sectorsUpcoming} à venir`);
-                push('Créneaux non affichés :', `${r.zonesEnded} terminé(s), ${r.zonesFilteredFl} filtré(s) FL max, ${r.zonesInvalidGeometry} géométrie invalide`);
+                push('Créneaux non affichés :', `${r.zonesEnded} terminé(s), ${r.zonesFilteredFl} filtré(s) FL max, ${r.zonesNight || 0} de nuit civile, ${r.zonesInvalidGeometry} géométrie invalide`);
                 push('Codes à géométries différentes :', r.codesWithSeveralGeometries && r.codesWithSeveralGeometries.length ? r.codesWithSeveralGeometries.join(' | ') : 'aucun');
                 push('Affichées depuis le cache :', bfgRtbaFromCache_ ? 'OUI' : 'NON');
                 const rtbaCache = bfgRtbaReadCache_();
@@ -16469,9 +16492,288 @@ window.__notamTextFull = notamInput.value;
             }
         }
 
+        /* ===================== v5.32 — CRÉNEAUX SUP AIP (PDF DU SIA) ET NUIT CIVILE =====================
+         * Fichier supaip-schedules-v1.json produit sur le VPS par le script bfg-supaip-schedules
+         * (PDF officiels du SIA, contrôle NOTAM SOFIA), déposé sur le NAS, lu ici via
+         * get-supaip-schedules.php et gardé en cache pour le hors ligne. Aucun appel à SDVFR.
+         *
+         * Une zone SUP AIP n'est MASQUÉE que si TOUT est réuni :
+         *  - fichier valide, auto-test réussi, âge <= 36 h, période de la carte couverte ;
+         *  - SUP AIP présent (même code) et nom de zone retrouvé (normalisé), validités cohérentes ;
+         *  - zone « fiable » (créneaux lus sans doute ; ni NOTAM ni texte libre) ;
+         *  - aucun créneau DE JOUR restant dans la période (marge : 15 min après la fin,
+         *    30 min pour un horaire lié au lever / coucher du soleil).
+         * Tout le reste : zone AFFICHÉE comme avant. Apparence inchangée, aucun message.
+         *
+         * Nuit civile (SUP AIP fiables et RTBA) : soleil à 6° sous l'horizon, au centre de la
+         * zone ou du secteur. Un créneau est « de nuit » si sa partie hors nuit civile ne
+         * dépasse pas 30 minutes au total ; il ne compte alors pas. Calcul impossible :
+         * créneau considéré de jour (prudence). */
+        const BFG_SUPAIP_SCHEDULES_API_URL_ = 'https://grisonb.synology.me/briefing-api/get-supaip-schedules.php';
+        const BFG_SUPAIP_SCHEDULES_CACHE_NAME_ = 'briefing-fdf-supaip-schedules-v1';
+        const BFG_SUPAIP_SCHEDULES_CACHE_PATH_ = '/__bfg_offline__/supaip-schedules-v1.json';
+        const BFG_SUPAIP_SCHEDULES_MAX_AGE_MS_ = 36 * 3600 * 1000;
+        const BFG_SUPAIP_SLOT_END_MARGIN_MS_ = 15 * 60 * 1000;
+        const BFG_SUPAIP_SLOT_SUN_EXTRA_MS_ = 15 * 60 * 1000;
+        const BFG_NIGHT_DAY_TOLERANCE_MIN_ = 30;
+        let bfgSupAipSchedules_ = null;          // contenu « data » du fichier, ou null
+        const bfgSupAipSchedDiag_ = {
+            source: 'aucun', fileGeneratedAt: '', fetchedAt: '', error: '',
+            usable: false, unusableReason: 'fichier non chargé',
+            zonesHiddenNoSlot: 0, zonesHiddenNightOnly: 0, zonesFiableShown: 0,
+            zonesNonFiable: 0, zonesUnmatched: 0, showAll: false, lastRenderAt: ''
+        };
+
+        async function bfgReadSupAipSchedulesCache_() {
+            if (!('caches' in window)) return null;
+            try {
+                const cache = await caches.open(BFG_SUPAIP_SCHEDULES_CACHE_NAME_);
+                const res = await cache.match(BFG_SUPAIP_SCHEDULES_CACHE_PATH_);
+                return res ? await res.json() : null;
+            } catch (_) {
+                return null;
+            }
+        }
+
+        async function bfgWriteSupAipSchedulesCache_(data) {
+            if (!('caches' in window)) return;
+            try {
+                const cache = await caches.open(BFG_SUPAIP_SCHEDULES_CACHE_NAME_);
+                const body = JSON.stringify({ savedAt: new Date().toISOString(), data });
+                await cache.put(BFG_SUPAIP_SCHEDULES_CACHE_PATH_, new Response(body, { headers: { 'Content-Type': 'application/json' } }));
+            } catch (error) {
+                console.warn('BFG SUP AIP : cache des créneaux impossible.', error);
+            }
+        }
+
+        function bfgSupAipSchedulesLooksValid_(data) {
+            return !!(data && data.schema === 'bfg-supaip-schedules-v1' && data.selfTest && data.selfTest.passed === true
+                && data.coverage && typeof data.coverage.fromUtc === 'string' && typeof data.coverage.toUtc === 'string'
+                && data.supaip && typeof data.supaip === 'object' && typeof data.generatedAt === 'string');
+        }
+
+        // Lecture NAS, sinon cache local. Ne lève jamais : sans fichier, tout reste affiché.
+        async function bfgLoadSupAipSchedules_() {
+            let data = null;
+            bfgSupAipSchedDiag_.error = '';
+            if (navigator.onLine) {
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 15000);
+                try {
+                    const response = await fetch(`${BFG_SUPAIP_SCHEDULES_API_URL_}?t=${Date.now()}`, {
+                        method: 'GET', cache: 'no-store', credentials: 'omit',
+                        headers: { 'Accept': 'application/json' }, signal: controller.signal
+                    });
+                    const body = await response.json().catch(() => null);
+                    if (body && body.ok === true && bfgSupAipSchedulesLooksValid_(body.data)) {
+                        data = body.data;
+                        bfgSupAipSchedDiag_.source = 'NAS';
+                        bfgSupAipSchedDiag_.fetchedAt = new Date().toISOString();
+                        await bfgWriteSupAipSchedulesCache_(data);
+                    } else {
+                        bfgSupAipSchedDiag_.error = `NAS : ${body ? (body.error || 'fichier invalide') : `HTTP ${response.status}, réponse non JSON`}`;
+                    }
+                } catch (error) {
+                    bfgSupAipSchedDiag_.error = `NAS : ${error && error.name === 'AbortError' ? 'délai dépassé' : (error && error.message || error)}`;
+                } finally {
+                    clearTimeout(timeoutId);
+                }
+            }
+            if (!data) {
+                const cached = await bfgReadSupAipSchedulesCache_();
+                if (cached && bfgSupAipSchedulesLooksValid_(cached.data)) {
+                    data = cached.data;
+                    bfgSupAipSchedDiag_.source = 'cache local';
+                    bfgSupAipSchedDiag_.fetchedAt = cached.savedAt || '';
+                } else {
+                    bfgSupAipSchedDiag_.source = 'aucun';
+                }
+            }
+            bfgSupAipSchedules_ = data;
+            bfgSupAipSchedDiag_.fileGeneratedAt = data ? data.generatedAt : '';
+            return data;
+        }
+
+        // --- Soleil : instant (ms UTC) du lever / coucher pour un zénith donné (algorithme NOAA).
+        function bfgSunEventMs_(dayUtcMs, lat, lon, rise, zenithDeg) {
+            const day = new Date(dayUtcMs);
+            const start = Date.UTC(day.getUTCFullYear(), 0, 1);
+            const n = Math.floor((Date.UTC(day.getUTCFullYear(), day.getUTCMonth(), day.getUTCDate()) - start) / 86400000) + 1;
+            const gamma = 2 * Math.PI / 365 * (n - 1);
+            const eqt = 229.18 * (0.000075 + 0.001868 * Math.cos(gamma) - 0.032077 * Math.sin(gamma)
+                - 0.014615 * Math.cos(2 * gamma) - 0.040849 * Math.sin(2 * gamma));
+            const decl = 0.006918 - 0.399912 * Math.cos(gamma) + 0.070257 * Math.sin(gamma) - 0.006758 * Math.cos(2 * gamma)
+                + 0.000907 * Math.sin(2 * gamma) - 0.002697 * Math.cos(3 * gamma) + 0.00148 * Math.sin(3 * gamma);
+            const rad = Math.PI / 180;
+            const cosHa = Math.cos(zenithDeg * rad) / (Math.cos(lat * rad) * Math.cos(decl)) - Math.tan(lat * rad) * Math.tan(decl);
+            if (!(cosHa >= -1 && cosHa <= 1)) return NaN;
+            const ha = Math.acos(cosHa) / rad;
+            const minutes = 720 - 4 * (lon + (rise ? ha : -ha)) - eqt;
+            return Date.UTC(day.getUTCFullYear(), day.getUTCMonth(), day.getUTCDate()) + minutes * 60000;
+        }
+
+        // Minutes du créneau HORS nuit civile (soleil à -6°), ou null si incalculable.
+        function bfgSlotDayMinutes_(startMs, endMs, lat, lon) {
+            if (!(Number.isFinite(startMs) && Number.isFinite(endMs) && endMs > startMs)) return null;
+            if (!(Number.isFinite(lat) && Number.isFinite(lon))) return null;
+            let nightMs = 0;
+            const firstDay = Date.UTC(new Date(startMs).getUTCFullYear(), new Date(startMs).getUTCMonth(), new Date(startMs).getUTCDate()) - 86400000;
+            for (let d = firstDay; d < endMs + 86400000; d += 86400000) {
+                const dusk = bfgSunEventMs_(d, lat, lon, false, 96);
+                const dawn = bfgSunEventMs_(d + 86400000, lat, lon, true, 96);
+                if (!Number.isFinite(dusk) || !Number.isFinite(dawn)) return null;
+                const overlap = Math.min(endMs, dawn) - Math.max(startMs, dusk);
+                if (overlap > 0) nightMs += overlap;
+            }
+            return Math.max(0, (endMs - startMs - nightMs) / 60000);
+        }
+
+        function bfgSlotIsNight_(startMs, endMs, centre) {
+            if (!centre) return false;
+            const dayMinutes = bfgSlotDayMinutes_(startMs, endMs, centre[0], centre[1]);
+            return dayMinutes !== null && dayMinutes <= BFG_NIGHT_DAY_TOLERANCE_MIN_;
+        }
+
+        // Centre d'une géométrie : moyenne des sommets du premier contour extérieur ([lat, lon]).
+        function bfgGeometryCentre_(geometry) {
+            try {
+                const ring = geometry.type === 'Polygon' ? geometry.coordinates[0]
+                    : geometry.type === 'MultiPolygon' ? geometry.coordinates[0][0] : null;
+                if (!Array.isArray(ring) || ring.length < 3) return null;
+                const pts = ring.slice(0, ring.length - (ring[0][0] === ring[ring.length - 1][0] && ring[0][1] === ring[ring.length - 1][1] ? 1 : 0));
+                const lon = pts.reduce((s, p) => s + p[0], 0) / pts.length;
+                const lat = pts.reduce((s, p) => s + p[1], 0) / pts.length;
+                return Number.isFinite(lat) && Number.isFinite(lon) ? [lat, lon] : null;
+            } catch (_) {
+                return null;
+            }
+        }
+
+        function bfgCanonZoneName_(text) {
+            return String(text || '').normalize('NFKD').replace(/[̀-ͯ]/g, '')
+                .replace(/[’‘]/g, "'").replace(/[–—−]/g, '-')
+                .replace(/\s+/g, ' ').trim().toUpperCase();
+        }
+
+        // Période de la carte (dates Du / Au, heure locale de l'iPad = heure de Paris).
+        function bfgSupAipMapRange_() {
+            const fromInput = document.getElementById('sup-aip-map-date-from');
+            const toInput = document.getElementById('sup-aip-map-date-to');
+            const today = bfgTodayIsoDate_();
+            const from = fromInput && fromInput.value ? fromInput.value : today;
+            const to = toInput && toInput.value ? toInput.value : from;
+            return { startMs: new Date(`${from}T00:00:00`).getTime(), endMs: new Date(`${to}T23:59:59.999`).getTime() + 1 };
+        }
+
+        // Contexte commun à un rendu : fichier utilisable ? (sinon tout est affiché)
+        function bfgSupAipScheduleContext_() {
+            const showAll = !!(document.getElementById('sup-aip-map-show-all') || {}).checked;
+            const ctx = { usable: false, reason: '', data: bfgSupAipSchedules_, nowMs: Date.now(), range: bfgSupAipMapRange_(), showAll };
+            const data = bfgSupAipSchedules_;
+            if (showAll) ctx.reason = 'case « Afficher toutes les zones » cochée';
+            else if (!bfgSupAipSchedulesLooksValid_(data)) ctx.reason = 'fichier absent ou invalide';
+            else {
+                const generated = Date.parse(data.generatedAt);
+                const covFrom = Date.parse(data.coverage.fromUtc);
+                const covTo = Date.parse(data.coverage.toUtc);
+                if (!Number.isFinite(generated) || ctx.nowMs - generated > BFG_SUPAIP_SCHEDULES_MAX_AGE_MS_) ctx.reason = 'fichier trop ancien (> 36 h)';
+                else if (!Number.isFinite(covFrom) || !Number.isFinite(covTo) || ctx.range.startMs < covFrom || ctx.range.endMs > covTo) ctx.reason = 'période de la carte hors de la couverture du fichier (J à J+7)';
+                else if (!(ctx.range.endMs > ctx.nowMs)) ctx.reason = 'période passée';
+                else ctx.usable = true;
+            }
+            return ctx;
+        }
+
+        /* Décision pour UNE zone : { hide: bool, why }. hide=false au moindre doute. */
+        function bfgSupAipScheduleDecision_(zone, ctx) {
+            if (!ctx.usable) return { hide: false, why: 'unusable' };
+            try {
+                const item = zone.item || {};
+                const code = String(item.code || '').trim();
+                const entry = code && ctx.data.supaip[code];
+                if (!entry || !entry.zones) return { hide: false, why: 'unmatched' };
+                const name = bfgCanonZoneName_(String(zone.label || '').replace(new RegExp(`\\s*${code}\\s*$`), ''));
+                const z = entry.zones[name] || entry.zones['*'];
+                if (!z) return { hide: false, why: 'unmatched' };
+                if (z.status !== 'fiable' || !Array.isArray(z.slots)) return { hide: false, why: 'nonfiable' };
+                const vf = Date.parse(`${entry.validFrom}T00:00:00Z`);
+                const vt = Date.parse(`${entry.validTo}T23:59:59Z`);
+                const zs = zone.start instanceof Date ? zone.start.getTime() : NaN;
+                const ze = zone.end instanceof Date ? zone.end.getTime() : NaN;
+                if (!Number.isFinite(vf) || !Number.isFinite(vt) || !Number.isFinite(zs) || !Number.isFinite(ze) || zs > vt || ze < vf) {
+                    return { hide: false, why: 'unmatched' };
+                }
+                const { startMs, endMs } = ctx.range;
+                const badDays = Array.isArray(z.nonReliableUtcDays) ? z.nonReliableUtcDays : [];
+                if (badDays.some(d => { const a = Date.parse(`${d}T00:00:00Z`); return !Number.isFinite(a) || (a < endMs && a + 86400000 > startMs); })) {
+                    return { hide: false, why: 'nonfiable' };
+                }
+                const centre = bfgGeometryCentre_(zone.geometry);
+                const from = Math.max(startMs, ctx.nowMs);
+                let inRange = 0;
+                for (const slot of z.slots) {
+                    const s = Date.parse(slot[0]);
+                    const e = Date.parse(slot[1]);
+                    if (!Number.isFinite(s) || !Number.isFinite(e) || e <= s) return { hide: false, why: 'nonfiable' };
+                    const margin = BFG_SUPAIP_SLOT_END_MARGIN_MS_ + (slot[2] ? BFG_SUPAIP_SLOT_SUN_EXTRA_MS_ : 0);
+                    if (!(s < endMs && e + margin > from)) continue;
+                    inRange += 1;
+                    if (!bfgSlotIsNight_(s, e, centre)) return { hide: false, why: 'dayslot' };
+                }
+                return { hide: true, why: inRange ? 'nightonly' : 'noslot' };
+            } catch (error) {
+                console.warn('BFG SUP AIP : décision créneaux impossible, zone affichée.', error, zone && zone.label);
+                return { hide: false, why: 'error' };
+            }
+        }
+
+        function bfgSupAipResetSchedCounters_(ctx) {
+            Object.assign(bfgSupAipSchedDiag_, {
+                usable: ctx.usable, unusableReason: ctx.reason, showAll: ctx.showAll,
+                zonesHiddenNoSlot: 0, zonesHiddenNightOnly: 0, zonesFiableShown: 0,
+                zonesNonFiable: 0, zonesUnmatched: 0, lastRenderAt: new Date().toISOString()
+            });
+        }
+
+        function bfgSupAipCountDecision_(decision) {
+            const d = bfgSupAipSchedDiag_;
+            if (decision.why === 'noslot') d.zonesHiddenNoSlot += 1;
+            else if (decision.why === 'nightonly') d.zonesHiddenNightOnly += 1;
+            else if (decision.why === 'dayslot') d.zonesFiableShown += 1;
+            else if (decision.why === 'nonfiable' || decision.why === 'error') d.zonesNonFiable += 1;
+            else if (decision.why === 'unmatched') d.zonesUnmatched += 1;
+        }
+
+        // Signature des zones masquées : le recalcul chaque minute ne redessine que si elle change.
+        let bfgSupAipHiddenSignature_ = '';
+        function bfgSupAipComputeHiddenSignature_() {
+            if (!bfgSupAipRawPayload_) return '';
+            const ctx = bfgSupAipScheduleContext_();
+            if (!ctx.usable) return `off:${ctx.reason}`;
+            return bfgExtractSupAipItems_(bfgSupAipRawPayload_).map(bfgNormalizeSupAipItem_).filter(Boolean)
+                .filter(bfgSupAipZoneMatchesFilters_)
+                .filter(z => !bfgSupAipIsMostlyAtSea_(z))
+                .filter(z => bfgSupAipScheduleDecision_(z, ctx).hide)
+                .map(z => `${z.item && z.item.code}|${z.label}`).sort().join('#');
+        }
+
+        let bfgSupAipScheduleTicker_ = null;
+        function bfgStartSupAipScheduleTicker_() {
+            if (bfgSupAipScheduleTicker_) return;
+            bfgSupAipScheduleTicker_ = setInterval(() => {
+                try {
+                    if (!bfgSupAipFranceMap_ || !bfgSupAipRawPayload_) return;
+                    const signature = bfgSupAipComputeHiddenSignature_();
+                    if (signature !== bfgSupAipHiddenSignature_) bfgRenderSupAipFranceMap_({ keepView: true });
+                } catch (error) {
+                    console.warn('BFG SUP AIP : recalcul des créneaux impossible.', error);
+                }
+            }, 60 * 1000);
+        }
+
         const BFG_SUPAIP_METRO_BOUNDS_ = [[41.0, -6.5], [51.6, 10.5]];
 
-        function bfgRenderSupAipFranceMap_() {
+        function bfgRenderSupAipFranceMap_(options = {}) {
             if (!bfgSupAipFranceMap_ || !bfgSupAipRawPayload_ || !window.L) return;
             bfgStopSupAipFuturePulse_();
             if (bfgSupAipFranceLayer_) {
@@ -16485,6 +16787,10 @@ window.__notamTextFull = notamInput.value;
             const metroBounds = L.latLngBounds(BFG_SUPAIP_METRO_BOUNDS_);
             const group = L.featureGroup();
             let displayedCount = 0;
+            // v5.32 : créneaux SUP AIP (PDF du SIA) ; contexte calculé une fois par rendu.
+            const schedCtx = bfgSupAipScheduleContext_();
+            bfgSupAipResetSchedCounters_(schedCtx);
+            const hiddenKeys = [];
 
             selected.forEach(zone => {
                 try {
@@ -16498,6 +16804,13 @@ window.__notamTextFull = notamInput.value;
                     if (!layerBounds.isValid() || !layerBounds.overlaps(metroBounds)) return;
                     // v5.31 : zone à moins de 4,5 % au-dessus de la terre -> non affichée (prudence : en cas de doute, affichée).
                     if (bfgSupAipIsMostlyAtSea_(zone)) return;
+                    // v5.32 : zone fiable sans créneau de jour restant -> non affichée (au moindre doute : affichée).
+                    const schedDecision = bfgSupAipScheduleDecision_(zone, schedCtx);
+                    bfgSupAipCountDecision_(schedDecision);
+                    if (schedDecision.hide) {
+                        hiddenKeys.push(`${zone.item && zone.item.code}|${zone.label}`);
+                        return;
+                    }
                     layer.bindPopup(bfgSupAipPopupHtml_(zone), { maxWidth: 360 });
                     layer.addTo(group);
                     if (bfgSupAipStartsInFuture_(zone)) {
@@ -16510,6 +16823,7 @@ window.__notamTextFull = notamInput.value;
             });
             group.addTo(bfgSupAipFranceMap_);
             bfgSupAipFranceLayer_ = group;
+            bfgSupAipHiddenSignature_ = schedCtx.usable ? hiddenKeys.sort().join('#') : `off:${schedCtx.reason}`;
             bfgStartSupAipFuturePulse_();
             if (status) {
                 status.classList.remove('warning');
@@ -16517,7 +16831,9 @@ window.__notamTextFull = notamInput.value;
             }
             // Le cadrage reste volontairement fixe : une zone ultramarine ne doit jamais
             // provoquer un zoom monde ou éloigner la France.
-            bfgSupAipFranceMap_.fitBounds(metroBounds, { animate: false });
+            // v5.32 : recalcul des créneaux (chaque minute) ou case « Afficher toutes les zones » :
+            // la vue de l'utilisateur est conservée.
+            if (!options.keepView) bfgSupAipFranceMap_.fitBounds(metroBounds, { animate: false });
         }
 
         async function bfgLoadAndRenderSupAipMap_(force = false) {
@@ -16529,8 +16845,12 @@ window.__notamTextFull = notamInput.value;
                     status.classList.remove('warning');
                     status.textContent = force ? 'Actualisation des zones SUP AIP...' : 'Chargement des zones SUP AIP...';
                 }
+                // v5.32 : fichier des créneaux lu en parallèle ; son absence n'empêche jamais l'affichage.
+                const schedulesPromise = bfgLoadSupAipSchedules_().catch(() => null);
                 bfgSupAipRawPayload_ = await bfgFetchSupAipTemporaryAirspaces_(force);
+                await schedulesPromise;
                 bfgRenderSupAipFranceMap_();
+                bfgStartSupAipScheduleTicker_();
             } catch (error) {
                 if (status) {
                     status.classList.add('warning');
@@ -16573,6 +16893,12 @@ window.__notamTextFull = notamInput.value;
             maxFlInput?.addEventListener('change', rerenderOrExtendCeiling);
             maxFlInput?.addEventListener('input', rerender);
             refreshBtn?.addEventListener('click', () => bfgLoadAndRenderSupAipMap_(true));
+            // v5.32 — TEST : case jamais mémorisée, décochée à chaque ouverture (filtre des créneaux actif).
+            const showAllInput = document.getElementById('sup-aip-map-show-all');
+            if (showAllInput) {
+                showAllInput.checked = false;
+                showAllInput.addEventListener('change', () => bfgRenderSupAipFranceMap_({ keepView: true }));
+            }
             setTimeout(() => bfgSupAipFranceMap_?.invalidateSize(false), 100);
             bfgLoadAndRenderSupAipMap_(false);
             // v5.22 — RTBA : module indépendant. Les SUP AIP s'affichent sans l'attendre.
@@ -16640,6 +16966,7 @@ window.__notamTextFull = notamInput.value;
             codesWithSeveralGeometries: [],
             zonesEnded: 0,
             zonesFilteredFl: 0,
+            zonesNight: 0,
             zonesInvalidGeometry: 0,
             fetchedAt: '',
             error: ''
@@ -16790,7 +17117,7 @@ window.__notamTextFull = notamInput.value;
          * à chaque créneau ; le secteur disparaît quand il ne lui reste aucun créneau.
          * Statut du secteur : un créneau actif => actif ; sinon => à venir. */
         function bfgBuildRtbaGroups_(airspaces, nowMs = Date.now()) {
-            const counts = { slotsEnded: 0, slotsFilteredFl: 0, slotsInvalid: 0 };
+            const counts = { slotsEnded: 0, slotsFilteredFl: 0, slotsInvalid: 0, slotsNight: 0 };
             const byKey = new Map();
             const geometriesByCode = new Map();
             (airspaces || []).forEach(item => {
@@ -16803,6 +17130,14 @@ window.__notamTextFull = notamInput.value;
                 if (status === 'ended') { counts.slotsEnded += 1; return; }   // terminé : retiré
                 if (!zone.geometry) { counts.slotsInvalid += 1; return; }
                 if (!bfgRtbaZonePassesFlFilter_(zone)) { counts.slotsFilteredFl += 1; return; }
+                // v5.32 : créneau de nuit civile (partie de jour <= 30 min, au centre du secteur) -> ignoré.
+                // Le secteur n'est plus affiché s'il ne lui reste aucun créneau de jour ; le popup ne
+                // liste que les créneaux de jour. Calcul impossible : créneau gardé (prudence).
+                if (zone.start instanceof Date && zone.end instanceof Date
+                    && bfgSlotIsNight_(zone.start.getTime(), zone.end.getTime(), bfgGeometryCentre_(zone.geometry))) {
+                    counts.slotsNight += 1;
+                    return;
+                }
                 const key = `${zone.code}|${geometryText}`;
                 if (!byKey.has(key)) byKey.set(key, { key, code: zone.code, geometry: zone.geometry, slots: [] });
                 byKey.get(key).slots.push({ zone, status });
@@ -16943,6 +17278,7 @@ window.__notamTextFull = notamInput.value;
                 sectorsUpcoming,
                 zonesEnded: counts.slotsEnded,
                 zonesFilteredFl: counts.slotsFilteredFl,
+                zonesNight: counts.slotsNight,
                 zonesInvalidGeometry: counts.slotsInvalid,
                 codesWithSeveralGeometries
             });
@@ -16960,7 +17296,7 @@ window.__notamTextFull = notamInput.value;
             if (changed) {
                 bfgRtbaLog_('Couche RTBA mise à jour', {
                     reçues: bfgRtbaAirspaces_.length, secteursActifs: sectorsActive, secteursAVenir: sectorsUpcoming,
-                    créneauxTerminés: counts.slotsEnded, créneauxFiltrésFl: counts.slotsFilteredFl,
+                    créneauxTerminés: counts.slotsEnded, créneauxFiltrésFl: counts.slotsFilteredFl, créneauxDeNuit: counts.slotsNight,
                     géométrieInvalide: counts.slotsInvalid, multiGéométrie: codesWithSeveralGeometries.join(' '),   // v5.27 : clé sans « code » (masquée par le diagnostic)
                     cache: bfgRtbaFromCache_
                 });

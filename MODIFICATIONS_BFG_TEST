@@ -327,6 +327,19 @@ B5. LISTE DE CONTRÔLE DE PROMOTION — MENTIONS VISIBLES DE « SDVFR » (v5.23)
     carte SUP AIP (affichées seulement dans le diagnostic ; l'utilisateur voit
     « Carte SUP AIP indisponible… »), id HTML notam-sdvfr-import-status.
 
+    ÉLÉMENTS « TEST UNIQUEMENT » À RETIRER À LA PROMOTION (v5.32)
+    ---------------------------------------------------------------------------
+    Case « Afficher toutes les zones »           -> RETIRÉE en pérenne :
+      (#sup-aip-map-show-all, carte AZBA /          supprimer le <label> et son
+      SUP AIP, v5.32) : désactive le seul           commentaire dans
+      filtre des créneaux SUP AIP                   #sup-aip-map-filters, et le
+                                                    bloc « showAllInput » de
+                                                    initializeSupAipFranceMap_.
+                                                    bfgSupAipScheduleContext_ lit
+                                                    la case avec repli « non
+                                                    cochée » : rien d'autre à
+                                                    modifier.
+
 -------------------------------------------------------------------------------
 C. CONTRÔLES AVANT TOUTE LIVRAISON
 -------------------------------------------------------------------------------
@@ -341,6 +354,152 @@ C. CONTRÔLES AVANT TOUTE LIVRAISON
       surligneur, repli hors ligne NAS) ;
     - nouvelle entrée ajoutée EN TÊTE de ce journal, sous cette section 0,
       historique intégralement conservé.
+TEST v5.32 — 2026-09-25
+Base : TEST v5.31
+===============================================================================
+
+CRÉNEAUX SUP AIP LUS DANS LES PDF DU SIA ; CRÉNEAUX DE NUIT CIVILE IGNORÉS
+(SUP AIP ET RTBA). Nouveau script VPS séparé du worker SDVFR (non modifié),
+deux nouveaux fichiers NAS (relais SUP AIP non modifié).
+
+1. RÈGLES DÉCIDÉES
+- Périmètre : zones SUP AIP de la carte (métropole + Corse, plancher
+  strictement inférieur au FL max, après le filtre mer de la v5.31).
+- Zone FIABLE (créneaux lus sans aucun doute) : affichée toute la journée tant
+  qu'il lui reste un créneau DE JOUR ; masquée si elle n'en a aucun
+  aujourd'hui, ou 15 min après la fin de son dernier créneau de jour (30 min
+  si l'horaire dépend du lever / coucher du soleil).
+- Zone NON FIABLE (pas d'horaires, activable par NOTAM, selon protocole,
+  texte libre, lecture douteuse, PDF inaccessible, nom incertain, SUP AIP cité
+  par un NOTAM autre que son déclencheur) : affichée en permanence.
+- Dates Du / Au : zone affichée si elle a au moins un créneau de jour dans la
+  période ; au-delà de J+7 ou fichier absent / illisible / de plus de 36 h :
+  tout est affiché.
+- Nuit civile (soleil à 6° sous l'horizon, au centre de la zone ou du
+  secteur) : un créneau est « de nuit » si sa partie hors nuit civile ne
+  dépasse pas 30 minutes au total ; il ne compte pas. Option C retenue après
+  essai de la règle « nuit réduite de 15 min », sans effet sur les cas réels
+  (créneaux RTBA de 18:14Z, SUP AIP 185/26).
+- Apparence inchangée, aucun message à l'écran (les créneaux signifient le
+  plus souvent « activable », pas « actif »).
+
+2. VPS — bfg-supaip-schedules (NOUVEAU, livré dans ~/vps-a-copier/)
+- analyzer.py 1.0.0 : grammaire FERMÉE du bloc « DATES ET HEURES
+  D'ACTIVITÉ ». Contrôles : ligne par ligne ; comptage indépendant des lignes
+  d'horaires ; double extraction pypdf (plain / layout) ; noms retrouvés
+  ailleurs dans le PDF ; aucun horaire lié à une zone hors du bloc ; aucune
+  mention NOTAM / protocole / préavis dans le bloc (R14). Heures UTC (H1),
+  notes été / hiver avec union le jour du changement (H2), nuits SS -> SR
+  (H3), préambules en liste fermée (H4), jours fériés nationaux, Vendredi
+  saint et 26/12 non fiables en Alsace-Moselle.
+- Tests de référence : 22 cas écrits à la main et validés (R1-R21 : 194/26
+  dont ZRT 166 B, 185/26 nuit, 179/26 été et fériés, 045/26 changement
+  d'heure, 201/26, H24, pièges). 22/22 conformes. Essais de mutation : chaque
+  défaut volontaire (sous-lignes ignorées, en-têtes de page, soleil inversé,
+  heure d'été, fériés, NOTAM, prudence H3, lignes inconnues + comptage
+  désactivé) fait échouer au moins un test. PDF 055/26 (18,6 Mo) remplacé par
+  un extrait textuel figé.
+- bfg_supaip_schedules.py 1.0.0 : auto-test avant tout dépôt ; liste des SUP
+  AIP métropole du SIA ; PDF téléchargés seulement s'ils changent (ETag) ;
+  analyses en cache (SHA-256 + version de l'analyseur) ; NOTAM SOFIA (5 FIR,
+  une requête par jour de J à J+7) : SUP AIP cité hors NOTAM déclencheur ->
+  non fiable ; contrôle NOTAM impossible -> tout non fiable ; fichier
+  supaip-schedules-v1.json (créneaux UTC déjà calculés, J à J+7 en heure de
+  Paris) ; dépôt NAS avec le jeton du worker (lecture seule du fichier
+  /home/ubuntu/bfg-worker/secrets-upload.json) ; nouveaux essais toutes les
+  10 min jusqu'à 08:00 (passage de 06:45) ou 11:00 (passage de 10:00) ;
+  jamais de dépôt entre 23:50 et 06:00.
+- Minuteur systemd : 06:45 et 10:00 Europe/Paris, Persistent=true.
+- Essai à blanc du 25/09 (sans dépôt) : 114 SUP AIP, 739 NOTAM lus ; zones :
+  29 fiables, 20 H24, 100 non fiables ; 13 SUP AIP cités par un NOTAM hors
+  déclencheur sur J à J+7 (dont 146/26 : R2797/26 active des ZRT de 20:00 à
+  04:00, hors des horaires du PDF), tous déjà non fiables ; fichier de 59 Ko.
+- Livraison sans pip ni apt (ensurepip absent du VPS) : pypdf 6.19.0 fourni
+  dans vendor/ (roue pure Python décompressée, SHA-256 PyPI vérifié :
+  7e5d6e73…e48d14) ; HTTP par la bibliothèque standard (plus de dépendance à
+  requests) ; lancement par /usr/bin/python3 ; empreintes de tous les
+  fichiers livrés dans SHA256SUMS.
+- Script 1.0.1 : suppression automatique, à chaque passage et après une lecture
+  complète de la liste du SIA, des PDF et analyses des SUP AIP qui ne sont plus
+  en vigueur (fin de validité passée ou absents de la liste ; futurs conservés)
+  et des analyses d'une autre version de l'analyseur. Essai sur copie de l'état
+  local : SUP AIP expirés et absents retirés, fichiers étrangers et SUP AIP en
+  vigueur conservés.
+
+3. NAS (NOUVEAUX, livrés dans ~/nas-a-copier/a-installer-supaip-schedules/)
+- update-supaip-schedules.php : POST, upload_token de notams_config.php,
+  contrôle de structure (schéma, couverture, auto-test réussi), 3 Mo max,
+  écriture atomique de briefing-data/supaip-schedules/supaip-schedules-v1.json,
+  version précédente en .prev.json.
+- get-supaip-schedules.php : GET public (données issues des PDF du SIA),
+  CORS, toujours HTTP 200 avec ok / httpStatus (contrainte DSM).
+- Essais sur serveur PHP local : absent -> ok:false 404 ; mauvais jeton 401 ;
+  schéma invalide 400 ; dépôt 200 et .prev créé ; lecture 200 avec CORS.
+
+4. BFG v5.32
+- Lecture du fichier via get-supaip-schedules.php, en parallèle du relais SUP
+  AIP ; cache 'briefing-fdf-supaip-schedules-v1' (hors préfixe
+  'briefing-fdf-test-' : non purgé par activate) pour le hors ligne.
+- Filtre dans bfgRenderSupAipFranceMap_, après le filtre mer. Recalcul chaque
+  minute ; la carte n'est redessinée que si l'ensemble des zones masquées
+  change, sans recadrage (vue de l'utilisateur conservée).
+- RTBA : créneaux de nuit civile ignorés secteur par secteur
+  (bfgBuildRtbaGroups_) ; secteur sans créneau de jour non affiché ; popup
+  limité aux créneaux de jour ; worker et NAS inchangés.
+- Case « Afficher toutes les zones » (TEST UNIQUEMENT) : désactive le seul
+  filtre des créneaux (filtre mer actif), décochée par défaut, jamais
+  mémorisée. Consigne de retrait ajoutée en 0.B5.
+- Diagnostic BFG : section « CRÉNEAUX SUP AIP » (fichier utilisé, date,
+  versions, couverture, auto-test, contrôle NOTAM, zones masquées / affichées
+  par motif) ; RTBA : créneaux de nuit comptés.
+- Essais Node (fonctions réelles d'index.html) :
+  . nuit civile : écart maximal 2,5 min avec un calcul indépendant ;
+  . ZRT 166 B : créneaux des 24, 28, 29, 30/09 de nuit (masquée), 22 et 23/09
+    de jour ; 185/26 (SS+30 -> SR-30) de nuit ;
+  . RTBA enregistré (240b, 14:16Z) : 24 créneaux, 16 de nuit ignorés (18:14Z
+    et R45 N2 à N5, partie de jour 0 à 19 min) ; 8 secteurs affichés avec
+    leur seul créneau de jour ; à 18:30Z plus aucun secteur ;
+  . carte du 25/09 (174 zones du périmètre) : 12 masquées à 07:00 et 13:00,
+    14 à 18:00 ; samedi 26/09 : 13 ; lundi 28/09 : 15 ; période 25/09 ->
+    02/10 : 8 ; au-delà de J+7, case cochée ou fichier de plus de 36 h : 0.
+- Service worker : aucune règle modifiée (la nouvelle URL NAS suit la règle
+  générique des ressources externes, réseau seul) ; version seule.
+
+VERSIONS
+- APP_VERSION_NUMBER 5.32, BFG_SW_VERSION 5.32, CACHE_NAME
+  'briefing-fdf-test-v5.32-supaip-schedules-r1', description du manifest.
+  Constantes figées à 5.07 NON modifiées (cf. 0.B1).
+
+5. DÉPLOIEMENT (26/09/2026, guidé depuis PowerShell, une commande à la fois)
+- VPS : 1.0.0 contrôlée (empreintes, auto-test 22/22, essai à blanc), puis
+  1.0.1 installée par-dessus en gardant state/ (sauvegarde du code 1.0.0 :
+  /home/ubuntu/bfg-supaip-schedules-1.0.0-sauvegarde.tar.gz). Aucun pip,
+  aucun apt ; worker SDVFR non touché.
+- NAS : get-supaip-schedules.php et update-supaip-schedules.php déposés dans
+  web/briefing-api/ ; lecture avant dépôt : ok:false, absent, 404 (attendu).
+- Premier passage réel (manuel, 26/09 07:12Z) : auto-test 22/22 ; 113 SUP
+  AIP ; nettoyage de LF_26_198 (expiré le 25/09) ; 724 NOTAM, 14 SUP AIP cités
+  hors déclencheur ; 29 zones fiables, 20 H24, 99 non fiables ; dépôt NAS
+  HTTP 200 (58 847 octets). Relu depuis le NAS : fichier du 26/09 07:14Z,
+  couverture 26/09 -> 03/10, auto-test réussi, contrôle NOTAM OK.
+- Unités systemd installées (systemd-analyze verify : code 0) ; minuteur
+  activé : prochains passages 26/09 10:00 et 27/09 06:45 (heure de Paris).
+- Règle retenue pour la suite : toute commande longue sur le VPS est lancée
+  avec nohup et un fichier journal, lu par une seconde commande.
+- NPF-Q400 : notams-sdvfr-shared.php 24c (114 terrains, lots 50 + 50 + 14)
+  vérifiée compatible avec le cache NAS v5.29 (diff limité aux tables de
+  terrains ; scénario « tâche de 06:30 + 10 collègues » rejoué : tout réussi),
+  puis installée et validée par l'utilisateur.
+
+STATUTS v5.32
+- Script VPS 1.0.1 et fichiers NAS : DÉPLOYÉS ; premier dépôt réussi ;
+  passage automatique de 10:00 : À VÉRIFIER.
+- Filtre des créneaux SUP AIP : À MESURER sur iPad après le premier dépôt.
+- Nuit civile RTBA : À MESURER un soir d'activité RTBA.
+- Case « Afficher toutes les zones » : À MESURER ; À RETIRER à la promotion.
+- Gain constaté faible (29 zones fiables ; 8 à 9 % de la carte masqués en
+  semaine) : À REVOIR après quelques jours d'usage.
+
 TEST v5.31 — 2026-09-25
 Base : TEST v5.30
 ===============================================================================
