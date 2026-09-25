@@ -1,7 +1,7 @@
 {
   "name": "Briefing FDF TEST",
   "short_name": "Briefing TEST",
-  "description": "Briefing FDF TEST v5.28 — NOTAM / météo : erreur réseau et créneau occupé réessayés",
+  "description": "Briefing FDF TEST v5.29 — cache NAS NOTAM / météo, file d'attente et Actualiser forcé",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",

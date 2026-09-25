@@ -3007,8 +3007,8 @@
     <footer>Données : Météo-France, SIA, Windy.com, SDVFR. Page non commerciale, à usage personnel.</footer>
     
     <script>
-        const APP_VERSION_NUMBER = "5.28";
-        const APP_VERSION = `${APP_VERSION_NUMBER} TEST - SDVFR : RESEAU + CRENEAU REESSAYES`;
+        const APP_VERSION_NUMBER = "5.29";
+        const APP_VERSION = `${APP_VERSION_NUMBER} TEST - CACHE NAS NOTAM / METEO`;
 
 
         // v4.97 — diagnostic conservé ; plage NOTAM quotidienne et sélection prioritaire. Aucun code d'accès, token ou contenu NOTAM n'est exporté.
@@ -4198,7 +4198,8 @@ const tdfStages = [
             if (!item || item.state !== 'running' || !visible) return;
             const text = String(message || '').replace(/(?:…|\.\.\.)\s*$/, '').trim();
             if (!text || /NOTAM à jour|impossible/i.test(text)) return;
-            item.step = `${text.charAt(0).toLowerCase()}${text.slice(1)}`;
+            // v5.29 — file d'attente du NAS : libellé court dans ce bandeau.
+            item.step = /file d.attente/i.test(text) ? 'en file d’attente' : `${text.charAt(0).toLowerCase()}${text.slice(1)}`;
             bfgRenderGlobalRefreshBanner_();
         }
 
@@ -4245,6 +4246,10 @@ const tdfStages = [
 
         // Rappel passé à fetchSdvfrTargetsOnce_ : suit la demande SDVFR réelle.
         function bfgNotamStepFromSdvfr_(step) {
+            if (step === 'queued') {
+                setBfgNotamStep_('NOTAM et météo : demande en cours, en file d\'attente…');
+                return;
+            }
             setBfgNotamStep_(step === 'request' ? 'Demande envoyée…' : 'Récupération des NOTAM en cours…');
         }
 
@@ -4310,7 +4315,9 @@ const tdfStages = [
         function endBfgNotamSteps_(success, failureMode = 'hide') {
             bfgNotamStepsActive_ = false;
             if (success) {
-                setBfgNotamLoadingBanner_(true, 'NOTAM à jour', { autoHideMs: 3000 });
+                // v5.29 — heure réelle de récupération auprès de SDVFR, si le NAS la fournit.
+                const fetchedLabel = bfgSdvfrFetchedLabel_({ fetchedAtOldest: bfgSdvfrLastFetchedAt_ });
+                setBfgNotamLoadingBanner_(true, fetchedLabel ? `NOTAM à jour (récupérés à ${fetchedLabel})` : 'NOTAM à jour', { autoHideMs: 3000 });
             } else if (failureMode === 'fallback' && !hasDisplayedBfgNotams_()) {
                 setBfgNotamLoadingBanner_(true, 'Chargement des NOTAM en cours...');
             } else if (failureMode === 'error' && !hasDisplayedBfgNotams_()) {
@@ -5466,7 +5473,10 @@ const tdfStages = [
             return new Promise(resolve => setTimeout(resolve, ms));
         }
 
-        async function requestSdvfrNotams_(token, targetsOverride = null) {
+        // v5.29 — options.force : demande explicite (« Actualiser », « Actualiser NOTAM »,
+        // « Actualiser Météo ») : le NAS n'accepte alors que des données de moins de 60 s.
+        // Sans force, le NAS répond depuis son cache par terrain (5 min).
+        async function requestSdvfrNotams_(token, targetsOverride = null, options = {}) {
             const targets = Array.isArray(targetsOverride) && targetsOverride.length
                 ? targetsOverride
                 : getSdvfrPelicandromeTargets_();
@@ -5481,9 +5491,9 @@ const tdfStages = [
                         'Accept': 'application/json',
                         'Content-Type': 'application/json'
                     },
-                    body: JSON.stringify({
-                        targets
-                    })
+                    body: JSON.stringify(options && options.force === true
+                        ? { targets, force: true }
+                        : { targets })
                 });
             } catch (networkError) {
                 // v5.28 — « Load failed » / « Failed to fetch » : réponse illisible (page
@@ -5543,9 +5553,12 @@ const tdfStages = [
             return payload;
         }
 
-        async function waitForSdvfrNotams_(requestId, token, statusElement) {
+        // v5.29 — onQueued(bool) : le NAS signale que la demande attend dans sa file.
+        async function waitForSdvfrNotams_(requestId, token, statusElement, onQueued = null) {
             const startedAt = Date.now();
-            const timeoutMs = 60000;
+            // v5.29 — un ticket de la file NAS (bfgt-…) peut attendre la fin d'une autre
+            // demande (collègue, chaîne NPF-Q400) : attente portée à 180 s, comme le NAS.
+            const timeoutMs = String(requestId || '').indexOf('bfgt-') === 0 ? 180000 : 60000;
             const pollMs = 1500;
 
             while (Date.now() - startedAt < timeoutMs) {
@@ -5561,14 +5574,21 @@ const tdfStages = [
                     continue;
                 }
                 const status = String(payload.status || '').toLowerCase();
+                const queued = payload.queued === true;
+                if (typeof onQueued === 'function') onQueued(queued);
 
                 if (statusElement) {
-                    if (!status || status === 'waiting' || status === 'pending') {
+                    if (queued) {
+                        statusElement.textContent = 'NOTAM et météo : demande en cours, en file d\'attente…';
+                    } else if (!status || status === 'waiting' || status === 'pending') {
                         statusElement.textContent = 'NOTAM : demande en attente...';
                     } else if (status === 'running') {
                         statusElement.textContent = 'NOTAM et METAR/TAF : récupération en cours...';
                     } else if (status === 'success' || status === 'partial') {
-                        statusElement.textContent = `NOTAM : données reçues — ${payload.totalNotams || 0} NOTAM(s).`;
+                        const fetchedLabel = bfgSdvfrFetchedLabel_(payload);
+                        statusElement.textContent = fetchedLabel
+                            ? `NOTAM à jour (récupérés à ${fetchedLabel}) — ${payload.totalNotams || 0} NOTAM(s).`
+                            : `NOTAM : données reçues — ${payload.totalNotams || 0} NOTAM(s).`;
                     } else if (status === 'error') {
                         statusElement.textContent = `NOTAM : erreur${payload.error ? ' — ' + payload.error : ''}`;
                     }
@@ -5768,7 +5788,18 @@ const tdfStages = [
         let bfgSdvfrQueue_ = Promise.resolve();
         let bfgSdvfrQueueLength_ = 0;
 
-        async function fetchSdvfrTargetsOnce_(targets, statusElement = null, onStep = null) {
+        // v5.29 — heure RÉELLE de récupération des dernières données SDVFR reçues
+        // (fetchedAtOldest, fourni par la file NAS ; absent avec l'ancien NAS).
+        let bfgSdvfrLastFetchedAt_ = null;
+
+        function bfgSdvfrFetchedLabel_(payload) {
+            const iso = payload && payload.fetchedAtOldest;
+            const date = iso ? new Date(iso) : null;
+            if (!date || Number.isNaN(date.getTime())) return '';
+            return date.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+        }
+
+        async function fetchSdvfrTargetsOnce_(targets, statusElement = null, onStep = null, options = {}) {
             const tokenInfo = getStoredCncascToken_();
             if (!tokenInfo) throw new Error("Accès Briefing verrouillé.");
             const targetCount = Array.isArray(targets) ? targets.length : 0;
@@ -5789,7 +5820,7 @@ const tdfStages = [
                 while (!requestPayload) {
                     try {
                         bfgDiagLog_('SDVFR', 'Demande envoyée au NAS', { terrains: targetCount });
-                        requestPayload = await requestSdvfrNotams_(tokenInfo.token, targets);
+                        requestPayload = await requestSdvfrNotams_(tokenInfo.token, targets, { force: !!(options && options.force) });
                     } catch (error) {
                         // v5.28 — trois cas distincts dans le diagnostic :
                         //   créneau occupé : HTTP 409 réel, ou code request_already_active ;
@@ -5818,8 +5849,22 @@ const tdfStages = [
                     }
                 }
                 if (typeof onStep === 'function') onStep('waiting');
-                const result = await waitForSdvfrNotams_(requestPayload.requestId, tokenInfo.token, statusElement);
-                bfgDiagLog_('SDVFR', 'Résultat reçu', { terrains: targetCount, statut: result && result.status || '', notam: result && result.totalNotams || 0 });
+                let lastQueued = null;
+                const result = await waitForSdvfrNotams_(requestPayload.requestId, tokenInfo.token, statusElement, (queued) => {
+                    if (queued === lastQueued) return;
+                    lastQueued = queued;
+                    if (queued) bfgDiagLog_('SDVFR', 'Demande en file d\'attente sur le NAS', { terrains: targetCount });
+                    if (typeof onStep === 'function') onStep(queued ? 'queued' : 'waiting');
+                });
+                bfgSdvfrLastFetchedAt_ = result && result.fetchedAtOldest ? result.fetchedAtOldest : null;
+                bfgDiagLog_('SDVFR', 'Résultat reçu', {
+                    terrains: targetCount,
+                    statut: result && result.status || '',
+                    notam: result && result.totalNotams || 0,
+                    forcée: !!(options && options.force),
+                    depuisCacheNas: result && typeof result.fromCache === 'number' ? result.fromCache : null,
+                    récupérésÀ: bfgSdvfrLastFetchedAt_ || ''
+                });
                 return result;
             } finally {
                 bfgSdvfrQueueLength_ -= 1;
@@ -5845,7 +5890,8 @@ const tdfStages = [
             if (bfgSdvfrAllDataPromise_) return bfgSdvfrAllDataPromise_;
 
             bfgSdvfrAllDataPromise_ = (async () => {
-                const resultPayload = await fetchSdvfrTargetsOnce_(getSdvfrPelicandromeTargets_(), statusElement, onStep);
+                // v5.29 — nasForce : demande explicite (« Actualiser NOTAM », « Actualiser »).
+                const resultPayload = await fetchSdvfrTargetsOnce_(getSdvfrPelicandromeTargets_(), statusElement, onStep, { force: options.nasForce === true });
                 bfgSdvfrLatestResult_ = resultPayload;
                 const rawText = buildBfgNotamTextFromSdvfrResult_(resultPayload);
                 if (rawText.trim()) {
@@ -5915,7 +5961,7 @@ const tdfStages = [
                     statusElement.textContent = `NOTAM : actualisation en cours...`;
                 }
 
-                const resultPayload = await ensureSdvfrAllData_({ force: true, statusElement, onStep: bfgNotamStepFromSdvfr_ });
+                const resultPayload = await ensureSdvfrAllData_({ force: true, nasForce: true, statusElement, onStep: bfgNotamStepFromSdvfr_ });
                 const rawText = String(bfgNotamSourceTexts_.SDVFR || '').trim();
                 if (!rawText) throw new Error('Aucun NOTAM exploitable reçu pour les pélicandromes.');
 
@@ -7166,7 +7212,11 @@ const tdfStages = [
                                 return sdvfrOk === true && natsOk === true;
                             }),
                             track('meteo', async () => {
-                                await sdvfrPromise;
+                                // v5.29 — la réponse NOTAM SDVFR contient aussi METAR / TAF, déjà
+                                // appliqués par importSdvfrNotams_ : pas de seconde demande. Seulement
+                                // si la demande NOTAM a échoué, demande météo séparée (forcée).
+                                const sdvfrOk = await sdvfrPromise;
+                                if (sdvfrOk === true) return true;
                                 return typeof window.refreshAllWeather_ === 'function'
                                     ? window.refreshAllWeather_('manual')
                                     : false;
@@ -14072,7 +14122,9 @@ window.__notamTextFull = notamInput.value;
                     try {
                         // v4.84 : actualisation météo SDVFR uniquement ; CheckWX est totalement désactivé.
                         // Important v4.77 : l'actualisation météo ne modifie PAS le cache quotidien des NOTAMs.
-                        const payload = await fetchSdvfrTargetsOnce_(getSdvfrPelicandromeTargets_());
+                        // v5.29 — bouton « Actualiser Météo » (et secours d'« Actualiser ») : forcée ;
+                        // actualisation automatique (METAR > 35 min) : cache NAS de 5 min accepté.
+                        const payload = await fetchSdvfrTargetsOnce_(getSdvfrPelicandromeTargets_(), null, null, { force: reason === 'manual' });
                         applySdvfrWeatherFromPayload_(payload);
                         weatherReceived = true;
                     } catch (error) {

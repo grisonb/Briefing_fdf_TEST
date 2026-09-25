@@ -341,6 +341,127 @@ C. CONTRÔLES AVANT TOUTE LIVRAISON
       surligneur, repli hors ligne NAS) ;
     - nouvelle entrée ajoutée EN TÊTE de ce journal, sous cette section 0,
       historique intégralement conservé.
+TEST v5.29 — 2026-09-25
+Base : TEST v5.28
+===============================================================================
+
+CACHE NAS DE 5 MINUTES POUR LES NOTAM ET LA MÉTÉO, FILE D'ATTENTE, « ACTUALISER »
+FORCÉ
+
+1. BESOIN
+- Éviter l'engorgement quand tous les collègues se connectent en même temps
+  (ex. briefing de 13:00). Le NAS n'acceptait qu'UNE demande NOTAM / météo à la
+  fois (créneau unique du worker, sdvfr-request.json) et refusait les autres.
+- Essai v5.28 : « Actualiser » durait 91 s, les mêmes 27 terrains étant demandés
+  trois fois de suite (météo d'ouverture, NOTAM, météo), 14 à 18 s chacune.
+
+2. NAS — DÉPLOYÉ LE 2026-09-25 (hors dépôt)
+- Copies installées vérifiées par empreinte avant de coder :
+  notams-sdvfr-shared.php = 24b, npf-docs-api.php = 24b,
+  notams-auto-refresh.php = 23b, get-sdvfr-notams-request.php et
+  update-sdvfr-notams-result.php identiques aux copies de référence du 24/09.
+  À SIGNALER (hors de ce chantier) : la livraison 24c de notams-sdvfr-shared.php
+  (114 terrains, codes OACI alignés sur le SIA) n'est PAS installée, alors que
+  NPF-Q400-TEST est en v17.30.
+- Fichiers (livraison ~/nas-a-copier/a-installer-cache-nas/) :
+  - sdvfr-notams-queue-lib.php (NOUVEAU) : cache par terrain, tickets,
+    répartiteur autour du créneau unique ; aucune sortie, aucun en-tête.
+  - request-sdvfr-notams.php : la demande devient un TICKET (bfgt-…), jamais
+    de refus request_already_active ; champ facultatif « force ».
+  - get-sdvfr-notams-result.php : un ticket reçoit sa réponse au format du
+    worker (tous les champs actuels + fetchedAt par terrain, fetchedAtOldest,
+    fetchedAtNewest, fromCache, queued, queuePosition) ; tout autre identifiant
+    garde le comportement précédent.
+  - update-sdvfr-notams-result.php : 17 lignes ajoutées, aucune retirée :
+    copie du résultat final dans le cache, totalement isolée (sortie jetée,
+    erreurs ignorées, verrou attendu 1 s au plus).
+- Non touchés : get-sdvfr-notams-request.php, notams-sdvfr-shared.php,
+  npf-docs-api.php, notams-auto-refresh.php, worker VPS (aucun changement).
+- Cache : briefing-data/sdvfr-notams/terrain-cache.json ; clé STRICTE OACI +
+  carré (lat, lon, demi-côtés à 1e-4) — décision du 25/09 : pas de partage avec
+  NPF-Q400, dont les coordonnées diffèrent (26 pélicandromes sur 27, jusqu'à
+  ~700 m) ; TEST et pérenne ont les mêmes 27 carrés et partagent tout.
+  Validité 300 s ; demande forcée : 60 s, quelle que soit l'origine des
+  données. Terrains en erreur jamais mis en cache. Purge : cache 2 h, tickets
+  15 min (queue-tickets.json). Verrou : queue.lock.
+- Répartiteur (à chaque demande et à chaque suivi) : terrain frais = servi ;
+  sinon REJOINT la demande en cours du créneau si elle le couvre ; sinon attend
+  le créneau ; créneau libre = terrains manquants de tous les tickets regroupés
+  (50 au plus, format de demande inchangé, requestedBy 'BFG'). Ticket bloqué plus
+  de 3 min = erreur lisible (HTTP 200, ok: false).
+- Délai de grâce après un résultat du créneau qui n'appartient pas à la file
+  (lot NPF-Q400, tâche planifiée) : 10 s. Cadences relues dans le code
+  installé : tâche de 06:30 3 s, client NPF-Q400-TEST 2 s ; retenu plus de
+  trois fois la plus lente (validé).
+- Risque préexistant inchangé : NPF-Q400 écrit dans le créneau sans ce verrou ;
+  le créneau est relu juste avant chaque écriture.
+- SAUVEGARDE : les 3 fichiers remplacés ont été téléchargés sur le PC de
+  l'utilisateur avant le dépôt (retour arrière : les redéposer ; la
+  bibliothèque, terrain-cache.json et queue-tickets.json peuvent rester).
+- Tests locaux avant livraison (vrai worker 5.24 avec appels SDVFR bouchonnés,
+  vraies fonctions de la pérenne v2026.27, vraie tâche 23b + bibliothèque 24b) :
+  10 collègues simultanés -> 1 demande au worker ; 20 s après -> 0 demande
+  (0,14 s) ; demandes différentes -> seuls les terrains manquants ; « Actualiser »
+  x4 -> 1 demande ; 5 terrains périmés -> seuls ces 5 ; terrain en panne ->
+  partial, non mis en cache, seul redemandé ; tâche de 06:30 + collègues ->
+  tâche réussie, aucun lot NPF-Q400 perdu ; ticket > 3 min -> erreur lisible ;
+  ticket inconnu -> erreur lisible ; identifiant classique -> comportement
+  précédent. Réponses au worker, fichier installé contre modifié : 60/60
+  identiques octet par octet, y compris bibliothèque absente, en exception,
+  en erreur de syntaxe, ou verrou bloqué (1 s d'attente au plus).
+- Contrôles après dépôt : curl sans autorisation -> HTTP 200 avec CORS sur les
+  deux fichiers ; essai réel v5.28, seconde ouverture : « Demande envoyée au
+  NAS » 11:24:52,829 -> « Résultat reçu » (success, 27 terrains) 11:24:54,251,
+  soit 1,4 s au lieu de 15 à 20 s. VALIDÉ.
+- CORRECTIF REDÉPOSÉ LE 2026-09-25 (sdvfr-notams-queue-lib.php, 23 253 octets) : un
+  ticket est « en file d'attente » dès qu'AU MOINS UN de ses terrains attend le
+  créneau. Avant : le seul pélicandrome commun avec NPF-Q400 rattaché à un lot
+  NPF-Q400 faisait afficher « récupération en cours » pendant que les 26 autres
+  attendaient. Affichage seulement : demandes, cache et réponses au worker
+  inchangés (60/60 identiques après correctif).
+- Limite connue : pendant une chaîne NPF-Q400 (tâche de 06:30 ou rafraîchissement
+  NPF-Q400, ~61 s réels), les demandes BFG attendent la fin de la chaîne. La
+  pérenne, qui abandonne à 60 s, peut alors échouer (auparavant : échec
+  immédiat « Load failed » ; ce n'est pas un recul). La TEST attend 180 s.
+
+3. BFG v5.29
+- Demandes forcées (force: true, données de moins de 60 s) : « Actualiser »,
+  « Actualiser NOTAM », « Actualiser Météo ». Demandes normales (cache 5 min) :
+  ouverture, connexion, actualisation automatique (METAR > 35 min), terrain isolé
+  (bouton ↻), Météo manuelle.
+- « Actualiser » : la météo est reprise de la réponse NOTAM SDVFR (déjà appliquée
+  par importSdvfrNotams_) ; demande météo séparée seulement si la demande NOTAM
+  a échoué. Une seule demande au lieu de trois, voire aucune si la météo
+  d'ouverture a moins de 60 s.
+- Affichage : pendant l'attente dans la file NAS (queued) : « NOTAM et météo :
+  demande en cours, en file d'attente… » (bandeau NOTAM, statut, et « en file
+  d'attente » dans le bandeau d'« Actualiser ») ; à réception : « NOTAM à jour
+  (récupérés à HH:MM) », HH:MM = heure réelle de récupération la plus ancienne
+  (fetchedAtOldest), en heure locale ; sans cette donnée (ancien NAS) : texte
+  précédent.
+- Attente d'un ticket de la file NAS portée de 60 s à 180 s.
+- Diagnostic « Résultat reçu » : forcée, nombre de terrains servis par le cache
+  NAS, heure réelle de récupération.
+- Conservé : file SDVFR de BFG et nouveaux essais v5.28 (compatibilité avec
+  l'ancien NAS en cas de retour arrière).
+- Essais Node (vraies fonctions v5.29 contre le NAS simulé et le vrai worker) :
+  ouverture 1,7 s puis 0,15 s depuis le cache ; « Actualiser » < 60 s -> 0
+  demande ; > 60 s -> 1 demande forcée ; ouverture pendant la tâche de 06:30 ->
+  « en file d'attente », puis « récupération en cours », puis « NOTAM à jour
+  (récupérés à HH:MM) », tâche réussie.
+- Textes visibles nouveaux sans SDVFR (règle 0.A.11 respectée).
+
+VERSIONS
+- APP_VERSION_NUMBER 5.29, BFG_SW_VERSION 5.29, CACHE_NAME
+  'briefing-fdf-test-v5.29-nas-cache-r1', description du manifest. sw.js :
+  version seule. Constantes figées à 5.07 NON modifiées (cf. 0.B1).
+
+STATUTS v5.29
+- Cache NAS et file d'attente : VALIDÉ (essai réel 1,4 s).
+- Correctif « en file d'attente » de la bibliothèque : déposé le 25/09 ; À MESURER.
+- BFG v5.29 (Actualiser forcé, météo sans seconde demande, messages) : À MESURER
+  sur iPad.
+
 TEST v5.28 — 2026-09-24
 Base : TEST v5.27
 ===============================================================================
