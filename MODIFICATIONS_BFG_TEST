@@ -341,6 +341,204 @@ C. CONTRÔLES AVANT TOUTE LIVRAISON
       surligneur, repli hors ligne NAS) ;
     - nouvelle entrée ajoutée EN TÊTE de ce journal, sous cette section 0,
       historique intégralement conservé.
+TEST v5.31 — 2026-09-25
+Base : TEST v5.30
+===============================================================================
+
+RTBA TOUJOURS AFFICHÉ, CORRECTIF DE 23:00, « FORCER MAJ » LIMITÉ À LA TEST,
+ZONES SUP AIP EN MER MASQUÉES.
+Aucune modification du NAS ni du worker.
+
+1. RTBA TOUJOURS AFFICHÉ
+- Case « RTBA » supprimée de la carte AZBA / SUP AIP (HTML, style et écouteur).
+  Aucun état mémorisé n'existait pour cette case.
+- La couche RTBA est ajoutée à la carte dès son initialisation ; l'avertissement
+  « ⓘ Seules les activations des 4 prochaines heures… » est toujours affiché
+  (il reste masqué tant que la couche n'est pas initialisée, c'est-à-dire si la
+  carte n'a pas pu se charger).
+- Légende, popups, clignotement, actualisation : inchangés.
+
+2. DÉFAUT ENTRE 23:00 ET MINUIT (relevé lors de la promotion v2026.28)
+- Cause : buildPortableSessionObject_ avec mergeReceivedState false excluait la
+  couche reçue de byId, mais PAS des champs hérités checkedIds, highlights,
+  checkedSignatures et highlightSignatures, lus dans le DOM sans filtre. Les deux
+  chemins de restauration relisent ces champs en plus de byId (compatibilité
+  avec les partages antérieurs à la v5.19). Après l'expiration de la couche
+  reçue à 23:00 et avant minuit, une relance pouvait donc restaurer des cases
+  reçues et les enregistrer comme personnelles.
+- Correction à l'écriture : en sauvegarde locale, un champ marqué
+  data-bfg-origin-checked / -highlight = 'received' n'entre plus dans les
+  champs hérités (même règle que captureCurrentNotamStateForPersistence_).
+  Le partage (mergeReceivedState true) est inchangé. Chemins de restauration
+  non modifiés (compatibilité des anciens partages conservée).
+- Essai Node (fonction extraite de v5.30 et de v5.31 ; A personnel, B reçu,
+  C case personnelle + surlignage reçu, D case reçue + surlignage personnel) :
+  v5.30 sauvegarde locale -> cases A B C D, surlignages A B C D (défaut) ;
+  v5.31 sauvegarde locale -> cases A C, surlignages A D ; partage v5.31 ->
+  A B C D partout, identique à la v5.30.
+- Limite : une sauvegarde locale écrite AVANT la mise à jour peut encore
+  contenir des champs reçus jusqu'à la prochaine sauvegarde du jour.
+
+3. « FORCER MAJ » LIMITÉ À LA TEST (aligné sur la pérenne v2026.28)
+- Seul le service worker dont le scope finit par /Briefing_fdf_TEST/ est mis à
+  jour puis désinscrit ; seuls les caches 'briefing-fdf-test-*' sont vidés.
+- Avant : TOUS les services workers de l'origine (TEST, pérenne, NPF-Q400,
+  NPF-Q400-TEST) désinscrits et TOUS les caches vidés, y compris ceux de la
+  pérenne, de NPF-Q400 et les caches de données partagés
+  (briefing-fdf-sdvfr-notams-offline-v1, bfg-npf-shared-notams-v1,
+  briefing-fdf-supaip-map-v1…).
+- Essai Node : v5.30 -> 4 SW désinscrits, 6 caches supprimés ; v5.31 -> SW de
+  la TEST seul, cache applicatif de la TEST seul.
+
+4. PROMOTION v2026.28 (25/09/2026) ET SUIVI
+- Promotion effectuée : pérenne v2026.28 (commit a9421ef, dépôt Briefing-fdf),
+  construite sur la TEST v5.30 par fusion à trois voies ; tag de sauvegarde
+  avant-promotion-v2026.28 sur 9bc82bf ; tests iPad de la pérenne : VALIDÉS.
+- Défaut de 23:00 : corrigé en v5.31, À REPORTER dans la prochaine promotion.
+- Pour la prochaine promotion : filtre des zones SUP AIP en mer (cf. 6,
+  licence ODbL à conserver) ; suppression de la case RTBA ; « Forcer MAJ »
+  déjà aligné sur la pérenne (filtre propre à chaque version : scope
+  /Briefing_fdf_TEST/ et 'briefing-fdf-test-*' en TEST, 'briefing-fdf-v…' en
+  pérenne — écart NORMAL, à conserver, cf. B4).
+- Rappel, toujours NON IMPLÉMENTÉ : anticipation RTBA évolutive
+  max(240 min, minutes restant jusqu'à 23:00 heure de Paris), à tester un jour
+  d'activité RTBA au-delà de 4 h.
+
+5. ÉTUDES « ZONES RÉELLEMENT ACTIVES » (25/09/2026, lecture seule)
+Objectif étudié : n'afficher sur la carte que les zones SUP AIP et RTBA
+réellement actives dans la journée (active maintenant / à venir / masquée), et
+voir le RTBA sur toute la journée. Aucune modification du code, du NAS ni du
+VPS ; aucun identifiant utilisé, aucun compte créé.
+
+5.1 Étude des PDF SUP AIP (horaires lus dans les PDF)
+- 75 SUP AIP métropole téléchargés, 249 zones analysées par un prototype
+  d'extraction des « DATES ET HEURES D'ACTIVITÉ ».
+- Résultat : 89 zones à créneaux fiables (36 %), 11 à période seule, 149 NON
+  FIABLES ; gain réel par rapport à l'affichage actuel : environ 24 % des zones.
+- Limite de fond : les PDF donnent le plus souvent des créneaux « activables »,
+  pas l'activation effective. Exemple SUP AIP 194/26 : les horaires du 25/09
+  (1045-1400, 1030-1230, 0900-1000) sont ceux du calendrier publié, pas une
+  confirmation d'activité.
+- Les données SUP AIP de SDVFR ne donnent que la période globale de validité
+  (vérifié sur LF_26_194).
+
+5.2 Étude des sources d'activation réelle (hors SDVFR)
+- NOTAM SOFIA-Briefing (SIA) : requête FIR anonyme possible (CGU : « accessible
+  à tous, librement et gratuitement » ; données sous Licence Ouverte Etalab 2.0,
+  source et date à citer). Point d'accès de l'application web, NON documenté.
+  Essai du 25/09 à 11:34Z, FIR LFFF LFBB LFEE LFMM LFRR : 594 NOTAM, JSON
+  structuré (ligne Q décodée, A, B/C en ISO, D, E, F, G). Des NOTAM d'activation
+  existent : QRRCA (zones R, 12), QRDCA (zones D, 3), QRTCA (ZRT, 23), p. ex.
+  « LF-R368 A B C1 C2 ACTIVES », « LFCBA-16B ACTIVATED », « AIP SUP 146/26,
+  AREAS ACTIVATED : ZRT … ». Identification en texte libre (numéro LF-R, ou
+  numéro du SUP AIP + nom de la ZRT) ; aucun identifiant ERNIP (LFR1…).
+  SUP AIP 194/26 : seul le NOTAM déclencheur R2587/26 (période globale), aucun
+  NOTAM d'activation des groupes. RTBA : aucun NOTAM. Le serveur ramène le début
+  de période à l'heure courante (pas de relecture de la matinée).
+- Carte AZBA du SIA (page « Cartes AZBA ») : créneaux d'activité par secteur
+  RTBA sur toute la plage publiée — la bonne source pour le RTBA à la journée.
+  Son API exige un jeton dérivé d'un secret intégré à l'application : NON
+  appelée. Information qualifiée de « prévisionnelle » par le SIA.
+- EUROCONTROL : le portail public NOP contient un module EAUP (allocations RSA,
+  export CSV), mais via un protocole interne non documenté (GWT-RPC) ; présence
+  des zones françaises NON vérifiée. NM B2B : certificat et contrat, exclu.
+- FAA NOTAM Search : HTTP 403 (anti-robot), non contourné ; API FAA sur
+  inscription. EAD : sur compte, non essayée.
+- NATS (source NOTAM de BFG) : présence des sections FIR NON vérifiée.
+
+5.3 Décisions (25/09/2026)
+- Chantier « SUP AIP réellement actives » : EN PAUSE. Aucune source ne donne
+  l'activité réelle de toutes les zones (PDF : 24 % des zones seulement, et
+  créneaux « activables » ; NOTAM SOFIA : activations partielles, rien pour le
+  194/26 ni le RTBA).
+- Règle confirmée : une zone n'est masquée QUE si une source dit clairement
+  qu'elle est inactive. L'absence de NOTAM ne suffit pas.
+- RTBA : tester d'abord l'anticipation évolutive max(240 min, minutes jusqu'à
+  23:00 heure de Paris) un jour d'activité RTBA en semaine. Seulement si SDVFR
+  refuse au-delà de 4 h : envisager une demande d'accès officielle à l'AZBA
+  auprès du SIA (contact indiqué : bureau NOTAM international,
+  nof.ops@aviation-civile.gouv.fr).
+
+6. FILTRE DES ZONES SUP AIP EN MER (carte AZBA / SUP AIP)
+Règle : une zone SUP AIP dont la part de surface au-dessus de la terre est
+STRICTEMENT INFÉRIEURE À 4,5 % n'est pas affichée (usage Dash 8, pas d'écopage :
+aucune bande côtière conservée). « Terre » = toute terre émergée (métropole,
+Corse, îles, pays voisins). Le RTBA n'est PAS concerné (volumes basse altitude
+au-dessus des terres). Aucun texte ni message ajouté à l'écran ; seul le compte
+existant « N zone(s) SUP AIP affichée(s) » diminue.
+- Seuil : 5 % envisagé, porté à 4,5 % par marge de prudence : ZRT DEP
+  CHERBOURG (LF_26_076, ~4,97 %) et ZRT EMS UAV (LF_25_065, ~4,90 %) sont dans
+  l'imprécision du trait de côte et restent AFFICHÉES.
+- Prudence : zone AFFICHÉE si la part de terre est incalculable (données de
+  côte illisibles, géométrie invalide, point hors de l'emprise des données,
+  surface nulle, résultat incohérent, erreur).
+- Données de côte : polygones de terre OpenStreetMap, jeu « simplified land
+  polygons » (osmdata.openstreetmap.de), téléchargé le 25/09/2026.
+  LICENCE : © OpenStreetMap contributors, ODbL 1.0 ; le jeu dérivé intégré à
+  BFG est lui aussi sous ODbL 1.0 (mention dans le commentaire du code).
+  L'attribution « © OpenStreetMap contributors » est déjà affichée par le fond
+  de carte OSM de la même carte. Traitement : découpe lon -10..13,5 / lat
+  39,5..53, simplification à 100 m, coordonnées au 1/10 000 de degré ; 285
+  anneaux, ~24 800 points ; intégré à index.html en base64 (varint zigzag),
+  89 364 caractères (~87 Ko, ~63 Ko compressé). Aucun fichier ni cache
+  supplémentaire : fonctionne hors ligne avec index.html.
+- Natural Earth 10 m (domaine public) écarté : trop grossier (1 à 2 km) ;
+  4 zones mal classées, dont ZRT 1 LE CROISIC (2,6 % au lieu de ~21 % de
+  terre, elle aurait été masquée à tort).
+- Calcul : balayage par 200 lignes horizontales par zone, pondérées par
+  cos(lat) ; longueur exacte commune zone / terre sur chaque ligne (règle
+  pair-impair, trous et MultiPolygon gérés). Écart maximal avec un calcul
+  géométrique exact sur le même jeu : 0,22 point. Précision du jeu OSM
+  simplifié estimée à 100-200 m (non mesurée). Résultat mémorisé par
+  géométrie (les identifiants SDVFR changent à chaque réponse).
+- Coût mesuré (Node, PC) : ~150 ms au premier rendu pour 242 zones (index de
+  côte compris), ~16 ms aux rendus suivants ; sur iPad, estimé 0,3 à 0,6 s,
+  une fois par payload.
+- Comptages, payload du 25/09/2026 14:14Z, date du jour, métropole + Corse,
+  périmètre = plancher STRICTEMENT inférieur au FL115 :
+  . sans filtre mer : 242 zones, 75 SUP AIP ;
+  . avec filtre mer : 174 zones, 72 SUP AIP (68 zones masquées ; SUP AIP
+    entièrement masqués : LF_25_207, LF_26_077, LF_26_198) ;
+  . exclues par la règle FL115 : 7 zones (4 SUP AIP), toutes au FL115 exact
+    (LF_26_194 BRIVAIR, LIMOGEAIR, FLOURAIR ; LF_26_053 BEUVRON DELAY ;
+    LF_26_047 WING SUIT 2 ; LF_26_042 OLONNE A et B). Plancher en HEI/ASFC :
+    conservé dans le périmètre (règle v5.19).
+  . zones masquées les plus proches du seuil : ZRT GUERANDE LF-R17 G1/G2
+    (LF_26_077, 3,40 %), ZRT/ZDT LFDB31 (LF_25_207, 2,6 %), LF-D 18 A3
+    (LF_26_077, 2,1 %), ZRT/ZDT DEP PORT EN BESSIN (LF_26_076, 1,8 %).
+- Étude PDF (5.1) recalculée sur les 174 zones restant affichées (71 SUP AIP
+  appariés) : créneaux fiables 85 (49 %), H24 8 (5 %), période seule 3 (2 %),
+  non fiables 78 (45 %). Gain réel (zones masquables hors de leurs créneaux) :
+  55 zones (32 %). Mais seul le SUP AIP 194/26 donne des horaires d'activité
+  affirmés (4 zones du périmètre : ZRT 166 A1, A2, B, CASTELJALOUX) ; les
+  autres SUP AIP fiables donnent des créneaux « activables » (souvent par NOTAM
+  avec préavis, ou « activité réelle connue auprès de… ») ; LF_26_052 (ZIT) est
+  H24. Le chantier reste EN PAUSE (cf. 5.3).
+- Essais Node sur les fonctions réelles d'index.html : rendu 242 -> 174 zones ;
+  prudence vérifiée (hors emprise, anneau < 3 points, NaN, surface nulle, type
+  inconnu, géométrie absente, données de côte tronquées ou vides -> zone
+  affichée) ; terre pleine 100 %, pleine mer 0 %, MultiPolygon et trou corrects.
+
+VERSIONS
+- APP_VERSION_NUMBER 5.31, BFG_SW_VERSION 5.31, CACHE_NAME
+  'briefing-fdf-test-v5.31-23h-fix-r1', description du manifest et libellé
+  APP_VERSION complétés (« filtre mer ») sans changement de numéro (v5.31 non
+  poussée). sw.js :
+  version seule. Constantes figées à 5.07 NON modifiées (cf. 0.B1).
+
+STATUTS v5.31
+- RTBA toujours affiché : À MESURER sur iPad.
+- Correctif de 23:00 : À MESURER (partage reçu, relance entre 23:00 et minuit).
+- « Forcer MAJ » limité à la TEST : À MESURER (la pérenne et NPF-Q400 restent
+  utilisables hors ligne après un « Forcer MAJ » de la TEST).
+- Zones SUP AIP « réellement actives » : À REVOIR (chantier EN PAUSE, cf. 5.3).
+- Anticipation RTBA évolutive : NON IMPLÉMENTÉ, À MESURER d'abord un jour
+  d'activité RTBA en semaine (cf. 5.3).
+- Accès AZBA officiel (SIA) : À DÉCIDER, seulement si SDVFR refuse au-delà de
+  4 h.
+- Filtre des zones SUP AIP en mer : À MESURER sur iPad (temps du premier rendu,
+  zones côtières masquées / conservées, fonctionnement hors ligne).
+
 TEST v5.30 — 2026-09-25
 Base : TEST v5.29
 ===============================================================================

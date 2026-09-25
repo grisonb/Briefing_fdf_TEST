@@ -1,7 +1,7 @@
 {
   "name": "Briefing FDF TEST",
   "short_name": "Briefing TEST",
-  "description": "Briefing FDF TEST v5.30 — avertissement sur la fenêtre RTBA de 4 heures",
+  "description": "Briefing FDF TEST v5.31 — RTBA toujours affiché, correctif de 23:00, Forcer MAJ limité à la TEST, zones SUP AIP en mer masquées",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
