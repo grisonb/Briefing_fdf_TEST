@@ -1,5 +1,5 @@
-const BFG_SW_VERSION = '5.32';
-const CACHE_NAME = 'briefing-fdf-test-v5.32-supaip-schedules-r1';
+const BFG_SW_VERSION = '5.33';
+const CACHE_NAME = 'briefing-fdf-test-v5.33-notam-compare-r1';
 
 const LOCAL_ASSETS = [
   './manifest.json',

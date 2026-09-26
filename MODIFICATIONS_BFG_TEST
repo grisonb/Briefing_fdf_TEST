@@ -339,6 +339,16 @@ B5. LISTE DE CONTRÔLE DE PROMOTION — MENTIONS VISIBLES DE « SDVFR » (v5.23)
                                                     la case avec repli « non
                                                     cochée » : rien d'autre à
                                                     modifier.
+    Bouton « Comparaison NOTAM SOFIA / SDVFR »   -> RETIRÉ en pérenne :
+      (#bfg-notam-compare-btn et                    supprimer le bouton, le bloc
+      #bfg-notam-compare-panel, panneau             #bfg-notam-compare-panel, le
+      « Diagnostic BFG », v5.33) : essai en         bloc « compareBtn » de
+      parallèle, TEST uniquement                    initializeBfgDiagnosticUi_ et
+                                                    les fonctions
+                                                    bfgRenderNotamCompare_ /
+                                                    bfgToggleNotamCompare_ /
+                                                    bfgNotamCompareFormatDate_ et
+                                                    BFG_NOTAM_COMPARE_API_URL_.
 
 -------------------------------------------------------------------------------
 C. CONTRÔLES AVANT TOUTE LIVRAISON
@@ -354,6 +364,125 @@ C. CONTRÔLES AVANT TOUTE LIVRAISON
       surligneur, repli hors ligne NAS) ;
     - nouvelle entrée ajoutée EN TÊTE de ce journal, sous cette section 0,
       historique intégralement conservé.
+TEST v5.33 — 2026-09-26
+Base : TEST v5.32
+===============================================================================
+
+ANALYSEUR SUP AIP 1.1.0 (RÈGLE R14 GROUPE PAR GROUPE) ; ESSAI EN PARALLÈLE
+NOTAM SOFIA / SDVFR (27 PÉLICANDROMES, 7 JOURS) ; BOUTON DE COMPARAISON DANS LE
+DIAGNOSTIC (TEST UNIQUEMENT). SDVFR reste la source affichée dans BFG.
+
+1. SUIVI v5.32
+- Passage automatique du 26/09 à 10:00 (heure de Paris) réussi : auto-test
+  22/22, 113 SUP AIP, 726 NOTAM SOFIA, dépôt NAS à 10:05:32 (58 847 octets).
+
+2. ANALYSEUR 1.1.0 — R14 GROUPE PAR GROUPE (cas du SUP AIP 112/26)
+- Constat : ZRT PAMIERS-SAVERDUN (112/26) était non fiable parce que la mention
+  « Activable par NOTAM » du groupe ST GIRONS / LAVELANET s'appliquait à tout le
+  bloc. Ses horaires propres sont fixes (lun-ven sauf fériés, 0730-0930 et
+  1115-1315 UTC jusqu'au 23/10, 0830-1030 et 1215-1415 à partir du 26/10 : même
+  heure locale, ce qui confirme l'hypothèse H1).
+- Règle validée : la mention « activable par NOTAM / selon protocole / préavis »
+  ne rend non fiables que les zones du GROUPE sous lequel elle est écrite. Hors
+  de tout groupe (préambule, en-tête, fin de bloc, doute) : tout le SUP AIP.
+- Rattachement (validé) : par l'INDENTATION de l'extraction « layout » : mention
+  sur une ligne d'horaires du groupe, ou sur une ligne indentée qui la suit
+  immédiatement. Ligne alignée sur les en-têtes (colonne 0) : hors groupe.
+  L'extraction « plain » doit donner les mêmes groupes et mentions (contrôle 3).
+- Autres contrôles inchangés (grammaire fermée, comptage limité aux groupes lus,
+  double extraction, noms, texte libre).
+- Tests : 27 cas, 27 conformes. Nouveaux : R22a (SAVERDUN fiable, créneaux
+  vérifiés du 04/06 au 04/01/2027), R22b (ST GIRONS et LAVELANET non fiables),
+  R23 (mention seule en fin de bloc : tout non fiable), R24 / R24b (mention
+  entièrement sur les lignes d'horaires : attendus repris de R22).
+- Mutations : 11 défauts volontaires, tous détectés (sous-lignes ignorées,
+  en-têtes de page, soleil inversé, heure d'été, fériés, mentions ignorées,
+  prudence H3, lignes inconnues + comptage, mention appliquée à tout le SUP AIP,
+  mention ignorée sur sa ligne d'horaires, mention hors groupe rattachée au
+  dernier groupe). R24 ajouté : sans lui, le défaut « mention ignorée sur sa
+  ligne d'horaires » n'était détecté par aucun test.
+- Effet sur le fichier du 26/09 : ZRT PAMIERS-SAVERDUN fiable ; ZRT SOTAME
+  BRAVO (162/26) en H24 (toujours affichée) ; les groupes non fiables sont
+  désormais listés zone par zone (d'où 199 entrées non fiables au lieu de 99,
+  sans changement d'affichage).
+
+3. ESSAI EN PARALLÈLE NOTAM SOFIA / SDVFR (script VPS 1.1.0, notam_compare 1.0.0)
+- À chaque passage (06:45, 10:00) : NOTAM d'aérodrome SOFIA des 27
+  pélicandromes (recherche par aérodrome, anonyme, une requête par jour de J à
+  J+7), comparés aux NOTAM SDVFR ; numéros normalisés (A0416/26 = A416/26).
+- Source SDVFR, indiquée terrain par terrain dans le rapport :
+  1. relevé BFG du cache NAS (briefing-data/sdvfr-notams/terrain-cache.json,
+     coordonnées de BFG) s'il a moins de 2 h ;
+  2. sinon fichier partagé NPF-Q400 (briefing-data/npf-notams-snapshot-v1.json).
+  Coordonnées NPF-Q400 / BFG : différentes pour 26 terrains sur 27, jusqu'à
+  1,6 km (LFLX) et 1,4 km (LFMD). Vérifié le 26/09 : mêmes NOTAM avec les deux
+  jeux de coordonnées (184 communs ; 2 écarts = NOTAM expirés entre les relevés).
+- Classement : EXPLIQUÉ (IFR seulement ; commence après J+7 ; expiré ou publié
+  entre les deux relevés ; champ D sans activité dans la fenêtre) ou INEXPLIQUÉ.
+- Rapport : 7 derniers jours (le dernier passage du jour remplace le précédent),
+  déposé sur le NAS comme le fichier des créneaux ; une panne de l'essai
+  n'empêche jamais le dépôt des créneaux.
+- Essai à blanc du 26/09 : 182 communs, seulement SDVFR 2 (commencent après
+  J+7), seulement SOFIA 60 (58 IFR seulement, 2 publiés après le relevé SDVFR),
+  INEXPLIQUÉS 0 ; source : coordonnées BFG pour les 27 terrains.
+- Nouveaux fichiers NAS (~/nas-a-copier/a-installer-notam-compare/) :
+  update-notam-compare.php (POST, upload_token, schéma, 2 Mo max, écriture
+  atomique + .prev) et get-notam-compare.php (GET public, CORS, HTTP 200).
+  Essais sur serveur PHP local : absent 404, mauvais jeton 401, schéma 400,
+  dépôt 200, lecture 200.
+
+4. MÉTÉO : COMPARAISON PONCTUELLE SOFIA / SDVFR (26/09, 08:06Z)
+- Source SDVFR : cache NAS (coordonnées BFG), 27 pélicandromes.
+- LFBN, LFCC, LFHO : ni METAR ni TAF, ni chez SOFIA ni chez SDVFR.
+- METAR : même contenu pour les 24 terrains, à deux réserves près : SOFIA colle
+  certains éléments sans espace (« TEMPOBKN014 », « Q1022NOSIG ») ; 3 METAR
+  SDVFR (LFRV, LFSG, LFAQ) avaient 30 min de retard au moment du relevé.
+- TAF : même contenu (mêmes collages chez SOFIA) ; LFBM : SDVFR donnait encore
+  le TAF de 0200Z, SOFIA celui de 0800Z.
+- Conclusion : SDVFR reste la source METAR / TAF ; SOFIA ne l'améliore pas et son
+  texte n'est pas directement exploitable (espaces manquants).
+
+5. REMARQUE SÉCURITÉ (constat, rien modifié)
+- Lisibles sans authentification sur le NAS : briefing-data/npf-notams-
+  snapshot-v1.json et briefing-data/sdvfr-notams/terrain-cache.json (NOTAM et
+  météo, données publiques par nature). À décider par l'utilisateur.
+
+6. BFG v5.33 (TEST UNIQUEMENT)
+- Panneau « Diagnostic BFG » : bouton « Comparaison NOTAM SOFIA / SDVFR »
+  (lecture de get-notam-compare.php à chaque ouverture). Affiche seulement :
+  verdict en une ligne (vert « Aucun écart inexpliqué depuis N jours », orange
+  « N écarts inexpliqués aujourd'hui »), tableau par jour (Communs / Seulement
+  SDVFR / Seulement SOFIA / Inexpliqués), liste des écarts inexpliqués
+  (terrain, numéro, source où il manque) seulement s'il y en a. Écarts
+  expliqués masqués. Consigne de retrait ajoutée en 0.B5.
+- Essais Node du rendu : 1 jour propre (vert, 1 jour) ; jour avec 2 écarts
+  (orange, liste) ; jour propre après un jour à écarts (vert, 1 jour) ; aucun
+  rapport (gris).
+- Service worker : aucune règle modifiée (URL NAS en réseau seul) ; version
+  seule.
+
+VERSIONS
+- APP_VERSION_NUMBER 5.33, BFG_SW_VERSION 5.33, CACHE_NAME
+  'briefing-fdf-test-v5.33-notam-compare-r1', description du manifest.
+  Constantes figées à 5.07 NON modifiées (cf. 0.B1).
+- VPS : bfg-supaip-schedules 1.1.0 (analyseur 1.1.0, essai 1.0.0), NON DÉPLOYÉ.
+
+STATUTS v5.33
+- VPS 1.1.0 DÉPLOYÉ le 26/09 (1.0.1 sauvegardée : bfg-supaip-schedules-1.0.1-
+  sauvegarde.tar.gz ; state/ conservé). Premier passage réel (manuel) : relu
+  sur le NAS — créneaux générés 08:53Z (script et analyseur 1.1.0, auto-test
+  27/27, contrôle NOTAM OK, 30 zones fiables dont ZRT PAMIERS-SAVERDUN) ;
+  rapport NOTAM généré 09:03Z (182 communs, 2 seulement SDVFR, 60 seulement
+  SOFIA, 0 inexpliqué ; coordonnées BFG pour les 27 terrains). Dépôts 09:04Z.
+- Analyseur 1.1.0 : À MESURER sur iPad (ZRT PAMIERS-SAVERDUN masquée le
+  week-end et après 13:30 UTC en semaine).
+- NAS : get-notam-compare.php et update-notam-compare.php déposés le 26/09 dans
+  web/briefing-api/ (lecture avant dépôt : absent, 404, attendu).
+- Essai NOTAM SOFIA / SDVFR : déployé, À MESURER pendant
+  7 jours ; décision de remplacement À DÉCIDER à l'issue.
+- Bouton de comparaison : À MESURER ; À RETIRER à la promotion.
+- Lisibilité publique de deux fichiers du NAS : À DÉCIDER.
+
 TEST v5.32 — 2026-09-25
 Base : TEST v5.31
 ===============================================================================

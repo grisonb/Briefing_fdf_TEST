@@ -2612,6 +2612,13 @@
                 <div class="cncasc-auth-row" style="margin-top:0;">
                     <button id="bfg-diag-show-btn" type="button" class="link-button" style="background-color:#6c757d;">Afficher diagnostic</button>
                     <button id="bfg-diag-export-btn" type="button" class="link-button" style="background-color:#0a2c5a;">Exporter diagnostic</button>
+                    <!-- v5.33 — TEST UNIQUEMENT (à retirer à la promotion, cf. 0.B5) : essai NOTAM SOFIA / SDVFR. -->
+                    <button id="bfg-notam-compare-btn" type="button" class="link-button" style="background-color:#5b2c83;">Comparaison NOTAM SOFIA / SDVFR</button>
+                </div>
+                <div id="bfg-notam-compare-panel" hidden style="margin-top:10px;padding:10px;border:1px solid #d7dee8;border-radius:8px;background:#fff;">
+                    <p id="bfg-notam-compare-verdict" style="margin:0;font-weight:800;"></p>
+                    <table id="bfg-notam-compare-table" style="margin-top:8px;border-collapse:collapse;font-size:13px;"></table>
+                    <div id="bfg-notam-compare-unexplained" style="margin-top:8px;font-size:13px;"></div>
                 </div>
                 <p id="bfg-diag-status" style="margin:8px 0 0 0;font-weight:700;color:#34495e;"></p>
                 <textarea id="bfg-diag-output" aria-label="Diagnostic BFG" style="display:none;min-height:280px;margin-top:10px;font:12px/1.4 monospace;white-space:pre;overflow:auto;"></textarea>
@@ -3012,8 +3019,8 @@
     <footer>Données : Météo-France, SIA, Windy.com, SDVFR. Page non commerciale, à usage personnel.</footer>
     
     <script>
-        const APP_VERSION_NUMBER = "5.32";
-        const APP_VERSION = `${APP_VERSION_NUMBER} TEST - CRENEAUX SUP AIP + NUIT CIVILE`;
+        const APP_VERSION_NUMBER = "5.33";
+        const APP_VERSION = `${APP_VERSION_NUMBER} TEST - ESSAI NOTAM SOFIA / SDVFR`;
 
 
         // v4.97 — diagnostic conservé ; plage NOTAM quotidienne et sélection prioritaire. Aucun code d'accès, token ou contenu NOTAM n'est exporté.
@@ -3450,7 +3457,92 @@
             }
         }
 
+        /* v5.33 — TEST UNIQUEMENT : essai en parallèle NOTAM SOFIA / SDVFR (27 pélicandromes).
+         * Rapport produit par le script VPS (06:45 et 10:00), déposé sur le NAS, lu à la demande.
+         * Affiche seulement : un verdict en une ligne, un tableau par jour, la liste des écarts
+         * INEXPLIQUÉS s'il y en a. Les écarts expliqués restent masqués. SDVFR reste la source
+         * affichée partout ailleurs dans BFG. */
+        const BFG_NOTAM_COMPARE_API_URL_ = 'https://grisonb.synology.me/briefing-api/get-notam-compare.php';
+
+        function bfgNotamCompareFormatDate_(iso) {
+            const m = String(iso || '').match(/^(\d{4})-(\d{2})-(\d{2})/);
+            return m ? `${m[3]}/${m[2]}` : String(iso || '?');
+        }
+
+        function bfgRenderNotamCompare_(data) {
+            const verdict = document.getElementById('bfg-notam-compare-verdict');
+            const table = document.getElementById('bfg-notam-compare-table');
+            const list = document.getElementById('bfg-notam-compare-unexplained');
+            if (!verdict || !table || !list) return;
+            const days = Array.isArray(data && data.days) ? data.days.slice().sort((a, b) => String(a.date).localeCompare(String(b.date))) : [];
+            table.innerHTML = '';
+            list.innerHTML = '';
+            if (!days.length) {
+                verdict.style.color = '#6c757d';
+                verdict.textContent = 'Aucun rapport de comparaison disponible.';
+                return;
+            }
+            const last = days[days.length - 1];
+            const lastUnexplained = Number(last.counts && last.counts.inexpliques) || 0;
+            if (lastUnexplained > 0) {
+                verdict.style.color = '#d35400';
+                verdict.textContent = `${lastUnexplained} écart${lastUnexplained > 1 ? 's' : ''} inexpliqué${lastUnexplained > 1 ? 's' : ''} aujourd'hui`;
+            } else {
+                let clean = 0;
+                for (let k = days.length - 1; k >= 0 && !(Number(days[k].counts && days[k].counts.inexpliques) > 0); k--) clean += 1;
+                verdict.style.color = '#1e8449';
+                verdict.textContent = `Aucun écart inexpliqué depuis ${clean} jour${clean > 1 ? 's' : ''}`;
+            }
+            const cell = (text, head = false) => `<${head ? 'th' : 'td'} style="border:1px solid #d7dee8;padding:3px 8px;text-align:${head ? 'left' : 'right'};">${escapeHtml_(String(text))}</${head ? 'th' : 'td'}>`;
+            table.innerHTML = '<tr>' + ['Jour', 'Communs', 'Seulement SDVFR', 'Seulement SOFIA', 'Inexpliqués'].map(t => cell(t, true)).join('') + '</tr>'
+                + days.map(d => {
+                    const c = d.counts || {};
+                    return '<tr>' + cell(bfgNotamCompareFormatDate_(d.date)) + cell(c.communs ?? '?') + cell(c.seulementSdvfr ?? '?')
+                        + cell(c.seulementSofia ?? '?') + cell(c.inexpliques ?? '?') + '</tr>';
+                }).join('');
+            const rows = [];
+            days.forEach(d => (Array.isArray(d.unexplained) ? d.unexplained : []).forEach(u => {
+                rows.push(`${bfgNotamCompareFormatDate_(d.date)} — ${u.terrain || '?'} ${u.numero || '?'} : absent de ${u.manqueDans || '?'}`);
+            }));
+            if (rows.length) {
+                list.innerHTML = '<strong>Écarts inexpliqués :</strong><br>' + rows.map(r => escapeHtml_(r)).join('<br>');
+            }
+        }
+
+        async function bfgToggleNotamCompare_() {
+            const panel = document.getElementById('bfg-notam-compare-panel');
+            const verdict = document.getElementById('bfg-notam-compare-verdict');
+            if (!panel) return;
+            if (!panel.hidden) { panel.hidden = true; return; }
+            panel.hidden = false;
+            if (verdict) { verdict.style.color = '#34495e'; verdict.textContent = 'Chargement…'; }
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 15000);
+            try {
+                const response = await fetch(`${BFG_NOTAM_COMPARE_API_URL_}?t=${Date.now()}`, {
+                    method: 'GET', cache: 'no-store', credentials: 'omit', headers: { 'Accept': 'application/json' }, signal: controller.signal
+                });
+                const body = await response.json().catch(() => null);
+                if (body && body.ok === true && body.data && body.data.schema === 'bfg-notam-compare-v1') {
+                    bfgRenderNotamCompare_(body.data);
+                } else {
+                    bfgRenderNotamCompare_(null);
+                    if (verdict) verdict.textContent = `Rapport indisponible (${body ? (body.error || 'réponse invalide') : `HTTP ${response.status}`}).`;
+                }
+            } catch (error) {
+                bfgRenderNotamCompare_(null);
+                if (verdict) verdict.textContent = 'Rapport indisponible (réseau).';
+            } finally {
+                clearTimeout(timeoutId);
+            }
+        }
+
         function initializeBfgDiagnosticUi_() {
+            const compareBtn = document.getElementById('bfg-notam-compare-btn');
+            if (compareBtn && !compareBtn.dataset.bound) {
+                compareBtn.dataset.bound = '1';
+                compareBtn.addEventListener('click', () => bfgToggleNotamCompare_());
+            }
             const showBtn = document.getElementById('bfg-diag-show-btn');
             const exportBtn = document.getElementById('bfg-diag-export-btn');
             const output = document.getElementById('bfg-diag-output');
