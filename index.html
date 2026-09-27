@@ -2962,12 +2962,12 @@
                 <span class="bfg-supaip-legend-item" style="color:#7e22ce;"><span class="bfg-supaip-legend-swatch"></span>Autre</span>
                 <span class="bfg-supaip-legend-note">Pulsation légère = début de validité à venir</span>
                 <span class="bfg-supaip-legend-item" style="color:#d1007a;"><span class="bfg-supaip-legend-swatch"></span>RTBA actif (clignotant)</span>
-                <span class="bfg-supaip-legend-item" style="color:#f08cc4;"><span class="bfg-supaip-legend-swatch"></span>RTBA à venir (&lt; 4 h)</span>
+                <span class="bfg-supaip-legend-item" style="color:#f08cc4;"><span class="bfg-supaip-legend-swatch"></span>RTBA à venir (jusqu'à 23:00 locale ; le soir, 4 h)</span>
             </div>
             <div id="sup-aip-france-map" aria-label="Carte de France des SUP AIP"></div>
             <p id="sup-aip-map-status">Carte SUP AIP non chargée.</p>
             <p id="rtba-map-status" role="status" aria-live="polite"></p>
-            <p id="rtba-map-notice" hidden>ⓘ Seules les activations des <span id="rtba-map-notice-window">4 prochaines heures</span> sont affichées. Pour la suite de la journée, consulter la <a href="https://www.sia.aviation-civile.gouv.fr/schedules" target="_blank" rel="noopener">page AZBA du SIA</a>.</p>
+            <p id="rtba-map-notice" hidden>ⓘ Seules les activations <span id="rtba-map-notice-window">prévues jusqu'à 23:00 locale (le soir : celles des 4 prochaines heures)</span> sont affichées. Au-delà, consulter la <a href="https://www.sia.aviation-civile.gouv.fr/schedules" target="_blank" rel="noopener">page AZBA du SIA</a>.</p>
             <div id="sup-aip-map-filters">
                 <label>Du <input type="date" id="sup-aip-map-date-from"></label>
                 <label>au <input type="date" id="sup-aip-map-date-to"></label>
@@ -3019,8 +3019,8 @@
     <footer>Données : Météo-France, SIA, Windy.com, SDVFR. Page non commerciale, à usage personnel.</footer>
     
     <script>
-        const APP_VERSION_NUMBER = "5.33";
-        const APP_VERSION = `${APP_VERSION_NUMBER} TEST - ESSAI NOTAM SOFIA / SDVFR`;
+        const APP_VERSION_NUMBER = "5.34";
+        const APP_VERSION = `${APP_VERSION_NUMBER} TEST - RTBA JUSQU'A 23H`;
 
 
         // v4.97 — diagnostic conservé ; plage NOTAM quotidienne et sélection prioritaire. Aucun code d'accès, token ou contenu NOTAM n'est exporté.
@@ -17003,10 +17003,13 @@ window.__notamTextFull = notamInput.value;
          * contacte jamais SDVFR ; session et identifiants restent sur le VPS.
          *
          * FENÊTRE LIÉE AU MOMENT PRÉSENT : l'endpoint SDVFR renvoie les activations en cours
-         * et celles qui débutent dans les 240 min (anticipation 240, valeur MAXIMALE proposée
-         * par SDVFR pour les AZBA, imposée par le worker depuis sa v5.24 ; 120 min avant).
-         * « À venir » signifie donc « dans moins de 4 h » : une activation plus tardive dans la
-         * journée n'apparaît qu'environ 4 h avant son début. Les dates Du / Au de la carte ne s'appliquent PAS au
+         * et celles qui débutent dans le délai d'« anticipation » choisi par le worker.
+         * v5.34 — worker VPS 5.25 : anticipation = max(240 min, minutes restant jusqu'à 23:00
+         * heure de Paris), repli sur 240 si SDVFR refuse. « À venir » signifie donc « avant
+         * 23:00 » ; le soir (après 19:00) « dans moins de 4 h ». Essai du 27/09 : 1500 min
+         * acceptées, activations reçues jusqu'à 17 h après la demande (identiques au SIA).
+         * BFG n'applique AUCUN filtre de durée : seuls les créneaux terminés, au-dessus du
+         * FL max, entièrement de nuit civile ou à géométrie invalide sont écartés. Les dates Du / Au de la carte ne s'appliquent PAS au
          * RTBA, SDVFR ne permettant pas de recherche sur période : la couche montre la
          * fenêtre réelle de SDVFR.
          *
@@ -17023,9 +17026,10 @@ window.__notamTextFull = notamInput.value;
         const BFG_RTBA_REFRESH_MS_ = 5 * 60 * 1000;
         const BFG_RTBA_MIN_INTERVAL_MS_ = 60 * 1000; // anti-rafale
         const BFG_RTBA_STATUS_TICK_MS_ = 60 * 1000;  // recalcul local des statuts, sans réseau
-        // v5.30 — libellé de la fenêtre RTBA dans l'avertissement sous la carte. À adapter
-        // si l'anticipation change (ex. anticipation évolutive jusqu'à 23:00, non codée).
-        const BFG_RTBA_WINDOW_LABEL_ = '4 prochaines heures';
+        // v5.30 — libellé de la fenêtre RTBA dans l'avertissement sous la carte.
+        // v5.34 — anticipation évolutive du worker 5.25 : juste à toute heure (le soir, après
+        // 19:00 heure de Paris, la fenêtre est de 4 h et dépasse 23:00).
+        const BFG_RTBA_WINDOW_LABEL_ = 'prévues jusqu\'à 23:00 locale (le soir : celles des 4 prochaines heures)';
         const BFG_RTBA_FETCH_TIMEOUT_MS_ = 25000;
         // v5.23 — présentation issue des essais iPad. Traits pleins.
         //   actif    : magenta VIF, CLIGNOTANT ;
