@@ -285,6 +285,9 @@ B5. LISTE DE CONTRÔLE DE PROMOTION — MENTIONS VISIBLES DE « SDVFR » (v5.23)
     Popup RTBA « Source : SDVFR — récupéré à     -> ligne « Source » supprimée
       HH:MM » (bfgRtbaPopupHtml_)                   (garder l'heure si utile :
                                                     « Récupéré à HH:MM »)
+      (v5.36 : créneaux « ACTIF » / « À VENIR » / -> étiquettes sans SDVFR, à
+      « TERMINÉ » en couleur ; aucun texte          reprendre telles quelles)
+      SDVFR ajouté)
     « Aucun RTBA retourné par SDVFR              -> « Aucune activation RTBA à
       actuellement. » (bfgRenderRtbaLayer_)         afficher (activations commençant
                                                     avant le coucher du soleil moins
@@ -368,6 +371,60 @@ C. CONTRÔLES AVANT TOUTE LIVRAISON
       surligneur, repli hors ligne NAS) ;
     - nouvelle entrée ajoutée EN TÊTE de ce journal, sous cette section 0,
       historique intégralement conservé.
+TEST v5.36 — 2026-09-28
+Base : TEST v5.35
+===============================================================================
+
+FENÊTRE RTBA : ÉTAT DE CHAQUE CRÉNEAU MIS EN ÉVIDENCE ; CORRECTIF DE LA RÈGLE DE
+NUIT (créneaux courts de jour écartés à tort depuis la v5.32).
+Aucune modification du worker VPS, du NAS ni de la pérenne.
+
+1. FENÊTRE RTBA (demande de l'utilisateur)
+- Chaque créneau sur une ligne, horaires en UTC, en plus grand (16 px), dans
+  l'ordre de la journée :
+  . ACTIF : fond magenta (#d1007a, couleur de la carte), texte blanc gras,
+    « ACTIF » devant l'horaire ;
+  . À VENIR : fond rose pâle (#fbc6e3), texte bordeaux foncé (#4a0030),
+    « À VENIR » devant l'horaire ;
+  . TERMINÉ : fond gris clair, texte gris foncé, « TERMINÉ » devant l'horaire.
+  Contrastes élevés (lisible en plein soleil et dans un cockpit sombre ; la
+  fenêtre Leaflet reste sur fond blanc). Reste de la fenêtre inchangé.
+- Créneaux terminés : SDVFR ne renvoie que les créneaux en cours ou à venir ; BFG
+  retient donc les créneaux affichés dans la JOURNÉE (jour local de l'iPad) et les
+  montre grisés une fois terminés. Mémoire : localStorage 'bfgRtbaDaySlotsV1'
+  (nouvelle clé, confort, try/catch ; sans elle : durée de la session), remise à
+  zéro chaque jour. Sert UNIQUEMENT à la fenêtre : la carte ne change pas (un
+  secteur sans créneau restant disparaît comme avant).
+- Essai Node (données réelles du 28/09, R45 S7) : 06:00Z : À VENIR ×3 ;
+  09:00Z : ACTIF 08:30-10:00 ; 11:45Z : TERMINÉ 08:30-10:00, ACTIF 11:30-12:00,
+  À VENIR 13:00-15:00 ; 13:10Z : TERMINÉ ×2, ACTIF 13:00-15:00 ; 15:05Z :
+  secteur retiré. Lendemain : mémoire remise à zéro.
+
+2. CORRECTIF : RÈGLE DE NUIT CIVILE (défaut présent depuis la v5.32)
+- Constat pendant l'essai de la fenêtre : un créneau de 30 min ou moins était
+  toujours classé « de nuit » (sa partie de jour, 30 min, ne dépasse pas la
+  tolérance), même à midi. Le 28/09 : 5 créneaux RTBA de mi-journée masqués à
+  tort (R45 S6.1, S6.2, S7 11:30-12:00Z ; S6.1, S6.2 13:00-13:30Z). La même
+  fonction sert aux SUP AIP fiables : un créneau court de jour pouvait aussi être
+  ignoré (zone masquée à tort si c'était son seul créneau restant).
+- Correction (bfgSlotIsNight_) : un créneau n'est « de nuit » que s'il TOUCHE la
+  nuit civile et que sa partie de jour ne dépasse pas 30 min.
+- Essais Node : 30 min à midi -> jour ; 10 min à midi -> jour ; ZRT 166 B soir,
+  185/26, R45 N2 18:14-05:10 -> nuit (inchangé) ; 28/09 : 0 créneau écarté comme
+  nuit ; enregistrement du 24/09 : 8 secteurs (inchangé).
+
+VERSIONS
+- APP_VERSION_NUMBER 5.36, BFG_SW_VERSION 5.36, CACHE_NAME
+  'briefing-fdf-test-v5.36-rtba-slots-r1', description du manifest.
+  Constantes figées à 5.07 NON modifiées (cf. 0.B1).
+- Liste 0.B5 : étiquettes des créneaux de la fenêtre RTBA notées (sans SDVFR).
+- Pour la prochaine promotion : fenêtre RTBA v5.36 et CORRECTIF DE NUIT
+  (obligatoire si la règle de nuit de la v5.32 est promue).
+
+STATUTS v5.36
+- Fenêtre RTBA : À MESURER sur iPad (soleil et pénombre).
+- Correctif de nuit : À MESURER (créneaux courts de mi-journée visibles).
+
 TEST v5.35 — 2026-09-28
 Base : TEST v5.34
 ===============================================================================

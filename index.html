@@ -1377,6 +1377,26 @@
             margin-bottom: 6px;
         }
         .bfg-supaip-popup-row { margin: 3px 0; }
+        /* v5.36 — créneaux RTBA de la fenêtre : état bien visible, lisible en plein soleil
+           comme dans un cockpit sombre (contrastes élevés, horaires en grand). */
+        .bfg-rtba-slot {
+            margin: 4px 0;
+            padding: 5px 8px;
+            border-radius: 6px;
+            font-size: 16px;
+            line-height: 1.3;
+            font-variant-numeric: tabular-nums;
+        }
+        .bfg-rtba-slot-tag {
+            display: inline-block;
+            min-width: 5.4em;
+            font-size: 12px;
+            font-weight: 900;
+            letter-spacing: 0.03em;
+        }
+        .bfg-rtba-slot-active { background: #d1007a; color: #ffffff; font-weight: 800; }
+        .bfg-rtba-slot-upcoming { background: #fbc6e3; color: #4a0030; border: 1px solid #f08cc4; }
+        .bfg-rtba-slot-ended { background: #e5e7eb; color: #4b5563; }
         .bfg-supaip-popup-link {
             display: inline-block;
             margin-top: 8px;
@@ -3019,8 +3039,8 @@
     <footer>Données : Météo-France, SIA, Windy.com, SDVFR. Page non commerciale, à usage personnel.</footer>
     
     <script>
-        const APP_VERSION_NUMBER = "5.35";
-        const APP_VERSION = `${APP_VERSION_NUMBER} TEST - FENETRES CARTE + RTBA COUCHER DU SOLEIL`;
+        const APP_VERSION_NUMBER = "5.36";
+        const APP_VERSION = `${APP_VERSION_NUMBER} TEST - FENETRE RTBA : ETAT DES CRENEAUX`;
 
 
         // v4.97 — diagnostic conservé ; plage NOTAM quotidienne et sélection prioritaire. Aucun code d'accès, token ou contenu NOTAM n'est exporté.
@@ -16723,7 +16743,12 @@ window.__notamTextFull = notamInput.value;
         function bfgSlotIsNight_(startMs, endMs, centre) {
             if (!centre) return false;
             const dayMinutes = bfgSlotDayMinutes_(startMs, endMs, centre[0], centre[1]);
-            return dayMinutes !== null && dayMinutes <= BFG_NIGHT_DAY_TOLERANCE_MIN_;
+            if (dayMinutes === null) return false;
+            // v5.36 — correctif : un créneau n'est « de nuit » que s'il TOUCHE la nuit civile.
+            // Avant, tout créneau de 30 min ou moins était écarté, même à midi (partie de
+            // jour <= 30 min) : 5 créneaux RTBA de mi-journée masqués à tort le 28/09.
+            const nightMinutes = (endMs - startMs) / 60000 - dayMinutes;
+            return nightMinutes > 0 && dayMinutes <= BFG_NIGHT_DAY_TOLERANCE_MIN_;
         }
 
         // Centre d'une géométrie : moyenne des sommets du premier contour extérieur ([lat, lon]).
@@ -17275,21 +17300,99 @@ window.__notamTextFull = notamInput.value;
          * sinon indiqués pour chaque créneau. */
         function bfgRtbaPopupHtml_(group, nowMs = Date.now()) {
             const row = (label, value) => `<div class="bfg-supaip-popup-row"><strong>${label} :</strong> ${escapeHtml_(value)}</div>`;
-            const limits = group.slots.map(({ zone }) => bfgRtbaFormatLimits_(zone));
-            const sameLimits = limits.every(l => l.lower === limits[0].lower && l.upper === limits[0].upper);
             const statusText = (status) => (status === 'active' ? 'Actif' : 'À venir');
-            const slotRows = group.slots.map(({ zone, status }, index) => {
-                const extra = sameLimits ? '' : ` — ${limits[index].lower} / ${limits[index].upper}`;
-                return `<div class="bfg-supaip-popup-row">${escapeHtml_(`${statusText(status)} : ${bfgRtbaFormatSchedule_(zone, nowMs)}${extra}`)}</div>`;
+            // v5.36 — créneaux actuels + créneaux TERMINÉS de la journée déjà vus (grisés),
+            // dans l'ordre de la journée, horaires en UTC.
+            const rows = group.slots.map(({ zone, status }) => ({ zone, status, limits: bfgRtbaFormatLimits_(zone) }))
+                .concat(bfgRtbaEndedSlotsForGroup_(group, nowMs));
+            rows.sort((x, y) => (x.zone.start instanceof Date ? x.zone.start.getTime() : 0) - (y.zone.start instanceof Date ? y.zone.start.getTime() : 0));
+            const limits = rows.map(r => r.limits);
+            const sameLimits = limits.every(l => l.lower === limits[0].lower && l.upper === limits[0].upper);
+            const tagOf = { active: 'ACTIF', upcoming: 'À VENIR', ended: 'TERMINÉ' };
+            const slotRows = rows.map(({ zone, status, limits: l }) => {
+                const extra = sameLimits ? '' : ` — ${l.lower} / ${l.upper}`;
+                return `<div class="bfg-rtba-slot bfg-rtba-slot-${status}"><span class="bfg-rtba-slot-tag">${tagOf[status]}</span> `
+                    + `${escapeHtml_(`${bfgRtbaFormatSchedule_(zone, nowMs)}${extra}`)}</div>`;
             }).join('');
             return `<div class="bfg-supaip-popup-title">RTBA</div>`
                 + `<div class="bfg-supaip-popup-row"><strong>${escapeHtml_(group.code)}</strong></div>`
                 + row('Statut', statusText(group.status))
                 + (sameLimits ? row('Plancher', limits[0].lower) + row('Plafond', limits[0].upper) : '')
-                + `<div class="bfg-supaip-popup-row"><strong>Créneau${group.slots.length > 1 ? 'x' : ''} (UTC) :</strong></div>`
+                + `<div class="bfg-supaip-popup-row"><strong>Créneau${rows.length > 1 ? 'x' : ''} (UTC) :</strong></div>`
                 + slotRows
                 + `<div class="bfg-supaip-popup-row">Source : SDVFR — récupéré à ${escapeHtml_(bfgRtbaHhMm_(bfgRtbaFetchedAt_))}</div>`
                 + (bfgRtbaFromCache_ ? `<div class="bfg-supaip-popup-row"><strong>Données en cache</strong></div>` : '');
+        }
+
+        /* v5.36 — mémoire des créneaux RTBA de la JOURNÉE (jour local de l'iPad), pour
+         * afficher dans la fenêtre les créneaux déjà TERMINÉS (SDVFR ne renvoie que les
+         * créneaux en cours ou à venir). Seuls les créneaux effectivement affichés sont
+         * retenus (mêmes filtres). Sert UNIQUEMENT à la fenêtre : la carte n'est pas
+         * modifiée (un secteur sans créneau restant disparaît comme avant).
+         * localStorage (convenance, try/catch) : sans lui, la mémoire vaut pour la session. */
+        const BFG_RTBA_DAY_SLOTS_KEY_ = 'bfgRtbaDaySlotsV1';
+        let bfgRtbaDaySlots_ = null;   // { day: 'AAAA-MM-JJ', sectors: { clé: { début|fin: { s, e, lower, upper } } } }
+
+        function bfgRtbaLocalDayKey_(ms) {
+            const d = new Date(ms);
+            return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+        }
+
+        function bfgRtbaSectorStoreKey_(group) {
+            let h = 5381;
+            const text = String(group.key || '');
+            for (let i = 0; i < text.length; i++) h = ((h * 33) ^ text.charCodeAt(i)) >>> 0;
+            return `${group.code}|${h.toString(36)}`;
+        }
+
+        function bfgRtbaDaySlotsFor_(nowMs) {
+            const day = bfgRtbaLocalDayKey_(nowMs);
+            if (!bfgRtbaDaySlots_) {
+                try {
+                    const stored = JSON.parse(localStorage.getItem(BFG_RTBA_DAY_SLOTS_KEY_) || 'null');
+                    if (stored && stored.day === day && stored.sectors && typeof stored.sectors === 'object') bfgRtbaDaySlots_ = stored;
+                } catch (_) {}
+            }
+            if (!bfgRtbaDaySlots_ || bfgRtbaDaySlots_.day !== day) bfgRtbaDaySlots_ = { day, sectors: {} };
+            return bfgRtbaDaySlots_;
+        }
+
+        function bfgRtbaRememberSlots_(groups, nowMs) {
+            try {
+                const memory = bfgRtbaDaySlotsFor_(nowMs);
+                const dayStart = new Date(nowMs); dayStart.setHours(0, 0, 0, 0);
+                let changed = false;
+                groups.forEach(group => {
+                    const sectorKey = bfgRtbaSectorStoreKey_(group);
+                    const sector = memory.sectors[sectorKey] || (memory.sectors[sectorKey] = {});
+                    group.slots.forEach(({ zone }) => {
+                        if (!(zone.start instanceof Date) || !(zone.end instanceof Date)) return;
+                        if (zone.end.getTime() < dayStart.getTime()) return;
+                        const id = `${zone.start.toISOString()}|${zone.end.toISOString()}`;
+                        if (sector[id]) return;
+                        const l = bfgRtbaFormatLimits_(zone);
+                        sector[id] = { s: zone.start.toISOString(), e: zone.end.toISOString(), lower: l.lower, upper: l.upper };
+                        changed = true;
+                    });
+                });
+                if (changed) localStorage.setItem(BFG_RTBA_DAY_SLOTS_KEY_, JSON.stringify(memory));
+            } catch (_) {}
+        }
+
+        // Créneaux de la journée déjà vus pour ce secteur et TERMINÉS maintenant.
+        function bfgRtbaEndedSlotsForGroup_(group, nowMs) {
+            try {
+                const memory = bfgRtbaDaySlotsFor_(nowMs);
+                const sector = memory.sectors[bfgRtbaSectorStoreKey_(group)] || {};
+                const current = new Set(group.slots.map(({ zone }) =>
+                    `${zone.start instanceof Date ? zone.start.toISOString() : ''}|${zone.end instanceof Date ? zone.end.toISOString() : ''}`));
+                return Object.entries(sector)
+                    .filter(([id, slot]) => !current.has(id) && Date.parse(slot.e) <= nowMs)
+                    .map(([, slot]) => ({ zone: { start: new Date(slot.s), end: new Date(slot.e) }, status: 'ended',
+                        limits: { lower: slot.lower, upper: slot.upper } }));
+            } catch (_) {
+                return [];
+            }
         }
 
         /* v5.25 — regroupement des créneaux par SECTEUR (même code ET même géométrie).
@@ -17414,6 +17517,7 @@ window.__notamTextFull = notamInput.value;
             if (!bfgRtbaFranceLayer_ || !Array.isArray(bfgRtbaAirspaces_)) return;
             const nowMs = Date.now();
             const { groups, counts, codesWithSeveralGeometries } = bfgBuildRtbaGroups_(bfgRtbaAirspaces_, nowMs);
+            bfgRtbaRememberSlots_(groups, nowMs);   // v5.36 : créneaux terminés montrés dans la fenêtre
             let changed = false;
             let sectorsActive = 0;
             let sectorsUpcoming = 0;
