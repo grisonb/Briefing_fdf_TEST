@@ -2961,13 +2961,13 @@
                 <span class="bfg-supaip-legend-item" style="color:#2563eb;"><span class="bfg-supaip-legend-swatch"></span>CTR/TMA</span>
                 <span class="bfg-supaip-legend-item" style="color:#7e22ce;"><span class="bfg-supaip-legend-swatch"></span>Autre</span>
                 <span class="bfg-supaip-legend-note">Pulsation légère = début de validité à venir</span>
-                <span class="bfg-supaip-legend-item" style="color:#d1007a;"><span class="bfg-supaip-legend-swatch"></span>RTBA actif (clignotant)</span>
-                <span class="bfg-supaip-legend-item" style="color:#f08cc4;"><span class="bfg-supaip-legend-swatch"></span>RTBA à venir (jusqu'à 23:00 locale ; le soir, 4 h)</span>
+                <span class="bfg-supaip-legend-item" style="color:#d1007a;"><span class="bfg-supaip-legend-swatch"></span>RTBA actif (fixe)</span>
+                <span class="bfg-supaip-legend-item" style="color:#f08cc4;"><span class="bfg-supaip-legend-swatch"></span>RTBA à venir (clignotant ; jusqu'au coucher du soleil)</span>
             </div>
             <div id="sup-aip-france-map" aria-label="Carte de France des SUP AIP"></div>
             <p id="sup-aip-map-status">Carte SUP AIP non chargée.</p>
             <p id="rtba-map-status" role="status" aria-live="polite"></p>
-            <p id="rtba-map-notice" hidden>ⓘ Seules les activations <span id="rtba-map-notice-window">prévues jusqu'à 23:00 locale (le soir : celles des 4 prochaines heures)</span> sont affichées. Au-delà, consulter la <a href="https://www.sia.aviation-civile.gouv.fr/schedules" target="_blank" rel="noopener">page AZBA du SIA</a>.</p>
+            <p id="rtba-map-notice" hidden>ⓘ Seules les activations <span id="rtba-map-notice-window">qui commencent avant le coucher du soleil moins 30 min (à la position de chaque zone)</span> sont affichées. Au-delà, consulter la <a href="https://www.sia.aviation-civile.gouv.fr/schedules" target="_blank" rel="noopener">page AZBA du SIA</a>.</p>
             <div id="sup-aip-map-filters">
                 <label>Du <input type="date" id="sup-aip-map-date-from"></label>
                 <label>au <input type="date" id="sup-aip-map-date-to"></label>
@@ -3019,8 +3019,8 @@
     <footer>Données : Météo-France, SIA, Windy.com, SDVFR. Page non commerciale, à usage personnel.</footer>
     
     <script>
-        const APP_VERSION_NUMBER = "5.34";
-        const APP_VERSION = `${APP_VERSION_NUMBER} TEST - RTBA JUSQU'A 23H`;
+        const APP_VERSION_NUMBER = "5.35";
+        const APP_VERSION = `${APP_VERSION_NUMBER} TEST - FENETRES CARTE + RTBA COUCHER DU SOLEIL`;
 
 
         // v4.97 — diagnostic conservé ; plage NOTAM quotidienne et sélection prioritaire. Aucun code d'accès, token ou contenu NOTAM n'est exporté.
@@ -3317,7 +3317,7 @@
                 push('Données récupérées à :', r.fetchedAt || 'aucune');
                 push('Zones reçues :', r.zonesReceived === null ? 'inconnu' : String(r.zonesReceived));
                 push('Secteurs affichés :', `${r.sectorsActive} actif(s), ${r.sectorsUpcoming} à venir`);
-                push('Créneaux non affichés :', `${r.zonesEnded} terminé(s), ${r.zonesFilteredFl} filtré(s) FL max, ${r.zonesNight || 0} de nuit civile, ${r.zonesInvalidGeometry} géométrie invalide`);
+                push('Créneaux non affichés :', `${r.zonesEnded} terminé(s), ${r.zonesFilteredFl} filtré(s) FL max, ${r.zonesNight || 0} de nuit civile, ${r.zonesAfterSunset || 0} commençant après le coucher du soleil - 30 min, ${r.zonesInvalidGeometry} géométrie invalide`);
                 push('Codes à géométries différentes :', r.codesWithSeveralGeometries && r.codesWithSeveralGeometries.length ? r.codesWithSeveralGeometries.join(' | ') : 'aucun');
                 push('Affichées depuis le cache :', bfgRtbaFromCache_ ? 'OUI' : 'NON');
                 const rtbaCache = bfgRtbaReadCache_();
@@ -16863,6 +16863,79 @@ window.__notamTextFull = notamInput.value;
             }, 60 * 1000);
         }
 
+        /* v5.35 — FENÊTRES DE LA CARTE AZBA / SUP AIP.
+         * Cause du bug corrigé : la couche RTBA a son propre panneau (au-dessus des SUP AIP)
+         * et son propre canvas Leaflet, qui couvre toute la carte. Dès le premier secteur
+         * RTBA dessiné, ce canvas recevait TOUS les touchers et ne les transmettait pas au
+         * canvas des SUP AIP : seules les zones RTBA ouvraient une fenêtre (présent depuis
+         * la v5.22 dès qu'un RTBA était affiché ; quasi permanent depuis la v5.34, RTBA
+         * jusqu'au soir).
+         * Correction : toutes les zones sont dessinées NON interactives ; un seul gestionnaire
+         * sur la carte cherche les zones qui contiennent le point touché (RTBA d'abord, puis
+         * SUP AIP) et ouvre une fenêtre qui les liste toutes, séparées par un trait. */
+        let bfgSupAipClickTargets_ = [];     // [{ geometry, html }] des zones SUP AIP affichées
+        let bfgMapPopupState_ = null;        // { latlng, popup } de la fenêtre ouverte
+
+        function bfgPointInRing_(lon, lat, ring) {
+            let inside = false;
+            for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+                const xi = ring[i][0], yi = ring[i][1], xj = ring[j][0], yj = ring[j][1];
+                if ((yi > lat) !== (yj > lat) && lon < (xj - xi) * (lat - yi) / (yj - yi) + xi) inside = !inside;
+            }
+            return inside;
+        }
+
+        function bfgGeometryContains_(geometry, lon, lat) {
+            try {
+                const polygons = geometry.type === 'Polygon' ? [geometry.coordinates]
+                    : geometry.type === 'MultiPolygon' ? geometry.coordinates : [];
+                return polygons.some(rings => {
+                    let inside = false;
+                    rings.forEach(ring => { if (bfgPointInRing_(lon, lat, ring)) inside = !inside; });
+                    return inside;
+                });
+            } catch (_) {
+                return false;
+            }
+        }
+
+        function bfgMapPopupHtmlAt_(latlng) {
+            const parts = [];
+            bfgRtbaSectorLayers_.forEach(entry => {
+                if (entry.geometry && bfgGeometryContains_(entry.geometry, latlng.lng, latlng.lat)) parts.push(entry.popupHtml);
+            });
+            bfgSupAipClickTargets_.forEach(target => {
+                if (bfgGeometryContains_(target.geometry, latlng.lng, latlng.lat)) parts.push(target.html);
+            });
+            return parts.join('<hr style="border:0;border-top:1px solid #d7dee8;margin:8px 0;">');
+        }
+
+        function bfgOpenMapPopupAt_(latlng) {
+            if (!bfgSupAipFranceMap_) return;
+            const html = bfgMapPopupHtmlAt_(latlng);
+            if (!html) {
+                bfgSupAipFranceMap_.closePopup();
+                bfgMapPopupState_ = null;
+                return;
+            }
+            const popup = L.popup({ maxWidth: 360, maxHeight: 340, autoPan: true })
+                .setLatLng(latlng).setContent(html).openOn(bfgSupAipFranceMap_);
+            bfgMapPopupState_ = { latlng, popup };
+        }
+
+        // Après un recalcul (minute, nouvelles données) : fenêtre ouverte mise à jour sur place.
+        function bfgRefreshMapPopup_() {
+            const state = bfgMapPopupState_;
+            if (!state || !bfgSupAipFranceMap_ || !bfgSupAipFranceMap_.hasLayer(state.popup)) return;
+            const html = bfgMapPopupHtmlAt_(state.latlng);
+            if (!html) {
+                bfgSupAipFranceMap_.closePopup(state.popup);
+                bfgMapPopupState_ = null;
+            } else if (state.popup.getContent() !== html) {
+                state.popup.setContent(html);
+            }
+        }
+
         const BFG_SUPAIP_METRO_BOUNDS_ = [[41.0, -6.5], [51.6, 10.5]];
 
         function bfgRenderSupAipFranceMap_(options = {}) {
@@ -16883,12 +16956,16 @@ window.__notamTextFull = notamInput.value;
             const schedCtx = bfgSupAipScheduleContext_();
             bfgSupAipResetSchedCounters_(schedCtx);
             const hiddenKeys = [];
+            const supAipTargets = [];
 
             selected.forEach(zone => {
                 try {
                     const zoneStyle = bfgSupAipStyle_(zone);
+                    // v5.35 — couches NON interactives : les touchers sont traités au niveau de la
+                    // carte (bfgOpenMapPopupAt_), qui liste toutes les zones sous le doigt.
                     const layer = L.geoJSON({ type: 'Feature', geometry: zone.geometry, properties: {} }, {
-                        style: zoneStyle
+                        style: zoneStyle,
+                        interactive: false
                     });
                     const layerBounds = layer.getBounds();
                     // v5.05 : les SUP AIP ultramarins restent dans les données brutes mais
@@ -16903,7 +16980,7 @@ window.__notamTextFull = notamInput.value;
                         hiddenKeys.push(`${zone.item && zone.item.code}|${zone.label}`);
                         return;
                     }
-                    layer.bindPopup(bfgSupAipPopupHtml_(zone), { maxWidth: 360 });
+                    supAipTargets.push({ geometry: zone.geometry, html: bfgSupAipPopupHtml_(zone) });
                     layer.addTo(group);
                     if (bfgSupAipStartsInFuture_(zone)) {
                         bfgSupAipFuturePulseLayers_.push({ layer, style: zoneStyle });
@@ -16916,6 +16993,8 @@ window.__notamTextFull = notamInput.value;
             group.addTo(bfgSupAipFranceMap_);
             bfgSupAipFranceLayer_ = group;
             bfgSupAipHiddenSignature_ = schedCtx.usable ? hiddenKeys.sort().join('#') : `off:${schedCtx.reason}`;
+            bfgSupAipClickTargets_ = supAipTargets;
+            bfgRefreshMapPopup_();
             bfgStartSupAipFuturePulse_();
             if (status) {
                 status.classList.remove('warning');
@@ -16965,6 +17044,8 @@ window.__notamTextFull = notamInput.value;
             if (toInput && !toInput.value) toInput.value = today;
 
             bfgSupAipFranceMap_ = L.map(mapElement, { zoomControl: true, preferCanvas: true });
+            // v5.35 — un seul gestionnaire de toucher pour toutes les zones (cf. bfgOpenMapPopupAt_).
+            bfgSupAipFranceMap_.on('click', event => bfgOpenMapPopupAt_(event.latlng));
             bfgSupAipFranceMap_.fitBounds(BFG_SUPAIP_METRO_BOUNDS_, { animate: false });
             L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
                 maxZoom: 18,
@@ -17005,9 +17086,10 @@ window.__notamTextFull = notamInput.value;
          * FENÊTRE LIÉE AU MOMENT PRÉSENT : l'endpoint SDVFR renvoie les activations en cours
          * et celles qui débutent dans le délai d'« anticipation » choisi par le worker.
          * v5.34 — worker VPS 5.25 : anticipation = max(240 min, minutes restant jusqu'à 23:00
-         * heure de Paris), repli sur 240 si SDVFR refuse. « À venir » signifie donc « avant
-         * 23:00 » ; le soir (après 19:00) « dans moins de 4 h ». Essai du 27/09 : 1500 min
+         * heure de Paris), repli sur 240 si SDVFR refuse. Essai du 27/09 : 1500 min
          * acceptées, activations reçues jusqu'à 17 h après la demande (identiques au SIA).
+         * v5.35 — BFG n'affiche que les créneaux qui COMMENCENT avant le coucher du soleil
+         * moins 30 min (position du secteur), en plus de la règle de nuit civile (v5.32).
          * BFG n'applique AUCUN filtre de durée : seuls les créneaux terminés, au-dessus du
          * FL max, entièrement de nuit civile ou à géométrie invalide sont écartés. Les dates Du / Au de la carte ne s'appliquent PAS au
          * RTBA, SDVFR ne permettant pas de recherche sur période : la couche montre la
@@ -17029,15 +17111,17 @@ window.__notamTextFull = notamInput.value;
         // v5.30 — libellé de la fenêtre RTBA dans l'avertissement sous la carte.
         // v5.34 — anticipation évolutive du worker 5.25 : juste à toute heure (le soir, après
         // 19:00 heure de Paris, la fenêtre est de 4 h et dépasse 23:00).
-        const BFG_RTBA_WINDOW_LABEL_ = 'prévues jusqu\'à 23:00 locale (le soir : celles des 4 prochaines heures)';
+        // v5.35 — règle d'affichage : début avant le coucher du soleil moins 30 min.
+        const BFG_RTBA_WINDOW_LABEL_ = 'qui commencent avant le coucher du soleil moins 30 min (à la position de chaque zone)';
         const BFG_RTBA_FETCH_TIMEOUT_MS_ = 25000;
         // v5.23 — présentation issue des essais iPad. Traits pleins.
-        //   actif    : magenta VIF, CLIGNOTANT ;
-        //   à venir  : magenta PASTEL (rose clair), FIXE.
+        // v5.35 — clignotement INVERSÉ à la demande de l'utilisateur :
+        //   actif    : magenta VIF, FIXE ;
+        //   à venir  : magenta PASTEL (rose clair), CLIGNOTANT.
         const BFG_RTBA_STYLE_ACTIVE_ = { color: '#d1007a', fillColor: '#ff1aa3', weight: 2.5, opacity: 1, fillOpacity: 0.32 };
         const BFG_RTBA_STYLE_UPCOMING_ = { color: '#f08cc4', fillColor: '#fbc6e3', weight: 2, opacity: 0.95, fillOpacity: 0.28 };
-        // État « éteint » du clignotement des zones actives.
-        const BFG_RTBA_STYLE_ACTIVE_PULSE_OFF_ = { opacity: 0.3, fillOpacity: 0.06 };
+        // État « éteint » du clignotement des zones à venir (v5.35).
+        const BFG_RTBA_STYLE_PULSE_OFF_ = { opacity: 0.3, fillOpacity: 0.06 };
 
         let bfgRtbaFranceLayer_ = null;
         let bfgRtbaRenderer_ = null;
@@ -17063,6 +17147,7 @@ window.__notamTextFull = notamInput.value;
             zonesEnded: 0,
             zonesFilteredFl: 0,
             zonesNight: 0,
+            zonesAfterSunset: 0,
             zonesInvalidGeometry: 0,
             fetchedAt: '',
             error: ''
@@ -17212,8 +17297,19 @@ window.__notamTextFull = notamInput.value;
          * (signalés dans le diagnostic). Créneaux terminés retirés ; filtre FL max appliqué
          * à chaque créneau ; le secteur disparaît quand il ne lui reste aucun créneau.
          * Statut du secteur : un créneau actif => actif ; sinon => à venir. */
+        const BFG_RTBA_SUNSET_MARGIN_MS_ = 30 * 60 * 1000;
+
+        function bfgRtbaStartsAfterSunsetMinus30_(startMs, centre) {
+            if (!centre || !Number.isFinite(startMs)) return false;
+            const d = new Date(startMs);
+            const dayUtc = Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate());
+            const sunset = bfgSunEventMs_(dayUtc, centre[0], centre[1], false, 90.833);
+            if (!Number.isFinite(sunset)) return false;
+            return startMs > sunset - BFG_RTBA_SUNSET_MARGIN_MS_;
+        }
+
         function bfgBuildRtbaGroups_(airspaces, nowMs = Date.now()) {
-            const counts = { slotsEnded: 0, slotsFilteredFl: 0, slotsInvalid: 0, slotsNight: 0 };
+            const counts = { slotsEnded: 0, slotsFilteredFl: 0, slotsInvalid: 0, slotsNight: 0, slotsAfterSunset: 0 };
             const byKey = new Map();
             const geometriesByCode = new Map();
             (airspaces || []).forEach(item => {
@@ -17232,6 +17328,13 @@ window.__notamTextFull = notamInput.value;
                 if (zone.start instanceof Date && zone.end instanceof Date
                     && bfgSlotIsNight_(zone.start.getTime(), zone.end.getTime(), bfgGeometryCentre_(zone.geometry))) {
                     counts.slotsNight += 1;
+                    return;
+                }
+                // v5.35 : créneau qui COMMENCE après le coucher du soleil moins 30 min (calculé à la
+                // position du secteur, pour le jour UTC de son début) -> non affiché. Un créneau
+                // qui commence avant reste affiché. Calcul impossible : créneau gardé (prudence).
+                if (zone.start instanceof Date && bfgRtbaStartsAfterSunsetMinus30_(zone.start.getTime(), bfgGeometryCentre_(zone.geometry))) {
+                    counts.slotsAfterSunset += 1;
                     return;
                 }
                 const key = `${zone.code}|${geometryText}`;
@@ -17260,7 +17363,7 @@ window.__notamTextFull = notamInput.value;
         function bfgSyncRtbaPulse_() {
             bfgRtbaPulseLayers_ = [];
             bfgRtbaSectorLayers_.forEach(entry => {
-                if (entry.status === 'active') bfgRtbaPulseLayers_.push({ layer: entry.layer, style: BFG_RTBA_STYLE_ACTIVE_ });
+                if (entry.status === 'upcoming') bfgRtbaPulseLayers_.push({ layer: entry.layer, style: BFG_RTBA_STYLE_UPCOMING_ });
             });
             if (!bfgRtbaPulseLayers_.length) {
                 if (bfgRtbaPulseTimer_) clearInterval(bfgRtbaPulseTimer_);
@@ -17278,8 +17381,8 @@ window.__notamTextFull = notamInput.value;
             bfgRtbaPulseState_ = true;
         }
 
-        // v5.23 — clignotement propre au RTBA : zones ACTIVES seulement ; les zones à venir
-        // restent fixes. setStyle sur les seules couches RTBA : le clignotement SUP AIP
+        // v5.23 — clignotement propre au RTBA. v5.35 : zones À VENIR seulement ; les zones
+        // actives restent fixes. setStyle sur les seules couches RTBA : le clignotement SUP AIP
         // n'est pas touché et un popup ouvert n'est pas refermé.
         // v5.25 — la liste des couches clignotantes est relue à chaque battement.
         function bfgStartRtbaPulse_() {
@@ -17290,8 +17393,8 @@ window.__notamTextFull = notamInput.value;
                 bfgRtbaPulseLayers_.forEach(({ layer, style }) => {
                     try {
                         layer.setStyle({
-                            opacity: bfgRtbaPulseState_ ? style.opacity : BFG_RTBA_STYLE_ACTIVE_PULSE_OFF_.opacity,
-                            fillOpacity: bfgRtbaPulseState_ ? style.fillOpacity : BFG_RTBA_STYLE_ACTIVE_PULSE_OFF_.fillOpacity
+                            opacity: bfgRtbaPulseState_ ? style.opacity : BFG_RTBA_STYLE_PULSE_OFF_.opacity,
+                            fillOpacity: bfgRtbaPulseState_ ? style.fillOpacity : BFG_RTBA_STYLE_PULSE_OFF_.fillOpacity
                         });
                     } catch (_) {}
                 });
@@ -17329,14 +17432,14 @@ window.__notamTextFull = notamInput.value;
                             changed = true;
                         }
                         if (existing.popupHtml !== popupHtml) {
-                            existing.layer.setPopupContent(popupHtml);   // popup ouvert : contenu mis à jour, non refermé
-                            existing.popupHtml = popupHtml;
+                            existing.popupHtml = popupHtml;   // v5.35 : fenêtre ouverte mise à jour par bfgRefreshMapPopup_
                             changed = true;
                         }
                     } else {
                         const layer = L.geoJSON({ type: 'Feature', geometry: group.geometry, properties: {} }, {
                             pane: 'bfgRtbaPane',
                             renderer: bfgRtbaRenderer_,
+                            interactive: false,   // v5.35 : touchers traités par la carte
                             style: () => ({ ...style })
                         });
                         if (!layer.getBounds().isValid()) {
@@ -17344,9 +17447,8 @@ window.__notamTextFull = notamInput.value;
                             counts.slotsInvalid += group.slots.length;
                             return;
                         }
-                        layer.bindPopup(popupHtml, { maxWidth: 360 });
                         layer.addTo(bfgRtbaFranceLayer_);
-                        bfgRtbaSectorLayers_.set(group.key, { layer, status: group.status, popupHtml });
+                        bfgRtbaSectorLayers_.set(group.key, { layer, status: group.status, popupHtml, geometry: group.geometry });
                         changed = true;
                     }
                     seen.add(group.key);
@@ -17367,6 +17469,7 @@ window.__notamTextFull = notamInput.value;
                 changed = true;
             });
             bfgSyncRtbaPulse_();
+            bfgRefreshMapPopup_();
 
             Object.assign(bfgRtbaDiag_, {
                 zonesReceived: bfgRtbaAirspaces_.length,
@@ -17375,6 +17478,7 @@ window.__notamTextFull = notamInput.value;
                 zonesEnded: counts.slotsEnded,
                 zonesFilteredFl: counts.slotsFilteredFl,
                 zonesNight: counts.slotsNight,
+                zonesAfterSunset: counts.slotsAfterSunset,
                 zonesInvalidGeometry: counts.slotsInvalid,
                 codesWithSeveralGeometries
             });
@@ -17392,7 +17496,7 @@ window.__notamTextFull = notamInput.value;
             if (changed) {
                 bfgRtbaLog_('Couche RTBA mise à jour', {
                     reçues: bfgRtbaAirspaces_.length, secteursActifs: sectorsActive, secteursAVenir: sectorsUpcoming,
-                    créneauxTerminés: counts.slotsEnded, créneauxFiltrésFl: counts.slotsFilteredFl, créneauxDeNuit: counts.slotsNight,
+                    créneauxTerminés: counts.slotsEnded, créneauxFiltrésFl: counts.slotsFilteredFl, créneauxDeNuit: counts.slotsNight, créneauxAprèsCoucher: counts.slotsAfterSunset,
                     géométrieInvalide: counts.slotsInvalid, multiGéométrie: codesWithSeveralGeometries.join(' '),   // v5.27 : clé sans « code » (masquée par le diagnostic)
                     cache: bfgRtbaFromCache_
                 });
