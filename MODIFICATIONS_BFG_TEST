@@ -393,8 +393,8 @@ Base : TEST v5.36
 
 LIEN « OUVRIR LE PDF OFFICIEL SIA » DES SUP AIP AIRAC (404 constaté sur
 LF_26_037 en pérenne v2026.29). Solution propre : adresse fournie par le script
-VPS. Aucune modification du NAS ni de la pérenne ; script VPS 1.2.0 PRÉPARÉ, NON
-DÉPLOYÉ.
+VPS. Aucune modification du NAS ni de la pérenne ; script VPS 1.2.0 DÉPLOYÉ le
+29/09 (cf. 2).
 
 1. CAUSE (BFG)
 - bfgBuildOfficialSupAipPdf_ déduit l'adresse du code SDVFR (LF_26_037 ->
@@ -418,6 +418,13 @@ DÉPLOYÉ.
   bfg_supaip_schedules.py SHA-256 7bf4122c…ad24fb.
 - NAS : aucune modification nécessaire (le dépôt accepte un champ en plus, la
   lecture renvoie tout le fichier).
+- DÉPLOYÉ sur le VPS le 29/09 : 1.1.0 sauvegardée dans
+  /home/ubuntu/bfg-supaip-schedules-1.1.0-sauvegarde.tar.gz (state/ conservé).
+  Essai à blanc réussi : auto-tests 27/27, 111 pdfUrl, dont
+  lf_sup_a_2026_037_fr.pdf et lf_sup_a_2025_207_fr.pdf. Premier dépôt réel
+  attendu au passage de 10:00 (29/09).
+- Retour arrière : restaurer la sauvegarde 1.1.0 (le fichier déposé n'a plus de
+  pdfUrl, BFG revient seul au lien habituel).
 
 3. BFG v5.37
 - La fenêtre d'une zone SUP AIP utilise pdfUrl du fichier des créneaux quand il
@@ -438,7 +445,8 @@ VERSIONS
   AIRAC), une fois le script VPS 1.2.0 en service.
 
 STATUTS v5.37
-- Script VPS 1.2.0 : À DÉPLOYER (installation guidée).
+- Script VPS 1.2.0 : DÉPLOYÉ le 29/09, essai à blanc réussi ; premier dépôt réel
+  À MESURER (passage de 10:00).
 - Lien PDF : À MESURER sur iPad après le premier dépôt 1.2.0 (LF_26_037,
   LF_25_207).
 
