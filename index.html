@@ -3039,8 +3039,8 @@
     <footer>Données : Météo-France, SIA, Windy.com, SDVFR. Page non commerciale, à usage personnel.</footer>
     
     <script>
-        const APP_VERSION_NUMBER = "5.36";
-        const APP_VERSION = `${APP_VERSION_NUMBER} TEST - FENETRE RTBA : ETAT DES CRENEAUX`;
+        const APP_VERSION_NUMBER = "5.37";
+        const APP_VERSION = `${APP_VERSION_NUMBER} TEST - LIEN PDF SUP AIP (FICHIER DES CRENEAUX)`;
 
 
         // v4.97 — diagnostic conservé ; plage NOTAM quotidienne et sélection prioritaire. Aucun code d'accès, token ou contenu NOTAM n'est exporté.
@@ -16426,8 +16426,24 @@ window.__notamTextFull = notamInput.value;
             }, 850);
         }
 
+        /* v5.37 — adresse du PDF officiel donnée par le fichier des créneaux (script VPS
+         * bfg-supaip-schedules 1.2.0, champ pdfUrl = adresse qui a vraiment répondu au SIA,
+         * nom normal ou AIRAC lf_sup_a_…). Disponible hors ligne avec le fichier en mémoire.
+         * Absente ou douteuse : lien habituel (bfgBuildOfficialSupAipPdf_). Constat du 29/09 :
+         * 207/25 et 037/26 (AIRAC) en 404 avec le lien déduit du code SDVFR. */
+        function bfgSupAipScheduledPdfUrl_(zone) {
+            try {
+                const code = String((zone.item && zone.item.code) || '').trim();
+                const entry = code && bfgSupAipSchedules_ && bfgSupAipSchedules_.supaip && bfgSupAipSchedules_.supaip[code];
+                const url = entry && typeof entry.pdfUrl === 'string' ? entry.pdfUrl.trim() : '';
+                return /^https:\/\/www\.sia\.aviation-civile\.gouv\.fr\/[^\s"'<>]+\.pdf$/i.test(url) ? url : '';
+            } catch (_) {
+                return '';
+            }
+        }
+
         function bfgSupAipPopupHtml_(zone) {
-            const pdf = bfgBuildOfficialSupAipPdf_(zone);
+            const pdf = bfgSupAipScheduledPdfUrl_(zone) || bfgBuildOfficialSupAipPdf_(zone);
             const desc = zone.description ? `<div class="bfg-supaip-popup-row">${escapeHtml_(zone.description)}</div>` : '';
             const pdfLink = pdf ? `<a class="bfg-supaip-popup-link" href="${escapeHtml_(pdf)}" target="_blank" rel="noopener">Ouvrir le PDF officiel SIA</a>` : '';
             return `<div class="bfg-supaip-popup-title">${escapeHtml_(zone.label)}</div>` +

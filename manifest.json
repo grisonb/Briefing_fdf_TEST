@@ -1,7 +1,7 @@
 {
   "name": "Briefing FDF TEST",
   "short_name": "Briefing TEST",
-  "description": "Briefing FDF TEST v5.36 — fenêtre RTBA : créneaux actif / à venir / terminé mis en évidence",
+  "description": "Briefing FDF TEST v5.37 — lien PDF des SUP AIP pris dans le fichier des créneaux (SUP AIP AIRAC)",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",

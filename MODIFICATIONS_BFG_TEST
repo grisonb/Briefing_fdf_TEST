@@ -337,6 +337,8 @@ B5. LISTE DE CONTRÔLE DE PROMOTION — MENTIONS VISIBLES DE « SDVFR » (v5.23)
         « Source », avec les étiquettes ACTIF / À VENIR / TERMINÉ de la v5.36 ;
         « Aucune activation RTBA à afficher (activations commençant avant le
         coucher du soleil moins 30 min). »
+      - À REPRENDRE à la prochaine promotion : lien PDF des SUP AIP pris
+        dans le fichier des créneaux (pdfUrl, v5.37 ; aucun texte ajouté).
       - Éléments TEST uniquement ci-dessous : NON repris en v2026.29 (case
         « Afficher toutes les zones » absente, showAll forcé à false ; bouton
         de comparaison absent).
@@ -385,6 +387,61 @@ C. CONTRÔLES AVANT TOUTE LIVRAISON
       surligneur, repli hors ligne NAS) ;
     - nouvelle entrée ajoutée EN TÊTE de ce journal, sous cette section 0,
       historique intégralement conservé.
+TEST v5.37 — 2026-09-29
+Base : TEST v5.36
+===============================================================================
+
+LIEN « OUVRIR LE PDF OFFICIEL SIA » DES SUP AIP AIRAC (404 constaté sur
+LF_26_037 en pérenne v2026.29). Solution propre : adresse fournie par le script
+VPS. Aucune modification du NAS ni de la pérenne ; script VPS 1.2.0 PRÉPARÉ, NON
+DÉPLOYÉ.
+
+1. CAUSE (BFG)
+- bfgBuildOfficialSupAipPdf_ déduit l'adresse du code SDVFR (LF_26_037 ->
+  lf_sup_2026_037_fr.pdf). Les SUP AIP AIRAC ont au SIA un autre nom de fichier
+  (lf_sup_a_2026_037_fr.pdf -> 200 ; lf_sup_2026_037_fr.pdf -> 404). SDVFR ne
+  dit pas si un SUP AIP est AIRAC.
+- Test de tous les liens (29/09, lecture seule, une requête d'en-tête par
+  adresse) : 76 adresses, 74 en 200, 2 en 404 (207/25 : 16 zones ; 037/26 :
+  3 zones), variante AIRAC en 200 pour les deux.
+- Une première v5.37 (second lien « version AIRAC » sur 264 zones) a été refusée
+  par l'utilisateur et annulée avant tout push (retour à c966e0f).
+
+2. SCRIPT VPS bfg-supaip-schedules 1.2.0 (préparé dans ~/vps-a-copier/)
+- Ajout, pour chaque SUP AIP, du champ pdfUrl : l'adresse du PDF qui a vraiment
+  répondu au SIA (le script essayait déjà le nom normal puis le nom AIRAC),
+  seulement si elle correspond au PDF analysé (même empreinte). Rien d'autre.
+- Auto-test local : 27/27. Essai unitaire : 037 -> lf_sup_a_…, 194 -> lf_sup_…,
+  PDF absent ou empreinte différente -> pas de pdfUrl.
+- Archive bfg-supaip-schedules-1.2.0.tar.gz (90 fichiers, même liste que la
+  1.1.0), SHA-256 6e25d950cb9ca450cd459ca271ae25bc24d386e1c0b0e0b7c1d4a0c8ec3dd84e ;
+  bfg_supaip_schedules.py SHA-256 7bf4122c…ad24fb.
+- NAS : aucune modification nécessaire (le dépôt accepte un champ en plus, la
+  lecture renvoie tout le fichier).
+
+3. BFG v5.37
+- La fenêtre d'une zone SUP AIP utilise pdfUrl du fichier des créneaux quand il
+  est présent et sûr (adresse https du site du SIA, se terminant par .pdf), sinon
+  le lien habituel. UN SEUL lien, texte inchangé. Disponible hors ligne avec le
+  fichier en mémoire (l'ouverture du PDF demande le réseau).
+- Tant que le script VPS 1.1.0 tourne, le fichier n'a pas de pdfUrl : comportement
+  identique à la v5.36 (aucune régression).
+- Essais Node : sans fichier -> lien habituel ; pdfUrl 037 -> AIRAC ; pdfUrl
+  194 -> normal ; fichier sans pdfUrl -> lien habituel ; adresse hors SIA ou avec
+  guillemet refusée ; aucune ligne « version AIRAC ».
+
+VERSIONS
+- APP_VERSION_NUMBER 5.37, BFG_SW_VERSION 5.37, CACHE_NAME
+  'briefing-fdf-test-v5.37-supaip-pdf-url-r1', description du manifest.
+  Constantes figées à 5.07 NON modifiées (cf. 0.B1).
+- Pour la prochaine promotion : bfgSupAipScheduledPdfUrl_ (lien PDF des SUP AIP
+  AIRAC), une fois le script VPS 1.2.0 en service.
+
+STATUTS v5.37
+- Script VPS 1.2.0 : À DÉPLOYER (installation guidée).
+- Lien PDF : À MESURER sur iPad après le premier dépôt 1.2.0 (LF_26_037,
+  LF_25_207).
+
 PROMOTION PÉRENNE v2026.29 — 2026-09-28
 Aucune modification de la TEST (index.html, sw.js, manifest.json inchangés,
 version TEST 5.36), du NAS ni du VPS. Entrée de journal seulement.
