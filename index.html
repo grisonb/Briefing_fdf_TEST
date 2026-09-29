@@ -422,6 +422,21 @@
             margin: 8px 0 16px;
             font-size: 0.95em;
         }
+        /* v5.38 : bandeau de validité lu dans le PDF de la carte des risques. */
+        .risk-map-validity {
+            margin: 0;
+            padding: 9px 14px;
+            text-align: center;
+            font-weight: 800;
+            font-size: 1.05em;
+            line-height: 1.3;
+            border-bottom: 1px solid var(--border-color);
+        }
+        .risk-map-validity[hidden] { display: none; }
+        .risk-map-validity.is-today { background: #1e7b34; color: #ffffff; }
+        .risk-map-validity.is-soft { background: #cdeecf; color: #14532d; }
+        .risk-map-validity.is-expired { background: #c0392b; color: #ffffff; }
+        .risk-map-validity.is-unknown { background: #f39c12; color: #2b1a00; }
         .carte-container iframe { width: 100%; height: 100%; border: none; }
         
         #temsi-image {
@@ -2780,6 +2795,7 @@
         <div class="risk-maps-grid">
             <div class="risk-map-card">
                 <h3>National</h3>
+                <div id="risk-map-national-validity" class="risk-map-validity" role="status" hidden></div>
                 <div class="risk-map-viewport">
                     <div id="risk-map-national-pages" class="risk-map-pages">
                         <p class="risk-map-loading">Chargement carte National...</p>
@@ -2788,6 +2804,7 @@
             </div>
             <div class="risk-map-card">
                 <h3>Zone Sud</h3>
+                <div id="risk-map-zonesud-validity" class="risk-map-validity" role="status" hidden></div>
                 <div class="risk-map-viewport">
                     <div id="risk-map-zonesud-pages" class="risk-map-pages">
                         <p class="risk-map-loading">Chargement carte Zone Sud...</p>
@@ -3039,8 +3056,8 @@
     <footer>Données : Météo-France, SIA, Windy.com, SDVFR. Page non commerciale, à usage personnel.</footer>
     
     <script>
-        const APP_VERSION_NUMBER = "5.37";
-        const APP_VERSION = `${APP_VERSION_NUMBER} TEST - LIEN PDF SUP AIP (FICHIER DES CRENEAUX)`;
+        const APP_VERSION_NUMBER = "5.38";
+        const APP_VERSION = `${APP_VERSION_NUMBER} TEST - CARTES DES RISQUES : VALIDITE + METEO-FRANCE PRO`;
 
 
         // v4.97 — diagnostic conservé ; plage NOTAM quotidienne et sélection prioritaire. Aucun code d'accès, token ou contenu NOTAM n'est exporté.
@@ -8657,16 +8674,18 @@ const tdfStages = [
             national: {
                 label: 'National',
                 pdfUrl: 'https://grisonb.synology.me/briefing-api/get-risk-map-pdf.php?map=national',
-                openUrl: 'http://www.meteo.fr/extranets/proxy/index/affiche/id/298186',
+                openUrl: 'https://pro.meteofrance.com/proxy/index/affiche/id/298186',
                 pagesId: 'risk-map-national-pages',
+                validityId: 'risk-map-national-validity',
                 openId: 'risk-map-national-open',
                 metaKey: 'national'
             },
             zonesud: {
                 label: 'Zone Sud',
                 pdfUrl: 'https://grisonb.synology.me/briefing-api/get-risk-map-pdf.php?map=zonesud',
-                openUrl: 'http://www.meteo.fr/extranets/proxy/index/affiche/id/305344',
+                openUrl: 'https://pro.meteofrance.com/proxy/index/affiche/id/305344',
                 pagesId: 'risk-map-zonesud-pages',
+                validityId: 'risk-map-zonesud-validity',
                 openId: 'risk-map-zonesud-open',
                 metaKey: 'zonesud'
             }
@@ -8716,6 +8735,143 @@ const tdfStages = [
             });
         }
 
+        /*
+         * v5.38 — bandeau de validité des cartes des risques.
+         * Lu dans le texte de la page 1 du PDF réellement affiché (pdf.js, getTextContent),
+         * après l’affichage et sans l’attendre. Formats réels du 29/09/2026 :
+         *   National : « Prévision du danger météorologique d'incendie pour le 29/09/2026 »
+         *   Zone Sud : « Prévision du danger météorologique feu de forêt expertisé par zone pour le 29/09/2026 »
+         *   Les deux : « produit le 29/09/2026 - Matin »
+         * Dates gardées en mémoire seulement ; couleur recalculée (date de Paris) au retour
+         * au premier plan et toutes les 5 minutes, sans relire le PDF ni écrire de stockage.
+         */
+        const bfgRiskMapValidity_ = {};
+        const BFG_RISK_MAP_WEEKDAYS_ = ['dimanche', 'lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi'];
+
+        function bfgRiskMapDateKey_(d, m, y) {
+            const day = Number(d), month = Number(m), year = Number(y);
+            if (!(day >= 1 && day <= 31 && month >= 1 && month <= 12 && year >= 2000 && year <= 2100)) return '';
+            return `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+        }
+
+        function bfgRiskMapParseValidityText_(text) {
+            const t = String(text || '').replace(/[’‘]/g, "'").replace(/[ \t ]+/g, ' ');
+            const date = '(\\d{1,2})\\s*\\/\\s*(\\d{1,2})\\s*\\/\\s*(\\d{4})';
+            let v = t.match(new RegExp(`Pr[ée]vision du danger[^\\n]*?pour le\\s+(?:[a-zéû]+\\s+)?${date}`, 'i'))
+                || t.match(new RegExp(`(?:Pour le|Aujourd'hui|Demain)\\s+(?:[a-zéû]+\\s+)?${date}`, 'i'));
+            const p = t.match(new RegExp(`produit le\\s+${date}(?:\\s*-\\s*(Matin|Apr[èe]s[- ]?midi|Soir))?`, 'i'));
+            const validDate = v ? bfgRiskMapDateKey_(v[1], v[2], v[3]) : '';
+            const producedDate = p ? bfgRiskMapDateKey_(p[1], p[2], p[3]) : '';
+            let moment = '';
+            if (p && p[4]) {
+                moment = /^matin$/i.test(p[4]) ? 'matin' : (/^soir$/i.test(p[4]) ? 'soir' : 'après-midi');
+            }
+            return { validDate, producedDate, moment: producedDate ? moment : '' };
+        }
+
+        function bfgRiskMapTodayParis_(now = new Date()) {
+            try {
+                const parts = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Paris', year: 'numeric', month: '2-digit', day: '2-digit' }).formatToParts(now);
+                const get = type => (parts.find(part => part.type === type) || {}).value;
+                return `${get('year')}-${get('month')}-${get('day')}`;
+            } catch (_) {
+                return bfgRiskMapDateKey_(now.getDate(), now.getMonth() + 1, now.getFullYear());
+            }
+        }
+
+        function bfgRiskMapShiftDay_(key, days) {
+            const [y, m, d] = key.split('-').map(Number);
+            const date = new Date(Date.UTC(y, m - 1, d + days));
+            return bfgRiskMapDateKey_(date.getUTCDate(), date.getUTCMonth() + 1, date.getUTCFullYear());
+        }
+
+        function bfgRiskMapShortDate_(key) {
+            const [, m, d] = key.split('-');
+            return `${d}/${m}`;
+        }
+
+        function bfgRiskMapWeekday_(key) {
+            const [y, m, d] = key.split('-').map(Number);
+            return BFG_RISK_MAP_WEEKDAYS_[new Date(Date.UTC(y, m - 1, d)).getUTCDay()];
+        }
+
+        function bfgRiskMapClassifyValidity_(info, now = new Date()) {
+            const unknown = { tone: 'unknown', text: 'Validité non lue — vérifier la date sur la carte' };
+            if (!info || !info.validDate) return unknown;
+            const today = bfgRiskMapTodayParis_(now);
+            if (!today) return unknown;
+            const valid = info.validDate;
+            const produced = info.producedDate;
+            const moment = info.moment ? ` ${info.moment}` : '';
+            const producedLabel = produced ? `produite le ${bfgRiskMapShortDate_(produced)}${moment}` : 'date de production non lue';
+            const validLabel = `${bfgRiskMapWeekday_(valid)} ${bfgRiskMapShortDate_(valid)}`;
+
+            if (valid < today) {
+                return { tone: 'expired', text: `CARTE PÉRIMÉE — valable le ${bfgRiskMapShortDate_(valid)}` };
+            }
+            if (valid === today) {
+                if (produced === today) {
+                    return { tone: 'today', text: `Valable le ${validLabel} — ${producedLabel}` };
+                }
+                if (produced && produced === bfgRiskMapShiftDay_(today, -1)) {
+                    return { tone: 'soft', text: `Valable le ${validLabel} — produite la veille (${bfgRiskMapShortDate_(produced)}${moment})` };
+                }
+                return { tone: 'soft', text: `Valable le ${validLabel} — ${producedLabel}` };
+            }
+            if (valid === bfgRiskMapShiftDay_(today, 1)) {
+                return { tone: 'soft', text: `Valable demain ${validLabel} — ${producedLabel}` };
+            }
+            return { tone: 'soft', text: `Valable le ${validLabel} — ${producedLabel}` };
+        }
+
+        function bfgRiskMapApplyValidity_(cfg) {
+            try {
+                const banner = document.getElementById(cfg.validityId);
+                const state = bfgRiskMapValidity_[cfg.metaKey];
+                if (!banner || !state || !state.done) return;
+                const result = bfgRiskMapClassifyValidity_(state.info);
+                if (banner.textContent !== result.text) banner.textContent = result.text;
+                banner.className = `risk-map-validity is-${result.tone}`;
+                banner.hidden = false;
+            } catch (error) {
+                console.warn('BFG : bandeau de validité carte risques non mis à jour.', error);
+            }
+        }
+
+        function bfgRiskMapRefreshValidityBanners_() {
+            Object.values(BFG_RISK_MAPS).forEach(bfgRiskMapApplyValidity_);
+        }
+
+        async function bfgRiskMapReadValidityText_(pdf) {
+            const page = await pdf.getPage(1);
+            const content = await page.getTextContent();
+            return (content.items || []).map(item => `${item.str || ''}${item.hasEOL ? '\n' : ' '}`).join('');
+        }
+
+        function bfgRiskMapStartValidityRead_(cfg, pdf) {
+            try {
+                const state = bfgRiskMapValidity_[cfg.metaKey] || (bfgRiskMapValidity_[cfg.metaKey] = { token: 0 });
+                const token = ++state.token;
+                const finish = info => {
+                    // Seule la dernière carte affichée donne son bandeau.
+                    if (state.token !== token) return;
+                    state.info = info;
+                    state.done = true;
+                    bfgRiskMapApplyValidity_(cfg);
+                };
+                setTimeout(() => {
+                    bfgRiskMapReadValidityText_(pdf)
+                        .then(text => finish(bfgRiskMapParseValidityText_(text)))
+                        .catch(error => {
+                            console.warn(`BFG : validité carte risques ${cfg.label} non lue.`, error);
+                            finish(null);
+                        });
+                }, 0);
+            } catch (error) {
+                console.warn('BFG : lecture de validité carte risques non lancée.', error);
+            }
+        }
+
         async function renderRiskMapPdfSource_(cfg, pdfSource, loadingLabel = '') {
             const pagesContainer = document.getElementById(cfg.pagesId);
             if (!pagesContainer) return;
@@ -8752,12 +8908,14 @@ const tdfStages = [
 
             // L’ancienne carte reste visible jusqu’à ce que la nouvelle soit totalement prête.
             pagesContainer.replaceChildren(...Array.from(staging.childNodes));
+            // v5.38 : bandeau de validité lu APRÈS l’affichage, sans attente.
+            bfgRiskMapStartValidityRead_(cfg, pdf);
         }
 
         async function renderRiskMapPdf_(cfg, cacheBuster) {
             const openLink = document.getElementById(cfg.openId);
             const pdfUrl = `${cfg.pdfUrl}&v=${cacheBuster}`;
-            const openUrl = cfg.openUrl.includes('meteo.fr')
+            const openUrl = (cfg.openUrl.includes('meteo.fr') || cfg.openUrl.includes('meteofrance.com'))
                 ? cfg.openUrl
                 : `${cfg.openUrl}?v=${cacheBuster}#zoom=150`;
 
@@ -8961,6 +9119,12 @@ const tdfStages = [
             if (forceMfBtn) {
                 forceMfBtn.addEventListener('click', forceRiskMapsMeteoFrance_);
             }
+
+            // v5.38 : couleur du bandeau de validité recalculée sans relire le PDF.
+            document.addEventListener('visibilitychange', () => {
+                if (document.visibilityState === 'visible') bfgRiskMapRefreshValidityBanners_();
+            });
+            setInterval(bfgRiskMapRefreshValidityBanners_, 5 * 60 * 1000);
 
             (async () => {
                 await loadCachedRiskMapsFirst_();

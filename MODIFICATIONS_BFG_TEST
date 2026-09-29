@@ -339,6 +339,12 @@ B5. LISTE DE CONTRÔLE DE PROMOTION — MENTIONS VISIBLES DE « SDVFR » (v5.23)
         coucher du soleil moins 30 min). »
       - À REPRENDRE à la prochaine promotion : lien PDF des SUP AIP pris
         dans le fichier des créneaux (pdfUrl, v5.37 ; aucun texte ajouté).
+      - À REPRENDRE à la prochaine promotion (v5.38) : boutons Météo-France des
+        cartes des risques vers https://pro.meteofrance.com/proxy/index/affiche/id/…
+        (l'ancienne adresse www.meteo.fr/extranets est fermée : la pérenne est
+        concernée) ; bandeau de validité des cartes des risques (textes ajoutés :
+        « Valable le… », « produite… », « CARTE PÉRIMÉE… », « Validité non lue… »,
+        aucune mention de SDVFR).
       - Éléments TEST uniquement ci-dessous : NON repris en v2026.29 (case
         « Afficher toutes les zones » absente, showAll forcé à false ; bouton
         de comparaison absent).
@@ -387,6 +393,80 @@ C. CONTRÔLES AVANT TOUTE LIVRAISON
       surligneur, repli hors ligne NAS) ;
     - nouvelle entrée ajoutée EN TÊTE de ce journal, sous cette section 0,
       historique intégralement conservé.
+TEST v5.38 — 2026-09-29
+Base : TEST v5.37
+===============================================================================
+
+CARTES DES RISQUES : NOUVELLE ADRESSE MÉTÉO-FRANCE ET BANDEAU DE VALIDITÉ.
+Aucune modification du NAS, du VPS ni de la pérenne dans cette livraison (le
+programme VPS des cartes a été corrigé à part : cartes National et Zone Sud du
+29/09 présentes sur le NAS).
+
+A. ADRESSE MÉTÉO-FRANCE (ancienne adresse http://www.meteo.fr/extranets fermée)
+- BFG_RISK_MAPS.openUrl : National -> https://pro.meteofrance.com/proxy/index/
+  affiche/id/298186 ; Zone Sud -> https://pro.meteofrance.com/proxy/index/
+  affiche/id/305344 (numéros inchangés).
+- renderRiskMapPdf_ : la condition reconnaît meteo.fr OU meteofrance.com ;
+  l'adresse Météo-France est utilisée telle quelle (sans ?v=…#zoom=150).
+- Recherche dans tout le dépôt : aucune autre mention de meteo.fr/extranets.
+  Restent, NON concernées : aviation.meteo.fr (TEMSI : sw.js et journal),
+  adresses mail @meteo.fr dans le texte des PDF.
+- Inchangés : pdfUrl get-risk-map-pdf.php, liens href initiaux des 2 boutons
+  (PDF du NAS), bouton « Forcer MAJ Météo-France » et ses adresses NAS.
+
+B. BANDEAU DE VALIDITÉ AU-DESSUS DE CHAQUE CARTE
+- Lecture du texte de la page 1 avec pdf.js (getTextContent) dans
+  renderRiskMapPdfSource_, lancée APRÈS l'affichage de la carte et sans
+  l'attendre : jamais de blocage ni de retard. Vaut aussi pour la carte restaurée
+  du cache local (hors ligne). Erreur de lecture -> bandeau orange.
+- Formats réels relevés le 29/09 (texte pdf.js, page 1) :
+    National : « Aujourd'hui mardi 29/09/2026 »
+               « Prévision du danger météorologique d'incendie pour le 29/09/2026 »
+               « produit le 29/09/2026 - Matin »
+    Zone Sud : « Pour le mardi 29/09/2026 »
+               « Prévision du danger météorologique feu de forêt expertisé par zone
+                 pour le 29/09/2026 »
+               « produit le 29/09/2026 - Matin »
+  Validité : « Prévision du danger … pour le JJ/MM/AAAA » (les 2 cartes), à défaut
+  « Pour le / Aujourd'hui / Demain [jour] JJ/MM/AAAA ». Production : « produit le
+  JJ/MM/AAAA [- Matin | Après-midi | Soir] » ; moment affiché seulement s'il est lu.
+- Couleurs (date du jour = date de Paris) :
+    vert foncé (texte blanc) : valable aujourd'hui et produite aujourd'hui ;
+    vert pastel : valable aujourd'hui, produite la veille ; valable demain ;
+    rouge (texte blanc) : validité antérieure à aujourd'hui (« CARTE PÉRIMÉE ») ;
+    orange : validité non lue (« Validité non lue — vérifier la date sur la carte »).
+  Cas non listés dans la demande, choix retenus : valable aujourd'hui mais
+  production plus ancienne que la veille ou non lue -> vert pastel avec la date
+  lue (ou « date de production non lue ») ; validité après demain -> vert pastel
+  « Valable le [jour] JJ/MM ».
+- Le bandeau suit la carte réellement affichée : jeton par carte (seule la
+  dernière carte affichée donne son bandeau) ; si une nouvelle carte échoue,
+  l'ancienne carte et son bandeau restent. Pendant la lecture (quelques
+  dizaines de ms après l'affichage), le bandeau précédent reste visible.
+- Dates gardées en mémoire seulement ; couleur recalculée au retour au premier
+  plan (visibilitychange) et toutes les 5 minutes, sans relire le PDF ni écrire
+  de stockage : une carte valable la veille passe au rouge après minuit.
+
+ESSAIS (Node, pdf.js 2.16.105, même version que BFG)
+- Les 2 PDF réels du NAS (29/09) : validité 29/09, production 29/09 matin ;
+  bandeau vert foncé « Valable le mardi 29/09 — produite le 29/09 matin ».
+- 5 cas de couleur simulés en changeant la date du jour dans l'essai : vert
+  foncé, vert pastel (veille), vert pastel (demain), rouge, orange : conformes.
+  Passage de minuit de Paris (23:59 vert foncé -> 00:00 rouge) : conforme.
+- Déroulé simulé : bandeau posé après l'affichage ; nouvelle carte en échec ->
+  ancienne carte et bandeau conservés ; deux rendus successifs -> seul le
+  dernier compte.
+
+VERSIONS
+- APP_VERSION_NUMBER 5.38, BFG_SW_VERSION 5.38, CACHE_NAME
+  'briefing-fdf-test-v5.38-risk-map-validity-r1', description du manifest.
+  Constantes figées à 5.07 NON modifiées (cf. 0.B1). sw.js : seules les 2
+  premières lignes changent (ordre des règles et purge 'briefing-fdf-test-'
+  inchangés).
+
+STATUTS v5.38
+- Boutons Météo-France : À MESURER sur iPad (ouverture de pro.meteofrance.com).
+- Bandeau de validité : À MESURER sur iPad (en ligne, hors ligne, après minuit).
 TEST v5.37 — 2026-09-29
 Base : TEST v5.36
 ===============================================================================

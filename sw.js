@@ -1,5 +1,5 @@
-const BFG_SW_VERSION = '5.37';
-const CACHE_NAME = 'briefing-fdf-test-v5.37-supaip-pdf-url-r1';
+const BFG_SW_VERSION = '5.38';
+const CACHE_NAME = 'briefing-fdf-test-v5.38-risk-map-validity-r1';
 
 const LOCAL_ASSETS = [
   './manifest.json',
