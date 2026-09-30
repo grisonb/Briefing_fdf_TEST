@@ -345,6 +345,10 @@ B5. LISTE DE CONTRÔLE DE PROMOTION — MENTIONS VISIBLES DE « SDVFR » (v5.23)
         concernée) ; bandeau de validité des cartes des risques (textes ajoutés :
         « Valable le… », « produite… », « CARTE PÉRIMÉE… », « Validité non lue… »,
         aucune mention de SDVFR).
+      - À PORTER EN PÉRENNE (v5.39) : FdS stricte du jour (getFdsTodayEntry_) :
+        plus de repli sur payload.file, date de today comparée au jour de Paris.
+        La pérenne a le même défaut (FdS du 29 affichée le 30/09 au matin).
+        Aucun texte ajouté.
       - Éléments TEST uniquement ci-dessous : NON repris en v2026.29 (case
         « Afficher toutes les zones » absente, showAll forcé à false ; bouton
         de comparaison absent).
@@ -393,6 +397,81 @@ C. CONTRÔLES AVANT TOUTE LIVRAISON
       surligneur, repli hors ligne NAS) ;
     - nouvelle entrée ajoutée EN TÊTE de ce journal, sous cette section 0,
       historique intégralement conservé.
+TEST v5.39 — 2026-09-30
+Base : TEST v5.38
+===============================================================================
+
+FEUILLE DE SERVICE : UNIQUEMENT CELLE DU JOUR (correction minimale).
+Aucune modification du NAS, du VPS, de la GAAR ni de la pérenne.
+
+1. CONSTAT (30/09 au matin, TEST et pérenne)
+- À l'ouverture, BFG a affiché la FdS du 29 comme « FDS du jour ». Le mail de la
+  FdS du 30 était arrivé le 29 à 18h38 mais n'était pas encore importé sur le NAS.
+- Réponse réelle de get-feuille-service-status.php (version
+  « get-feuille-service-status-v2-date-files », relevée le 30/09) : todayKey,
+  tomorrowKey (AAAAMMJJ), today{exists,dateKey,fileDate,…}, tomorrow{…}, file{…}.
+  « file » = dernier fichier connu, qui peut être celui de la veille.
+- Cause : getFdsTodayEntry_ retombait sur payload.file quand payload.today
+  n'existait pas. La FdS de la veille était chargée et la recherche Gmail
+  automatique de chargerDerniereFeuilleServiceAuDemarrage_ n'était jamais lancée.
+
+2. CORRECTION (index.html, getFdsTodayEntry_)
+- Même règle stricte que getGaarTodayEntry_ : on ne retourne que payload.today,
+  s'il existe ET si sa date (dateKey, sinon fileDate) est égale au jour de Paris
+  (payload.todayKey s'il est présent, sinon fdsParisDateKey_(0)). Repli sur
+  payload.file supprimé. Aucune autre ligne de code modifiée.
+
+3. LES 8 APPELS DE getFdsTodayEntry_ (9 occurrences avec la définition)
+- getFdsStatusSignature_ : la partie « jour » de la signature est vide quand il
+  n'y a pas de FdS du jour (avant : signature du dernier fichier). La détection
+  d'un changement reste valable (l'arrivée de la FdS du jour change la signature).
+- describeFdsStatusForWait_ : fonction non appelée ; sans effet.
+- loadFdsPdfFromNas_ : toujours appelée avec l'entrée à charger ; sans effet.
+- waitForTodayFdsStatusAtStartup_ (2 appels) : attend maintenant réellement la
+  FdS du jour (avant : sortait tout de suite avec celle de la veille). VOULU.
+- actualiserFeuilleServiceDepuisGmail_ (bouton « Actualiser ») : identique quand
+  la FdS du jour existe. Sans FdS du jour, n'affiche plus celle de la veille comme
+  « du jour actualisée » : message « Recherche Gmail terminée, mais aucune FDS du
+  jour disponible sur le NAS. ». VOULU.
+- chargerDerniereFeuilleServiceAuDemarrage_ (2 appels) : sans FdS du jour, lance
+  la recherche Gmail automatique (mécanisme v4.68, ~90 s, 1 appel + 3 relances),
+  puis charge la FdS du jour dès qu'elle est sur le NAS. VOULU.
+
+4. ESSAIS (Chromium 153 sans interface, NAS et Gmail simulés par interception,
+   Service Worker désactivé pour l'essai ; v5.38 et v5.39 comparées)
+- A today absent, file = veille : v5.38 affichait la veille ; v5.39 : rien
+  d'affiché, Gmail appelé, message d'attente, puis FdS du jour chargée à son
+  arrivée sur le NAS.
+- B today du jour : chargement normal, aucun appel Gmail ; identique à la v5.38.
+- C today daté de la veille (avec ou sans todayKey) : traité comme absent.
+- D NAS injoignable : aucune erreur de page ; FdS du jour déjà affichée conservée ;
+  FdS du jour restaurée de la mémoire locale au rechargement.
+- E bouton « Charger FDS du … » : fonctionne (today présent ou absent).
+- Bouton Actualiser, mode Manuel/Auto, hors ligne, règle 01h, GAAR : identiques
+  à la v5.38.
+
+5. AUTRES CHEMINS RELEVÉS, NON MODIFIÉS (À DÉCIDER)
+- Application restée ouverte depuis la veille : au réveil d'un nouveau jour, la
+  recherche est lancée mais la FdS de la veille RESTE à l'écran pendant la
+  recherche et après un échec (essai WAKE). La GAAR, elle, efface son diagramme.
+- Après ~90 s sans résultat, la recherche s'arrête : pas de nouvel essai avant un
+  clic sur « Actualiser », une réouverture ou un nouveau jour.
+- NAS injoignable alors que l'iPad est en ligne : le Service Worker sert la
+  dernière réponse de statut en cache ; si elle date de la veille, todayKey et
+  today y sont ceux de la veille et la règle (qui prend payload.todayKey) la
+  laisse passer. Parade possible : comparer à fdsParisDateKey_(0) seul. Même
+  chemin pour la GAAR. Lu dans sw.js, non essayé (Service Worker désactivé).
+- Avant 01h00 : une FdS locale de la veille est restaurée (règle existante).
+
+VERSIONS
+- APP_VERSION_NUMBER 5.39, BFG_SW_VERSION 5.39, CACHE_NAME
+  'briefing-fdf-test-v5.39-fds-stricte-du-jour-r1', description du manifest.
+  Constantes figées à 5.07 NON modifiées (cf. 0.B1). sw.js : seules les 2
+  premières lignes changent.
+
+STATUTS v5.39
+- FdS stricte du jour : À MESURER sur iPad (ouverture avant l'import du matin).
+- Chemins du point 5 : À DÉCIDER.
 TEST v5.38 — 2026-09-29
 Base : TEST v5.37
 ===============================================================================

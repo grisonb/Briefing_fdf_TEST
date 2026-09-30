@@ -3056,8 +3056,8 @@
     <footer>Données : Météo-France, SIA, Windy.com, SDVFR. Page non commerciale, à usage personnel.</footer>
     
     <script>
-        const APP_VERSION_NUMBER = "5.38";
-        const APP_VERSION = `${APP_VERSION_NUMBER} TEST - CARTES DES RISQUES : VALIDITE + METEO-FRANCE PRO`;
+        const APP_VERSION_NUMBER = "5.39";
+        const APP_VERSION = `${APP_VERSION_NUMBER} TEST - FDS STRICTE DU JOUR`;
 
 
         // v4.97 — diagnostic conservé ; plage NOTAM quotidienne et sélection prioritaire. Aucun code d'accès, token ou contenu NOTAM n'est exporté.
@@ -7911,9 +7911,16 @@ const tdfStages = [
         }
 
         function getFdsTodayEntry_(payload) {
-            if (payload && payload.today && payload.today.exists) return payload.today;
-            if (payload && payload.file && payload.file.exists) return payload.file;
-            return null;
+            // v5.39 — règle stricte, comme la GAAR : uniquement la FDS datée du jour (Paris).
+            // Ne pas utiliser payload.file en repli : c'est le dernier fichier connu du NAS, qui peut être
+            // celui de la veille tant que le mail du jour n'est pas importé. BFG l'affichait alors comme
+            // « FDS du jour » et ne lançait jamais la recherche Gmail automatique.
+            const entry = payload && payload.today && payload.today.exists ? payload.today : null;
+            if (!entry) return null;
+            const digits = value => String(value || '').replace(/\D/g, '');
+            const entryKey = digits(entry.dateKey || entry.fileDate);
+            const todayKey = digits(payload.todayKey) || fdsParisDateKey_(0);
+            return entryKey && entryKey === todayKey ? entry : null;
         }
 
         function getFdsTomorrowEntry_(payload) {
