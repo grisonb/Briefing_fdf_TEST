@@ -1,7 +1,7 @@
 {
   "name": "Briefing FDF TEST",
   "short_name": "Briefing TEST",
-  "description": "Briefing FDF TEST v5.39 — feuille de service : uniquement celle du jour, recherche Gmail automatique si elle manque",
+  "description": "Briefing FDF TEST v5.40 — NOTAM SOFIA (SIA) à la place des NOTAM SDVFR, recherche à la demande, alerte de fraîcheur",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",

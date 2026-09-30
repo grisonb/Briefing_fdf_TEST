@@ -1,5 +1,5 @@
-const BFG_SW_VERSION = '5.39';
-const CACHE_NAME = 'briefing-fdf-test-v5.39-fds-stricte-du-jour-r1';
+const BFG_SW_VERSION = '5.40';
+const CACHE_NAME = 'briefing-fdf-test-v5.40-notam-sofia-r1';
 
 const LOCAL_ASSETS = [
   './manifest.json',

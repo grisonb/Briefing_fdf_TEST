@@ -345,6 +345,15 @@ B5. LISTE DE CONTRÔLE DE PROMOTION — MENTIONS VISIBLES DE « SDVFR » (v5.23)
         concernée) ; bandeau de validité des cartes des risques (textes ajoutés :
         « Valable le… », « produite… », « CARTE PÉRIMÉE… », « Validité non lue… »,
         aucune mention de SDVFR).
+      - À PORTER EN PÉRENNE (v5.40), sur décision de Bastien seulement : NOTAM
+        SOFIA à la place des NOTAM SDVFR (fichier du NAS, recherche à la demande,
+        fenêtres de confirmation, alerte de fraîcheur, NATS désactivé). Le libellé
+        « SOFIA » est GARDÉ en pérenne (décision du 30/09/2026) : « Dernier
+        téléchargement NOTAM SOFIA », « NOTAM SOFIA à jour (recherche de …) »,
+        « NOTAM SOFIA : … », « Recherche SOFIA … », alerte « ⚠️ NOTAM SOFIA … »,
+        textes des deux fenêtres de confirmation. Aucune mention visible de SDVFR
+        ajoutée. Préalable : fichiers NAS *sofia-notams*.php et programme VPS
+        bfg-sofia-notams en service (déjà communs aux deux versions).
       - À PORTER EN PÉRENNE (v5.39) : FdS stricte du jour + date iPad (FdS et
         GAAR) + effacement FdS veille au changement de jour + bandeau
         00h00-06h00 + GAAR au changement de jour (diagramme du jour jamais
@@ -405,6 +414,130 @@ C. CONTRÔLES AVANT TOUTE LIVRAISON
       surligneur, repli hors ligne NAS) ;
     - nouvelle entrée ajoutée EN TÊTE de ce journal, sous cette section 0,
       historique intégralement conservé.
+TEST v5.40 — 2026-09-30
+Base : TEST v5.39
+===============================================================================
+
+NOTAM SOFIA (SIA) À LA PLACE DES NOTAM SDVFR. LA MÉTÉO RESTE SDVFR.
+Décisions de Bastien du 30/09/2026 (non rediscutées ici). Travail sur BFG TEST
+uniquement ; la pérenne n'est pas touchée et n'appelle aucun des fichiers ajoutés.
+LIVRAISON EN 3 PARTIES : A (NAS) et B (VPS) PRÉPARÉES, NON INSTALLÉES ; C (BFG)
+commitée en local, à pousser seulement après installation de A et B et accord.
+
+0. CONSTATS PRÉALABLES (30/09, lecture seule)
+- notams-auto-refresh.php (tâche DSM 06:30, et 09:45 depuis le 30/09) alimente le
+  fichier partagé de NPF-Q400 (npf-notams-snapshot-v1.json), pas BFG. BFG
+  n'affichait que les NOTAM SDVFR gardés sur l'iPad (première connexion du jour,
+  ou « Actualiser »).
+- SOFIA-Briefing (recherche par aérodrome, sans compte) donne pour les 27
+  pélicandromes le texte complet (français et anglais), les dates, les horaires
+  (champ D), F) et G). Pas d'en-tête CORS : impossible à interroger depuis Safari.
+- Mis en forme comme ci-dessous, le texte SOFIA est IDENTIQUE AU CARACTÈRE PRÈS à
+  celui de SDVFR : 165 NOTAM communs sur 165 (SDVFR : 175 ; SOFIA hors IFR : 165).
+- Écart du 29/09 (LFML A6100/26 vu par SDVFR, pas par SOFIA) : cause non
+  démontrable (texte non conservé). Le 30/09 il n'est plus ni dans SDVFR ni dans
+  SOFIA : fin ou annulation du NOTAM le 29 au matin, retirée de SOFIA avant SDVFR
+  (hypothèse la plus probable).
+
+A. NAS (~/nas-a-copier/a-installer-sofia-notams-2026-09-30/, 6 fichiers NOUVEAUX)
+- sofia-notams-lib.php, get-sofia-notams.php (lecture publique, comme
+  get-supaip-schedules.php), request-sofia-notams.php et
+  get-sofia-notams-status.php (session BFG connectée), get-sofia-notams-request.php
+  et update-sofia-notams.php (jeton du VPS). Configurations existantes lues, non
+  modifiées. Données dans briefing-data/sofia-notams/.
+- Règles : fichier de moins de 2 min réutilisé ; une seule demande à la fois
+  (les autres iPads la rejoignent) ; 12 demandes par heure au plus ; demande non
+  prise en charge en 45 s ou non terminée en 5 min -> erreur lisible.
+- Écrits pour PHP 7.3 ; essayés avec PHP 8.5 local et le programme VPS réel
+  (20 essais réussis). NON essayés sur le NAS.
+
+B. VPS (~/vps-a-copier/bfg-sofia-notams-1.0.0.tar.gz, programme NOUVEAU et séparé)
+- bfg_sofia_notams.py 1.0.0 : modes run (minuteur 06:30 et 10:00, heure de
+  Paris), serve (recherche à la demande, interroge le NAS toutes les 5 s),
+  dry-run, self-test (15 tests sur un relevé SOFIA réel). 8 demandes SOFIA (J à
+  J+7), 2 s de pause, 39 s mesurés le 30/09. NOTAM « IFR seulement » écartés
+  (51 le 30/09). Une seule recherche à la fois (verrou), résultat de moins de
+  2 min réutilisé. Aucun appel au NAS de 23:50 à 06:00.
+- Le worker SDVFR et le programme SUP AIP ne sont ni lus ni modifiés (seul le
+  jeton de dépôt est partagé, en lecture).
+- Archive SHA-256 bcf7bfd9da276aabff821d16e2bd5992ee57147b21c95bfc2ae5ee8d120c7971.
+
+C. BFG TEST v5.40 (index.html)
+- Lecture : à l'ouverture (session valide) et à chaque connexion, BFG lit
+  get-sofia-notams.php et range les NOTAM SOFIA à la place des NOTAM SDVFR
+  (même emplacement interne, mêmes sauvegardes locales). Un fichier plus ancien
+  que les NOTAM en mémoire est ignoré ; un fichier identique ne redessine rien.
+  Les NOTAM contenus dans la réponse SDVFR ne sont plus utilisés.
+- Affichage inchangé : le fichier a la forme d'une réponse SDVFR (code,
+  description), le texte est construit par la même fonction
+  (buildBfgNotamTextFromSdvfrResult_), même découpage, même tri (début de
+  validité croissant ; à égalité, série croissante puis numéro décroissant),
+  MÊMES IDENTIFIANTS (SDVFR-OACI-numéro, identifiant interne jamais affiché).
+- « Actualiser NOTAM » : fenêtre de confirmation dans l'application (« La
+  recherche complète des NOTAM sur SOFIA prend environ 1 minute. Continuer ? »,
+  Continuer / Annuler), puis demande au NAS, avancement (« Recherche SOFIA en
+  cours : jour n/8… »), lecture du fichier. Échec : « Recherche des NOTAM sur
+  SOFIA impossible : … Les NOTAM déjà affichés sont conservés. »
+  CHANGEMENT : ce bouton ne rafraîchit plus la météo (« Actualiser Météo » et
+  « Actualiser » le font).
+- « Actualiser » : fenêtre de confirmation, puis tout ce qu'il relançait, avec
+  la recherche SOFIA à la place de la demande NOTAM SDVFR ; la météo est une
+  demande SDVFR forcée séparée ; NATS n'est plus lancé.
+- Alerte rouge dans la section NOTAM (pas de secours SDVFR) : NOTAM SOFIA
+  absents ; pas du jour ; plus anciens que le dernier passage prévu (06:30 ou
+  10:00) une fois la marge de 15 min écoulée. Tolérance de 2 min (résultat
+  réutilisé par le VPS). Recalcul chaque minute et au retour au premier plan.
+- « Dernier téléchargement NOTAM SOFIA : … » : heure de la recherche sur SOFIA
+  (date du fichier), plus l'heure de lecture par l'iPad.
+- NATS : BFG_NATS_NOTAM_ENABLED_ = false. Bloc « Importation NOTAM » caché
+  (case NATS, « Actualiser NATS », lien NATS, import manuel du PDF), import
+  jamais lancé (connexion, ouverture, « Actualiser »). Code conservé.
+- Diagnostic : lignes « NOTAM SOFIA (fichier NAS) » et « Alerte NOTAM SOFIA ».
+- Essai de comparaison SOFIA / SDVFR : inchangé.
+
+ESSAIS (Chromium 153 sans interface, NAS / Gmail / SDVFR simulés, heure simulée ;
+fichier SOFIA réel du 30/09 13:09, réponse SDVFR réelle du cache NAS du 30/09)
+- Passage v5.39 -> v5.40 sur le même appareil : 165 NOTAM communs, mêmes
+  identifiants, même terrain, même ordre, même texte ; 2 cases cochées, 1
+  masquage, 1 surlignage conservés.
+- À SAVOIR : l'analyseur de BFG rattache au texte d'un NOTAM la ligne « numéro »
+  du NOTAM suivant (comportement existant). Un NOTAM dont le voisin disparaît
+  change donc d'empreinte. Le jour de la bascule, les NOTAM voisins d'un NOTAM
+  que SOFIA ne liste pas (7 sur 165 le 30/09) perdent leur case, leur masquage
+  ou leur surlignage : un NOTAM masqué peut réapparaître UNE fois. Cela arrive
+  déjà avec SDVFR chaque fois qu'un NOTAM voisin apparaît ou disparaît.
+- Filtre IFR : 51 NOTAM IFR écartés, aucun affiché.
+- Alerte : 10 cas (absent, veille, 06:31 vu à 10:20, 10:01, 09:59, marge non
+  écoulée, apparition à 10:16 application ouverte, 06:10 vu à 06:50…) conformes.
+- Fenêtres de confirmation des deux boutons : Continuer et Annuler conformes ;
+  Annuler ne lance rien.
+- Échecs de la recherche (SOFIA en panne, VPS muet, limite de fréquence) :
+  message clair, NOTAM affichés inchangés.
+- NATS caché et jamais appelé ; météo SDVFR affichée et rafraîchie comme avant.
+- Connexion / Déconnexion : identiques à la v5.39.
+- « Actualiser » : mêmes éléments relancés qu'en v5.39, moins NATS, plus SOFIA.
+- FdS, GAAR, bandeau horaire (essais v5.39 B, G, M, N, Q, W, K, L) : identiques.
+
+POINTS INCERTAINS / À DÉCIDER
+- PHP du NAS (7.3) non essayé ; SOFIA : aucune limite de charge connue ; passage
+  de 10:00 en même temps que le programme SUP AIP (qui interroge aussi SOFIA).
+- Application déjà ouverte à 10:00 : les NOTAM ne sont relus qu'à l'ouverture,
+  à la connexion ou par un bouton ; l'alerte apparaît à 10:15.
+- La liste des 27 terrains est fixée dans le programme VPS (même liste que
+  l'essai de comparaison) : à tenir à jour si BFG change de pélicandromes.
+- Le jour de la bascule, avant la première lecture réussie du fichier, des NOTAM
+  SDVFR du jour déjà en mémoire restent affichés (avec l'alerte).
+
+VERSIONS
+- APP_VERSION_NUMBER 5.40, BFG_SW_VERSION 5.40, CACHE_NAME
+  'briefing-fdf-test-v5.40-notam-sofia-r1', description du manifest.
+  Constantes figées à 5.07 NON modifiées (cf. 0.B1). sw.js : seules les 2
+  premières lignes changent (les nouvelles adresses NAS passent par le réseau,
+  sans cache du Service Worker).
+
+STATUTS v5.40
+- A (NAS) et B (VPS) : À INSTALLER par l'utilisateur.
+- C (BFG) : NON POUSSÉE ; À MESURER sur iPad après A et B.
 TEST v5.39 — 2026-09-30
 Base : TEST v5.38
 ===============================================================================

@@ -449,6 +449,26 @@
         }
         #bfg-night-banner[hidden] { display: none; }
         #bfg-night-banner strong { display: block; font-size: 1.1em; }
+        /* v5.40 : alerte NOTAM SOFIA absents, pas du jour ou plus anciens que le dernier passage prévu. */
+        #bfg-sofia-notam-alert {
+            box-sizing: border-box;
+            max-width: 900px;
+            margin: 8px auto 12px auto;
+            padding: 11px 14px;
+            border: 1px solid #8e1b1b;
+            border-left: 6px solid #6d1212;
+            border-radius: 9px;
+            background: #c62828;
+            color: #ffffff;
+            font-weight: 900;
+            text-align: center;
+            line-height: 1.35;
+        }
+        #bfg-sofia-notam-alert[hidden] { display: none; }
+        /* v5.40 : fenêtre de confirmation dans l'application (même habillage que la fenêtre pélicandrome). */
+        .bfg-confirm-message { padding: 18px 18px 6px 18px; font-size: 1.08em; line-height: 1.45; text-align: center; color: #26384d; }
+        .bfg-confirm-actions { display: flex; flex-wrap: wrap; gap: 12px; justify-content: center; padding: 12px 18px 18px 18px; }
+        .bfg-confirm-actions .link-button { min-width: 130px; margin: 0; }
         .risk-map-validity.is-today { background: #1e7b34; color: #ffffff; }
         .risk-map-validity.is-soft { background: #cdeecf; color: #14532d; }
         .risk-map-validity.is-expired { background: #c0392b; color: #ffffff; }
@@ -2758,6 +2778,17 @@
         <div id="pelic-dispo-display" class="abe-dispo-panel" style="display: none;"></div>
     </div>
 
+    <!-- v5.40 : confirmation dans l'application avant une recherche complète des NOTAM sur SOFIA. -->
+    <div id="bfg-confirm-modal" class="pelic-map-modal" role="dialog" aria-modal="true" aria-labelledby="bfg-confirm-title" aria-hidden="true">
+        <div class="pelic-map-modal-card">
+            <div class="pelic-map-modal-header"><h4 id="bfg-confirm-title">Confirmation</h4></div>
+            <div id="bfg-confirm-message" class="bfg-confirm-message"></div>
+            <div class="bfg-confirm-actions">
+                <button type="button" id="bfg-confirm-cancel" class="link-button" style="background-color:#6c757d;">Annuler</button>
+                <button type="button" id="bfg-confirm-ok" class="link-button" style="background-color:#2980b9;">Continuer</button>
+            </div>
+        </div>
+    </div>
     <div id="pelic-map-modal" class="pelic-map-modal briefing-protected-data briefing-sensitive-hidden" aria-hidden="true">
         <div class="pelic-map-modal-card">
             <div class="pelic-map-modal-header">
@@ -2924,6 +2955,7 @@
     
     <div class="notam-section" id="notam-section">
         <h2>Analyse des NOTAMs et Météo</h2>
+        <div id="bfg-sofia-notam-alert" role="alert" hidden></div>
         <div id="notam-input-area" style="display: none;">
             <p style="text-align:center; margin-bottom:15px;">Chargez un PDF de NOTAMs pour extraire automatiquement le texte, ou collez un bulletin manuellement.</p>
             <textarea id="notam-input" placeholder="Le texte des NOTAMs apparaîtra ici..."></textarea>
@@ -2958,7 +2990,7 @@
                 <button class="link-button save-pdf-action">Sauvegarder en Pdf</button>
             </div>
         </div>
-        <p id="notam-download-status" style="text-align:center;font-weight:700;margin:8px 0 4px;">Dernier téléchargement NOTAM : —</p>
+        <p id="notam-download-status" style="text-align:center;font-weight:700;margin:8px 0 4px;">Dernier téléchargement NOTAM SOFIA : —</p>
         <p id="notam-sdvfr-import-status" style="text-align:center;margin:4px 0 10px;"></p>
         <div id="notam-display"></div>
         <div id="notam-controls-bottom" class="notam-controls">
@@ -3073,8 +3105,8 @@
     <footer>Données : Météo-France, SIA, Windy.com, SDVFR. Page non commerciale, à usage personnel.</footer>
     
     <script>
-        const APP_VERSION_NUMBER = "5.39";
-        const APP_VERSION = `${APP_VERSION_NUMBER} TEST - FDS STRICTE DU JOUR`;
+        const APP_VERSION_NUMBER = "5.40";
+        const APP_VERSION = `${APP_VERSION_NUMBER} TEST - NOTAM SOFIA`;
 
 
         // v4.97 — diagnostic conservé ; plage NOTAM quotidienne et sélection prioritaire. Aucun code d'accès, token ou contenu NOTAM n'est exporté.
@@ -3275,6 +3307,12 @@
             } catch (e) { push('Visibilité NOTAM :', `ERREUR ${e && e.message || e}`); }
             try { push('Texte SDVFR mémoire :', bfgDiagFormatBytes_(bfgDiagTextSize_(bfgNotamSourceTexts_ && bfgNotamSourceTexts_.SDVFR))); } catch (_) { push('Texte SDVFR mémoire :', 'indisponible'); }
             try { push('Texte NATS mémoire :', bfgDiagFormatBytes_(bfgDiagTextSize_(bfgNotamSourceTexts_ && bfgNotamSourceTexts_.NATS))); } catch (_) { push('Texte NATS mémoire :', 'indisponible'); }
+            try {
+                // v5.40 : l'emplacement « SDVFR » contient désormais les NOTAM SOFIA (fichier du NAS).
+                const sofiaMeta = readBfgSofiaNotamMeta_();
+                push('NOTAM SOFIA (fichier NAS) :', sofiaMeta ? `généré ${sofiaMeta.generatedAt} | lu ${sofiaMeta.readAt || ''}` : 'ABSENT');
+                push('Alerte NOTAM SOFIA :', getBfgSofiaNotamAlertText_() || 'aucune');
+            } catch (e) { push('NOTAM SOFIA :', `ERREUR ${e && e.message || e}`); }
             try {
                 const daily = typeof loadSdvfrDailyCache_ === 'function' ? loadSdvfrDailyCache_() : null;
                 push('localStorage SDVFR :', daily ? `OK | ${bfgDiagFormatBytes_(bfgDiagTextSize_(daily.rawText))} | ${daily.savedAt || ''} | jour ${daily.day || ''}` : 'ABSENT/INVALIDE');
@@ -3926,6 +3964,15 @@ const tdfStages = [
         const NOTAMS_GENERATION_STATUS_API_URL = 'https://grisonb.synology.me/briefing-api/get-notams-generation-status.php';
         const SDVFR_NOTAMS_REQUEST_API_URL = 'https://grisonb.synology.me/briefing-api/request-sdvfr-notams.php';
         const SDVFR_NOTAMS_RESULT_API_URL = 'https://grisonb.synology.me/briefing-api/get-sdvfr-notams-result.php';
+        // v5.40 — NOTAM affichés : SOFIA (SIA). Le programme VPS bfg-sofia-notams dépose sur le NAS le
+        // fichier des 27 pélicandromes (06:30, 10:00 et recherches à la demande). La météo reste SDVFR.
+        const SOFIA_NOTAMS_FILE_API_URL = 'https://grisonb.synology.me/briefing-api/get-sofia-notams.php';
+        const SOFIA_NOTAMS_REQUEST_API_URL = 'https://grisonb.synology.me/briefing-api/request-sofia-notams.php';
+        const SOFIA_NOTAMS_STATUS_API_URL = 'https://grisonb.synology.me/briefing-api/get-sofia-notams-status.php';
+        const BFG_SOFIA_NOTAM_META_KEY_ = 'briefingFdfSofiaNotamMetaV1';
+        // v5.40 — PDF NATS désactivé (bloc « Importation NOTAM » caché, import jamais lancé).
+        // Pour le réactiver : remettre true. Tout le code NATS est conservé.
+        const BFG_NATS_NOTAM_ENABLED_ = false;
         const SDVFR_TEMPORARY_AIRSPACES_API_URL = 'https://grisonb.synology.me/briefing-api/get-sdvfr-temporary-airspaces.php';
         const BFG_SUPAIP_MAP_CACHE_NAME_ = 'briefing-fdf-supaip-map-v1';
         const BFG_SUPAIP_MAP_CACHE_PATH_ = '/__bfg_offline__/supaip-temporary-airspaces.json';
@@ -4487,9 +4534,9 @@ const tdfStages = [
         function endBfgNotamSteps_(success, failureMode = 'hide') {
             bfgNotamStepsActive_ = false;
             if (success) {
-                // v5.29 — heure réelle de récupération auprès de SDVFR, si le NAS la fournit.
-                const fetchedLabel = bfgSdvfrFetchedLabel_({ fetchedAtOldest: bfgSdvfrLastFetchedAt_ });
-                setBfgNotamLoadingBanner_(true, fetchedLabel ? `NOTAM à jour (récupérés à ${fetchedLabel})` : 'NOTAM à jour', { autoHideMs: 3000 });
+                // v5.40 — heure de la recherche sur SOFIA (date du fichier lu sur le NAS).
+                const fetchedLabel = bfgSofiaNotamTimeLabel_();
+                setBfgNotamLoadingBanner_(true, fetchedLabel ? `NOTAM SOFIA à jour (recherche de ${fetchedLabel})` : 'NOTAM SOFIA à jour', { autoHideMs: 3000 });
             } else if (failureMode === 'fallback' && !hasDisplayedBfgNotams_()) {
                 setBfgNotamLoadingBanner_(true, 'Chargement des NOTAM en cours...');
             } else if (failureMode === 'error' && !hasDisplayedBfgNotams_()) {
@@ -4519,7 +4566,7 @@ const tdfStages = [
         try { localStorage.removeItem('briefingFdfUseNatsAsNotamSourceV1'); } catch (_) {}
 
         function isBfgUseNatsNotamSource_() {
-            return bfgUseNatsNotamSource_ === true;
+            return BFG_NATS_NOTAM_ENABLED_ && bfgUseNatsNotamSource_ === true;
         }
 
         function setBfgUseNatsNotamSource_(enabled) {
@@ -4661,7 +4708,11 @@ const tdfStages = [
                 const cached = loadSdvfrDailyCache_();
                 iso = String(cached && cached.savedAt || '');
             }
-            el.textContent = `Dernier téléchargement NOTAM : ${formatBfgNotamDownloadDateTime_(iso)}`;
+            // v5.40 : pour SOFIA, l'heure est celle de la recherche sur SOFIA (date du fichier du NAS).
+            el.textContent = getBfgDisplayedNotamSource_() === BFG_NOTAM_SOURCE_NATS_
+                ? `Dernier téléchargement NOTAM : ${formatBfgNotamDownloadDateTime_(iso)}`
+                : `Dernier téléchargement NOTAM SOFIA : ${formatBfgNotamDownloadDateTime_(iso)}`;
+            updateBfgSofiaNotamAlert_();
         }
 
         function loadSdvfrDailyCache_() {
@@ -4685,10 +4736,11 @@ const tdfStages = [
             }
         }
 
-        function saveSdvfrDailyCache_(rawText, resultPayload) {
+        function saveSdvfrDailyCache_(rawText, resultPayload, options = {}) {
             const text = String(rawText || '').trim();
             if (!text) return;
-            const savedAt = new Date().toISOString();
+            // v5.40 : options.savedAt = heure de la recherche SOFIA (date du fichier du NAS).
+            const savedAt = options && options.savedAt ? String(options.savedAt) : new Date().toISOString();
             bfgDiagLog_('NOTAM-SAVE', 'Sauvegarde SDVFR du jour demandée', { bytes: bfgDiagTextSize_(text), savedAt });
 
             // Cache localStorage minimal de secours : une seule copie du texte, aucun payload SDVFR complet.
@@ -6093,6 +6145,364 @@ const tdfStages = [
             }
         }
 
+        /*
+         * v5.40 — NOTAM SOFIA (SIA) à la place des NOTAM SDVFR. La météo reste SDVFR.
+         *   - Lecture : fichier du NAS (get-sofia-notams.php), déposé par le programme VPS
+         *     bfg-sofia-notams à 06:30, à 10:00 et après chaque recherche à la demande. BFG le lit à
+         *     l'ouverture et à la connexion.
+         *   - Recherche à la demande (« Actualiser NOTAM », « Actualiser ») : iPad -> NAS -> VPS ->
+         *     SOFIA -> NAS -> iPad, environ 1 minute, après confirmation dans l'application.
+         *   - Le fichier a la forme d'une réponse SDVFR (airports[].notams[{ code, description }]) :
+         *     le texte construit, le découpage, le tri et les identifiants des NOTAM sont inchangés,
+         *     donc les cases cochées, masquages et surlignages sont conservés. Les NOTAM SOFIA sont
+         *     rangés à la place des NOTAM SDVFR (même emplacement interne, mêmes sauvegardes locales).
+         *   - Pas de secours SDVFR : une alerte visible signale des NOTAM absents, pas du jour, ou
+         *     plus anciens que le dernier passage prévu (06:30 ou 10:00, marge de 15 minutes).
+         */
+        const BFG_SOFIA_PASSES_ = [[10, 0], [6, 30]];            // du plus tardif au plus matinal
+        const BFG_SOFIA_PASS_MARGIN_S_ = 15 * 60;                // marge après l'heure prévue
+        const BFG_SOFIA_PASS_TOLERANCE_S_ = 2 * 60;              // recherche de moins de 2 min réutilisée par le VPS
+        const BFG_SOFIA_SEARCH_MAX_WAIT_MS_ = 210000;
+        const BFG_SOFIA_SEARCH_POLL_MS_ = 2500;
+
+        function readBfgSofiaNotamMeta_() {
+            try {
+                const meta = JSON.parse(localStorage.getItem(BFG_SOFIA_NOTAM_META_KEY_) || 'null');
+                return meta && typeof meta.generatedAt === 'string' && meta.generatedAt ? meta : null;
+            } catch (_) {
+                return null;
+            }
+        }
+
+        function writeBfgSofiaNotamMeta_(generatedAt) {
+            try {
+                localStorage.setItem(BFG_SOFIA_NOTAM_META_KEY_, JSON.stringify({ version: 1, generatedAt: String(generatedAt || ''), readAt: new Date().toISOString() }));
+            } catch (_) {}
+        }
+
+        function bfgSofiaParisParts_(date) {
+            const parts = new Intl.DateTimeFormat('en-GB', { timeZone: 'Europe/Paris', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).formatToParts(date);
+            const get = type => (parts.find(part => part.type === type) || {}).value || '';
+            return { day: `${get('year')}-${get('month')}-${get('day')}`, dayLabel: `${get('day')}/${get('month')}`, time: `${String(Number(get('hour')) % 24).padStart(2, '0')}:${get('minute')}` };
+        }
+
+        function bfgSofiaNotamTimeLabel_() {
+            const meta = readBfgSofiaNotamMeta_();
+            const date = meta ? new Date(meta.generatedAt) : null;
+            if (!date || Number.isNaN(date.getTime())) return '';
+            try { return bfgSofiaParisParts_(date).time; } catch (_) { return ''; }
+        }
+
+        // Texte de l'alerte, ou '' si les NOTAM SOFIA en mémoire sont du jour et à jour.
+        function getBfgSofiaNotamAlertText_(now = new Date()) {
+            const action = 'Lancer « Actualiser NOTAM ».';
+            const meta = readBfgSofiaNotamMeta_();
+            const generated = meta ? new Date(meta.generatedAt) : null;
+            const hasText = !!String(bfgNotamSourceTexts_.SDVFR || '').trim();
+            if (!hasText || !generated || Number.isNaN(generated.getTime())) {
+                return `⚠️ NOTAM SOFIA absents. ${action}`;
+            }
+            const nowParis = bfgSofiaParisParts_(now);
+            const generatedParis = bfgSofiaParisParts_(generated);
+            if (generatedParis.day !== nowParis.day) {
+                return `⚠️ NOTAM SOFIA du ${generatedParis.dayLabel} à ${generatedParis.time} : ils ne sont pas du jour. ${action}`;
+            }
+            const nowSeconds = bfgParisSecondsOfDay_(now);
+            const generatedSeconds = bfgParisSecondsOfDay_(generated);
+            for (const [hour, minute] of BFG_SOFIA_PASSES_) {
+                const pass = hour * 3600 + minute * 60;
+                if (nowSeconds < pass + BFG_SOFIA_PASS_MARGIN_S_) continue;
+                // Dernier passage qui aurait dû avoir lieu : les NOTAM doivent en venir (ou être plus récents).
+                if (generatedSeconds < pass - BFG_SOFIA_PASS_TOLERANCE_S_) {
+                    const passLabel = `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
+                    return `⚠️ NOTAM SOFIA de ${generatedParis.time} : plus anciens que la recherche prévue à ${passLabel}. ${action}`;
+                }
+                break;
+            }
+            return '';
+        }
+
+        function updateBfgSofiaNotamAlert_() {
+            try {
+                const alertBox = document.getElementById('bfg-sofia-notam-alert');
+                if (!alertBox) return;
+                const text = getBfgDisplayedNotamSource_() === BFG_NOTAM_SOURCE_SDVFR_ ? getBfgSofiaNotamAlertText_() : '';
+                if (alertBox.textContent !== text) alertBox.textContent = text;
+                alertBox.hidden = !text;
+            } catch (error) {
+                console.warn('BFG : alerte NOTAM SOFIA non mise à jour.', error);
+            }
+        }
+
+        // L'alerte suit l'heure : recalcul chaque minute et au retour de l'application au premier plan.
+        setInterval(updateBfgSofiaNotamAlert_, 60000);
+        setTimeout(updateBfgSofiaNotamAlert_, 3000);
+        window.addEventListener('pageshow', () => updateBfgSofiaNotamAlert_());
+        document.addEventListener('visibilitychange', () => {
+            if (!document.hidden) updateBfgSofiaNotamAlert_();
+        });
+
+        /* Fenêtre de confirmation dans l'application (non bloquante, pas d'alert()).
+         * Renvoie une promesse : true pour « Continuer », false pour « Annuler ». */
+        let bfgConfirmOpen_ = false;
+
+        function bfgConfirmInApp_(message) {
+            return new Promise(resolve => {
+                const modal = document.getElementById('bfg-confirm-modal');
+                const text = document.getElementById('bfg-confirm-message');
+                const okButton = document.getElementById('bfg-confirm-ok');
+                const cancelButton = document.getElementById('bfg-confirm-cancel');
+                if (!modal || !text || !okButton || !cancelButton || bfgConfirmOpen_) {
+                    resolve(false);
+                    return;
+                }
+                bfgConfirmOpen_ = true;
+                text.textContent = String(message || '');
+                const close = (answer) => {
+                    okButton.removeEventListener('click', onOk);
+                    cancelButton.removeEventListener('click', onCancel);
+                    modal.removeEventListener('click', onBackdrop);
+                    document.removeEventListener('keydown', onKey);
+                    modal.classList.remove('visible');
+                    modal.setAttribute('aria-hidden', 'true');
+                    bfgConfirmOpen_ = false;
+                    resolve(answer);
+                };
+                const onOk = () => close(true);
+                const onCancel = () => close(false);
+                const onBackdrop = (event) => { if (event.target === modal) close(false); };
+                const onKey = (event) => { if (event.key === 'Escape') close(false); };
+                okButton.addEventListener('click', onOk);
+                cancelButton.addEventListener('click', onCancel);
+                modal.addEventListener('click', onBackdrop);
+                document.addEventListener('keydown', onKey);
+                modal.classList.add('visible');
+                modal.setAttribute('aria-hidden', 'false');
+            });
+        }
+
+        async function fetchSofiaNotamFile_() {
+            let response;
+            try {
+                response = await fetchWithTimeout_(`${SOFIA_NOTAMS_FILE_API_URL}?t=${Date.now()}`, { cache: 'no-store', headers: { 'Accept': 'application/json' } }, 15000);
+            } catch (networkError) {
+                throw new Error('serveur injoignable');
+            }
+            const payload = await response.json().catch(() => null);
+            const data = payload && payload.data;
+            if (!response.ok || !payload || payload.ok !== true || !data || data.schema !== 'bfg-sofia-notams-v1'
+                || !Array.isArray(data.airports) || !data.generatedAt || Number.isNaN(new Date(data.generatedAt).getTime())) {
+                throw new Error(payload && payload.message ? String(payload.message) : 'fichier NOTAM SOFIA indisponible sur le serveur');
+            }
+            return data;
+        }
+
+        // Range le fichier SOFIA à la place des NOTAM SDVFR. Renvoie 'applied', 'unchanged' ou 'older'.
+        function applySofiaNotamFile_(data, options = {}) {
+            const rawText = String(buildBfgNotamTextFromSdvfrResult_(data) || '').trim();
+            if (!rawText) throw new Error('le fichier NOTAM SOFIA ne contient aucun NOTAM');
+            const generatedAt = new Date(data.generatedAt).toISOString();
+            const previous = readBfgSofiaNotamMeta_();
+            const inMemory = String(bfgNotamSourceTexts_.SDVFR || '').trim();
+            if (previous && inMemory && hasTodayBfgNotamsInMemory_()) {
+                // Jamais de retour en arrière : un fichier plus ancien que les NOTAM SOFIA en mémoire est ignoré.
+                if (options.force !== true && new Date(generatedAt).getTime() < new Date(previous.generatedAt).getTime()) {
+                    updateBfgSofiaNotamAlert_();
+                    return 'older';
+                }
+                // Même fichier, même texte : pas de nouvel affichage (rien ne bouge à l'écran).
+                if (previous.generatedAt === generatedAt && inMemory === rawText) {
+                    updateBfgSofiaNotamAlert_();
+                    return 'unchanged';
+                }
+            }
+            bfgSdvfrLatestResult_ = null;
+            rememberBfgNotamSourceText_(BFG_NOTAM_SOURCE_SDVFR_, rawText);
+            writeBfgSofiaNotamMeta_(generatedAt);
+            saveSdvfrDailyCache_(rawText, null, { savedAt: generatedAt });
+            saveBfgNotamQuickCache_();
+            if (options.render !== false && getBfgDisplayedNotamSource_() === BFG_NOTAM_SOURCE_SDVFR_) {
+                renderCombinedBfgNotamSources_();
+            }
+            updateNotamDownloadStatus_();
+            return 'applied';
+        }
+
+        // Lecture du fichier du NAS (ouverture, connexion). Ne lance AUCUNE recherche sur SOFIA.
+        async function loadSofiaNotamsFromNas_(options = {}) {
+            const statusElement = document.getElementById('notam-sdvfr-import-status');
+            if (isBfgOffline_()) {
+                updateBfgSofiaNotamAlert_();
+                return false;
+            }
+            try {
+                if (options.steps) setBfgNotamStep_('Lecture des NOTAM SOFIA…');
+                const data = await fetchSofiaNotamFile_();
+                if (options.steps) {
+                    setBfgNotamStep_('Affichage des NOTAM…');
+                    await bfgNextPaint_();
+                }
+                const outcome = applySofiaNotamFile_(data);
+                bfgDiagLog_('NOTAM', 'Fichier NOTAM SOFIA lu sur le NAS', { résultat: outcome, généré: data.generatedAt, notam: data.totalNotams || 0 });
+                if (statusElement && outcome === 'applied') {
+                    statusElement.classList.remove('warning');
+                    statusElement.textContent = `NOTAM SOFIA : ${Number(data.totalNotams || 0)} NOTAM(s) lus sur le serveur (recherche de ${bfgSofiaNotamTimeLabel_()}).`;
+                }
+                if (options.steps) endBfgNotamSteps_(true);
+                return true;
+            } catch (error) {
+                const message = String(error && error.message || error).replace(/[.\s]+$/, '');
+                bfgDiagLog_('NOTAM', 'Lecture du fichier NOTAM SOFIA impossible', { message });
+                if (options.steps) endBfgNotamSteps_(false, 'error');
+                if (statusElement) {
+                    statusElement.classList.add('warning');
+                    statusElement.textContent = `NOTAM SOFIA : lecture impossible (${message}). Les NOTAM déjà affichés sont conservés.`;
+                }
+                updateBfgSofiaNotamAlert_();
+                return false;
+            }
+        }
+
+        // Recherche complète sur SOFIA, à la demande. Une seule à la fois dans BFG ; le NAS et le VPS
+        // n'en lancent qu'une à la fois pour tous les iPads et réutilisent un résultat de moins de 2 min.
+        let bfgSofiaSearchPromise_ = null;
+
+        async function runSofiaNotamSearch_() {
+            if (bfgSofiaSearchPromise_) return bfgSofiaSearchPromise_;
+            bfgSofiaSearchPromise_ = runSofiaNotamSearchOnce_();
+            try {
+                return await bfgSofiaSearchPromise_;
+            } finally {
+                bfgSofiaSearchPromise_ = null;
+            }
+        }
+
+        async function runSofiaNotamSearchOnce_() {
+            const tokenInfo = getStoredCncascToken_();
+            if (!tokenInfo) throw new Error('accès Briefing verrouillé');
+            const headers = { 'Authorization': `Bearer ${tokenInfo.token}`, 'Accept': 'application/json' };
+
+            setBfgNotamStep_('Recherche SOFIA : demande envoyée…');
+            bfgDiagLog_('NOTAM', 'Recherche SOFIA à la demande : demande envoyée au NAS');
+            let payload = null;
+            try {
+                const response = await fetch(SOFIA_NOTAMS_REQUEST_API_URL, { method: 'POST', cache: 'no-store', headers: { ...headers, 'Content-Type': 'application/json' }, body: '{}' });
+                payload = await response.json().catch(() => null);
+            } catch (networkError) {
+                throw new Error('serveur injoignable');
+            }
+            if (!payload || payload.ok !== true) {
+                throw new Error(payload && payload.message ? String(payload.message) : 'demande refusée par le serveur');
+            }
+
+            if (payload.status !== 'success') {
+                const requestId = String(payload.requestId || '');
+                if (!requestId) throw new Error('réponse du serveur incomplète');
+                const startedAt = Date.now();
+                setBfgNotamStep_('Recherche SOFIA : en attente du serveur…');
+                for (;;) {
+                    if (Date.now() - startedAt > BFG_SOFIA_SEARCH_MAX_WAIT_MS_) {
+                        throw new Error('la recherche n’a pas répondu à temps');
+                    }
+                    await new Promise(resolve => setTimeout(resolve, BFG_SOFIA_SEARCH_POLL_MS_));
+                    let status = null;
+                    try {
+                        const response = await fetch(`${SOFIA_NOTAMS_STATUS_API_URL}?requestId=${encodeURIComponent(requestId)}&t=${Date.now()}`, { cache: 'no-store', headers });
+                        status = await response.json().catch(() => null);
+                    } catch (_) {
+                        continue;   // coupure passagère : nouvel essai jusqu'au délai maximal
+                    }
+                    if (!status || status.ok !== true) {
+                        if (status && (status.error === 'unknown_request' || status.error === 'unauthorized')) {
+                            throw new Error(status.message ? String(status.message) : 'demande perdue');
+                        }
+                        continue;
+                    }
+                    if (status.status === 'success') break;
+                    if (status.status === 'error') {
+                        throw new Error(status.message ? String(status.message) : 'recherche SOFIA impossible');
+                    }
+                    setBfgNotamStep_(status.status === 'running' && Number(status.steps) > 0 && Number(status.step) > 0
+                        ? `Recherche SOFIA en cours : jour ${Number(status.step)}/${Number(status.steps)}…`
+                        : 'Recherche SOFIA : en attente du serveur…');
+                }
+            }
+
+            setBfgNotamStep_('Lecture des NOTAM SOFIA…');
+            const data = await fetchSofiaNotamFile_();
+            setBfgNotamStep_('Affichage des NOTAM…');
+            await bfgNextPaint_();
+            applySofiaNotamFile_(data, { force: true });
+            bfgDiagLog_('NOTAM', 'Recherche SOFIA à la demande terminée', { généré: data.generatedAt, notam: data.totalNotams || 0, réutilisé: payload.reused === true });
+            return data;
+        }
+
+        // Bouton « Actualiser NOTAM » (avec confirmation) et NOTAM du bouton « Actualiser » (sans
+        // seconde confirmation). En cas d'échec : message clair, NOTAM déjà affichés conservés.
+        async function actualiserNotamSofia_(event, options = {}) {
+            if (event) {
+                event.preventDefault();
+                event.stopPropagation();
+            }
+            const button = document.getElementById('notam-refresh-btn');
+            const statusElement = document.getElementById('notam-sdvfr-import-status');
+            const setStatus = (text, warning) => {
+                if (!statusElement) return;
+                statusElement.classList.toggle('warning', !!warning);
+                statusElement.textContent = text;
+            };
+
+            if (!getStoredCncascToken_()) {
+                setStatus("NOTAM : accès verrouillé — déverrouiller d'abord l'accès Briefing.", true);
+                return false;
+            }
+            if (isBfgOffline_()) {
+                setStatus('NOTAM SOFIA : recherche impossible hors ligne. Les NOTAM déjà affichés sont conservés.', true);
+                return false;
+            }
+            if (options.confirm !== false) {
+                const confirmed = await bfgConfirmInApp_('La recherche complète des NOTAM sur SOFIA prend environ 1 minute. Continuer ?');
+                if (!confirmed) return false;
+            }
+
+            try {
+                if (button) button.disabled = true;
+                setStatus('NOTAM SOFIA : recherche en cours...', false);
+                const data = await runSofiaNotamSearch_();
+                updateNotamDownloadStatus_();
+                endBfgNotamSteps_(true);
+                const displayedCount = document.querySelectorAll('#notam-display .notam-item').length;
+                if (typeof window.performBfgLocalSave_ === 'function') {
+                    await window.performBfgLocalSave_();
+                }
+                setStatus(`NOTAM SOFIA : ${Number(data && data.totalNotams || displayedCount)} NOTAM(s) — recherche de ${bfgSofiaNotamTimeLabel_()}.`, false);
+                return true;
+            } catch (error) {
+                const message = String(error && error.message || error).replace(/[.\s]+$/, '');
+                console.error('Recherche NOTAM SOFIA impossible :', error);
+                bfgDiagLog_('NOTAM', 'Recherche SOFIA à la demande : échec', { message });
+                const text = `Recherche des NOTAM sur SOFIA impossible : ${message}. Les NOTAM déjà affichés sont conservés.`;
+                bfgNotamStepsActive_ = false;
+                setBfgNotamLoadingBanner_(true, text, { error: true, autoHideMs: 15000 });
+                setStatus(text, true);
+                updateBfgSofiaNotamAlert_();
+                return false;
+            } finally {
+                if (button) button.disabled = false;
+            }
+        }
+
+        // Bouton « Actualiser » : même confirmation préalable (la recherche SOFIA prend environ 1 minute).
+        async function actualiserToutBriefingAvecConfirmation_() {
+            // Sans session, hors ligne ou déjà en cours : messages existants, sans fenêtre.
+            if (!getStoredCncascToken_() || bfgGlobalRefreshRunning_ || !navigator.onLine) {
+                return actualiserToutBriefing_();
+            }
+            const confirmed = await bfgConfirmInApp_('« Actualiser » relance tout, y compris la recherche complète des NOTAM sur SOFIA, qui prend environ 1 minute. Continuer ?');
+            if (!confirmed) return;
+            return actualiserToutBriefing_();
+        }
+
         // v5.27 — import NOTAM SDVFR déjà en cours (bouton « Actualiser NOTAM ») : rejoint,
         // son résultat est repris. C'est une vraie demande SDVFR dans tous les cas.
         let bfgSdvfrImportPromise_ = null;
@@ -6475,6 +6885,14 @@ const tdfStages = [
         let bfgNatsImportPromise_ = null;
 
         async function importAutomaticNotamsFromNas_(event) {
+            if (!BFG_NATS_NOTAM_ENABLED_) {
+                // v5.40 : PDF NATS désactivé ; aucun appel au NAS ni au service NOTAM du VPS.
+                if (event) {
+                    event.preventDefault();
+                    event.stopPropagation();
+                }
+                return false;
+            }
             if (bfgNatsImportPromise_) {
                 if (event) {
                     event.preventDefault();
@@ -6696,32 +7114,17 @@ const tdfStages = [
 
                 await fetchAllCncascData_();
 
+                // v5.40 — NOTAM : fichier SOFIA du NAS, lu à chaque connexion (appliqué seulement s'il
+                // est plus récent que les NOTAM en mémoire). Météo : SDVFR, comme avant. Plus d'import
+                // NATS (désactivé). Les NOTAM contenus dans la réponse SDVFR ne sont plus utilisés.
+                const sofiaRead = await loadSofiaNotamsFromNas_({ steps: notamDownloadDue });
+                const weatherRefreshed = await refreshBfgWeatherSilently_('connexion');
                 if (notamDownloadDue) {
-                    // v4.85 : météo SDVFR fraîche AVANT les NOTAM NATS.
-                    // Ne jamais réutiliser ici resultPayload du cache quotidien NOTAM SDVFR :
-                    // il peut contenir une météo plus ancienne et écraser celle déjà à jour.
-                    let freshSdvfrNotamsShown = false;
-                    try {
-                        const weatherPayload = await fetchSdvfrTargetsOnce_(
-                            getSdvfrPelicandromeTargets_(),
-                            document.getElementById('notam-sdvfr-import-status'),
-                            bfgNotamStepFromSdvfr_
-                        );
-                        setBfgNotamStep_('Affichage des NOTAM…');
-                        await bfgNextPaint_();
-                        applySdvfrWeatherFromPayload_(weatherPayload);
-                        freshSdvfrNotamsShown = rememberFreshSdvfrNotamsFromPayload_(weatherPayload);
-                        checkWeatherValidity();
-                    } catch (weatherError) {
-                        console.warn('Chargement météo SDVFR fraîche de connexion incomplet ; aucun secours CheckWX.', weatherError);
-                    }
-                    endBfgNotamSteps_(freshSdvfrNotamsShown, 'fallback');
-
-                    // NATS est ensuite actualisé. Son chargement ne doit plus modifier la météo affichée.
-                    await importAutomaticNotamsFromNas_(null);
-                    setCncascWarning_('NOTAM et METAR/TAF chargés.', { success: true });
+                    setCncascWarning_(sofiaRead
+                        ? (weatherRefreshed ? 'NOTAM et METAR/TAF chargés.' : 'NOTAM chargés. Actualisation METAR/TAF impossible.')
+                        : (weatherRefreshed ? 'METAR/TAF chargés. NOTAM SOFIA non lus : voir l’alerte NOTAM.' : 'NOTAM SOFIA non lus et actualisation METAR/TAF impossible.'),
+                        { success: sofiaRead && weatherRefreshed });
                 } else {
-                    const weatherRefreshed = await refreshBfgWeatherSilently_('connexion');
                     setCncascWarning_(weatherRefreshed
                         ? 'METAR/TAF actualisés. NOTAM du jour déjà chargés.'
                         : 'NOTAM du jour déjà chargés. Actualisation METAR/TAF impossible.', { success: weatherRefreshed });
@@ -7375,24 +7778,19 @@ const tdfStages = [
                     // connexion, import NATS ; la météo (seconde demande SDVFR) attend aussi la
                     // fin de la demande NOTAM SDVFR, puis part en parallèle de NATS.
                     (async () => {
-                        const sdvfrPromise = importSdvfrNotams_(null).catch(() => false);
-                        // NATS seulement quand la demande NOTAM SDVFR est TERMINÉE.
-                        const natsPromise = sdvfrPromise.then(() => importAutomaticNotamsFromNas_(null)).catch(() => false);
+                        // v5.40 — NOTAM : recherche complète sur SOFIA (déjà confirmée par la fenêtre
+                        // d'« Actualiser »). Météo : demande SDVFR forcée, séparée. NATS : désactivé.
+                        const natsPromise = BFG_NATS_NOTAM_ENABLED_
+                            ? importAutomaticNotamsFromNas_(null).catch(() => false)
+                            : Promise.resolve(true);
                         await Promise.allSettled([
                             track('notam', async () => {
-                                const [sdvfrOk, natsOk] = await Promise.all([sdvfrPromise, natsPromise]);
-                                return sdvfrOk === true && natsOk === true;
+                                const [sofiaOk, natsOk] = await Promise.all([actualiserNotamSofia_(null, { confirm: false }), natsPromise]);
+                                return sofiaOk === true && natsOk === true;
                             }),
-                            track('meteo', async () => {
-                                // v5.29 — la réponse NOTAM SDVFR contient aussi METAR / TAF, déjà
-                                // appliqués par importSdvfrNotams_ : pas de seconde demande. Seulement
-                                // si la demande NOTAM a échoué, demande météo séparée (forcée).
-                                const sdvfrOk = await sdvfrPromise;
-                                if (sdvfrOk === true) return true;
-                                return typeof window.refreshAllWeather_ === 'function'
-                                    ? window.refreshAllWeather_('manual')
-                                    : false;
-                            })
+                            track('meteo', async () => (typeof window.refreshAllWeather_ === 'function'
+                                ? window.refreshAllWeather_('manual')
+                                : false))
                         ]);
                     })(),
                     track('temsi', async () => {
@@ -7511,7 +7909,7 @@ const tdfStages = [
             if (refreshBtn) refreshBtn.addEventListener('click', fetchAbeDispo_);
             if (pelicRefreshBtn) pelicRefreshBtn.addEventListener('click', fetchAbeDispo_);
             if (fdfRefreshBtn) fdfRefreshBtn.addEventListener('click', fetchCncascFdf_);
-            if (globalRefreshBtn) globalRefreshBtn.addEventListener('click', actualiserToutBriefing_);
+            if (globalRefreshBtn) globalRefreshBtn.addEventListener('click', actualiserToutBriefingAvecConfirmation_);
             if (unlockBtn) unlockBtn.addEventListener('click', unlockCncascAndSync_);
             if (npfAssociateBtn) npfAssociateBtn.addEventListener('click', requestNpfAssociation_);
             if (npfCheckBtn) npfCheckBtn.addEventListener('click', () => checkNpfAssociationStatus_({ silent: false }));
@@ -7551,32 +7949,14 @@ const tdfStages = [
                 fetchAllCncascData_();
                 if (!bfgVacCheckedToday_()) startBfgVacDailyCheck_('ouverture');
                 setTimeout(async () => {
-                    if (hasTodayBfgNotamsInMemory_()) {
-                        bfgDiagLog_('NOTAM', 'Ouverture : NOTAM du jour en mémoire, aucune demande NOTAM ni import NATS');
-                        await refreshBfgWeatherSilently_('ouverture');
-                        return;
-                    }
-                    let freshSdvfrNotamsShown = false;
-                    try {
-                        const weatherPayload = await fetchSdvfrTargetsOnce_(
-                            getSdvfrPelicandromeTargets_(),
-                            document.getElementById('notam-sdvfr-import-status'),
-                            bfgNotamStepFromSdvfr_
-                        );
-                        setBfgNotamStep_('Affichage des NOTAM…');
-                        await bfgNextPaint_();
-                        applySdvfrWeatherFromPayload_(weatherPayload);
-                        freshSdvfrNotamsShown = rememberFreshSdvfrNotamsFromPayload_(weatherPayload);
-                        checkWeatherValidity();
-                    } catch (weatherError) {
-                        console.warn('Actualisation météo SDVFR fraîche de démarrage non terminée.', weatherError);
-                    }
-                    endBfgNotamSteps_(freshSdvfrNotamsShown, 'fallback');
-                    try {
-                        await importAutomaticNotamsFromNas_(null);
-                    } catch (error) {
-                        console.warn('Actualisation NATS de démarrage non terminée.', error);
-                    }
+                    // v5.40 — à l'ouverture : lecture du fichier NOTAM SOFIA du NAS (aucune recherche
+                    // sur SOFIA), puis météo SDVFR silencieuse, comme avant. Plus d'import NATS.
+                    const notamInMemory = hasTodayBfgNotamsInMemory_();
+                    bfgDiagLog_('NOTAM', notamInMemory
+                        ? 'Ouverture : NOTAM du jour en mémoire, lecture discrète du fichier SOFIA'
+                        : 'Ouverture : aucun NOTAM du jour en mémoire, lecture du fichier SOFIA');
+                    await loadSofiaNotamsFromNas_({ steps: !notamInMemory });
+                    await refreshBfgWeatherSilently_('ouverture');
                 }, 250);
             }
         }
@@ -12793,7 +13173,8 @@ const tdfStages = [
 
             const notamRefreshBtn = document.getElementById('notam-refresh-btn');
             if (notamRefreshBtn) {
-                notamRefreshBtn.addEventListener('click', (event) => importSdvfrNotams_(event));
+                // v5.40 : recherche complète sur SOFIA, après confirmation dans l'application.
+                notamRefreshBtn.addEventListener('click', (event) => actualiserNotamSofia_(event));
             }
 
             updateBfgNotamSourceUi_();
@@ -15679,6 +16060,11 @@ window.__notamTextFull = notamInput.value;
             document.getElementById('notam-controls-top').style.display = 'grid';
             updateNotamDownloadStatus_();
 
+            if (!BFG_NATS_NOTAM_ENABLED_) {
+                // v5.40 : bloc « Importation NOTAM » (NATS) caché tant que NATS est désactivé.
+                const natsBlock = document.getElementById('notam-pdf-dropzone');
+                if (natsBlock) natsBlock.style.display = 'none';
+            }
             const useNatsNotamSourceCb = document.getElementById('use-nats-notam-source-cb');
             if (useNatsNotamSourceCb) {
                 useNatsNotamSourceCb.checked = isBfgUseNatsNotamSource_();
