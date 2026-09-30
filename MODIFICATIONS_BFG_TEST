@@ -345,10 +345,13 @@ B5. LISTE DE CONTRÔLE DE PROMOTION — MENTIONS VISIBLES DE « SDVFR » (v5.23)
         concernée) ; bandeau de validité des cartes des risques (textes ajoutés :
         « Valable le… », « produite… », « CARTE PÉRIMÉE… », « Validité non lue… »,
         aucune mention de SDVFR).
-      - À PORTER EN PÉRENNE (v5.39) : FdS stricte du jour (getFdsTodayEntry_) :
-        plus de repli sur payload.file, date de today comparée au jour de Paris.
-        La pérenne a le même défaut (FdS du 29 affichée le 30/09 au matin).
-        Aucun texte ajouté.
+      - À PORTER EN PÉRENNE (v5.39) : FdS stricte du jour + date iPad (FdS et
+        GAAR) + effacement FdS veille au changement de jour + bandeau
+        00h00-06h00. La pérenne a le même défaut (FdS du 29 affichée le 30/09 au
+        matin). Textes ajoutés : « FDS du jour en cours de recherche... »,
+        « Aucune FDS du jour disponible. », « Nouveau jour détecté — FDS de la
+        veille retirée. Mode hors ligne : aucune recherche lancée. », les deux
+        lignes du bandeau (aucune mention de SDVFR).
       - Éléments TEST uniquement ci-dessous : NON repris en v2026.29 (case
         « Afficher toutes les zones » absente, showAll forcé à false ; bouton
         de comparaison absent).
@@ -401,8 +404,10 @@ TEST v5.39 — 2026-09-30
 Base : TEST v5.38
 ===============================================================================
 
-FEUILLE DE SERVICE : UNIQUEMENT CELLE DU JOUR (correction minimale).
-Aucune modification du NAS, du VPS, de la GAAR ni de la pérenne.
+FEUILLE DE SERVICE : UNIQUEMENT CELLE DU JOUR ; BANDEAU HORAIRE 00h00-06h00.
+Règle de Bastien : BFG ne doit JAMAIS afficher une FdS de la veille.
+Aucune modification du NAS, du VPS ni de la pérenne. Deux commits locaux avant
+le push (correction minimale, puis compléments des points 6 à 8).
 
 1. CONSTAT (30/09 au matin, TEST et pérenne)
 - À l'ouverture, BFG a affiché la FdS du 29 comme « FDS du jour ». Le mail de la
@@ -417,9 +422,10 @@ Aucune modification du NAS, du VPS, de la GAAR ni de la pérenne.
 
 2. CORRECTION (index.html, getFdsTodayEntry_)
 - Même règle stricte que getGaarTodayEntry_ : on ne retourne que payload.today,
-  s'il existe ET si sa date (dateKey, sinon fileDate) est égale au jour de Paris
-  (payload.todayKey s'il est présent, sinon fdsParisDateKey_(0)). Repli sur
-  payload.file supprimé. Aucune autre ligne de code modifiée.
+  s'il existe ET si sa date (dateKey, sinon fileDate) est égale au jour de Paris.
+  Repli sur payload.file supprimé.
+- Premier commit : jour pris dans payload.todayKey s'il était présent. Remplacé
+  avant le push par la date de l'iPad seule (point 6).
 
 3. LES 8 APPELS DE getFdsTodayEntry_ (9 occurrences avec la définition)
 - getFdsStatusSignature_ : la partie « jour » de la signature est vide quand il
@@ -450,18 +456,83 @@ Aucune modification du NAS, du VPS, de la GAAR ni de la pérenne.
 - Bouton Actualiser, mode Manuel/Auto, hors ligne, règle 01h, GAAR : identiques
   à la v5.38.
 
-5. AUTRES CHEMINS RELEVÉS, NON MODIFIÉS (À DÉCIDER)
-- Application restée ouverte depuis la veille : au réveil d'un nouveau jour, la
-  recherche est lancée mais la FdS de la veille RESTE à l'écran pendant la
-  recherche et après un échec (essai WAKE). La GAAR, elle, efface son diagramme.
-- Après ~90 s sans résultat, la recherche s'arrête : pas de nouvel essai avant un
-  clic sur « Actualiser », une réouverture ou un nouveau jour.
-- NAS injoignable alors que l'iPad est en ligne : le Service Worker sert la
-  dernière réponse de statut en cache ; si elle date de la veille, todayKey et
-  today y sont ceux de la veille et la règle (qui prend payload.todayKey) la
-  laisse passer. Parade possible : comparer à fdsParisDateKey_(0) seul. Même
-  chemin pour la GAAR. Lu dans sw.js, non essayé (Service Worker désactivé).
-- Avant 01h00 : une FdS locale de la veille est restaurée (règle existante).
+5. CHEMINS RELEVÉS APRÈS LE PREMIER COMMIT (traités aux points 6 et 7, sauf 3)
+- Chemin 1 : application restée ouverte depuis la veille, la FdS de la veille
+  restait à l'écran au réveil d'un nouveau jour.
+- Chemin 2 : NAS injoignable, le Service Worker sert la réponse de statut en
+  cache de la veille (todayKey et today de la veille).
+- Chemin 3 : avant 01h00, une FdS locale de la veille est restaurée à
+  l'ouverture. NON MODIFIÉ (décision de Bastien).
+
+6. CHEMIN 2 — DATE DE L'IPAD SEULE (FdS et GAAR)
+- getFdsTodayEntry_ : la date de payload.today est comparée UNIQUEMENT à
+  fdsParisDateKey_(0) (date de l'iPad à Paris), jamais à payload.todayKey.
+- getGaarTodayEntry_ : même règle (payload.today accepté seulement si dateKey ou
+  fileDate = gaarParisDateKey_(0)). Format réel vérifié le 30/09 sur
+  get-gaar-status.php (« get-gaar-status-v2-date-files ») : dateKey et fileDate en
+  AAAAMMJJ, comme la FdS.
+- Conséquence : si la date de l'iPad est fausse, ni FdS ni GAAR ne se chargent
+  automatiquement (l'importation manuelle reste possible).
+
+7. CHEMIN 1 — EFFACEMENT AU CHANGEMENT DE JOUR (application restée ouverte)
+- Au réveil un nouveau jour (pageshow / visibilitychange, fonction
+  refreshFdsIfOperationalDayChanged), mode Auto : si la FdS affichée n'est pas
+  datée du jour, elle est retirée de l'écran tout de suite (visionneuse, panneau
+  du mail), AVANT la recherche. Date de la FdS affichée : dateKey / fileDate des
+  métadonnées NAS, sinon nom « fds-AAAAMMJJ » ; date inconnue = pas du jour.
+- Messages : « FDS du jour en cours de recherche... » puis, si rien n'arrive,
+  « Aucune FDS du jour disponible. » (ligne d'information sous la visionneuse) ;
+  les messages de la recherche existante sont inchangés.
+- Hors ligne : la FdS de la veille est retirée aussi, sans aucune requête
+  (« Nouveau jour détecté — FDS de la veille retirée. Mode hors ligne : aucune
+  recherche lancée. ») ; la recherche partira au réveil suivant en ligne.
+- Une FdS datée du jour n'est JAMAIS retirée (NAS injoignable, hors ligne, FdS du
+  lendemain chargée la veille à la demande).
+- Mode FDS Manuel : inchangé, rien n'est retiré (une FdS importée à la main reste).
+- La sauvegarde locale n'est pas touchée : règle de 01h00 inchangée (chemin 3).
+
+8. BANDEAU HORAIRE 00h00-06h00 (heure de Paris, horloge de l'iPad)
+- Bandeau orange sous la barre de navigation, dans le flux de la page (ni fixe
+  ni collant : il ne recouvre rien), non bloquant, sur deux lignes :
+    « BFG est utilisable de 06h00 à 00h00. »
+    « Entre 00h00 et 06h00, le serveur est arrêté : la FdS, la GAAR et les cartes
+      du jour ne sont pas disponibles. »
+- Visible à l'ouverture dans la plage ; apparaît à 00h00 et disparaît à 06h00
+  sans rechargement : minuteur jusqu'à la prochaine bascule (réarmé au plus toutes
+  les heures, pour le changement d'heure) + pageshow / visibilitychange au réveil.
+  Hors plage : absent (display none), aucun décalage.
+
+9. ESSAIS DES COMPLÉMENTS (Chromium 153 sans interface, Service Worker ACTIF,
+   NAS et Gmail simulés par un serveur local, heure simulée ; v5.38 comparée)
+- A à E refaits : conformes.
+- F statut de J-1 en cache, NAS injoignable, ouverture à J 07:00 : aucune FdS,
+  aucune GAAR (le premier commit affichait la FdS ET la GAAR de J-1).
+- G réveil à J avec la FdS de J-1 : retirée tout de suite, recherche lancée ;
+  FdS de J chargée si elle arrive ; sinon « Aucune FDS du jour disponible. ».
+- H FdS du jour, NAS injoignable, réveil le même jour : FdS conservée.
+- I FdS du lendemain chargée la veille, réveil à J, NAS injoignable : conservée.
+- J GAAR du jour, NAS joignable : identique à la v5.38.
+- K 03:00 : bandeau visible, texte exact sur 2 lignes, aucun bouton recouvert ;
+  06:01 et 23:59 : pas de bandeau.
+- L 23:59 -> 00:00 : le bandeau apparaît ; 05:59 -> 06:00 : il disparaît ; réveil
+  après un saut d'horloge : recalculé.
+- Non-régression v5.38 / v5.39 : chargement du jour, bouton Actualiser, bouton
+  du lendemain, mode Manuel / Auto et importation manuelle, hors ligne, règle de
+  01h00 (00:30 restaurée, 02:00 non restaurée) : identiques.
+
+10. CHEMINS RESTANTS, NON MODIFIÉS (À DÉCIDER)
+- GAAR, application restée ouverte : la GAAR n'a pas de contrôle au réveil d'un
+  nouveau jour ; le diagramme de la veille reste à l'écran jusqu'à une
+  réouverture (essai G). Elle n'est effacée qu'à l'ouverture.
+- Application au premier plan au passage de minuit, sans mise en veille : aucun
+  événement de réveil, la FdS de la veille reste jusqu'au prochain réveil.
+- Mode FDS Manuel : une FdS importée à la main la veille reste affichée le
+  lendemain tant que l'application reste ouverte (essai MAN).
+- Chemin 3 (00h00-01h00, restauration locale) : conservé par décision.
+- Après ~90 s sans résultat, la recherche s'arrête jusqu'à un clic sur
+  « Actualiser », une réouverture ou un nouveau jour.
+- GAAR, NAS injoignable et rien en cache : le diagramme est effacé même s'il
+  est du jour (comportement antérieur, identique en v5.38).
 
 VERSIONS
 - APP_VERSION_NUMBER 5.39, BFG_SW_VERSION 5.39, CACHE_NAME
@@ -470,8 +541,11 @@ VERSIONS
   premières lignes changent.
 
 STATUTS v5.39
-- FdS stricte du jour : À MESURER sur iPad (ouverture avant l'import du matin).
-- Chemins du point 5 : À DÉCIDER.
+- FdS stricte du jour, date de l'iPad (FdS et GAAR) : À MESURER sur iPad
+  (ouverture avant l'import du matin ; ouverture NAS éteint).
+- Effacement de la FdS de la veille au réveil : À MESURER sur iPad.
+- Bandeau 00h00-06h00 : À MESURER sur iPad.
+- Chemins du point 10 : À DÉCIDER.
 TEST v5.38 — 2026-09-29
 Base : TEST v5.37
 ===============================================================================

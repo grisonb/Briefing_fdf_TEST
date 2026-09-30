@@ -433,6 +433,22 @@
             border-bottom: 1px solid var(--border-color);
         }
         .risk-map-validity[hidden] { display: none; }
+        /* v5.39 : bandeau horaire 00h00-06h00 (serveur arrêté), dans le flux de la page, non bloquant. */
+        #bfg-night-banner {
+            width: 100%;
+            max-width: 1100px;
+            box-sizing: border-box;
+            margin: 10px 0 0 0;
+            padding: 10px 14px;
+            text-align: center;
+            line-height: 1.35;
+            border: 1px solid #b9770e;
+            border-radius: 10px;
+            background: #f39c12;
+            color: #2b1a00;
+        }
+        #bfg-night-banner[hidden] { display: none; }
+        #bfg-night-banner strong { display: block; font-size: 1.1em; }
         .risk-map-validity.is-today { background: #1e7b34; color: #ffffff; }
         .risk-map-validity.is-soft { background: #cdeecf; color: #14532d; }
         .risk-map-validity.is-expired { background: #c0392b; color: #ffffff; }
@@ -2597,6 +2613,7 @@
             <li><a href="#google-earth-section">G. EARTH</a></li>
         </ul>
     </nav>
+    <div id="bfg-night-banner" role="status" hidden><strong>BFG est utilisable de 06h00 à 00h00.</strong><span>Entre 00h00 et 06h00, le serveur est arrêté : la FdS, la GAAR et les cartes du jour ne sont pas disponibles.</span></div>
 
     <div class="page-header">
         <div class="page-header-background"></div>
@@ -7775,6 +7792,45 @@ const tdfStages = [
             }
         }
 
+        /*
+         * v5.39 — bandeau horaire : visible de 00h00 à 06h00, heure de Paris (horloge de l'iPad),
+         * quand le serveur est arrêté. Information seulement : rien n'est bloqué.
+         * Un minuteur va jusqu'à la prochaine bascule (réarmé au plus toutes les heures, pour le
+         * changement d'heure) ; pageshow et visibilitychange recalculent au réveil de l'application.
+         */
+        let bfgNightBannerTimer_ = null;
+
+        function bfgParisSecondsOfDay_(now = new Date()) {
+            const parts = new Intl.DateTimeFormat('en-GB', { timeZone: 'Europe/Paris', hour: '2-digit', minute: '2-digit', second: '2-digit', hourCycle: 'h23' }).formatToParts(now);
+            const get = type => Number((parts.find(part => part.type === type) || {}).value);
+            return (get('hour') % 24) * 3600 + get('minute') * 60 + get('second');
+        }
+
+        function updateBfgNightBanner_() {
+            if (bfgNightBannerTimer_ !== null) {
+                clearTimeout(bfgNightBannerTimer_);
+                bfgNightBannerTimer_ = null;
+            }
+            try {
+                const banner = document.getElementById('bfg-night-banner');
+                if (!banner) return;
+                const seconds = bfgParisSecondsOfDay_();
+                if (!Number.isFinite(seconds)) return;
+                const night = seconds < 6 * 3600;
+                if (banner.hidden === night) banner.hidden = !night;
+                const untilSwitch = (night ? 6 * 3600 : 24 * 3600) - seconds;
+                bfgNightBannerTimer_ = setTimeout(updateBfgNightBanner_, Math.min(untilSwitch, 3600) * 1000 + 500);
+            } catch (error) {
+                console.warn('BFG : bandeau horaire non mis à jour.', error);
+            }
+        }
+
+        updateBfgNightBanner_();
+        window.addEventListener('pageshow', updateBfgNightBanner_);
+        document.addEventListener('visibilitychange', () => {
+            if (!document.hidden) updateBfgNightBanner_();
+        });
+
         function setBfgOfflineBanner_(message) {
             const sessionStatus = document.getElementById('session-status');
             if (!sessionStatus) return;
@@ -7915,12 +7971,12 @@ const tdfStages = [
             // Ne pas utiliser payload.file en repli : c'est le dernier fichier connu du NAS, qui peut être
             // celui de la veille tant que le mail du jour n'est pas importé. BFG l'affichait alors comme
             // « FDS du jour » et ne lançait jamais la recherche Gmail automatique.
+            // La date est comparée à celle de l'iPad (Paris), jamais à payload.todayKey : NAS injoignable,
+            // le Service Worker peut servir la réponse en cache de la veille, avec le todayKey de la veille.
             const entry = payload && payload.today && payload.today.exists ? payload.today : null;
             if (!entry) return null;
-            const digits = value => String(value || '').replace(/\D/g, '');
-            const entryKey = digits(entry.dateKey || entry.fileDate);
-            const todayKey = digits(payload.todayKey) || fdsParisDateKey_(0);
-            return entryKey && entryKey === todayKey ? entry : null;
+            const entryKey = String(entry.dateKey || entry.fileDate || '').replace(/\D/g, '');
+            return entryKey && entryKey === fdsParisDateKey_(0) ? entry : null;
         }
 
         function getFdsTomorrowEntry_(payload) {
@@ -7955,6 +8011,36 @@ const tdfStages = [
         function getDisplayedFdsMeta_() {
             const payload = window.__lastFdsMetaPanelPayload;
             return payload && payload.meta ? payload.meta : null;
+        }
+
+        // v5.39 — date de la FDS affichée : métadonnées NAS (dateKey / fileDate), sinon nom « fds-AAAAMMJJ ».
+        function getDisplayedFdsDateKey_() {
+            const meta = getDisplayedFdsMeta_();
+            const metaKey = meta ? String(meta.dateKey || meta.fileDate || '').replace(/\D/g, '') : '';
+            if (metaKey.length === 8) return metaKey;
+            const match = String((window.fdsFileObject && window.fdsFileObject.name) || '').match(/fds[^0-9]*(\d{8})/i);
+            return match ? match[1] : '';
+        }
+
+        // v5.39 — changement de jour, application restée ouverte : une FDS qui n'est pas datée du jour
+        // est retirée de l'écran tout de suite (comme la GAAR). Une FDS datée du jour n'est jamais retirée.
+        // La sauvegarde locale n'est pas touchée (règle de 01h00 inchangée).
+        function clearDisplayedFdsIfNotToday_(todayKey) {
+            if (!window.fdsFileObject || getDisplayedFdsDateKey_() === todayKey) return false;
+            const container = document.getElementById('pdf-interactive-container-fds');
+            if (container) {
+                if (typeof container.__bfgPdfHandlerCleanup === 'function') {
+                    try { container.__bfgPdfHandlerCleanup(); } catch (error) {}
+                }
+                container.style.display = 'none';
+            }
+            window.fdsFileObject = null;
+            window.__lastFdsMetaPanelPayload = null;
+            const input = document.getElementById('pdf-input-fds');
+            if (input) input.value = null;
+            const metaPanel = document.getElementById('fds-meta-panel');
+            if (metaPanel) { metaPanel.classList.remove('visible'); metaPanel.innerHTML = ''; }
+            return true;
         }
 
         function shouldKeepDisplayedFds_(serverEntry) {
@@ -8342,12 +8428,27 @@ const tdfStages = [
                 window.__bfgFdsLifecycleDateKey = fdsParisDateKey_(0);
 
                 const refreshFdsIfOperationalDayChanged = () => {
-                    if (document.hidden || isBfgOffline_() || getFdsMode_() === FDS_MODE_MANUAL) return;
+                    if (document.hidden || getFdsMode_() === FDS_MODE_MANUAL) return;
                     const todayKey = fdsParisDateKey_(0);
                     if (window.__bfgFdsLifecycleDateKey === todayKey) return;
+
+                    // v5.39 : la FDS de la veille disparaît tout de suite, même hors ligne.
+                    const infoFds = document.getElementById('pdf-info-fds');
+                    const cleared = clearDisplayedFdsIfNotToday_(todayKey);
+                    if (isBfgOffline_()) {
+                        if (cleared) {
+                            if (infoFds) infoFds.textContent = 'Aucune FDS du jour disponible.';
+                            setFdsAutoStatus_('Nouveau jour détecté — FDS de la veille retirée. Mode hors ligne : aucune recherche lancée.', { warning: true });
+                        }
+                        return;
+                    }
+
                     window.__bfgFdsLifecycleDateKey = todayKey;
+                    if (cleared && infoFds) infoFds.textContent = 'FDS du jour en cours de recherche...';
                     setFdsAutoStatus_('Nouveau jour détecté — recherche automatique de la FDS du jour...');
-                    void chargerDerniereFeuilleServiceAuDemarrage_();
+                    chargerDerniereFeuilleServiceAuDemarrage_().catch(() => {}).then(() => {
+                        if (!window.fdsFileObject && infoFds) infoFds.textContent = 'Aucune FDS du jour disponible.';
+                    });
                 };
 
                 window.addEventListener('pageshow', () => {
@@ -8401,8 +8502,12 @@ const tdfStages = [
         function getGaarTodayEntry_(payload) {
             // Règle stricte GAAR : on n’affiche automatiquement que la GAAR du jour.
             // Ne pas utiliser payload.file en fallback, car latest-gaar.pdf peut être celui de la veille.
-            if (payload && payload.today && payload.today.exists) return payload.today;
-            return null;
+            // v5.39 : la date de payload.today doit être celle de l'iPad (Paris). NAS injoignable, le
+            // Service Worker peut servir la réponse en cache de la veille (today et todayKey de la veille).
+            const entry = payload && payload.today && payload.today.exists ? payload.today : null;
+            if (!entry) return null;
+            const entryKey = String(entry.dateKey || entry.fileDate || '').replace(/\D/g, '');
+            return entryKey && entryKey === gaarParisDateKey_(0) ? entry : null;
         }
 
         function getGaarTomorrowEntry_(payload) {
