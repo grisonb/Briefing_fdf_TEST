@@ -7797,6 +7797,7 @@ const tdfStages = [
          * quand le serveur est arrêté. Information seulement : rien n'est bloqué.
          * Un minuteur va jusqu'à la prochaine bascule (réarmé au plus toutes les heures, pour le
          * changement d'heure) ; pageshow et visibilitychange recalculent au réveil de l'application.
+         * À chaque échéance, le minuteur lance aussi le contrôle de changement de jour (FDS et GAAR).
          */
         let bfgNightBannerTimer_ = null;
 
@@ -7819,7 +7820,13 @@ const tdfStages = [
                 const night = seconds < 6 * 3600;
                 if (banner.hidden === night) banner.hidden = !night;
                 const untilSwitch = (night ? 6 * 3600 : 24 * 3600) - seconds;
-                bfgNightBannerTimer_ = setTimeout(updateBfgNightBanner_, Math.min(untilSwitch, 3600) * 1000 + 500);
+                bfgNightBannerTimer_ = setTimeout(() => {
+                    updateBfgNightBanner_();
+                    // Application au premier plan à minuit, sans réveil : même contrôle de changement de jour.
+                    if (typeof window.__bfgOperationalDayCheck_ === 'function') {
+                        try { window.__bfgOperationalDayCheck_(); } catch (error) { console.warn('BFG : contrôle de changement de jour impossible.', error); }
+                    }
+                }, Math.min(untilSwitch, 3600) * 1000 + 500);
             } catch (error) {
                 console.warn('BFG : bandeau horaire non mis à jour.', error);
             }
@@ -8013,17 +8020,18 @@ const tdfStages = [
             return payload && payload.meta ? payload.meta : null;
         }
 
-        // v5.39 — date de la FDS affichée : métadonnées NAS (dateKey / fileDate), sinon nom « fds-AAAAMMJJ ».
+        // v5.39 — date de la FDS affichée : métadonnées NAS (dateKey / fileDate), sinon date de
+        // l'importation manuelle (importDateKey), sinon nom « fds-AAAAMMJJ ». Inconnue = pas du jour.
         function getDisplayedFdsDateKey_() {
             const meta = getDisplayedFdsMeta_();
-            const metaKey = meta ? String(meta.dateKey || meta.fileDate || '').replace(/\D/g, '') : '';
+            const metaKey = meta ? String(meta.dateKey || meta.fileDate || meta.importDateKey || '').replace(/\D/g, '') : '';
             if (metaKey.length === 8) return metaKey;
             const match = String((window.fdsFileObject && window.fdsFileObject.name) || '').match(/fds[^0-9]*(\d{8})/i);
             return match ? match[1] : '';
         }
 
         // v5.39 — changement de jour, application restée ouverte : une FDS qui n'est pas datée du jour
-        // est retirée de l'écran tout de suite (comme la GAAR). Une FDS datée du jour n'est jamais retirée.
+        // est retirée de l'écran tout de suite (mode Auto ou Manuel). Une FDS datée du jour n'est jamais retirée.
         // La sauvegarde locale n'est pas touchée (règle de 01h00 inchangée).
         function clearDisplayedFdsIfNotToday_(todayKey) {
             if (!window.fdsFileObject || getDisplayedFdsDateKey_() === todayKey) return false;
@@ -8427,29 +8435,51 @@ const tdfStages = [
                 window.__bfgFdsLifecycleBound = true;
                 window.__bfgFdsLifecycleDateKey = fdsParisDateKey_(0);
 
+                // v5.39 : contrôle unique de changement de jour (réveil de l'application ou minuteur de
+                // minuit du bandeau horaire) pour la FDS et la GAAR. La date mémorisée évite tout doublon.
                 const refreshFdsIfOperationalDayChanged = () => {
-                    if (document.hidden || getFdsMode_() === FDS_MODE_MANUAL) return;
+                    if (document.hidden) return;
                     const todayKey = fdsParisDateKey_(0);
                     if (window.__bfgFdsLifecycleDateKey === todayKey) return;
+                    const offline = isBfgOffline_();
+                    const fdsManual = getFdsMode_() === FDS_MODE_MANUAL;
+                    const gaarAuto = getGaarMode_() !== GAAR_MODE_MANUAL;
 
-                    // v5.39 : la FDS de la veille disparaît tout de suite, même hors ligne.
+                    // Les documents de la veille disparaissent tout de suite, même hors ligne.
+                    // Un document daté du jour n'est jamais retiré.
                     const infoFds = document.getElementById('pdf-info-fds');
                     const cleared = clearDisplayedFdsIfNotToday_(todayKey);
-                    if (isBfgOffline_()) {
-                        if (cleared) {
+                    const gaarCleared = gaarAuto && Boolean(window.gaarFileObject) && !resetGaarPdfUnlessToday_();
+
+                    if (cleared && fdsManual) {
+                        if (infoFds) infoFds.textContent = 'Aucune FDS du jour disponible.';
+                        setFdsAutoStatus_('FdS manuelle de la veille retirée : importer la FdS du jour ou repasser en Auto', { warning: true });
+                    }
+                    if (offline) {
+                        if (cleared && !fdsManual) {
                             if (infoFds) infoFds.textContent = 'Aucune FDS du jour disponible.';
                             setFdsAutoStatus_('Nouveau jour détecté — FDS de la veille retirée. Mode hors ligne : aucune recherche lancée.', { warning: true });
+                        }
+                        if (gaarCleared) {
+                            setGaarAutoStatus_('Nouveau jour détecté — diagramme GAAR de la veille retiré. Mode hors ligne : aucune recherche lancée.', { warning: true });
                         }
                         return;
                     }
 
                     window.__bfgFdsLifecycleDateKey = todayKey;
-                    if (cleared && infoFds) infoFds.textContent = 'FDS du jour en cours de recherche...';
-                    setFdsAutoStatus_('Nouveau jour détecté — recherche automatique de la FDS du jour...');
-                    chargerDerniereFeuilleServiceAuDemarrage_().catch(() => {}).then(() => {
-                        if (!window.fdsFileObject && infoFds) infoFds.textContent = 'Aucune FDS du jour disponible.';
-                    });
+                    if (!fdsManual) {
+                        if (cleared && infoFds) infoFds.textContent = 'FDS du jour en cours de recherche...';
+                        setFdsAutoStatus_('Nouveau jour détecté — recherche automatique de la FDS du jour...');
+                        chargerDerniereFeuilleServiceAuDemarrage_().catch(() => {}).then(() => {
+                            if (!window.fdsFileObject && infoFds) infoFds.textContent = 'Aucune FDS du jour disponible.';
+                        });
+                    }
+                    if (gaarAuto) {
+                        if (gaarCleared) setGaarAutoStatus_('Nouveau jour détecté — diagramme GAAR de la veille retiré, recherche de la GAAR du jour...');
+                        void chargerDerniereGaarAuDemarrage_();
+                    }
                 };
+                window.__bfgOperationalDayCheck_ = refreshFdsIfOperationalDayChanged;
 
                 window.addEventListener('pageshow', () => {
                     setTimeout(refreshFdsIfOperationalDayChanged, 150);
@@ -8508,6 +8538,25 @@ const tdfStages = [
             if (!entry) return null;
             const entryKey = String(entry.dateKey || entry.fileDate || '').replace(/\D/g, '');
             return entryKey && entryKey === gaarParisDateKey_(0) ? entry : null;
+        }
+
+        // v5.39 — date de la GAAR affichée : métadonnées NAS (dateKey / fileDate), sinon nom « gaar-AAAAMMJJ ».
+        function getDisplayedGaarDateKey_() {
+            const payload = window.__lastGaarMetaPanelPayload;
+            const meta = payload && payload.meta ? payload.meta : null;
+            const metaKey = meta ? String(meta.dateKey || meta.fileDate || '').replace(/\D/g, '') : '';
+            if (metaKey.length === 8) return metaKey;
+            const match = String((window.gaarFileObject && window.gaarFileObject.name) || '').match(/gaar[^0-9]*(\d{8})/i);
+            return match ? match[1] : '';
+        }
+
+        // v5.39 — retire le diagramme GAAR affiché sauf s'il est daté du jour (Paris).
+        // Retourne true si un diagramme du jour a été conservé. Les circuits de la carte ne sont pas touchés.
+        function resetGaarPdfUnlessToday_() {
+            if (window.gaarFileObject && getDisplayedGaarDateKey_() === gaarParisDateKey_(0)) return true;
+            if (typeof resetGaarPdfOnly === 'function') resetGaarPdfOnly();
+            window.__lastGaarMetaPanelPayload = null;
+            return false;
         }
 
         function getGaarTomorrowEntry_(payload) {
@@ -8737,9 +8786,13 @@ const tdfStages = [
                     setGaarAutoStatus_(`GAAR du jour chargée : ${todayEntry.originalFilename || 'PDF'} — email du ${emailDate}.`);
                 } else {
                     // Aucune GAAR du jour : ne jamais conserver/afficher la GAAR de la veille en mode Auto.
-                    if (typeof resetGaarPdfOnly === 'function') resetGaarPdfOnly();
+                    // v5.39 : un diagramme déjà affiché et daté du jour n'est pas retiré (réponse du serveur
+                    // en cache de la veille, quand le NAS ne répond pas).
+                    const keptTodayGaar = resetGaarPdfUnlessToday_();
                     updateGaarTomorrowButton_(statusPayload);
-                    if (tomorrowEntry) {
+                    if (keptTodayGaar) {
+                        setGaarAutoStatus_('GAAR du jour non confirmée par le serveur. Le diagramme GAAR du jour déjà affiché est conservé.', { warning: true });
+                    } else if (tomorrowEntry) {
                         setGaarAutoStatus_('Aucun diagramme GAAR du jour disponible. Un diagramme GAAR du lendemain est disponible mais non affiché automatiquement.', { warning: true });
                     } else {
                         setGaarAutoStatus_('Aucun diagramme GAAR du jour disponible sur le NAS. Aucun diagramme GAAR n’est affiché.', { warning: true });
@@ -8747,8 +8800,12 @@ const tdfStages = [
                 }
             } catch (error) {
                 if (!isBfgOffline_()) {
-                    if (typeof resetGaarPdfOnly === 'function') resetGaarPdfOnly();
-                    setGaarAutoStatus_('Aucune feuille GAAR du jour chargée automatiquement. Aucun ancien diagramme GAAR n’est affiché.', { warning: true });
+                    // v5.39 : le NAS ne répond pas ; un diagramme daté du jour reste affiché.
+                    if (resetGaarPdfUnlessToday_()) {
+                        setGaarAutoStatus_('Serveur GAAR injoignable. Le diagramme GAAR du jour déjà affiché est conservé.', { warning: true });
+                    } else {
+                        setGaarAutoStatus_('Aucune feuille GAAR du jour chargée automatiquement. Aucun ancien diagramme GAAR n’est affiché.', { warning: true });
+                    }
                 } else {
                     setGaarAutoStatus_('Mode hors ligne : dernier diagramme GAAR local conservé si disponible.', { warning: true });
                 }
@@ -12651,7 +12708,9 @@ const tdfStages = [
                     setFdsMode_(FDS_MODE_MANUAL, { message: false });
                     setFdsMetaPanel_({
                         originalFilename: window.fdsFileObject.name,
-                        lastModified: window.fdsFileObject.lastModified
+                        lastModified: window.fdsFileObject.lastModified,
+                        // v5.39 : jour de l'importation (Paris), pour retirer la FDS manuelle au changement de jour.
+                        importDateKey: fdsParisDateKey_(0)
                     }, { mode: FDS_MODE_MANUAL });
                     updateFdsTomorrowButton_(null);
                     setFdsAutoStatus_(`Mode FDS manuel activé : ${window.fdsFileObject.name} affichée. Elle ne sera pas remplacée automatiquement par la feuille NAS au démarrage.`, { warning: true });

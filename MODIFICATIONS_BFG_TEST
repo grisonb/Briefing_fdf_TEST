@@ -347,11 +347,15 @@ B5. LISTE DE CONTRÔLE DE PROMOTION — MENTIONS VISIBLES DE « SDVFR » (v5.23)
         aucune mention de SDVFR).
       - À PORTER EN PÉRENNE (v5.39) : FdS stricte du jour + date iPad (FdS et
         GAAR) + effacement FdS veille au changement de jour + bandeau
-        00h00-06h00. La pérenne a le même défaut (FdS du 29 affichée le 30/09 au
-        matin). Textes ajoutés : « FDS du jour en cours de recherche... »,
+        00h00-06h00 + GAAR au changement de jour (diagramme du jour jamais
+        retiré) + contrôle à minuit (minuteur du bandeau) + FdS manuelle de la
+        veille (date d'import). La pérenne a le même défaut (FdS du 29 affichée
+        le 30/09 au matin). Textes ajoutés : « FDS du jour en cours de recherche... »,
         « Aucune FDS du jour disponible. », « Nouveau jour détecté — FDS de la
         veille retirée. Mode hors ligne : aucune recherche lancée. », les deux
-        lignes du bandeau (aucune mention de SDVFR).
+        lignes du bandeau, « FdS manuelle de la veille retirée : importer la FdS
+        du jour ou repasser en Auto », les messages GAAR des points 11
+        (aucune mention de SDVFR).
       - Éléments TEST uniquement ci-dessous : NON repris en v2026.29 (case
         « Afficher toutes les zones » absente, showAll forcé à false ; bouton
         de comparaison absent).
@@ -405,9 +409,9 @@ Base : TEST v5.38
 ===============================================================================
 
 FEUILLE DE SERVICE : UNIQUEMENT CELLE DU JOUR ; BANDEAU HORAIRE 00h00-06h00.
-Règle de Bastien : BFG ne doit JAMAIS afficher une FdS de la veille.
-Aucune modification du NAS, du VPS ni de la pérenne. Deux commits locaux avant
-le push (correction minimale, puis compléments des points 6 à 8).
+Règle de Bastien : BFG ne doit JAMAIS afficher une FdS ou une GAAR de la veille.
+Aucune modification du NAS, du VPS ni de la pérenne. Trois commits locaux avant
+le push (correction minimale ; compléments des points 6 à 8 ; points 11 à 13).
 
 1. CONSTAT (30/09 au matin, TEST et pérenne)
 - À l'ouverture, BFG a affiché la FdS du 29 comme « FDS du jour ». Le mail de la
@@ -520,19 +524,81 @@ le push (correction minimale, puis compléments des points 6 à 8).
   du lendemain, mode Manuel / Auto et importation manuelle, hors ligne, règle de
   01h00 (00:30 restaurée, 02:00 non restaurée) : identiques.
 
-10. CHEMINS RESTANTS, NON MODIFIÉS (À DÉCIDER)
-- GAAR, application restée ouverte : la GAAR n'a pas de contrôle au réveil d'un
-  nouveau jour ; le diagramme de la veille reste à l'écran jusqu'à une
-  réouverture (essai G). Elle n'est effacée qu'à l'ouverture.
-- Application au premier plan au passage de minuit, sans mise en veille : aucun
-  événement de réveil, la FdS de la veille reste jusqu'au prochain réveil.
-- Mode FDS Manuel : une FdS importée à la main la veille reste affichée le
-  lendemain tant que l'application reste ouverte (essai MAN).
-- Chemin 3 (00h00-01h00, restauration locale) : conservé par décision.
-- Après ~90 s sans résultat, la recherche s'arrête jusqu'à un clic sur
+10. CHEMINS RELEVÉS APRÈS LE DEUXIÈME COMMIT (traités aux points 11 à 13)
+- GAAR, application restée ouverte : pas de contrôle au réveil d'un nouveau jour.
+- Application au premier plan au passage de minuit, sans réveil.
+- FdS importée à la main la veille (mode Manuel), application restée ouverte.
+
+11. GAAR AU CHANGEMENT DE JOUR (application restée ouverte, mode GAAR Auto)
+- Le contrôle de changement de jour (point 7) traite aussi la GAAR : un diagramme
+  qui n'est pas daté du jour est retiré tout de suite (visionneuse, panneau du
+  mail), message « Nouveau jour détecté — diagramme GAAR de la veille retiré,
+  recherche de la GAAR du jour... », puis chargement automatique existant
+  (chargerDerniereGaarAuDemarrage_). Hors ligne : retiré aussi, sans requête.
+- Date du diagramme affiché : dateKey / fileDate des métadonnées NAS, sinon nom
+  « gaar-AAAAMMJJ ». Les circuits de la carte GAAR ne sont pas touchés (comme à
+  l'ouverture).
+- Un diagramme daté du jour n'est JAMAIS retiré : chargerDerniereGaarAuDemarrage_
+  ne l'efface plus quand le NAS ne répond pas ou quand la réponse ne confirme pas
+  la GAAR du jour (réponse en cache de la veille). Messages : « Serveur GAAR
+  injoignable. Le diagramme GAAR du jour déjà affiché est conservé. » et « GAAR du
+  jour non confirmée par le serveur. Le diagramme GAAR du jour déjà affiché est
+  conservé. ». AVANT (v5.38 comprise) : NAS injoignable et rien en cache, le
+  diagramme du jour était effacé à l'ouverture.
+- Mode GAAR Manuel : inchangé (cf. point 14).
+
+12. PASSAGE DE MINUIT, APPLICATION AU PREMIER PLAN
+- Le minuteur de bascule du bandeau horaire lance, à chaque échéance (dont
+  00h00), le même contrôle de changement de jour pour la FdS et la GAAR.
+- Un seul contrôle : la date mémorisée (__bfgFdsLifecycleDateKey) fait sortir
+  tout de suite un second appel (minuteur + réveil ensemble) ; essai N : une
+  seule recherche FdS, une seule recherche GAAR, un seul appel Gmail.
+
+13. FdS IMPORTÉE À LA MAIN LA VEILLE (mode Manuel)
+- À l'importation manuelle, le jour de l'import (Paris, horloge de l'iPad) est
+  enregistré dans les métadonnées de la FdS (importDateKey, sauvegardé avec la
+  session). Date absente (import d'avant la v5.39) : date du nom « fds-AAAAMMJJ »
+  si elle existe, sinon la FdS est considérée de la veille au premier changement
+  de jour.
+- Au changement de jour (réveil ou minuteur de minuit), la FdS manuelle qui n'est
+  pas du jour est retirée de l'écran. Le mode reste Manuel, aucune recherche
+  Gmail. Message : « FdS manuelle de la veille retirée : importer la FdS du jour
+  ou repasser en Auto ». Une FdS importée le jour même n'est jamais retirée.
+
+14. GAAR EN MODE MANUEL — CONSTAT, NON MODIFIÉ (À DÉCIDER)
+- Une GAAR importée à la main la veille s'affiche encore le lendemain (essai R) :
+  a) application restée ouverte : le contrôle de changement de jour ne touche pas
+     une GAAR en mode Manuel ;
+  b) réouverture : restoreSavedGaar accepte savedGaarIsManual sans contrôle de
+     date, à toute heure (la règle de 01h00 ne s'applique pas en mode Manuel) ;
+  c) chargerDerniereGaarAuDemarrage_ ne fait rien en mode Manuel.
+
+15. ESSAIS DU TROISIÈME COMMIT (mêmes moyens qu'au point 9)
+- A à L refaits : conformes (seules différences avec le 2e commit : GAAR de la
+  veille retirée au changement de jour, FdS manuelle de la veille retirée, GAAR
+  du jour conservée NAS injoignable).
+- M GAAR J-1, réveil à J : retirée tout de suite ; GAAR J chargée si elle existe,
+  sinon « Aucun diagramme GAAR du jour disponible sur le NAS… ».
+- N premier plan de 23:59:50 à 00:00, sans réveil : FdS et GAAR J-1 retirées à
+  00:00, bandeau affiché, une seule recherche (NAS joignable ou non).
+- O FdS manuelle importée à J-1, réveil à J : retirée, message, mode Manuel,
+  aucun appel Gmail, aucune requête FdS. Import sans date d'import : retirée,
+  sauf si le nom porte la date du jour.
+- P FdS manuelle importée à J, réveil le même jour : conservée (retirée au
+  passage de minuit suivant).
+- Q GAAR du jour, NAS injoignable, réveil le même jour, vérification forcée et
+  rechargement : conservée.
+- R GAAR manuelle de la veille : reste affichée (point 14).
+
+16. CHEMINS RESTANTS, NON MODIFIÉS
+- GAAR en mode Manuel importée la veille (point 14) : À DÉCIDER.
+- Chemin 3 (00h00-01h00, restauration locale de la FdS et de la GAAR de la
+  veille à l'ouverture) : conservé par décision.
+- Après ~90 s sans résultat, la recherche FdS s'arrête jusqu'à un clic sur
   « Actualiser », une réouverture ou un nouveau jour.
-- GAAR, NAS injoignable et rien en cache : le diagramme est effacé même s'il
-  est du jour (comportement antérieur, identique en v5.38).
+- Constat : après 01h00, une FdS importée à la main dont le nom ne porte pas
+  « fds-AAAAMMJJ » n'est pas restaurée à la réouverture, même importée le jour
+  même (règle de 01h00 existante, inchangée).
 
 VERSIONS
 - APP_VERSION_NUMBER 5.39, BFG_SW_VERSION 5.39, CACHE_NAME
@@ -545,7 +611,9 @@ STATUTS v5.39
   (ouverture avant l'import du matin ; ouverture NAS éteint).
 - Effacement de la FdS de la veille au réveil : À MESURER sur iPad.
 - Bandeau 00h00-06h00 : À MESURER sur iPad.
-- Chemins du point 10 : À DÉCIDER.
+- GAAR au changement de jour, contrôle à minuit, FdS manuelle de la veille :
+  À MESURER sur iPad.
+- GAAR en mode Manuel de la veille (point 14) : À DÉCIDER.
 TEST v5.38 — 2026-09-29
 Base : TEST v5.37
 ===============================================================================
