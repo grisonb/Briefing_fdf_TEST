@@ -421,8 +421,9 @@ Base : TEST v5.39
 NOTAM SOFIA (SIA) À LA PLACE DES NOTAM SDVFR. LA MÉTÉO RESTE SDVFR.
 Décisions de Bastien du 30/09/2026 (non rediscutées ici). Travail sur BFG TEST
 uniquement ; la pérenne n'est pas touchée et n'appelle aucun des fichiers ajoutés.
-LIVRAISON EN 3 PARTIES : A (NAS) et B (VPS) PRÉPARÉES, NON INSTALLÉES ; C (BFG)
-commitée en local, à pousser seulement après installation de A et B et accord.
+LIVRAISON EN 3 PARTIES : A (NAS) et B (VPS) INSTALLÉES ET VÉRIFIÉES le 30/09/2026
+par l'utilisateur (cf. « INSTALLATION DU 30/09/2026 » plus bas) ; C (BFG) poussée
+ensuite, sur accord écrit.
 
 0. CONSTATS PRÉALABLES (30/09, lecture seule)
 - notams-auto-refresh.php (tâche DSM 06:30, et 09:45 depuis le 30/09) alimente le
@@ -535,9 +536,46 @@ VERSIONS
   premières lignes changent (les nouvelles adresses NAS passent par le réseau,
   sans cache du Service Worker).
 
+INSTALLATION DU 30/09/2026 (faite par l'utilisateur, résultats rapportés par lui)
+- A — NAS : les 6 fichiers copiés dans /volume1/web/briefing-api/. Vérifications :
+  get-sofia-notams.php -> « absent » ; request-sofia-notams.php sans jeton ->
+  « unauthorized » ; get-sofia-notams-request.php sans jeton -> 401.
+- B — VPS (/home/ubuntu/bfg-sofia-notams) :
+  B3 empreinte de l'archive bcf7bfd9…c7971, EMPREINTES OK, auto-test 15/15 ;
+  B4 essai à blanc : 166 NOTAM sur 26 terrains, 51 NOTAM IFR écartés, 36 s ;
+  B5 minuteur actif (prochain passage le 01/10 à 06:30), service à la demande
+     actif ;
+  B6 passage réel : dépôt NAS réussi (HTTP 200) à 12:09 UTC ;
+  B7 recherche à la demande (essai_demande.py) réussie en 44 s (fichier du
+     2026-09-30T12:13:40Z).
+- Le PHP du NAS (7.3) exécute donc bien les 6 fichiers (dépôt, lecture, demande,
+  avancement) : point incertain levé.
+
+RETOUR ARRIÈRE
+- NAS : supprimer les 6 fichiers (sofia-notams-lib.php, get-sofia-notams.php,
+  request-sofia-notams.php, get-sofia-notams-status.php,
+  get-sofia-notams-request.php, update-sofia-notams.php) de
+  /volume1/web/briefing-api/ et le dossier /volume1/web/briefing-data/sofia-notams/.
+  Aucun autre fichier du NAS n'a été touché.
+- VPS (PowerShell) :
+  ssh -t ubuntu@51.210.43.32 'sudo systemctl disable --now bfg-sofia-notams.timer
+  bfg-sofia-notams-ondemand.service ; sudo rm -f
+  /etc/systemd/system/bfg-sofia-notams.service
+  /etc/systemd/system/bfg-sofia-notams.timer
+  /etc/systemd/system/bfg-sofia-notams-ondemand.service ; sudo systemctl
+  daemon-reload ; rm -rf /home/ubuntu/bfg-sofia-notams ; echo RETIRE'
+  (une seule ligne). Le worker SDVFR et le programme SUP AIP ne sont pas concernés.
+- BFG : sans ces fichiers, la v5.40 garde les NOTAM déjà lus et affiche l'alerte
+  « NOTAM SOFIA » ; revenir à la v5.39 demande une nouvelle livraison.
+
+NOTE POUR LA PROMOTION (décision de Bastien du 30/09/2026)
+- La promotion vers la pérenne GARDERA le libellé « SOFIA » (cf. 0.B5). La
+  règle « jamais de mention visible de SDVFR en pérenne » reste inchangée.
+
 STATUTS v5.40
-- A (NAS) et B (VPS) : À INSTALLER par l'utilisateur.
-- C (BFG) : NON POUSSÉE ; À MESURER sur iPad après A et B.
+- A (NAS) et B (VPS) : INSTALLÉS et VÉRIFIÉS le 30/09/2026.
+- C (BFG) : POUSSÉE le 30/09/2026 ; À MESURER sur iPad.
+- Premier passage planifié : À MESURER le 01/10 (06:30 et 10:00).
 TEST v5.39 — 2026-09-30
 Base : TEST v5.38
 ===============================================================================
