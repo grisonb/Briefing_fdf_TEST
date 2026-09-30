@@ -349,13 +349,14 @@ B5. LISTE DE CONTRÔLE DE PROMOTION — MENTIONS VISIBLES DE « SDVFR » (v5.23)
         GAAR) + effacement FdS veille au changement de jour + bandeau
         00h00-06h00 + GAAR au changement de jour (diagramme du jour jamais
         retiré) + contrôle à minuit (minuteur du bandeau) + FdS manuelle de la
-        veille (date d'import). La pérenne a le même défaut (FdS du 29 affichée
+        veille (date d'import) + imports manuels valables le jour même
+        uniquement, FdS et GAAR (écran et restauration locale). La pérenne a le même défaut (FdS du 29 affichée
         le 30/09 au matin). Textes ajoutés : « FDS du jour en cours de recherche... »,
         « Aucune FDS du jour disponible. », « Nouveau jour détecté — FDS de la
         veille retirée. Mode hors ligne : aucune recherche lancée. », les deux
         lignes du bandeau, « FdS manuelle de la veille retirée : importer la FdS
-        du jour ou repasser en Auto », les messages GAAR des points 11
-        (aucune mention de SDVFR).
+        du jour ou repasser en Auto », les messages GAAR des points 11, 17 et
+        18 (aucune mention de SDVFR).
       - Éléments TEST uniquement ci-dessous : NON repris en v2026.29 (case
         « Afficher toutes les zones » absente, showAll forcé à false ; bouton
         de comparaison absent).
@@ -410,8 +411,10 @@ Base : TEST v5.38
 
 FEUILLE DE SERVICE : UNIQUEMENT CELLE DU JOUR ; BANDEAU HORAIRE 00h00-06h00.
 Règle de Bastien : BFG ne doit JAMAIS afficher une FdS ou une GAAR de la veille.
-Aucune modification du NAS, du VPS ni de la pérenne. Trois commits locaux avant
-le push (correction minimale ; compléments des points 6 à 8 ; points 11 à 13).
+Le mode manuel ne sert que le jour même : tout document importé à la main vaut
+uniquement le jour (Paris, horloge de l'iPad) de son import.
+Aucune modification du NAS, du VPS ni de la pérenne. Quatre commits locaux avant
+le push (correction minimale ; points 6 à 8 ; points 11 à 13 ; points 17 à 19).
 
 1. CONSTAT (30/09 au matin, TEST et pérenne)
 - À l'ouverture, BFG a affiché la FdS du 29 comme « FDS du jour ». Le mail de la
@@ -590,15 +593,75 @@ le push (correction minimale ; compléments des points 6 à 8 ; points 11 à 13)
   rechargement : conservée.
 - R GAAR manuelle de la veille : reste affichée (point 14).
 
-16. CHEMINS RESTANTS, NON MODIFIÉS
-- GAAR en mode Manuel importée la veille (point 14) : À DÉCIDER.
-- Chemin 3 (00h00-01h00, restauration locale de la FdS et de la GAAR de la
-  veille à l'ouverture) : conservé par décision.
+16. CHEMINS RELEVÉS APRÈS LE TROISIÈME COMMIT
+- GAAR en mode Manuel importée la veille (point 14) : traité aux points 17 et 18.
+- Le changement du point 11 (diagramme GAAR du jour conservé quand le NAS ne
+  répond pas) a été VALIDÉ par Bastien.
+
+17. GAAR IMPORTÉE À LA MAIN : VALABLE LE JOUR MÊME
+- À l'importation manuelle, le jour de l'import est enregistré (importDateKey
+  dans les métadonnées de la GAAR, sauvegardé avec la session), comme pour la FdS.
+- Au changement de jour (réveil ou minuteur de 00h00), une GAAR qui n'a pas été
+  importée le jour même est retirée de l'écran, y compris en mode GAAR Manuel.
+  Le mode reste Manuel, aucune recherche. Message : « GAAR manuelle de la veille
+  retirée : importer la GAAR du jour ou repasser en Auto ». Les circuits de la
+  carte ne sont pas touchés.
+
+18. RESTAURATION LOCALE DES IMPORTS MANUELS (FdS et GAAR)
+- Un document importé à la main (mode manuel dans ses métadonnées, ou date
+  d'import présente) n'est restauré à la réouverture que si sa date d'import est
+  celle du jour, à TOUTE heure : limite à minuit strict, sans la tolérance de
+  01h00. Date d'import absente (import antérieur à la v5.39) : date du nom de
+  fichier (« fds-AAAAMMJJ » / « gaar-AAAAMMJJ ») si elle existe et si elle est
+  celle du jour, sinon pas de restauration.
+- L'acceptation sans contrôle de date en mode GAAR Manuel (savedGaarIsManual) est
+  supprimée.
+- Conséquence voulue : une FdS importée à la main le jour même est restaurée
+  après 01h00 même si son nom ne contient pas « fds-AAAAMMJJ » (avant : non).
+- Messages : « FdS manuelle de la veille non restaurée : importer la FdS du jour
+  ou repasser en Auto. » et « GAAR manuelle de la veille non restaurée : importer
+  la GAAR du jour ou repasser en Auto. Les circuits sauvegardés restent conservés. »
+- Documents chargés automatiquement depuis le NAS : règle de 01h00 INCHANGÉE
+  (shouldRestoreSavedBfgDailyPdf_ non modifiée).
+
+19. ESSAIS DU QUATRIÈME COMMIT (mêmes moyens qu'au point 9)
+- A à Q refaits : conformes, identiques au 3e commit (hors message du point 18).
+- R GAAR manuelle importée à J-1, application ouverte, passage à 00h00 : retirée,
+  message, mode toujours Manuel.
+- S GAAR manuelle importée à J-1, réouverture à J 00h30 et à J 09h00 : non
+  restaurée.
+- T GAAR manuelle importée à J, réouverture à J 15h00 : restaurée ; conservée au
+  réveil le même jour.
+- U FdS manuelle importée à J, nom sans date, réouverture à J 09h00 : restaurée.
+- V FdS manuelle importée à J-1, réouverture à J 00h30 : non restaurée.
+- W FdS et GAAR automatiques de J-1, réouverture à J 00h30 puis 02h00 :
+  identique à la v5.38 (FdS restaurée à 00h30, pas à 02h00).
+- Import sans date d'import : FdS sans date dans le nom non restaurée ; GAAR
+  nommée « gaar-AAAAMMJJ » du jour restaurée.
+
+20. INVENTAIRE DES AUTRES IMPORTATIONS MANUELLES (lecture du code, NON MODIFIÉES)
+- SUP AIP en PDF (bouton et dépôt de fichiers de la section AZBA / SUP AIP) :
+  gardés dans la base locale bfgSupAipPersistentDB et dans la session ;
+  CONSERVÉS d'un jour à l'autre, sans contrôle de date.
+- NOTAM en PDF (« Importation manuelle » de la section NOTAM) : le texte extrait
+  est sauvegardé avec la session et n'est restauré que si la sauvegarde est du
+  jour. La chaîne de persistance NOTAM dédiée n'a pas été analysée pour ce cas.
+- Briefing partagé (bouton « Ouvrir » avec un code, ou lien ?share=) : apporte la
+  FdS, la GAAR, les circuits et les SUP AIP d'un autre appareil sans contrôle de
+  date ni métadonnées. La FdS et la GAAR suivent ensuite la règle des documents
+  automatiques (date du nom de fichier) : retirées au changement de jour si
+  elles ne sont pas du jour, mais restaurables jusqu'à 01h00. Les métadonnées du
+  document précédent ne sont pas remises à zéro à cet import.
+- Circuits GAAR tracés à la main sur la carte : CONSERVÉS d'un jour à l'autre
+  (jusqu'à la suppression de la session, à 06h00 le matin de J+2).
+- Aucune importation d'image ou d'autre type de fichier.
+
+21. CHEMINS RESTANTS, NON MODIFIÉS
+- Chemin 3 (00h00-01h00, restauration locale de la FdS automatique de la veille
+  à l'ouverture) : conservé par décision.
+- Briefing partagé (point 20) : À DÉCIDER.
 - Après ~90 s sans résultat, la recherche FdS s'arrête jusqu'à un clic sur
   « Actualiser », une réouverture ou un nouveau jour.
-- Constat : après 01h00, une FdS importée à la main dont le nom ne porte pas
-  « fds-AAAAMMJJ » n'est pas restaurée à la réouverture, même importée le jour
-  même (règle de 01h00 existante, inchangée).
 
 VERSIONS
 - APP_VERSION_NUMBER 5.39, BFG_SW_VERSION 5.39, CACHE_NAME
@@ -613,7 +676,9 @@ STATUTS v5.39
 - Bandeau 00h00-06h00 : À MESURER sur iPad.
 - GAAR au changement de jour, contrôle à minuit, FdS manuelle de la veille :
   À MESURER sur iPad.
-- GAAR en mode Manuel de la veille (point 14) : À DÉCIDER.
+- Imports manuels valables le jour même (FdS et GAAR, écran et restauration) :
+  À MESURER sur iPad.
+- Briefing partagé (point 20) : À DÉCIDER.
 TEST v5.38 — 2026-09-29
 Base : TEST v5.37
 ===============================================================================

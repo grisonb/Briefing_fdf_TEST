@@ -8449,18 +8449,21 @@ const tdfStages = [
                     // Un document daté du jour n'est jamais retiré.
                     const infoFds = document.getElementById('pdf-info-fds');
                     const cleared = clearDisplayedFdsIfNotToday_(todayKey);
-                    const gaarCleared = gaarAuto && Boolean(window.gaarFileObject) && !resetGaarPdfUnlessToday_();
+                    const gaarCleared = Boolean(window.gaarFileObject) && !resetGaarPdfUnlessToday_();
 
                     if (cleared && fdsManual) {
                         if (infoFds) infoFds.textContent = 'Aucune FDS du jour disponible.';
                         setFdsAutoStatus_('FdS manuelle de la veille retirée : importer la FdS du jour ou repasser en Auto', { warning: true });
+                    }
+                    if (gaarCleared && !gaarAuto) {
+                        setGaarAutoStatus_('GAAR manuelle de la veille retirée : importer la GAAR du jour ou repasser en Auto', { warning: true });
                     }
                     if (offline) {
                         if (cleared && !fdsManual) {
                             if (infoFds) infoFds.textContent = 'Aucune FDS du jour disponible.';
                             setFdsAutoStatus_('Nouveau jour détecté — FDS de la veille retirée. Mode hors ligne : aucune recherche lancée.', { warning: true });
                         }
-                        if (gaarCleared) {
+                        if (gaarCleared && gaarAuto) {
                             setGaarAutoStatus_('Nouveau jour détecté — diagramme GAAR de la veille retiré. Mode hors ligne : aucune recherche lancée.', { warning: true });
                         }
                         return;
@@ -8540,11 +8543,12 @@ const tdfStages = [
             return entryKey && entryKey === gaarParisDateKey_(0) ? entry : null;
         }
 
-        // v5.39 — date de la GAAR affichée : métadonnées NAS (dateKey / fileDate), sinon nom « gaar-AAAAMMJJ ».
+        // v5.39 — date de la GAAR affichée : métadonnées NAS (dateKey / fileDate), sinon date de
+        // l'importation manuelle (importDateKey), sinon nom « gaar-AAAAMMJJ ». Inconnue = pas du jour.
         function getDisplayedGaarDateKey_() {
             const payload = window.__lastGaarMetaPanelPayload;
             const meta = payload && payload.meta ? payload.meta : null;
-            const metaKey = meta ? String(meta.dateKey || meta.fileDate || '').replace(/\D/g, '') : '';
+            const metaKey = meta ? String(meta.dateKey || meta.fileDate || meta.importDateKey || '').replace(/\D/g, '') : '';
             if (metaKey.length === 8) return metaKey;
             const match = String((window.gaarFileObject && window.gaarFileObject.name) || '').match(/gaar[^0-9]*(\d{8})/i);
             return match ? match[1] : '';
@@ -12732,7 +12736,9 @@ const tdfStages = [
                     setGaarMode_(GAAR_MODE_MANUAL, { message: false });
                     setGaarMetaPanel_({
                         originalFilename: window.gaarFileObject.name,
-                        lastModified: window.gaarFileObject.lastModified
+                        lastModified: window.gaarFileObject.lastModified,
+                        // v5.39 : jour de l'importation (Paris) ; une GAAR manuelle ne vaut que ce jour-là.
+                        importDateKey: gaarParisDateKey_(0)
                     }, { mode: GAAR_MODE_MANUAL });
                     updateGaarTomorrowButton_(null);
                     setGaarAutoStatus_(`Mode GAAR manuel activé : ${window.gaarFileObject.name} affichée. Elle ne sera pas remplacée automatiquement par la feuille NAS au démarrage.`, { warning: true });
@@ -13981,13 +13987,32 @@ let activeShareApiBase = SHARE_API_BASE;
         return fileDateKey >= todayKey;
     }
 
+    // v5.39 — FDS / GAAR importées à la main : valables uniquement le jour de l'import (Paris, horloge
+    // de l'iPad), à toute heure (limite à minuit strict, sans la tolérance de 01h00 des documents NAS).
+    function isSavedBfgManualImport_(metaPanel) {
+        const meta = (metaPanel && metaPanel.meta) || {};
+        const options = (metaPanel && metaPanel.options) || {};
+        return options.mode === FDS_MODE_MANUAL || Boolean(meta.importDateKey);
+    }
+
+    function shouldRestoreSavedBfgManualPdf_(savable, prefix, metaPanel) {
+        // Date d'import absente (import antérieur à la v5.39) : date du nom de fichier, sinon pas de restauration.
+        const importKey = String(((metaPanel && metaPanel.meta) || {}).importDateKey || '').replace(/\D/g, '');
+        const dateKey = importKey.length === 8 ? importKey : extractBfgDateKeyFromSavable_(savable, prefix);
+        const todayKey = typeof fdsParisDateKey_ === 'function' ? fdsParisDateKey_(0) : '';
+        return Boolean(dateKey && todayKey && dateKey === todayKey);
+    }
+
     function applySavedSessionData_(data) {
         if (!data) {
             setSessionStatusWithMemory_("Aucune session sauvegardée.");
             return;
         }
 
-        const restoreSavedFds = !!data.fds && shouldRestoreSavedBfgDailyPdf_(data.fds, 'fds');
+        const savedFdsIsManualImport = !!data.fds && isSavedBfgManualImport_(data.fdsMetaPanel);
+        const restoreSavedFds = !!data.fds && (savedFdsIsManualImport
+            ? shouldRestoreSavedBfgManualPdf_(data.fds, 'fds', data.fdsMetaPanel)
+            : shouldRestoreSavedBfgDailyPdf_(data.fds, 'fds'));
         if (restoreSavedFds) {
             const file = savableToFile(data.fds);
             window.fdsFileObject = file;
@@ -13999,11 +14024,16 @@ let activeShareApiBase = SHARE_API_BASE;
         } else if (data.fds) {
             window.fdsFileObject = null;
             const infoFds = document.getElementById('pdf-info-fds');
-            if (infoFds) infoFds.textContent = 'FDS locale de la veille supprimée après 01h00.';
+            if (infoFds) infoFds.textContent = savedFdsIsManualImport
+                ? 'FdS manuelle de la veille non restaurée : importer la FdS du jour ou repasser en Auto.'
+                : 'FDS locale de la veille supprimée après 01h00.';
         }
 
-        const savedGaarIsManual = getGaarMode_() === GAAR_MODE_MANUAL;
-        const restoreSavedGaar = !!data.gaar && (savedGaarIsManual || shouldRestoreSavedBfgDailyPdf_(data.gaar, 'gaar'));
+        // v5.39 : plus d'acceptation sans contrôle de date en mode GAAR Manuel.
+        const savedGaarIsManualImport = !!data.gaar && isSavedBfgManualImport_(data.gaarMetaPanel);
+        const restoreSavedGaar = !!data.gaar && (savedGaarIsManualImport
+            ? shouldRestoreSavedBfgManualPdf_(data.gaar, 'gaar', data.gaarMetaPanel)
+            : shouldRestoreSavedBfgDailyPdf_(data.gaar, 'gaar'));
         const hasGaarPdf = restoreSavedGaar;
         const hasGaarMapState = !!(data.gaarMapState && data.gaarMapState.length > 0);
 
@@ -14026,7 +14056,9 @@ let activeShareApiBase = SHARE_API_BASE;
         } else if (data.gaar) {
             window.gaarFileObject = null;
             const infoGaar = document.getElementById('pdf-info-gaar');
-            if (infoGaar) infoGaar.textContent = 'Diagramme GAAR automatique de la veille non restauré après 01h00. Les circuits sauvegardés restent conservés.';
+            if (infoGaar) infoGaar.textContent = savedGaarIsManualImport
+                ? 'GAAR manuelle de la veille non restaurée : importer la GAAR du jour ou repasser en Auto. Les circuits sauvegardés restent conservés.'
+                : 'Diagramme GAAR automatique de la veille non restauré après 01h00. Les circuits sauvegardés restent conservés.';
         }
 
         if (hasGaarMapState) {
