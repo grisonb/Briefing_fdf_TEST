@@ -3105,8 +3105,8 @@
     <footer>Données : Météo-France, SIA, Windy.com, SDVFR. Page non commerciale, à usage personnel.</footer>
     
     <script>
-        const APP_VERSION_NUMBER = "5.41";
-        const APP_VERSION = `${APP_VERSION_NUMBER} TEST - FILTRES NOTAM`;
+        const APP_VERSION_NUMBER = "5.42";
+        const APP_VERSION = `${APP_VERSION_NUMBER} TEST - ALERTE CYCLE VAC`;
 
 
         // v4.97 — diagnostic conservé ; plage NOTAM quotidienne et sélection prioritaire. Aucun code d'accès, token ou contenu NOTAM n'est exporté.
@@ -10220,6 +10220,9 @@ const tdfStages = [
         // jour à chaque enregistrement ou suppression : elle permet de savoir de
         // façon SYNCHRONE, avant window.open, si une carte est disponible hors ligne.
         const BFG_VAC_STORED_LIST_KEY_ = 'bfgVacStoredListV1';
+        // v5.42 — alerte de cycle fermée par l'utilisateur : { day, text }. Elle ne
+        // réapparaît pas le même jour, sauf si son texte change.
+        const BFG_VAC_AIRAC_DISMISSED_KEY_ = 'bfgVacAiracAlertDismissedV1';
 
         let bfgVacDb_ = null;
         let bfgVacDailyCheckPromise_ = null;
@@ -10365,6 +10368,7 @@ const tdfStages = [
                 localStorage.removeItem(BFG_VAC_KNOWN_MANIFESTS_KEY_);
                 localStorage.removeItem(BFG_VAC_PENDING_DOWNLOADS_KEY_);
                 localStorage.removeItem(BFG_VAC_STORED_LIST_KEY_);
+                localStorage.removeItem(BFG_VAC_AIRAC_DISMISSED_KEY_);
             } catch (_) {}
             bfgVacManifestSessionCache_.clear();
             bfgVacKnownManifests_ = null;
@@ -10506,9 +10510,10 @@ const tdfStages = [
             if (sourceTime === null) return '';
             const currentTime = getBfgCurrentAiracCycleUtc_();
             if (sourceTime >= currentTime) return '';
-            return `⚠️ Cartes VAC non à jour : cycle ${formatBfgAiracCycle_(sourceTime)} disponible,`
-                + ` cycle en vigueur ${formatBfgAiracCycle_(currentTime)}.`
-                + ` Effectuer la mise à jour des cartes VAC depuis NPF-Q400.`;
+            // v5.42 — la source est en retard : BFG ne renvoie plus vers NPF-Q400.
+            return `⚠️ Cartes VAC : le cycle du ${formatBfgAiracCycle_(currentTime)} n'est pas encore publié par la source.`
+                + ` Les cartes du cycle ${formatBfgAiracCycle_(sourceTime)} restent affichées et peuvent ne plus être à jour.`
+                + ` Mise à jour automatique dès publication.`;
         }
 
         // Alerte du premier manifest connu en retard, dans l'ordre des sources.
@@ -10527,6 +10532,21 @@ const tdfStages = [
 
         /* ---------- v5.20 — bandeau VAC de connexion ---------- */
         let bfgVacBannerHideTimer_ = null;
+        // v5.42 — texte de l'alerte de cycle actuellement affichée dans le bandeau ('' sinon).
+        let bfgVacBannerAiracText_ = '';
+
+        function bfgVacAiracAlertDismissedToday_(alertText) {
+            try {
+                const saved = JSON.parse(localStorage.getItem(BFG_VAC_AIRAC_DISMISSED_KEY_) || 'null');
+                return !!(saved && saved.day === bfgTodayLocalKey_() && saved.text === alertText);
+            } catch (_) { return false; }
+        }
+
+        function rememberBfgVacAiracAlertDismissed_(alertText) {
+            try {
+                localStorage.setItem(BFG_VAC_AIRAC_DISMISSED_KEY_, JSON.stringify({ day: bfgTodayLocalKey_(), text: alertText }));
+            } catch (_) {}
+        }
 
         function setBfgVacBanner_(message, options = {}) {
             // v5.26 — actualisation complète en cours : information redirigée vers son bandeau.
@@ -10544,6 +10564,7 @@ const tdfStages = [
                 bfgVacBannerHideTimer_ = null;
             }
             text.textContent = String(message || '');
+            bfgVacBannerAiracText_ = String(options.airacText || '');
             banner.classList.add('visible');
             banner.classList.toggle('warning', !!options.warning);
             banner.classList.toggle('closable', !!options.closable);
@@ -10558,13 +10579,19 @@ const tdfStages = [
                 clearTimeout(bfgVacBannerHideTimer_);
                 bfgVacBannerHideTimer_ = null;
             }
+            bfgVacBannerAiracText_ = '';
             const banner = document.getElementById('vac-loading-banner');
             if (banner) banner.classList.remove('visible', 'warning', 'closable');
         }
 
         (() => {
             const closeButton = document.getElementById('vac-loading-banner-close');
-            if (closeButton) closeButton.addEventListener('click', hideBfgVacBanner_);
+            if (closeButton) closeButton.addEventListener('click', () => {
+                // v5.42 — fermeture par l'utilisateur : l'alerte de cycle n'est plus
+                // réaffichée aujourd'hui tant que son texte reste le même.
+                if (bfgVacBannerAiracText_) rememberBfgVacAiracAlertDismissed_(bfgVacBannerAiracText_);
+                hideBfgVacBanner_();
+            });
         })();
 
         setTimeout(() => { rebuildBfgVacStoredListIfMissing_(); }, 0);
@@ -10719,8 +10746,14 @@ const tdfStages = [
             return record;
         }
 
+        // v5.42 — le jour ne compte comme vérifié que si le dernier manifest connu
+        // n'est pas en retard sur le cycle en vigueur (ex. jour mémorisé entre 00h et
+        // 02h, avant le changement de cycle à 00:00 UTC) : sinon, nouvelle vérification.
         function bfgVacCheckedToday_() {
-            try { return localStorage.getItem(BFG_VAC_LAST_CHECK_DAY_KEY_) === bfgTodayLocalKey_(); }
+            try {
+                return localStorage.getItem(BFG_VAC_LAST_CHECK_DAY_KEY_) === bfgTodayLocalKey_()
+                    && !getBfgVacKnownAiracAlert_();
+            }
             catch (_) { return false; }
         }
 
@@ -10743,6 +10776,25 @@ const tdfStages = [
             } catch (_) {}
         }
 
+        // v5.42 — source en retard sur le cycle en vigueur : seule l'heure de la
+        // dernière vérification est mise à jour ; le jour n'est PAS mémorisé, la
+        // vérification est donc relancée à chaque connexion et à chaque ouverture.
+        function markBfgVacCheckTimeOnly_() {
+            try { localStorage.setItem(BFG_VAC_LAST_CHECK_ISO_KEY_, new Date().toISOString()); }
+            catch (_) {}
+        }
+
+        // v5.42 — manifest relu avec succès aujourd'hui (jour mémorisé ou non) :
+        // une carte ouverte n'est pas signalée « sans vérification ».
+        function bfgVacLastCheckWasToday_() {
+            try {
+                const date = new Date(localStorage.getItem(BFG_VAC_LAST_CHECK_ISO_KEY_) || '');
+                if (Number.isNaN(date.getTime())) return false;
+                const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+                return key === bfgTodayLocalKey_();
+            } catch (_) { return false; }
+        }
+
         /* Vérification du cycle AIRAC : une seule fois par jour, déclenchée par la
          * première connexion Briefing réussie. Aucune requête VAC au démarrage.
          * En cas d'échec du manifest, la date du jour n'est PAS mémorisée : les
@@ -10751,7 +10803,10 @@ const tdfStages = [
          * VAC manquantes ou modifiées des pélicandromes (getSdvfrPelicandromeTargets_,
          * donc sans LFMT), avec les contrôles d'intégrité habituels. Les terrains en
          * échec sont mémorisés et repris à la connexion suivante, même le jour même.
-         * Tout à jour : seul le manifest est téléchargé, aucun bandeau. */
+         * Tout à jour : seul le manifest est téléchargé, aucun bandeau.
+         * v5.42 — source en retard sur le cycle AIRAC en vigueur : le jour n'est pas
+         * mémorisé (seule l'heure de vérification l'est) ; la vérification est
+         * relancée à chaque connexion et à chaque ouverture jusqu'à publication. */
         // v5.21 — lanceur commun (connexion, ouverture) : jamais bloquant.
         function startBfgVacDailyCheck_(reason = '') {
             bfgDiagLog_('VAC', `Vérification du jour demandée (${reason})`);
@@ -10829,19 +10884,30 @@ const tdfStages = [
                 }
 
                 saveBfgVacPendingDownloads_(failed);
-                markBfgVacCheckedToday_();
+                if (airacAlert) markBfgVacCheckTimeOnly_();
+                else markBfgVacCheckedToday_();
                 refreshBfgVacWarningsAfterDailyCheck_(failed);
+
+                // v5.42 — alerte fermée aujourd'hui avec le même texte : non réaffichée
+                // (sauf pendant « Actualiser », qui garde son propre bandeau).
+                const airacShown = airacAlert
+                    && (bfgGlobalRefresh_.active || !bfgVacAiracAlertDismissedToday_(airacAlert))
+                    ? airacAlert : '';
 
                 if (failed.length) {
                     const failedText = failed.length === 1
                         ? '1 carte VAC non téléchargée, nouvel essai à la prochaine connexion.'
                         : `${failed.length} cartes VAC non téléchargées, nouvel essai à la prochaine connexion.`;
-                    setBfgVacBanner_(airacAlert ? `${failedText} ${airacAlert}` : failedText, { warning: true, closable: true });
-                } else if (airacAlert) {
-                    setBfgVacBanner_(airacAlert, { warning: true, closable: true });
-                } else if (jobs.length) {
+                    setBfgVacBanner_(airacShown ? `${failedText} ${airacShown}` : failedText, { warning: true, closable: true, airacText: airacShown });
+                } else if (airacShown) {
+                    setBfgVacBanner_(airacShown, { warning: true, closable: true, airacText: airacShown });
+                } else if (!airacAlert && jobs.length) {
                     const cycle = formatBfgAiracCycle_((jobs[0].manifest && jobs[0].manifest.sourceCycle) || '');
                     setBfgVacBanner_(`Cartes VAC à jour (cycle ${cycle})`, { autoHideMs: 4000 });
+                } else if (!airacAlert && bfgVacBannerAiracText_) {
+                    // v5.42 — la source est passée au cycle en vigueur : l'alerte restée
+                    // affichée est retirée.
+                    hideBfgVacBanner_();
                 }
 
                 bfgDiagLog_('VAC', 'Vérification quotidienne du cycle terminée', {
@@ -10962,7 +11028,7 @@ const tdfStages = [
             try {
                 let record = await getBfgVacRecord_(key);
                 let hasBlob = !!(record && record.blob instanceof Blob);
-                let verified = hasBlob && bfgVacCheckedToday_() && !loadBfgVacPendingDownloads_().includes(key);
+                let verified = hasBlob && (bfgVacCheckedToday_() || bfgVacLastCheckWasToday_()) && !loadBfgVacPendingDownloads_().includes(key);
 
                 if (!verified) {
                     // VAC absente, ou cycle non vérifié aujourd'hui : tentative de

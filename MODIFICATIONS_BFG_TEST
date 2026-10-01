@@ -345,6 +345,12 @@ B5. LISTE DE CONTRÔLE DE PROMOTION — MENTIONS VISIBLES DE « SDVFR » (v5.23)
         concernée) ; bandeau de validité des cartes des risques (textes ajoutés :
         « Valable le… », « produite… », « CARTE PÉRIMÉE… », « Validité non lue… »,
         aucune mention de SDVFR).
+      - À PORTER EN PÉRENNE (v5.42) : alerte de cycle VAC (nouveau texte, sans
+        renvoi vers NPF-Q400), revérification à chaque connexion et ouverture tant
+        que la source est en retard, fermeture mémorisée pour la journée. Texte
+        ajouté : « ⚠️ Cartes VAC : le cycle du … n'est pas encore publié par la
+        source. Les cartes du cycle … restent affichées et peuvent ne plus être à
+        jour. Mise à jour automatique dès publication. » (aucune mention de SDVFR).
       - À PORTER EN PÉRENNE (v5.41) : 7 filtres NOTAM (SPPA, HORAIRES
         EXPLOITANT, PANNEAU, PISTE NON REVETUE, POINTS DE VERIFICATION INS,
         ESCALE, PAF) dans keywordsToFilter, ordre alphabétique, cochés par défaut.
@@ -418,6 +424,109 @@ C. CONTRÔLES AVANT TOUTE LIVRAISON
       surligneur, repli hors ligne NAS) ;
     - nouvelle entrée ajoutée EN TÊTE de ce journal, sous cette section 0,
       historique intégralement conservé.
+TEST v5.42 — 2026-10-01
+Base : TEST v5.41
+===============================================================================
+
+ALERTE DE CYCLE VAC : NOUVEAU TEXTE ET REVÉRIFICATION TANT QUE LA SOURCE EST
+EN RETARD.
+
+0. CONSTAT (01/10/2026)
+- Le manifest VAC (https://grisonb.github.io/NPF-Q400-VAC/manifest.json) est
+  resté au cycle 03_SEP_2026 jusqu'à 11h40 environ alors que le cycle
+  01_OCT_2026 était en vigueur (synchro SIA du dépôt NPF-Q400-VAC en échec,
+  corrigée le même jour dans ce dépôt).
+- BFG affichait « … Effectuer la mise à jour des cartes VAC depuis NPF-Q400. » :
+  faux, BFG ne doit jamais renvoyer vers NPF-Q400.
+- ensureBfgVacDailyManifestCheck_ mémorisait le jour comme vérifié même avec
+  l'alerte : une source publiée à midi n'était vue que le lendemain (sauf
+  « Actualiser »).
+- Fermeture du bandeau AVANT v5.42 : la croix ne faisait que masquer le bandeau,
+  rien n'était mémorisé. Il ne revenait pas dans la journée seulement parce que
+  la vérification n'avait lieu qu'une fois par jour.
+
+1. TEXTE (getBfgVacAiracAlertForCycle_)
+« ⚠️ Cartes VAC : le cycle du <cycle en vigueur> n'est pas encore publié par la
+source. Les cartes du cycle <cycle source> restent affichées et peuvent ne plus
+être à jour. Mise à jour automatique dès publication. » (format « 01 OCT 2026 »).
+Même texte dans le bandeau VAC, au-dessus d'une carte ouverte et dans le détail
+« Cartes VAC » du bandeau « Actualiser ».
+Relevé index.html / sw.js : aucune autre phrase VAC affichée ne renvoie vers
+NPF-Q400 (sw.js : commentaire et chemin /NPF-Q400-VAC/ seulement ; index.html :
+commentaires, baseUrl de la source, « Ouverture identique à NPF-Q400 » en
+commentaire). L'aide « Effacer » cite l'association NPF-Q400, sans rapport VAC.
+
+2. REVÉRIFICATION TANT QUE LA SOURCE EST EN RETARD
+- Fin de vérification AVEC alerte : seule l'heure (BFG_VAC_LAST_CHECK_ISO_KEY_)
+  est mise à jour (markBfgVacCheckTimeOnly_) ; le jour n'est pas mémorisé.
+  Sans alerte : markBfgVacCheckedToday_ comme avant (une vérification par jour).
+- bfgVacCheckedToday_ exige en plus que le dernier manifest connu ne soit pas en
+  retard (getBfgVacKnownAiracAlert_ vide). Couvre un jour déjà mémorisé avant le
+  passage de cycle (00:00 UTC = 02h00 à Paris) ou par un « Actualiser » fait
+  quand la source était à jour.
+- Conséquence : la vérification est relancée à chaque connexion Briefing réussie
+  (startBfgVacDailyCheck_('connexion'), inchangé) et à chaque ouverture avec
+  session valide (condition !bfgVacCheckedToday_(), inchangée), en ligne, tant
+  que la source est en retard. Une seule à la fois (bfgVacDailyCheckPromise_).
+  Seul le manifest est relu : les cartes au même SHA-256 ne sont pas
+  retéléchargées.
+- Carte ouverte : bfgVacLastCheckWasToday_ (heure de vérification du jour)
+  évite l'avertissement « VAC … affichée SANS vérification du cycle
+  aujourd'hui » après une vérification réussie le jour même avec source en
+  retard (sinon faux, hors ligne notamment).
+- Bandeau fermé (croix) : texte et jour mémorisés dans la nouvelle clé
+  localStorage 'bfgVacAiracAlertDismissedV1' ; la même alerte n'est plus
+  réaffichée dans le bandeau ce jour-là, elle revient si son texte change ou le
+  lendemain. Pendant « Actualiser », l'alerte reste reportée dans son bandeau.
+  « Effacer » supprime aussi cette clé.
+
+3. SOURCE PASSÉE AU BON CYCLE
+- Cartes modifiées téléchargées comme avant, jour mémorisé.
+- Bandeau : « Cartes VAC à jour (cycle …) » s'il y a eu des téléchargements
+  (disparaît après 4 s) ; sinon, l'alerte restée affichée est retirée.
+- « Cartes VAC à jour » n'est plus affiché quand l'alerte existe mais a été
+  fermée (il aurait été faux).
+
+4. ESSAIS (Chrome Windows sans interface piloté par CDP, manifest VAC et PDF
+   simulés, réseau externe coupé — NAS, SOFIA, météo en échec ; v5.41 et v5.42
+   comparées ; date réelle 01/10/2026, cycle en vigueur 01 OCT 2026)
+- A. Source 03_SEP : texte exact attendu, aucune mention de NPF ; jour NON
+  mémorisé, heure mémorisée. (v5.41 : ancien texte avec NPF-Q400, jour mémorisé.)
+  Carte ouverte hors ligne : seule l'alerte de cycle, pas « SANS vérification ».
+- B. Deuxième connexion le même jour : manifest relu (1 requête), 0 PDF.
+  (v5.41 : aucune requête.) Après fermeture : manifest relu, bandeau non
+  réaffiché ; idem à la réouverture avec session ; texte différent (source
+  06_AUG) : bandeau réaffiché.
+- C. Source passée à 01_OCT avec 2 cartes modifiées : 2 PDF, « Cartes VAC à jour
+  (cycle 01 OCT 2026) » puis masqué, jour mémorisé. Variante sans carte
+  modifiée : alerte retirée, 0 PDF, jour mémorisé (y compris quand le jour
+  avait déjà été mémorisé avant le retard).
+- D. Source à jour dès le matin : 1 manifest, 26 PDF (pélicandromes) ; 2e
+  connexion et réouverture : aucune requête VAC.
+- E. Hors ligne : rejet « Connexion Internet indisponible » capté, aucune
+  exception, aucun bandeau ; carte enregistrée ouverte hors ligne.
+- F. Actualiser (fonction forcée et vrai bouton avec sa confirmation) :
+  manifest relu même jour déjà vérifié ; élément « Cartes VAC » à OK.
+- Aucune exception JavaScript sur toute la séquence ; syntaxe des 2 scripts
+  inline, de sw.js et JSON du manifest valides.
+
+5. NON-RÉGRESSION
+- Diff limité au bloc « CARTES VAC » d'index.html, à APP_VERSION_NUMBER /
+  APP_VERSION, aux 2 premières lignes de sw.js et à la description du manifest.
+  Filtre de purge d'activate inchangé ('briefing-fdf-test-').
+- Login / connexion Briefing, FdS et GAAR (règles v5.39, bandeau 00h-06h),
+  NOTAM SOFIA et filtres v5.41, SUP AIP, RTBA, AZBA, cartes des risques : code
+  non modifié ; non rejoués avec le vrai NAS (réseau coupé dans les essais).
+- Diagnostic : « Version : 5.42 TEST - ALERTE CYCLE VAC » ; titre v5.42.
+
+VERSIONS
+- APP_VERSION_NUMBER 5.42, APP_VERSION « 5.42 TEST - ALERTE CYCLE VAC »,
+  BFG_SW_VERSION 5.42, CACHE_NAME 'briefing-fdf-test-v5.42-alerte-vac-r1',
+  description du manifest. Constantes figées à 5.07 NON modifiées.
+
+STATUTS v5.42
+- Alerte de cycle VAC et revérification : À MESURER sur iPad (au prochain
+  retard de la source).
 TEST v5.41 — 2026-09-30
 Base : TEST v5.40
 ===============================================================================

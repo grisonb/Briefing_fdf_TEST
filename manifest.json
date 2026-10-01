@@ -1,7 +1,7 @@
 {
   "name": "Briefing FDF TEST",
   "short_name": "Briefing TEST",
-  "description": "Briefing FDF TEST v5.41 — 7 filtres NOTAM ajoutés (SPPA, horaires exploitant, panneau, piste non revêtue, points de vérification INS, escale, PAF)",
+  "description": "Briefing FDF TEST v5.42 — alerte de cycle VAC : nouveau texte, revérification tant que la source est en retard",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
