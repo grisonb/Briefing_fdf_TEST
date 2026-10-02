@@ -345,6 +345,9 @@ B5. LISTE DE CONTRÔLE DE PROMOTION — MENTIONS VISIBLES DE « SDVFR » (v5.23)
         concernée) ; bandeau de validité des cartes des risques (textes ajoutés :
         « Valable le… », « produite… », « CARTE PÉRIMÉE… », « Validité non lue… »,
         aucune mention de SDVFR).
+      - À PORTER EN PÉRENNE (v5.43) : fenêtre de confirmation — « Continuer ? »
+        sur sa propre ligne (\n + espace insécable) et white-space: pre-line sur
+        .bfg-confirm-message (avec les fenêtres de la v5.40 lors de la promotion).
       - À PORTER EN PÉRENNE (v5.42) : alerte de cycle VAC (nouveau texte, sans
         renvoi vers NPF-Q400), revérification à chaque connexion et ouverture tant
         que la source est en retard, fermeture mémorisée pour la journée. Texte
@@ -424,6 +427,31 @@ C. CONTRÔLES AVANT TOUTE LIVRAISON
       surligneur, repli hors ligne NAS) ;
     - nouvelle entrée ajoutée EN TÊTE de ce journal, sous cette section 0,
       historique intégralement conservé.
+TEST v5.43 — 2026-10-02
+Base : TEST v5.42
+===============================================================================
+
+FENÊTRE DE CONFIRMATION : « CONTINUER ? » SUR SA PROPRE LIGNE.
+- Constat sur iPad : le « ? » de « Continuer ? » se retrouvait seul sur la
+  dernière ligne de la fenêtre.
+- Correction (index.html) : dans les 2 appels de bfgConfirmInApp_ (« Actualiser
+  NOTAM » et « Actualiser »), « Continuer ? » passe à la ligne (\n) avec une
+  espace insécable entre « Continuer » et « ? » ; white-space: pre-line sur
+  .bfg-confirm-message pour que le retour à la ligne soit respecté. Aucun autre
+  appel de bfgConfirmInApp_. Boutons et reste de la fenêtre inchangés.
+- Essais (Chromium sans interface, v5.42 comparée), 19/19 : en 810×1080, 1080×810
+  et 375×667, « Continuer ? » seul sur sa dernière ligne pour les deux fenêtres,
+  aucun « ? » isolé, boutons Annuler / Continuer de même taille qu'en v5.42 ;
+  démarrage sans erreur JS ; Annuler ne lance rien, Continuer lance (« Actualiser
+  NOTAM » : recherche SOFIA ; « Actualiser » : tout) ; FdS et GAAR du jour
+  chargés ; version affichée 5.43.
+
+VERSIONS
+- APP_VERSION_NUMBER 5.43, BFG_SW_VERSION 5.43, CACHE_NAME
+  'briefing-fdf-test-v5.43-confirmation-r1', description du manifest.
+
+STATUTS v5.43
+- Fenêtre de confirmation : À MESURER sur iPad.
 TEST v5.42 — 2026-10-01
 Base : TEST v5.41
 ===============================================================================

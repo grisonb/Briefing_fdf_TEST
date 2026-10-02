@@ -466,7 +466,7 @@
         }
         #bfg-sofia-notam-alert[hidden] { display: none; }
         /* v5.40 : fenêtre de confirmation dans l'application (même habillage que la fenêtre pélicandrome). */
-        .bfg-confirm-message { padding: 18px 18px 6px 18px; font-size: 1.08em; line-height: 1.45; text-align: center; color: #26384d; }
+        .bfg-confirm-message { padding: 18px 18px 6px 18px; font-size: 1.08em; line-height: 1.45; text-align: center; color: #26384d; white-space: pre-line; }
         .bfg-confirm-actions { display: flex; flex-wrap: wrap; gap: 12px; justify-content: center; padding: 12px 18px 18px 18px; }
         .bfg-confirm-actions .link-button { min-width: 130px; margin: 0; }
         .risk-map-validity.is-today { background: #1e7b34; color: #ffffff; }
@@ -3105,8 +3105,8 @@
     <footer>Données : Météo-France, SIA, Windy.com, SDVFR. Page non commerciale, à usage personnel.</footer>
     
     <script>
-        const APP_VERSION_NUMBER = "5.42";
-        const APP_VERSION = `${APP_VERSION_NUMBER} TEST - ALERTE CYCLE VAC`;
+        const APP_VERSION_NUMBER = "5.43";
+        const APP_VERSION = `${APP_VERSION_NUMBER} TEST - CONFIRMATION SUR 2 LIGNES`;
 
 
         // v4.97 — diagnostic conservé ; plage NOTAM quotidienne et sélection prioritaire. Aucun code d'accès, token ou contenu NOTAM n'est exporté.
@@ -6461,7 +6461,7 @@ const tdfStages = [
                 return false;
             }
             if (options.confirm !== false) {
-                const confirmed = await bfgConfirmInApp_('La recherche complète des NOTAM sur SOFIA prend environ 1 minute. Continuer ?');
+                const confirmed = await bfgConfirmInApp_('La recherche complète des NOTAM sur SOFIA prend environ 1 minute.\nContinuer\u00a0?');
                 if (!confirmed) return false;
             }
 
@@ -6498,7 +6498,7 @@ const tdfStages = [
             if (!getStoredCncascToken_() || bfgGlobalRefreshRunning_ || !navigator.onLine) {
                 return actualiserToutBriefing_();
             }
-            const confirmed = await bfgConfirmInApp_('« Actualiser » relance tout, y compris la recherche complète des NOTAM sur SOFIA, qui prend environ 1 minute. Continuer ?');
+            const confirmed = await bfgConfirmInApp_('« Actualiser » relance tout, y compris la recherche complète des NOTAM sur SOFIA, qui prend environ 1 minute.\nContinuer\u00a0?');
             if (!confirmed) return;
             return actualiserToutBriefing_();
         }
