@@ -3105,8 +3105,8 @@
     <footer>Données : Météo-France, SIA, Windy.com, SDVFR. Page non commerciale, à usage personnel.</footer>
     
     <script>
-        const APP_VERSION_NUMBER = "5.43";
-        const APP_VERSION = `${APP_VERSION_NUMBER} TEST - CONFIRMATION SUR 2 LIGNES`;
+        const APP_VERSION_NUMBER = "5.44";
+        const APP_VERSION = `${APP_VERSION_NUMBER} TEST - RECHERCHE SOFIA COMMUNE`;
 
 
         // v4.97 — diagnostic conservé ; plage NOTAM quotidienne et sélection prioritaire. Aucun code d'accès, token ou contenu NOTAM n'est exporté.
@@ -6328,16 +6328,20 @@ const tdfStages = [
             return 'applied';
         }
 
-        // Lecture du fichier du NAS (ouverture, connexion). Ne lance AUCUNE recherche sur SOFIA.
+        // Lecture du fichier du NAS (ouverture, connexion). Ne lance AUCUNE recherche sur SOFIA,
+        // sauf v5.44 « options.firstConnection » : voir loadSofiaNotamsFirstConnection_.
         async function loadSofiaNotamsFromNas_(options = {}) {
             const statusElement = document.getElementById('notam-sdvfr-import-status');
             if (isBfgOffline_()) {
                 updateBfgSofiaNotamAlert_();
                 return false;
             }
+            if (options.firstConnection && getStoredCncascToken_()) {
+                return loadSofiaNotamsFirstConnection_(options, statusElement);
+            }
             try {
-                if (options.steps) setBfgNotamStep_('Lecture des NOTAM SOFIA…');
-                const data = await fetchSofiaNotamFile_();
+                if (options.steps && !options.prefetchedData) setBfgNotamStep_('Lecture des NOTAM SOFIA…');
+                const data = options.prefetchedData || await fetchSofiaNotamFile_();
                 if (options.steps) {
                     setBfgNotamStep_('Affichage des NOTAM…');
                     await bfgNextPaint_();
@@ -6363,13 +6367,68 @@ const tdfStages = [
             }
         }
 
+        // v5.44 — « le premier qui se connecte » (BFG ou NPF-Q400) : à la connexion / ouverture
+        // avec session, si le NAS n'a aucun fichier NOTAM SOFIA du jour (heure de Paris), BFG
+        // demande la recherche commune (114 terrains, BFG d'abord). Recherche déjà en cours :
+        // BFG attend son résultat. Le NAS refait les mêmes contrôles (une seule recherche).
+        async function loadSofiaNotamsFirstConnection_(options, statusElement) {
+            let data = null;
+            let readError = '';
+            try {
+                if (options.steps) setBfgNotamStep_('Lecture des NOTAM SOFIA…');
+                data = await fetchSofiaNotamFile_();
+            } catch (error) {
+                readError = String(error && error.message || error).replace(/[.\s]+$/, '');
+            }
+            // Jour de Paris : même fonction que l'alerte NOTAM SOFIA (portée globale).
+            const parisDay = value => { try { return bfgSofiaParisParts_(new Date(value)).day; } catch (_) { return ''; } };
+            const today = parisDay(new Date());
+            const fileIsToday = !!data && !!today && parisDay(data.generatedAt) === today;
+            if (fileIsToday) {
+                // Fichier déjà lu : affichage comme avant, sans seconde lecture.
+                return loadSofiaNotamsFromNas_({ ...options, firstConnection: false, prefetchedData: data });
+            }
+            bfgDiagLog_('NOTAM', 'Première connexion du jour : aucun fichier NOTAM SOFIA du jour sur le NAS, recherche demandée',
+                { fichier: data ? data.generatedAt : (readError || 'absent') });
+            if (data) {
+                // Fichier d'un jour précédent : affiché comme avant pendant la recherche.
+                try { applySofiaNotamFile_(data); } catch (_) {}
+            }
+            try {
+                if (statusElement) {
+                    statusElement.classList.remove('warning');
+                    statusElement.textContent = 'NOTAM SOFIA : recherche du jour en cours...';
+                }
+                const result = await runSofiaNotamSearch_({ mode: 'first-connection' });
+                updateNotamDownloadStatus_();
+                endBfgNotamSteps_(true);
+                if (statusElement) {
+                    statusElement.classList.remove('warning');
+                    statusElement.textContent = `NOTAM SOFIA : ${Number(result && result.totalNotams || 0)} NOTAM(s) — recherche de ${bfgSofiaNotamTimeLabel_()}.`;
+                }
+                return true;
+            } catch (error) {
+                const message = String(error && error.message || error).replace(/[.\s]+$/, '');
+                bfgDiagLog_('NOTAM', 'Première connexion du jour : recherche SOFIA impossible', { message });
+                if (options.steps || bfgNotamStepsActive_) endBfgNotamSteps_(false, 'error');
+                if (statusElement) {
+                    statusElement.classList.add('warning');
+                    statusElement.textContent = `NOTAM SOFIA : recherche du jour impossible (${message}). Les NOTAM déjà affichés sont conservés.`;
+                }
+                updateBfgSofiaNotamAlert_();
+                return !!data;
+            }
+        }
+
         // Recherche complète sur SOFIA, à la demande. Une seule à la fois dans BFG ; le NAS et le VPS
         // n'en lancent qu'une à la fois pour tous les iPads et réutilisent un résultat de moins de 2 min.
+        // v5.44 : recherche commune BFG / NPF-Q400 ; le NAS répond « terminé » dès que les NOTAM
+        // de BFG sont déposés (environ 45 s), le fichier complet NPF-Q400 suit.
         let bfgSofiaSearchPromise_ = null;
 
-        async function runSofiaNotamSearch_() {
+        async function runSofiaNotamSearch_(options = {}) {
             if (bfgSofiaSearchPromise_) return bfgSofiaSearchPromise_;
-            bfgSofiaSearchPromise_ = runSofiaNotamSearchOnce_();
+            bfgSofiaSearchPromise_ = runSofiaNotamSearchOnce_(options);
             try {
                 return await bfgSofiaSearchPromise_;
             } finally {
@@ -6377,16 +6436,17 @@ const tdfStages = [
             }
         }
 
-        async function runSofiaNotamSearchOnce_() {
+        async function runSofiaNotamSearchOnce_(options = {}) {
             const tokenInfo = getStoredCncascToken_();
             if (!tokenInfo) throw new Error('accès Briefing verrouillé');
             const headers = { 'Authorization': `Bearer ${tokenInfo.token}`, 'Accept': 'application/json' };
 
             setBfgNotamStep_('Recherche SOFIA : demande envoyée…');
-            bfgDiagLog_('NOTAM', 'Recherche SOFIA à la demande : demande envoyée au NAS');
+            const requestBody = options.mode === 'first-connection' ? JSON.stringify({ mode: 'first-connection' }) : '{}';
+            bfgDiagLog_('NOTAM', 'Recherche SOFIA à la demande : demande envoyée au NAS', { mode: options.mode || 'manuel' });
             let payload = null;
             try {
-                const response = await fetch(SOFIA_NOTAMS_REQUEST_API_URL, { method: 'POST', cache: 'no-store', headers: { ...headers, 'Content-Type': 'application/json' }, body: '{}' });
+                const response = await fetch(SOFIA_NOTAMS_REQUEST_API_URL, { method: 'POST', cache: 'no-store', headers: { ...headers, 'Content-Type': 'application/json' }, body: requestBody });
                 payload = await response.json().catch(() => null);
             } catch (networkError) {
                 throw new Error('serveur injoignable');
@@ -6433,7 +6493,7 @@ const tdfStages = [
             setBfgNotamStep_('Affichage des NOTAM…');
             await bfgNextPaint_();
             applySofiaNotamFile_(data, { force: true });
-            bfgDiagLog_('NOTAM', 'Recherche SOFIA à la demande terminée', { généré: data.generatedAt, notam: data.totalNotams || 0, réutilisé: payload.reused === true });
+            bfgDiagLog_('NOTAM', 'Recherche SOFIA à la demande terminée', { généré: data.generatedAt, notam: data.totalNotams || 0, réutilisé: payload.reused === true, rejointe: payload.joined === true, mode: options.mode || 'manuel' });
             return data;
         }
 
@@ -6461,7 +6521,7 @@ const tdfStages = [
                 return false;
             }
             if (options.confirm !== false) {
-                const confirmed = await bfgConfirmInApp_('La recherche complète des NOTAM sur SOFIA prend environ 1 minute.\nContinuer\u00a0?');
+                const confirmed = await bfgConfirmInApp_('La recherche complète des NOTAM sur SOFIA prend environ 1 minute.');
                 if (!confirmed) return false;
             }
 
@@ -6498,7 +6558,7 @@ const tdfStages = [
             if (!getStoredCncascToken_() || bfgGlobalRefreshRunning_ || !navigator.onLine) {
                 return actualiserToutBriefing_();
             }
-            const confirmed = await bfgConfirmInApp_('« Actualiser » relance tout, y compris la recherche complète des NOTAM sur SOFIA, qui prend environ 1 minute.\nContinuer\u00a0?');
+            const confirmed = await bfgConfirmInApp_('« Actualiser » relance tout, y compris la recherche complète des NOTAM sur SOFIA, qui prend environ 1 minute.');
             if (!confirmed) return;
             return actualiserToutBriefing_();
         }
@@ -7117,8 +7177,12 @@ const tdfStages = [
                 // v5.40 — NOTAM : fichier SOFIA du NAS, lu à chaque connexion (appliqué seulement s'il
                 // est plus récent que les NOTAM en mémoire). Météo : SDVFR, comme avant. Plus d'import
                 // NATS (désactivé). Les NOTAM contenus dans la réponse SDVFR ne sont plus utilisés.
-                const sofiaRead = await loadSofiaNotamsFromNas_({ steps: notamDownloadDue });
-                const weatherRefreshed = await refreshBfgWeatherSilently_('connexion');
+                // v5.44 — première connexion du jour sans fichier SOFIA du jour sur le NAS : recherche
+                // commune lancée (ou rejointe) ; la météo est actualisée en parallèle, sans l'attendre.
+                const [sofiaRead, weatherRefreshed] = await Promise.all([
+                    loadSofiaNotamsFromNas_({ steps: notamDownloadDue, firstConnection: true }),
+                    refreshBfgWeatherSilently_('connexion')
+                ]);
                 if (notamDownloadDue) {
                     setCncascWarning_(sofiaRead
                         ? (weatherRefreshed ? 'NOTAM et METAR/TAF chargés.' : 'NOTAM chargés. Actualisation METAR/TAF impossible.')
@@ -7955,8 +8019,11 @@ const tdfStages = [
                     bfgDiagLog_('NOTAM', notamInMemory
                         ? 'Ouverture : NOTAM du jour en mémoire, lecture discrète du fichier SOFIA'
                         : 'Ouverture : aucun NOTAM du jour en mémoire, lecture du fichier SOFIA');
-                    await loadSofiaNotamsFromNas_({ steps: !notamInMemory });
-                    await refreshBfgWeatherSilently_('ouverture');
+                    // v5.44 — même règle « premier qui se connecte » qu'à la connexion ; météo en parallèle.
+                    await Promise.all([
+                        loadSofiaNotamsFromNas_({ steps: !notamInMemory, firstConnection: true }),
+                        refreshBfgWeatherSilently_('ouverture')
+                    ]);
                 }, 250);
             }
         }

@@ -1,7 +1,7 @@
 {
   "name": "Briefing FDF TEST",
   "short_name": "Briefing TEST",
-  "description": "Briefing FDF TEST v5.43 — fenêtre de confirmation : « Continuer ? » sur sa propre ligne",
+  "description": "Briefing FDF TEST v5.44 — recherche NOTAM SOFIA commune BFG / NPF-Q400, première connexion du jour",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",

@@ -427,6 +427,142 @@ C. CONTRÔLES AVANT TOUTE LIVRAISON
       surligneur, repli hors ligne NAS) ;
     - nouvelle entrée ajoutée EN TÊTE de ce journal, sous cette section 0,
       historique intégralement conservé.
+TEST v5.44 — 2026-10-06
+Base : TEST v5.43
+===============================================================================
+
+RECHERCHE NOTAM SOFIA COMMUNE BFG / NPF-Q400 (114 TERRAINS), « PREMIER QUI SE
+CONNECTE », FENÊTRES DE CONFIRMATION SANS « CONTINUER ? ».
+
+0. OBJECTIF (Bastien, 06/10/2026)
+- Une seule recherche SOFIA pour BFG et NPF-Q400 : les 114 terrains de NPF-Q400
+  (dont les 27 pélicandromes de BFG). Le groupe des 27 pélicandromes passe en
+  premier : NOTAM de BFG déposés sur le NAS vers 45 s ; le fichier complet
+  NPF-Q400 suit (vers 2 min 15 - 2 min 30). Pauses de 2 s conservées. Passages
+  06:30 / 10:00 conservés.
+- Mesure SOFIA du 06/10 (lecture seule) : 114 terrains en 3 groupes de 38,
+  24 demandes, 144 s, aucun refus. Le formulaire SOFIA limite une recherche à 40
+  terrains (tools_aero.js, addAero) : groupes de 38.
+
+1. BFG (index.html)
+- loadSofiaNotamsFromNas_ : nouvelle option firstConnection (connexion Accès
+  Briefing et ouverture avec session). Nouvelle fonction
+  loadSofiaNotamsFirstConnection_ : fichier NOTAM SOFIA du jour (heure de
+  Paris, bfgParisDateKeyForWeather_) présent -> lecture comme avant, aucune
+  recherche ; absent ou d'un jour précédent -> le fichier précédent reste
+  affiché et runSofiaNotamSearch_({ mode: 'first-connection' }) envoie
+  {"mode":"first-connection"} à request-sofia-notams.php puis attend comme
+  « Actualiser NOTAM ». Le NAS refait le contrôle : recherche en cours ->
+  rejointe ; fichier du jour arrivé entre-temps -> rien de lancé. Échec :
+  message dans la zone NOTAM, alerte NOTAM SOFIA comme avant, NOTAM affichés
+  conservés.
+- runSofiaNotamSearch_ / runSofiaNotamSearchOnce_ : paramètre options.mode ;
+  sans mode, corps '{}' inchangé (Actualiser NOTAM, Actualiser). Journal
+  Diagnostic : mode, rejointe.
+- Connexion et ouverture : météo SDVFR (refreshBfgWeatherSilently_) lancée en
+  parallèle des NOTAM (Promise.all) au lieu d'après : elle n'attend plus une
+  éventuelle recherche SOFIA. Messages de connexion inchangés.
+- « Actualiser NOTAM » et « Actualiser » : textes des 2 appels de
+  bfgConfirmInApp_ sans « Continuer ? » (et sans le retour à la ligne de la
+  v5.43) ; « environ 1 minute » conservé. Boutons inchangés. Le CSS
+  white-space: pre-line de .bfg-confirm-message reste (sans effet ici).
+- Rien d'autre ne change côté client : le NAS répond « terminé » dès le dépôt
+  du fichier BFG, d'où le résultat vers 45 s sans autre modification.
+
+2. NAS (préparé, NON INSTALLÉ : ~/nas-a-copier/a-installer-sofia-114-2026-10-06/)
+- sofia-notams-lib.php, request-sofia-notams.php, get-sofia-notams-status.php,
+  update-sofia-notams.php modifiés ; get-sofia-notams-all.php nouveau (lecture
+  publique du fichier complet, schéma bfg-sofia-notams-all-v1) ; npf-docs-api.php
+  : actions sofia-notams-request / sofia-notams-status après le contrôle de
+  session NPF-Q400 existant (aucun accès public pour lancer une recherche).
+- Fichier BFG sofia-notams-v1.json inchangé (27 terrains, même schéma) : la
+  pérenne v2026.30 le lit sans modification. Demande sans corps : comportement
+  inchangé.
+- Variante npf-docs-api.php combinée avec le paquet « PDF hors du dossier web »
+  du 01/10 (seul fichier commun) ; installer-nas.sh choisit seul.
+- Note d'interface pour la session NPF-Q400 : NOTE-INTERFACE-NPF-Q400.txt.
+
+3. VPS (préparé, NON INSTALLÉ : ~/vps-a-copier/bfg-sofia-notams-1.1.0.tar.gz)
+- bfg-sofia-notams 1.1.0 : 3 groupes de 38 (pélicandromes d'abord), 24
+  demandes ; dépôt BFG après le groupe 1, fichier complet à la fin ; échec de
+  la 2e partie sans effet sur BFG ; passage planifié annoncé au NAS
+  (search-start) ; refus NAS 4xx non réessayé.
+- installer-bfg-sofia-notams-1.1.0.ps1 / retour-arriere-bfg-sofia-notams-1.1.0.ps1.
+
+4. ESSAIS (06/10/2026, tout en local : NAS simulé php -S avec les fichiers NAS
+   livrés, programme VPS 1.1.0 réel, faux SOFIA ; aucun appel au vrai NAS, VPS
+   ou SOFIA)
+- Serveur (outils_tests_BFG_TEST/sofia-simule/e2e_sofia.py) : 7 scénarios,
+  tout OK — première connexion (création, 2e connexion rejointe, BFG avant la
+  fin, fichier complet 114 terrains, pélicandromes identiques dans les deux
+  fichiers, 24 demandes de 38 terrains, pause >= 2 s, connexion suivante sans
+  recherche) ; passage planifié rejoint ; accès NPF-Q400 (refus sans session,
+  jeton BFG brut refusé, session mot de passe, suivi jusqu'au fichier
+  complet) ; panne SOFIA après les pélicandromes (BFG gardé, complet en
+  échec) et dès le début ; programme 1.1.0 avec l'ANCIEN NAS (BFG OK, dépôt
+  complet refusé une fois sans nouvel essai) ; essai à blanc ; fichier de la
+  veille ; npf-docs-api.php combiné avec le paquet PDF (interrupteur absent
+  puis présent).
+- Scripts NAS (essai_scripts_nas.sh) : 10/10 (variante choisie seule, relance
+  refusée, retour arrière, refus fichier inconnu / dossier dans le web, refus
+  du retour arrière si le paquet PDF a été installé après).
+- Script PowerShell réel contre un VPS simulé (vps-simule/) : installation
+  8/8 étapes en 277 s (faux SOFIA à 3,6 s par demande : BFG 43 s, complet
+  133 s), retour arrière OK (1.0.0, services d'origine, state/ gardé), arrêt
+  propre à l'étape 2 si les fichiers NAS manquent.
+- Navigateur, 1er passage (Chrome sans interface, CDP) : DÉFAUT BLOQUANT
+  trouvé dans la 1re écriture de loadSofiaNotamsFirstConnection_ : appel de
+  bfgParisDateKeyForWeather_, déclarée DANS initializeSessionManagement
+  (inaccessible) -> ReferenceError : connexion Accès Briefing impossible
+  (session effacée), NOTAM non lus à l'ouverture. CORRIGÉ : jour de Paris par
+  bfgSofiaParisParts_ (globale, déjà utilisée par l'alerte NOTAM). Même
+  passage : fichier du jour lu deux fois -> CORRIGÉ (prefetchedData).
+  Avec la fonction injectée, tout le reste OK (NOTAM en 45,9 s à la première
+  connexion, météo en 3,3 s ; Actualiser NOTAM 45,7 s ; pérenne 45,6 s).
+- Navigateur, 2e passage, v5.44 corrigée SANS rien d'injecté (index.html
+  sha256 0c72396d…0355d), v5.43 sur NAS ancien comparée :
+  * première connexion, fichier absent : NOTAM en 46,3 s, météo en 3,5 s ;
+    fichier de la veille : affiché tout de suite, NOTAM du jour en 50,1 s ;
+    recherche planifiée en cours : rejointe (24 demandes SOFIA au total),
+    NOTAM en 38,2 s ; fichier du jour : aucune recherche, 1 seule lecture ;
+    ouverture avec session : mêmes règles (veille : 46,2 s) ;
+  * Actualiser NOTAM 45,8 s, Actualiser 46,0 s ; fenêtres sans « Continuer ? »
+    (810×1080, 1080×810), Annuler ne lance rien ;
+  * alerte NOTAM SOFIA : textes identiques à v5.43 (sans fichier, veille,
+    fichier de 07:05, panne SOFIA) ; sans VPS, l'échec s'affiche après la
+    tentative (environ 50 s) au lieu de 6 s : attendu ;
+  * pérenne v2026.30 sur NAS nouveau : 156 NOTAM, actualisation en 43,4 s ;
+  * non-régression OK/OK sur toutes les lignes : connexion / déconnexion,
+    FdS / GAAR, météo et rafraîchissement automatique, NOTAM (cases,
+    masquages, surlignages, 7 filtres v5.41, IFR écartés), RTBA/AZBA (secteurs
+    non affichés à 20 h : identique, À MESURER de jour), SUP AIP (toucher,
+    pdfUrl), Diagnostic et comparaison NOTAM, sauvegarde / partage / relecture,
+    VAC ; aucune exception JS.
+  * Reste, sans gravité : recherche du jour en échec avec un fichier de la
+    veille affiché -> message de connexion « NOTAM et METAR/TAF chargés. »
+    (comme v5.43) à côté du statut d'échec ; l'alerte « pas du jour » est
+    juste. À REVOIR si gênant.
+  * Non testé : secteurs RTBA de jour, passage planifié à l'heure réelle,
+    Gmail réel, crayon tactile, partage par ?share=.
+
+VERSIONS
+- APP_VERSION_NUMBER 5.44, APP_VERSION « 5.44 TEST - RECHERCHE SOFIA
+  COMMUNE », BFG_SW_VERSION 5.44, CACHE_NAME
+  'briefing-fdf-test-v5.44-sofia-commune-r1', description du manifest.
+
+À PORTER EN PÉRENNE (après validation)
+- Fenêtres de confirmation sans « Continuer ? » (si la pérenne les a).
+- Première connexion du jour (loadSofiaNotamsFirstConnection_) et météo en
+  parallèle : seulement quand la pérenne lira le NAS de la même façon ; la
+  pérenne v2026.30 fonctionne sans changement avec le NAS et le VPS 1.1.0.
+
+STATUTS v5.44
+- Recherche commune BFG / NPF-Q400 : À MESURER après installation NAS + VPS.
+- Première connexion du jour : À MESURER sur iPad.
+- Fenêtres sans « Continuer ? » : À MESURER sur iPad.
+- Côté NPF-Q400 (lecture du fichier complet, déclenchement) : NON IMPLÉMENTÉ
+  (session NPF-Q400 à venir, voir la note d'interface).
+- Tâche NAS NPF-Q400 06:30 / 09:45 (SDVFR) : non touchée.
 TEST v5.43 — 2026-10-02
 Base : TEST v5.42
 ===============================================================================
