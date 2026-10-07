@@ -12,7 +12,7 @@
         }
     </script>
     <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0">
-    <title>Briefing Fdf TEST v5.45</title>
+    <title>Briefing Fdf TEST v5.46</title>
     <link rel="manifest" href="./manifest.json?v=5.07">
     <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png?v=4.24">
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -465,10 +465,6 @@
             line-height: 1.35;
         }
         #bfg-sofia-notam-alert[hidden] { display: none; }
-        /* v5.40 : fenêtre de confirmation dans l'application (même habillage que la fenêtre pélicandrome). */
-        .bfg-confirm-message { padding: 18px 18px 6px 18px; font-size: 1.08em; line-height: 1.45; text-align: center; color: #26384d; white-space: pre-line; }
-        .bfg-confirm-actions { display: flex; flex-wrap: wrap; gap: 12px; justify-content: center; padding: 12px 18px 18px 18px; }
-        .bfg-confirm-actions .link-button { min-width: 130px; margin: 0; }
         .risk-map-validity.is-today { background: #1e7b34; color: #ffffff; }
         .risk-map-validity.is-soft { background: #cdeecf; color: #14532d; }
         .risk-map-validity.is-expired { background: #c0392b; color: #ffffff; }
@@ -2778,17 +2774,6 @@
         <div id="pelic-dispo-display" class="abe-dispo-panel" style="display: none;"></div>
     </div>
 
-    <!-- v5.40 : confirmation dans l'application avant une recherche complète des NOTAM sur SOFIA. -->
-    <div id="bfg-confirm-modal" class="pelic-map-modal" role="dialog" aria-modal="true" aria-labelledby="bfg-confirm-title" aria-hidden="true">
-        <div class="pelic-map-modal-card">
-            <div class="pelic-map-modal-header"><h4 id="bfg-confirm-title">Confirmation</h4></div>
-            <div id="bfg-confirm-message" class="bfg-confirm-message"></div>
-            <div class="bfg-confirm-actions">
-                <button type="button" id="bfg-confirm-cancel" class="link-button" style="background-color:#6c757d;">Annuler</button>
-                <button type="button" id="bfg-confirm-ok" class="link-button" style="background-color:#2980b9;">Continuer</button>
-            </div>
-        </div>
-    </div>
     <div id="pelic-map-modal" class="pelic-map-modal briefing-protected-data briefing-sensitive-hidden" aria-hidden="true">
         <div class="pelic-map-modal-card">
             <div class="pelic-map-modal-header">
@@ -3105,8 +3090,8 @@
     <footer>Données : Météo-France, SIA, Windy.com, SDVFR. Page non commerciale, à usage personnel.</footer>
     
     <script>
-        const APP_VERSION_NUMBER = "5.45";
-        const APP_VERSION = `${APP_VERSION_NUMBER} TEST - SOFIA 96 H`;
+        const APP_VERSION_NUMBER = "5.46";
+        const APP_VERSION = `${APP_VERSION_NUMBER} TEST - SANS CONFIRMATION`;
 
 
         // v4.97 — diagnostic conservé ; plage NOTAM quotidienne et sélection prioritaire. Aucun code d'accès, token ou contenu NOTAM n'est exporté.
@@ -6242,45 +6227,6 @@ const tdfStages = [
             if (!document.hidden) updateBfgSofiaNotamAlert_();
         });
 
-        /* Fenêtre de confirmation dans l'application (non bloquante, pas d'alert()).
-         * Renvoie une promesse : true pour « Continuer », false pour « Annuler ». */
-        let bfgConfirmOpen_ = false;
-
-        function bfgConfirmInApp_(message) {
-            return new Promise(resolve => {
-                const modal = document.getElementById('bfg-confirm-modal');
-                const text = document.getElementById('bfg-confirm-message');
-                const okButton = document.getElementById('bfg-confirm-ok');
-                const cancelButton = document.getElementById('bfg-confirm-cancel');
-                if (!modal || !text || !okButton || !cancelButton || bfgConfirmOpen_) {
-                    resolve(false);
-                    return;
-                }
-                bfgConfirmOpen_ = true;
-                text.textContent = String(message || '');
-                const close = (answer) => {
-                    okButton.removeEventListener('click', onOk);
-                    cancelButton.removeEventListener('click', onCancel);
-                    modal.removeEventListener('click', onBackdrop);
-                    document.removeEventListener('keydown', onKey);
-                    modal.classList.remove('visible');
-                    modal.setAttribute('aria-hidden', 'true');
-                    bfgConfirmOpen_ = false;
-                    resolve(answer);
-                };
-                const onOk = () => close(true);
-                const onCancel = () => close(false);
-                const onBackdrop = (event) => { if (event.target === modal) close(false); };
-                const onKey = (event) => { if (event.key === 'Escape') close(false); };
-                okButton.addEventListener('click', onOk);
-                cancelButton.addEventListener('click', onCancel);
-                modal.addEventListener('click', onBackdrop);
-                document.addEventListener('keydown', onKey);
-                modal.classList.add('visible');
-                modal.setAttribute('aria-hidden', 'false');
-            });
-        }
-
         async function fetchSofiaNotamFile_() {
             let response;
             try {
@@ -6512,9 +6458,11 @@ const tdfStages = [
             return data;
         }
 
-        // Bouton « Actualiser NOTAM » (avec confirmation) et NOTAM du bouton « Actualiser » (sans
-        // seconde confirmation). En cas d'échec : message clair, NOTAM déjà affichés conservés.
-        async function actualiserNotamSofia_(event, options = {}) {
+        // Bouton « Actualiser NOTAM » et NOTAM du bouton « Actualiser ». v5.46 : sans fenêtre de
+        // confirmation ; second appui pendant la recherche : bouton désactivé, et la recherche en
+        // cours est rejointe (runSofiaNotamSearch_). En cas d'échec : message clair, NOTAM déjà
+        // affichés conservés.
+        async function actualiserNotamSofia_(event) {
             if (event) {
                 event.preventDefault();
                 event.stopPropagation();
@@ -6535,11 +6483,6 @@ const tdfStages = [
                 setStatus('NOTAM SOFIA : recherche impossible hors ligne. Les NOTAM déjà affichés sont conservés.', true);
                 return false;
             }
-            if (options.confirm !== false) {
-                const confirmed = await bfgConfirmInApp_('La recherche complète des NOTAM sur SOFIA prend environ 20 secondes.');
-                if (!confirmed) return false;
-            }
-
             try {
                 if (button) button.disabled = true;
                 setStatus('NOTAM SOFIA : recherche en cours...', false);
@@ -6565,17 +6508,6 @@ const tdfStages = [
             } finally {
                 if (button) button.disabled = false;
             }
-        }
-
-        // Bouton « Actualiser » : même confirmation préalable (la recherche SOFIA prend environ 20 secondes).
-        async function actualiserToutBriefingAvecConfirmation_() {
-            // Sans session, hors ligne ou déjà en cours : messages existants, sans fenêtre.
-            if (!getStoredCncascToken_() || bfgGlobalRefreshRunning_ || !navigator.onLine) {
-                return actualiserToutBriefing_();
-            }
-            const confirmed = await bfgConfirmInApp_('« Actualiser » relance tout, y compris la recherche complète des NOTAM sur SOFIA, qui prend environ 20 secondes.');
-            if (!confirmed) return;
-            return actualiserToutBriefing_();
         }
 
         // v5.27 — import NOTAM SDVFR déjà en cours (bouton « Actualiser NOTAM ») : rejoint,
@@ -7857,14 +7789,14 @@ const tdfStages = [
                     // connexion, import NATS ; la météo (seconde demande SDVFR) attend aussi la
                     // fin de la demande NOTAM SDVFR, puis part en parallèle de NATS.
                     (async () => {
-                        // v5.40 — NOTAM : recherche complète sur SOFIA (déjà confirmée par la fenêtre
-                        // d'« Actualiser »). Météo : demande SDVFR forcée, séparée. NATS : désactivé.
+                        // v5.40 — NOTAM : recherche complète sur SOFIA (v5.46 : sans fenêtre de
+                        // confirmation). Météo : demande SDVFR forcée, séparée. NATS : désactivé.
                         const natsPromise = BFG_NATS_NOTAM_ENABLED_
                             ? importAutomaticNotamsFromNas_(null).catch(() => false)
                             : Promise.resolve(true);
                         await Promise.allSettled([
                             track('notam', async () => {
-                                const [sofiaOk, natsOk] = await Promise.all([actualiserNotamSofia_(null, { confirm: false }), natsPromise]);
+                                const [sofiaOk, natsOk] = await Promise.all([actualiserNotamSofia_(null), natsPromise]);
                                 return sofiaOk === true && natsOk === true;
                             }),
                             track('meteo', async () => (typeof window.refreshAllWeather_ === 'function'
@@ -7988,7 +7920,8 @@ const tdfStages = [
             if (refreshBtn) refreshBtn.addEventListener('click', fetchAbeDispo_);
             if (pelicRefreshBtn) pelicRefreshBtn.addEventListener('click', fetchAbeDispo_);
             if (fdfRefreshBtn) fdfRefreshBtn.addEventListener('click', fetchCncascFdf_);
-            if (globalRefreshBtn) globalRefreshBtn.addEventListener('click', actualiserToutBriefingAvecConfirmation_);
+            // v5.46 : sans fenêtre de confirmation ; double lancement bloqué par bfgGlobalRefreshRunning_.
+            if (globalRefreshBtn) globalRefreshBtn.addEventListener('click', () => actualiserToutBriefing_());
             if (unlockBtn) unlockBtn.addEventListener('click', unlockCncascAndSync_);
             if (npfAssociateBtn) npfAssociateBtn.addEventListener('click', requestNpfAssociation_);
             if (npfCheckBtn) npfCheckBtn.addEventListener('click', () => checkNpfAssociationStatus_({ silent: false }));

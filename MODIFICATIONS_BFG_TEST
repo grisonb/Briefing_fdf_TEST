@@ -428,6 +428,75 @@ C. CONTRÔLES AVANT TOUTE LIVRAISON
       surligneur, repli hors ligne NAS) ;
     - nouvelle entrée ajoutée EN TÊTE de ce journal, sous cette section 0,
       historique intégralement conservé.
+TEST v5.46 — 2026-10-07
+Base : TEST v5.45
+===============================================================================
+
+« ACTUALISER NOTAM » ET « ACTUALISER » SANS FENÊTRE DE CONFIRMATION.
+
+0. DÉCISION (Bastien, 07/10/2026)
+- Un appui lance directement l'actualisation : plus de fenêtre avant
+  « Actualiser NOTAM » ni avant « Actualiser ».
+
+1. TEXTES SUPPRIMÉS (fenêtre « Confirmation », boutons « Annuler » /
+   « Continuer »)
+- « La recherche complète des NOTAM sur SOFIA prend environ 20 secondes. »
+- « « Actualiser » relance tout, y compris la recherche complète des NOTAM sur
+  SOFIA, qui prend environ 20 secondes. »
+- Aucun texte nouveau.
+
+2. CODE (index.html)
+- La fenêtre ne servait qu'à ces 2 boutons : retirée entièrement — fonction
+  bfgConfirmInApp_ et bfgConfirmOpen_, bloc HTML #bfg-confirm-modal (v5.40),
+  3 règles CSS .bfg-confirm-*. La classe .pelic-map-modal reste (fenêtre
+  pélicandrome).
+- actualiserNotamSofia_ : plus de paramètre options (il ne servait qu'à
+  confirm: false, appel d'« Actualiser » simplifié).
+- actualiserToutBriefingAvecConfirmation_ supprimée : le bouton
+  #cncasc-global-refresh-btn appelle directement actualiserToutBriefing_.
+- Double lancement : protections existantes, inchangées et vérifiées —
+  « Actualiser NOTAM » est grisé dès l'appui (désormais sans attente avant) et
+  runSofiaNotamSearch_ rejoint la recherche en cours ; « Actualiser » :
+  bfgGlobalRefreshRunning_ et bouton grisé « Actualisation... ».
+- Inchangés : pourcentage (v5.45), messages d'état, hors ligne, sans
+  connexion.
+
+3. ESSAIS (07/10/2026, NAS simulé php -S, programme VPS 1.2.0 réel, faux
+   SOFIA ; aucune requête au vrai NAS ni au VPS)
+- Démarrage : fenêtre absente de la page, version 5.46, onglet « Briefing Fdf
+  TEST v5.46 ».
+- « Actualiser NOTAM » : aucune fenêtre ; 300 ms après l'appui, bouton grisé
+  et « NOTAM SOFIA : recherche en cours... » ; 2e appui + appel direct de la
+  fonction : 1 seule demande au NAS ; 0 % -> 50 % -> 100 %, NOTAM à jour en
+  17 s.
+- « Actualiser » : aucune fenêtre ; « Actualisation... » grisé ; 2e appui + appel
+  direct + appui sur « Actualiser NOTAM » pendant la recherche : 1 seule demande
+  au NAS (« Actualiser NOTAM » grisé pendant) ; « Tout est à jour ».
+  (Juste après une recherche, le NAS réutilise le résultat de moins de 2 min :
+  réponse « reused », aucune nouvelle recherche SOFIA.)
+- Hors ligne : « NOTAM SOFIA : recherche impossible hors ligne. Les NOTAM déjà
+  affichés sont conservés. » et « Actualisation impossible hors ligne », aucune
+  demande. Sans connexion : messages habituels, aucune demande.
+- Non-régression rapide : connexion (156 NOTAM, 27 terrains, METAR), cartes des
+  risques et SUP AIP, FdS et GAAR du jour, Service Worker 5.46, hors ligne
+  (page et NOTAM relus), caches témoins pérenne et NPF-Q400 intacts ; aucune
+  erreur JS (seulement « Failed to fetch » hors ligne).
+
+VERSIONS
+- APP_VERSION_NUMBER 5.46, APP_VERSION « 5.46 TEST - SANS CONFIRMATION »,
+  BFG_SW_VERSION 5.46, CACHE_NAME
+  'briefing-fdf-test-v5.46-sans-confirmation-r1', description du manifest,
+  <title> « Briefing Fdf TEST v5.46 ».
+
+À PORTER EN PÉRENNE (après validation)
+- Suppression des 2 fenêtres de confirmation (« Actualiser NOTAM » et
+  « Actualiser ») : la pérenne v2026.30 a encore « … environ 1 minute.
+  Continuer ? ». Retirer la fonction, le bloc HTML et le CSS de la fenêtre si
+  elle n'y sert à rien d'autre.
+
+STATUTS v5.46
+- Actualisation sans fenêtre : À MESURER sur iPad.
+- Double appui : À MESURER sur iPad.
 TEST v5.45 — 2026-10-07
 Base : TEST v5.44
 ===============================================================================
