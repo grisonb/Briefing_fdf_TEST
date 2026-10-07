@@ -420,6 +420,7 @@ C. CONTRÔLES AVANT TOUTE LIVRAISON
     - JSON du manifest valide ;
     - syntaxe du service worker ;
     - BFG_SW_VERSION et CACHE_NAME mis à jour, nouveau nom de cache ;
+    - <title> d'index.html au numéro de la version (depuis v5.45) ;
     - APP_VERSION_NUMBER / APP_VERSION / description du manifest cohérents ;
     - filtre de purge d'activate toujours limité à 'briefing-fdf-test-' ;
     - la modification demandée est effectivement présente ;
@@ -427,6 +428,95 @@ C. CONTRÔLES AVANT TOUTE LIVRAISON
       surligneur, repli hors ligne NAS) ;
     - nouvelle entrée ajoutée EN TÊTE de ce journal, sous cette section 0,
       historique intégralement conservé.
+TEST v5.45 — 2026-10-07
+Base : TEST v5.44
+===============================================================================
+
+ADAPTATION AU PROGRAMME VPS bfg-sofia-notams 1.2.0 (DEMANDES DE 96 H) :
+AVANCEMENT EN POURCENTAGE, TEMPS ANNONCÉ « ENVIRON 20 SECONDES », TITRE DE
+L'ONGLET.
+
+0. CONTEXTE (Bastien, 07/10/2026)
+- VPS 1.2.0 installé le 07/10 à 20:37 : 6 demandes SOFIA de 96 h au lieu de 24
+  demandes d'un jour ; partie BFG en 2 demandes (résultat BFG vers 16 s, fichier
+  complet vers 45 s). Demande de 96 h refusée : tranche refaite jour par jour
+  (partie BFG jusqu'à 10 demandes). NAS inchangé : mêmes champs status / step /
+  steps, nombres réels (1/2, 2/2 en temps normal, davantage en secours).
+- Relevé préalable en lecture seule : ~/vps-a-copier/A-FAIRE-BFG-TEST-pour-
+  bfg-sofia-notams-1.2.0.txt (session NPF-Q400).
+
+1. AVANCEMENT (index.html, runSofiaNotamSearchOnce_)
+- Ancien texte : « Recherche SOFIA en cours : jour x/8… » (aurait affiché
+  « jour 1/2 » avec la 1.2.0).
+- Nouveau texte : « Recherche SOFIA : N % ».
+- Calcul : demandes TERMINÉES, (step - 1) / steps, step et steps lus dans la
+  réponse de get-sofia-notams-status.php, aucun total en dur. Vérifié dans le
+  code du VPS 1.2.0 (sofia_search) : l'avancement est envoyé AVANT chaque
+  demande, donc step = demande en cours.
+- Ne recule jamais pendant une recherche (maximum conservé), plafonné à 99 %
+  tant que le NAS n'a pas annoncé la fin ; « Recherche SOFIA : 100 % » affiché
+  0,5 s quand le NAS annonce la fin, puis « Lecture des NOTAM SOFIA… » comme
+  avant.
+- Écart volontaire avec NPF-Q400 v17.60 (step / steps) : essai avec le secours,
+  la formule step / steps affichait 100 % à 31 s puis restait figée 30 s (le
+  total passait de 6 à 10). Avec les demandes terminées : 0, 17, 33, 50, 67, 83,
+  90, 100 %.
+- « Recherche SOFIA : en attente du serveur… » reste affiché tant qu'aucune
+  étape n'est annoncée ; « Recherche SOFIA : demande envoyée… » inchangé.
+
+2. TEMPS ANNONCÉ (2 appels de bfgConfirmInApp_)
+- « Actualiser NOTAM » : « La recherche complète des NOTAM sur SOFIA prend
+  environ 20 secondes. »
+- « Actualiser » : « « Actualiser » relance tout, y compris la recherche
+  complète des NOTAM sur SOFIA, qui prend environ 20 secondes. »
+- Rien d'autre ne change dans ces fenêtres (titre, boutons Annuler /
+  Continuer). 3 commentaires du code mis à jour (sans effet à l'écran).
+
+3. TITRE DE L'ONGLET
+- <title> : « Briefing Fdf TEST v5.07 » -> « Briefing Fdf TEST v5.45 ». Le
+  titre n'est pas dans la liste des constantes figées à 5.07 (B1) ; celles-ci
+  restent inchangées (BFG_REQUIRED_SW_VERSION_, ./sw.js?v=5.07,
+  ./manifest.json?v=5.07). À mettre à jour à chaque version (contrôle C).
+
+4. RIEN D'AUTRE
+- BFG_SOFIA_SEARCH_MAX_WAIT_MS_ (210 000) et BFG_SOFIA_SEARCH_POLL_MS_
+  (2 500) inchangés. Format du fichier BFG inchangé. NAS et VPS non touchés.
+- Pérenne non modifiée : elle affichera « jour 1/2 » (visuel seulement) et
+  « environ 1 minute ».
+
+5. ESSAIS (07/10/2026, tout en local : NAS simulé php -S, programme VPS
+   1.2.0 RÉEL en mode serve, faux SOFIA ; aucune requête au vrai NAS ni au VPS)
+- Recherche normale, 6 demandes (faux SOFIA 4 s par demande) : bandeau
+  « en attente du serveur… » -> 0 % -> 50 % -> 100 % -> NOTAM à jour en 15 s.
+- Recherche avec secours (faux SOFIA refusant les demandes de plus d'un jour,
+  11 demandes pour la partie BFG + groupe 2) : 0, 17, 33, 50, 67, 83, 90,
+  100 %, jamais de recul alors que le total NAS passe de 2 à 6 puis 10 ;
+  NOTAM à jour en 63 s. Un premier passage s'est arrêté côté navigateur sans
+  message (outil d'essai) ; repassé, résultat ci-dessus.
+- Les 2 fenêtres : textes ci-dessus, boutons Annuler / Continuer.
+- Non-régression rapide : démarrage 5.45 sans erreur JS, onglet « Briefing
+  Fdf TEST v5.45 », connexion (156 NOTAM, 27 terrains, METAR), cartes des
+  risques et SUP AIP, FdS et GAAR du jour, « Actualiser NOTAM » (recherche
+  relancée), « Actualiser » (« Tout est à jour »), Service Worker 5.45 actif,
+  hors ligne (page et NOTAM relus), caches témoins pérenne et NPF-Q400
+  intacts ; seuls messages console : « Failed to fetch » hors ligne (normal).
+
+VERSIONS
+- APP_VERSION_NUMBER 5.45, APP_VERSION « 5.45 TEST - SOFIA 96 H »,
+  BFG_SW_VERSION 5.45, CACHE_NAME 'briefing-fdf-test-v5.45-sofia-96h-r1',
+  description du manifest, <title> « Briefing Fdf TEST v5.45 ».
+
+À PORTER EN PÉRENNE (après validation)
+- Avancement en pourcentage (même calcul, demandes terminées) à la place de
+  « jour x/y » ; « environ 20 secondes » dans les 2 fenêtres (la pérenne
+  v2026.30 a encore « environ 1 minute. Continuer ? »).
+- Titre de l'onglet de la pérenne : vérifier qu'il porte le bon numéro.
+
+STATUTS v5.45
+- Avancement en pourcentage : À MESURER sur iPad (VPS 1.2.0 réel).
+- Temps annoncé « environ 20 secondes » : À MESURER (mesure réelle VPS :
+  BFG vers 16 s).
+- Titre de l'onglet : À MESURER sur iPad.
 TEST v5.44 — 2026-10-06
 Base : TEST v5.43
 ===============================================================================

@@ -12,7 +12,7 @@
         }
     </script>
     <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0">
-    <title>Briefing Fdf TEST v5.07</title>
+    <title>Briefing Fdf TEST v5.45</title>
     <link rel="manifest" href="./manifest.json?v=5.07">
     <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png?v=4.24">
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -3105,8 +3105,8 @@
     <footer>Données : Météo-France, SIA, Windy.com, SDVFR. Page non commerciale, à usage personnel.</footer>
     
     <script>
-        const APP_VERSION_NUMBER = "5.44";
-        const APP_VERSION = `${APP_VERSION_NUMBER} TEST - RECHERCHE SOFIA COMMUNE`;
+        const APP_VERSION_NUMBER = "5.45";
+        const APP_VERSION = `${APP_VERSION_NUMBER} TEST - SOFIA 96 H`;
 
 
         // v4.97 — diagnostic conservé ; plage NOTAM quotidienne et sélection prioritaire. Aucun code d'accès, token ou contenu NOTAM n'est exporté.
@@ -6151,7 +6151,7 @@ const tdfStages = [
          *     bfg-sofia-notams à 06:30, à 10:00 et après chaque recherche à la demande. BFG le lit à
          *     l'ouverture et à la connexion.
          *   - Recherche à la demande (« Actualiser NOTAM », « Actualiser ») : iPad -> NAS -> VPS ->
-         *     SOFIA -> NAS -> iPad, environ 1 minute, après confirmation dans l'application.
+         *     SOFIA -> NAS -> iPad, environ 20 secondes (VPS 1.2.0), après confirmation dans l'application.
          *   - Le fichier a la forme d'une réponse SDVFR (airports[].notams[{ code, description }]) :
          *     le texte construit, le découpage, le tri et les identifiants des NOTAM sont inchangés,
          *     donc les cases cochées, masquages et surlignages sont conservés. Les NOTAM SOFIA sont
@@ -6424,6 +6424,10 @@ const tdfStages = [
         // n'en lancent qu'une à la fois pour tous les iPads et réutilisent un résultat de moins de 2 min.
         // v5.44 : recherche commune BFG / NPF-Q400 ; le NAS répond « terminé » dès que les NOTAM
         // de BFG sont déposés (environ 45 s), le fichier complet NPF-Q400 suit.
+        // v5.45 (VPS 1.2.0, demandes de 96 h) : NOTAM de BFG vers 16 s ; avancement en pourcentage
+        // des demandes terminées ((step - 1) / steps annoncés par le NAS, step = demande en cours ;
+        // jamais de total en dur), sans recul si le secours jour par jour augmente le total, jamais
+        // 100 % avant la fin : 100 % quand le NAS annonce la fin.
         let bfgSofiaSearchPromise_ = null;
 
         async function runSofiaNotamSearch_(options = {}) {
@@ -6459,6 +6463,7 @@ const tdfStages = [
                 const requestId = String(payload.requestId || '');
                 if (!requestId) throw new Error('réponse du serveur incomplète');
                 const startedAt = Date.now();
+                let lastPercent = 0;
                 setBfgNotamStep_('Recherche SOFIA : en attente du serveur…');
                 for (;;) {
                     if (Date.now() - startedAt > BFG_SOFIA_SEARCH_MAX_WAIT_MS_) {
@@ -6478,13 +6483,23 @@ const tdfStages = [
                         }
                         continue;
                     }
-                    if (status.status === 'success') break;
+                    if (status.status === 'success') {
+                        setBfgNotamStep_('Recherche SOFIA : 100 %');
+                        await bfgNextPaint_();
+                        await new Promise(resolve => setTimeout(resolve, 500));   // 100 % visible
+                        break;
+                    }
                     if (status.status === 'error') {
                         throw new Error(status.message ? String(status.message) : 'recherche SOFIA impossible');
                     }
-                    setBfgNotamStep_(status.status === 'running' && Number(status.steps) > 0 && Number(status.step) > 0
-                        ? `Recherche SOFIA en cours : jour ${Number(status.step)}/${Number(status.steps)}…`
-                        : 'Recherche SOFIA : en attente du serveur…');
+                    const steps = Number(status.steps) || 0;
+                    const step = Math.min(Number(status.step) || 0, steps);
+                    if (status.status === 'running' && steps > 0 && step > 0) {
+                        lastPercent = Math.max(lastPercent, Math.min(99, Math.round((step - 1) / steps * 100)));
+                        setBfgNotamStep_(`Recherche SOFIA : ${lastPercent} %`);
+                    } else if (lastPercent === 0) {
+                        setBfgNotamStep_('Recherche SOFIA : en attente du serveur…');
+                    }
                 }
             }
 
@@ -6521,7 +6536,7 @@ const tdfStages = [
                 return false;
             }
             if (options.confirm !== false) {
-                const confirmed = await bfgConfirmInApp_('La recherche complète des NOTAM sur SOFIA prend environ 1 minute.');
+                const confirmed = await bfgConfirmInApp_('La recherche complète des NOTAM sur SOFIA prend environ 20 secondes.');
                 if (!confirmed) return false;
             }
 
@@ -6552,13 +6567,13 @@ const tdfStages = [
             }
         }
 
-        // Bouton « Actualiser » : même confirmation préalable (la recherche SOFIA prend environ 1 minute).
+        // Bouton « Actualiser » : même confirmation préalable (la recherche SOFIA prend environ 20 secondes).
         async function actualiserToutBriefingAvecConfirmation_() {
             // Sans session, hors ligne ou déjà en cours : messages existants, sans fenêtre.
             if (!getStoredCncascToken_() || bfgGlobalRefreshRunning_ || !navigator.onLine) {
                 return actualiserToutBriefing_();
             }
-            const confirmed = await bfgConfirmInApp_('« Actualiser » relance tout, y compris la recherche complète des NOTAM sur SOFIA, qui prend environ 1 minute.');
+            const confirmed = await bfgConfirmInApp_('« Actualiser » relance tout, y compris la recherche complète des NOTAM sur SOFIA, qui prend environ 20 secondes.');
             if (!confirmed) return;
             return actualiserToutBriefing_();
         }
