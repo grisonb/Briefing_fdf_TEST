@@ -428,6 +428,74 @@ C. CONTRÔLES AVANT TOUTE LIVRAISON
       surligneur, repli hors ligne NAS) ;
     - nouvelle entrée ajoutée EN TÊTE de ce journal, sous cette section 0,
       historique intégralement conservé.
+TEST v5.47 — 2026-10-08
+Base : TEST v5.46
+===============================================================================
+
+RECHERCHE NOTAM SOFIA : PHRASE D'ÉTAT PLUS VISIBLE PENDANT LA RECHERCHE.
+
+0. DEMANDE (Bastien, 08/10/2026)
+- Que les utilisateurs voient que ça charge. Pas de nouveau bandeau ni de
+  nouvelle fenêtre : la phrase reste là où elle s'affiche déjà, plus visible
+  pendant la recherche seulement. Textes, emplacements et comportement
+  inchangés.
+
+1. OÙ (index.html, inchangés)
+- Bandeau NOTAM #notam-loading-banner (panneau Accès Briefing) :
+  « Recherche SOFIA : demande envoyée… », « … en attente du serveur… »,
+  « Recherche SOFIA : N % », « Lecture des NOTAM SOFIA… ».
+- Ligne d'état #notam-sdvfr-import-status (zone NOTAM) : « NOTAM SOFIA :
+  recherche en cours... », « NOTAM SOFIA : recherche du jour en cours... ».
+
+2. CE QUI CHANGE À L'ÉCRAN
+- Pendant la recherche (runSofiaNotamSearch_, du lancement au retour, toutes
+  origines : « Actualiser NOTAM », « Actualiser », première connexion du jour) :
+  classe bfg-sofia-searching sur les 2 éléments -> texte 1,15 fois plus gros,
+  gras ; ligne d'état en bleu foncé #0d47a1 (contraste élevé sur fond clair) ;
+  bandeau : vert / blanc inchangé ; petit cercle qui tourne devant le texte
+  (::before, animation CSS transform 0,9 s ; 2,5 s si l'iPad demande moins
+  d'animations). Pourcentage inchangé.
+- Fin : classe retirée avant le message de fin habituel (affichage normal).
+- Échec : message d'erreur habituel de la ligne d'état en rouge foncé #b71c1c,
+  gros et gras (classe bfg-sofia-search-failed), retiré dès que le texte de la
+  ligne change (MutationObserver sur cette seule ligne). Bandeau d'erreur
+  rouge inchangé.
+- Hors ligne, sans connexion : inchangés (aucune recherche lancée).
+- Pendant « Actualiser », le bandeau NOTAM reste masqué comme avant (étapes
+  dans le bandeau d'actualisation complète) ; la ligne d'état prend le style.
+
+3. ESSAIS (08/10/2026, NAS simulé php -S, programme VPS 1.2.0 réel, faux
+   SOFIA ; aucune requête au vrai NAS ni au VPS ; outils dans
+   ~/projects/outils_tests_BFG_TEST/navigateur/v547/)
+- Recherche normale : pendant -> bandeau « Recherche SOFIA : 0 % » 18,4 px
+  gras avec indicateur ; ligne « NOTAM SOFIA : recherche en cours... » 18,4 px,
+  gras, bleu, indicateur ; fin -> 16 px, normal, sans indicateur, textes
+  habituels. Captures : v547/png/visible-pendant-bandeau.png,
+  visible-pendant-ligne.png, visible-fin-*.png.
+- Échec (faux SOFIA HTTP 503) : « Recherche des NOTAM sur SOFIA impossible :
+  … Les NOTAM déjà affichés sont conservés. » en rouge foncé, gros et gras ;
+  style retiré au message suivant (hors ligne). Capture echec-fin-ligne.png.
+- Hors ligne : message habituel, sans style de recherche.
+- Non-régression rapide : démarrage 5.47, connexion (156 NOTAM, 27 terrains,
+  METAR), cartes des risques et SUP AIP, FdS et GAAR du jour, Service Worker
+  5.47, hors ligne (page et NOTAM relus), caches témoins pérenne et NPF-Q400
+  intacts ; aucune erreur JS (« Failed to fetch » hors ligne seulement).
+
+VERSIONS
+- APP_VERSION_NUMBER 5.47, APP_VERSION « 5.47 TEST - RECHERCHE NOTAM
+  VISIBLE », BFG_SW_VERSION 5.47, CACHE_NAME
+  'briefing-fdf-test-v5.47-recherche-visible-r1', description du manifest,
+  <title> « Briefing Fdf TEST v5.47 ».
+
+À PORTER EN PÉRENNE (après validation)
+- Style « recherche en cours » (CSS .bfg-sofia-searching, cercle qui tourne,
+  setBfgSofiaSearchingVisual_ dans runSofiaNotamSearch_) et style d'échec
+  (.bfg-sofia-search-failed, markBfgSofiaSearchFailed_), avec les textes de la
+  pérenne.
+
+STATUTS v5.47
+- Visibilité pendant la recherche : À MESURER sur iPad (au soleil).
+- Message d'échec visible : À MESURER sur iPad.
 TEST v5.46 — 2026-10-07
 Base : TEST v5.45
 ===============================================================================

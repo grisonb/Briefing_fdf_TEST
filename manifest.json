@@ -1,7 +1,7 @@
 {
   "name": "Briefing FDF TEST",
   "short_name": "Briefing TEST",
-  "description": "Briefing FDF TEST v5.46 — Actualiser NOTAM et Actualiser sans fenêtre de confirmation",
+  "description": "Briefing FDF TEST v5.47 — état de la recherche NOTAM plus visible pendant la recherche",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",

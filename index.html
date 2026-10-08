@@ -12,7 +12,7 @@
         }
     </script>
     <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0">
-    <title>Briefing Fdf TEST v5.46</title>
+    <title>Briefing Fdf TEST v5.47</title>
     <link rel="manifest" href="./manifest.json?v=5.07">
     <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png?v=4.24">
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -2569,6 +2569,40 @@
             background: #ffebee;
             color: #8e1b1b;
         }
+        /* v5.47 — recherche NOTAM SOFIA en cours : phrase d'état plus visible (texte plus
+           gros, gras, petit indicateur qui tourne), aux mêmes endroits ; retirée à la fin.
+           Animation CSS seule (transform), ralentie si l'iPad demande moins d'animations. */
+        #notam-loading-banner.bfg-sofia-searching { font-size: 1.15em; }
+        #notam-sdvfr-import-status.bfg-sofia-searching {
+            font-size: 1.15em;
+            font-weight: 900;
+            color: #0d47a1;
+        }
+        #notam-loading-banner.bfg-sofia-searching::before,
+        #notam-sdvfr-import-status.bfg-sofia-searching::before {
+            content: "";
+            display: inline-block;
+            width: 0.9em;
+            height: 0.9em;
+            margin-right: 0.5em;
+            vertical-align: -0.12em;
+            border: 3px solid currentColor;
+            border-right-color: transparent;
+            border-radius: 50%;
+            box-sizing: border-box;
+            animation: bfg-sofia-spin 0.9s linear infinite;
+        }
+        @keyframes bfg-sofia-spin { to { transform: rotate(360deg); } }
+        @media (prefers-reduced-motion: reduce) {
+            #notam-loading-banner.bfg-sofia-searching::before,
+            #notam-sdvfr-import-status.bfg-sofia-searching::before { animation-duration: 2.5s; }
+        }
+        /* Échec de la recherche : message d'erreur habituel, bien visible (jusqu'au message suivant). */
+        #notam-sdvfr-import-status.bfg-sofia-search-failed {
+            font-size: 1.15em;
+            font-weight: 900;
+            color: #b71c1c;
+        }
         #vac-loading-banner {
             position: relative;
             line-height: 1.35;
@@ -3090,8 +3124,8 @@
     <footer>Données : Météo-France, SIA, Windy.com, SDVFR. Page non commerciale, à usage personnel.</footer>
     
     <script>
-        const APP_VERSION_NUMBER = "5.46";
-        const APP_VERSION = `${APP_VERSION_NUMBER} TEST - SANS CONFIRMATION`;
+        const APP_VERSION_NUMBER = "5.47";
+        const APP_VERSION = `${APP_VERSION_NUMBER} TEST - RECHERCHE NOTAM VISIBLE`;
 
 
         // v4.97 — diagnostic conservé ; plage NOTAM quotidienne et sélection prioritaire. Aucun code d'accès, token ou contenu NOTAM n'est exporté.
@@ -6360,6 +6394,7 @@ const tdfStages = [
                 if (statusElement) {
                     statusElement.classList.add('warning');
                     statusElement.textContent = `NOTAM SOFIA : recherche du jour impossible (${message}). Les NOTAM déjà affichés sont conservés.`;
+                    markBfgSofiaSearchFailed_(statusElement);
                 }
                 updateBfgSofiaNotamAlert_();
                 return !!data;
@@ -6376,13 +6411,42 @@ const tdfStages = [
         // 100 % avant la fin : 100 % quand le NAS annonce la fin.
         let bfgSofiaSearchPromise_ = null;
 
+        // v5.47 — style « recherche en cours » sur le bandeau NOTAM et la ligne d'état, pendant
+        // toute la recherche (textes inchangés). Retiré avant le message de fin.
+        function setBfgSofiaSearchingVisual_(searching) {
+            for (const id of ['notam-loading-banner', 'notam-sdvfr-import-status']) {
+                const element = document.getElementById(id);
+                if (!element) continue;
+                element.classList.toggle('bfg-sofia-searching', !!searching);
+                if (searching) element.classList.remove('bfg-sofia-search-failed');
+            }
+        }
+
+        // v5.47 — échec : le message d'erreur habituel de la ligne d'état reste bien visible
+        // jusqu'au prochain message (le style part dès que le texte change).
+        let bfgSofiaFailedText_ = '';
+        let bfgSofiaFailedObserver_ = null;
+        function markBfgSofiaSearchFailed_(statusElement) {
+            if (!statusElement) return;
+            bfgSofiaFailedText_ = statusElement.textContent;
+            statusElement.classList.add('bfg-sofia-search-failed');
+            if (!bfgSofiaFailedObserver_ && typeof MutationObserver === 'function') {
+                bfgSofiaFailedObserver_ = new MutationObserver(() => {
+                    if (statusElement.textContent !== bfgSofiaFailedText_) statusElement.classList.remove('bfg-sofia-search-failed');
+                });
+                bfgSofiaFailedObserver_.observe(statusElement, { childList: true, characterData: true, subtree: true });
+            }
+        }
+
         async function runSofiaNotamSearch_(options = {}) {
             if (bfgSofiaSearchPromise_) return bfgSofiaSearchPromise_;
             bfgSofiaSearchPromise_ = runSofiaNotamSearchOnce_(options);
+            setBfgSofiaSearchingVisual_(true);
             try {
                 return await bfgSofiaSearchPromise_;
             } finally {
                 bfgSofiaSearchPromise_ = null;
+                setBfgSofiaSearchingVisual_(false);
             }
         }
 
@@ -6503,6 +6567,7 @@ const tdfStages = [
                 bfgNotamStepsActive_ = false;
                 setBfgNotamLoadingBanner_(true, text, { error: true, autoHideMs: 15000 });
                 setStatus(text, true);
+                markBfgSofiaSearchFailed_(statusElement);
                 updateBfgSofiaNotamAlert_();
                 return false;
             } finally {
