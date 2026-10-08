@@ -12,7 +12,7 @@
         }
     </script>
     <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0">
-    <title>Briefing Fdf TEST v5.47</title>
+    <title>Briefing Fdf TEST v5.48</title>
     <link rel="manifest" href="./manifest.json?v=5.07">
     <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png?v=4.24">
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -2603,6 +2603,34 @@
             font-weight: 900;
             color: #b71c1c;
         }
+        /* v5.48 — fraîcheur des NOTAM SOFIA affichés (jour de Paris de la recherche) sur
+           « Dernier téléchargement NOTAM SOFIA … » et « NOTAM SOFIA … recherche de HH:MM » :
+           fond vert pastel du jour, rouge pastel sinon ; texte foncé (contraste > 7:1). */
+        #notam-download-status.bfg-notam-fresh,
+        #notam-download-status.bfg-notam-stale,
+        #notam-sdvfr-import-status.bfg-notam-fresh,
+        #notam-sdvfr-import-status.bfg-notam-stale {
+            box-sizing: border-box;
+            width: fit-content;
+            max-width: 100%;
+            margin-left: auto !important;
+            margin-right: auto !important;
+            padding: 5px 12px;
+            border-radius: 7px;
+            font-weight: 800;
+        }
+        #notam-download-status.bfg-notam-fresh,
+        #notam-sdvfr-import-status.bfg-notam-fresh {
+            background: #d6f5dc;
+            border: 1px solid #7cc98a;
+            color: #0b4d1c;
+        }
+        #notam-download-status.bfg-notam-stale,
+        #notam-sdvfr-import-status.bfg-notam-stale {
+            background: #fde0e0;
+            border: 1px solid #ef9a9a;
+            color: #8a1111;
+        }
         #vac-loading-banner {
             position: relative;
             line-height: 1.35;
@@ -3124,8 +3152,8 @@
     <footer>Données : Météo-France, SIA, Windy.com, SDVFR. Page non commerciale, à usage personnel.</footer>
     
     <script>
-        const APP_VERSION_NUMBER = "5.47";
-        const APP_VERSION = `${APP_VERSION_NUMBER} TEST - RECHERCHE NOTAM VISIBLE`;
+        const APP_VERSION_NUMBER = "5.48";
+        const APP_VERSION = `${APP_VERSION_NUMBER} TEST - FRAÎCHEUR NOTAM`;
 
 
         // v4.97 — diagnostic conservé ; plage NOTAM quotidienne et sélection prioritaire. Aucun code d'accès, token ou contenu NOTAM n'est exporté.
@@ -6261,6 +6289,54 @@ const tdfStages = [
             if (!document.hidden) updateBfgSofiaNotamAlert_();
         });
 
+        // v5.48 — couleur de fraîcheur des NOTAM SOFIA affichés (textes inchangés) : vert si la
+        // recherche SOFIA est du jour (Paris, même règle que l'alerte), rouge sinon. Ligne d'état :
+        // seulement sur les textes « … recherche de HH:MM », jamais pendant une recherche ou après
+        // un échec (styles v5.47). Recalcul à chaque changement de texte, chaque minute (minuit)
+        // et au retour au premier plan.
+        function updateBfgNotamFreshness_() {
+            try {
+                const isSofia = getBfgDisplayedNotamSource_() === BFG_NOTAM_SOURCE_SDVFR_;
+                const meta = readBfgSofiaNotamMeta_();
+                const generated = meta ? new Date(meta.generatedAt) : null;
+                const hasText = !!String(bfgNotamSourceTexts_.SDVFR || '').trim();
+                const fresh = hasText && !!generated && !Number.isNaN(generated.getTime())
+                    && bfgSofiaParisParts_(generated).day === bfgSofiaParisParts_(new Date()).day;
+                const paint = (element, show) => {
+                    if (!element) return;
+                    const wantFresh = show && fresh;
+                    const wantStale = show && !fresh;
+                    if (element.classList.contains('bfg-notam-fresh') !== wantFresh) element.classList.toggle('bfg-notam-fresh', wantFresh);
+                    if (element.classList.contains('bfg-notam-stale') !== wantStale) element.classList.toggle('bfg-notam-stale', wantStale);
+                };
+                const download = document.getElementById('notam-download-status');
+                paint(download, isSofia && /^Dernier téléchargement NOTAM SOFIA/.test(download ? download.textContent : ''));
+                const status = document.getElementById('notam-sdvfr-import-status');
+                paint(status, isSofia && !!status && /recherche de \d{2}:\d{2}/.test(status.textContent)
+                    && !status.classList.contains('bfg-sofia-searching') && !status.classList.contains('bfg-sofia-search-failed'));
+            } catch (error) {
+                console.warn('BFG : couleur de fraîcheur NOTAM non mise à jour.', error);
+            }
+        }
+        (() => {
+            const watch = () => {
+                if (typeof MutationObserver !== 'function') return;
+                const observer = new MutationObserver(updateBfgNotamFreshness_);
+                for (const id of ['notam-download-status', 'notam-sdvfr-import-status']) {
+                    const element = document.getElementById(id);
+                    if (element) observer.observe(element, { childList: true, characterData: true, subtree: true });
+                }
+            };
+            if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', watch, { once: true });
+            else watch();
+        })();
+        setInterval(updateBfgNotamFreshness_, 60000);
+        setTimeout(updateBfgNotamFreshness_, 3000);
+        window.addEventListener('pageshow', () => updateBfgNotamFreshness_());
+        document.addEventListener('visibilitychange', () => {
+            if (!document.hidden) updateBfgNotamFreshness_();
+        });
+
         async function fetchSofiaNotamFile_() {
             let response;
             try {
@@ -6413,6 +6489,9 @@ const tdfStages = [
 
         // v5.47 — style « recherche en cours » sur le bandeau NOTAM et la ligne d'état, pendant
         // toute la recherche (textes inchangés). Retiré avant le message de fin.
+        // v5.48 : texte de la ligne d'état au lancement (« NOTAM SOFIA : recherche en cours... »),
+        // complété par le pourcentage pendant la recherche.
+        let bfgSofiaStatusBaseText_ = '';
         function setBfgSofiaSearchingVisual_(searching) {
             for (const id of ['notam-loading-banner', 'notam-sdvfr-import-status']) {
                 const element = document.getElementById(id);
@@ -6420,6 +6499,18 @@ const tdfStages = [
                 element.classList.toggle('bfg-sofia-searching', !!searching);
                 if (searching) element.classList.remove('bfg-sofia-search-failed');
             }
+            const status = document.getElementById('notam-sdvfr-import-status');
+            bfgSofiaStatusBaseText_ = searching && status ? status.textContent.replace(/(?:\.\.\.|…)\s*$/, '').trim() : '';
+            updateBfgNotamFreshness_();
+        }
+
+        // v5.48 — pourcentage aussi dans la ligne d'état (même valeur que le bandeau ; visible
+        // pendant « Actualiser », où le bandeau NOTAM est masqué) : « NOTAM SOFIA : recherche en
+        // cours — 50 % ».
+        function setBfgSofiaStatusPercent_(percent) {
+            const status = document.getElementById('notam-sdvfr-import-status');
+            if (!status || !bfgSofiaStatusBaseText_ || !status.classList.contains('bfg-sofia-searching')) return;
+            status.textContent = `${bfgSofiaStatusBaseText_} — ${percent} %`;
         }
 
         // v5.47 — échec : le message d'erreur habituel de la ligne d'état reste bien visible
@@ -6495,6 +6586,7 @@ const tdfStages = [
                     }
                     if (status.status === 'success') {
                         setBfgNotamStep_('Recherche SOFIA : 100 %');
+                        setBfgSofiaStatusPercent_(100);
                         await bfgNextPaint_();
                         await new Promise(resolve => setTimeout(resolve, 500));   // 100 % visible
                         break;
@@ -6507,6 +6599,7 @@ const tdfStages = [
                     if (status.status === 'running' && steps > 0 && step > 0) {
                         lastPercent = Math.max(lastPercent, Math.min(99, Math.round((step - 1) / steps * 100)));
                         setBfgNotamStep_(`Recherche SOFIA : ${lastPercent} %`);
+                        setBfgSofiaStatusPercent_(lastPercent);
                     } else if (lastPercent === 0) {
                         setBfgNotamStep_('Recherche SOFIA : en attente du serveur…');
                     }

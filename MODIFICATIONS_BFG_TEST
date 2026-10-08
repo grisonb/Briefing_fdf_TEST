@@ -428,6 +428,94 @@ C. CONTRÔLES AVANT TOUTE LIVRAISON
       surligneur, repli hors ligne NAS) ;
     - nouvelle entrée ajoutée EN TÊTE de ce journal, sous cette section 0,
       historique intégralement conservé.
+TEST v5.48 — 2026-10-08
+Base : TEST v5.47
+===============================================================================
+
+NOTAM : POURCENTAGE DANS LA LIGNE D'ÉTAT, COULEUR SELON LA FRAÎCHEUR.
+
+0. DEMANDE (Bastien, 08/10/2026)
+- Pourcentage aussi dans la ligne d'état au-dessus de la liste NOTAM (visible
+  pendant « Actualiser », où le bandeau NOTAM est masqué, et à la première
+  connexion du jour).
+- Fond vert pastel si les NOTAM sont du jour, rouge pastel sinon, sur les
+  lignes « Dernier téléchargement NOTAM … » et « NOTAM SOFIA … recherche de
+  HH:MM ». Textes inchangés.
+
+1. POURCENTAGE (index.html)
+- Même valeur que le bandeau (v5.45 : demandes terminées / total annoncé par le
+  NAS, sans recul, 100 % seulement à la fin). setBfgSofiaStatusPercent_ appelée
+  à côté de chaque « Recherche SOFIA : N % » du bandeau.
+- Texte de départ inchangé, puis complété : points de suspension remplacés par
+  « — N % ».
+    « NOTAM SOFIA : recherche en cours... »      -> « NOTAM SOFIA : recherche
+                                                    en cours — 50 % »
+    « NOTAM SOFIA : recherche du jour en cours... » -> « NOTAM SOFIA :
+                                                    recherche du jour en cours —
+                                                    50 % »
+- Style v5.47 « recherche visible » conservé. Texte de fin habituel ensuite.
+
+2. COULEUR DE FRAÎCHEUR (updateBfgNotamFreshness_, CSS .bfg-notam-fresh /
+   .bfg-notam-stale)
+- Textes concernés (code, inchangés) :
+    #notam-download-status : « Dernier téléchargement NOTAM SOFIA :
+      JJ/MM/AAAA à HH:MM » (updateNotamDownloadStatus_ ; la variante NATS
+      « Dernier téléchargement NOTAM : … » n'est pas colorée) ;
+    #notam-sdvfr-import-status : « NOTAM SOFIA : N NOTAM(s) lus sur le
+      serveur (recherche de HH:MM). » et « NOTAM SOFIA : N NOTAM(s) —
+      recherche de HH:MM. ».
+- Règle : même que l'alerte NOTAM SOFIA — date de la recherche SOFIA des NOTAM
+  affichés (readBfgSofiaNotamMeta_) au jour de Paris = aujourd'hui -> vert
+  (#d6f5dc, texte #0b4d1c) ; sinon (veille, plus ancien, absent) -> rouge
+  (#fde0e0, texte #8a1111). Contraste du texte supérieur à 7:1. Cadre ajusté au
+  texte, coins arrondis, texte en gras.
+- Ligne d'état : couleur seulement sur les textes « … recherche de HH:MM » ;
+  pendant la recherche, style v5.47 (pas de couleur de fraîcheur) ; après un
+  échec, style d'échec v5.47 ; autres messages (hors ligne, accès verrouillé) :
+  sans couleur. La ligne « Dernier téléchargement » garde la couleur des NOTAM
+  affichés pendant la recherche.
+- Recalcul : à chaque changement de texte des 2 lignes (MutationObserver),
+  chaque minute (passage de minuit), au retour au premier plan
+  (visibilitychange, pageshow), au début et à la fin d'une recherche.
+
+3. ESSAIS (08/10/2026, NAS simulé php -S, programme VPS 1.2.0 réel, faux
+   SOFIA ; aucune requête au vrai NAS ni au VPS ; outils et captures :
+   ~/projects/outils_tests_BFG_TEST/navigateur/v548/)
+- NOTAM du jour à la connexion : 2 lignes vertes (png/fr1-vert.png).
+- « Actualiser » : « NOTAM SOFIA : recherche en cours » -> « — 0 % » -> « — 50 % »
+  -> « — 100 % » -> « NOTAM SOFIA : 115 NOTAM(s) — recherche de 09:36. » en
+  vert ; bandeau NOTAM masqué comme avant (png/fr1-pendant-actualiser.png).
+- Minuit simulé (horloge de la page +24 h, recalcul de la minute seul) : 2
+  lignes rouges (png/fr1-rouge.png) ; retour à la vraie heure + retour au
+  premier plan : vert.
+- NOTAM de la veille sur le NAS : « Dernier téléchargement » rouge ; première
+  connexion du jour : « … recherche du jour en cours — 0 % / 50 % / 100 % »
+  (png/fr2-pendant-premiere-connexion.png) ; fin : 2 lignes vertes.
+- « Actualiser NOTAM » : 0 / 50 / 100 % dans la ligne d'état, puis vert.
+- Hors ligne : « NOTAM SOFIA : recherche impossible hors ligne. Les NOTAM déjà
+  affichés sont conservés. » sans couleur ; « Dernier téléchargement » reste
+  vert ; « Actualisation impossible hors ligne ».
+- Non-régression rapide : démarrage 5.48, connexion (156 NOTAM, 27 terrains,
+  METAR), cartes des risques et SUP AIP, FdS et GAAR du jour, Service Worker
+  5.48, hors ligne (page et NOTAM relus), caches témoins pérenne et NPF-Q400
+  intacts ; aucune erreur JS (« Failed to fetch » hors ligne seulement).
+
+VERSIONS
+- APP_VERSION_NUMBER 5.48, APP_VERSION « 5.48 TEST - FRAÎCHEUR NOTAM »,
+  BFG_SW_VERSION 5.48, CACHE_NAME 'briefing-fdf-test-v5.48-fraicheur-notam-r1',
+  description du manifest, <title> « Briefing Fdf TEST v5.48 ».
+
+À PORTER EN PÉRENNE (après validation)
+- Pourcentage dans la ligne d'état (setBfgSofiaStatusPercent_,
+  bfgSofiaStatusBaseText_) avec les textes de la pérenne.
+- Couleur de fraîcheur (updateBfgNotamFreshness_, CSS .bfg-notam-fresh /
+  .bfg-notam-stale, observateur et minuterie), en vérifiant les textes exacts
+  des 2 lignes dans la pérenne.
+
+STATUTS v5.48
+- Pourcentage dans la ligne d'état : À MESURER sur iPad.
+- Couleur de fraîcheur (lisibilité au soleil, passage de minuit réel) : À
+  MESURER sur iPad.
 TEST v5.47 — 2026-10-08
 Base : TEST v5.46
 ===============================================================================
