@@ -428,6 +428,61 @@ C. CONTRÔLES AVANT TOUTE LIVRAISON
       surligneur, repli hors ligne NAS) ;
     - nouvelle entrée ajoutée EN TÊTE de ce journal, sous cette section 0,
       historique intégralement conservé.
+TEST v5.49 — 2026-10-11
+Base : TEST v5.48
+===============================================================================
+
+DIAGNOSTIC BFG — COMPARAISON NOTAM SOFIA / SDVFR : UN JOUR « NON COMPARÉ » NE
+COMPTE JAMAIS COMME UN JOUR SANS ÉCART.
+
+0. CONTEXTE (Bastien, 11/10/2026)
+- VPS : bfg-supaip-schedules 1.3.0 installé le 11/10 (essai NOTAM notam_compare
+  1.1.0) : dates B) / C) SDVFR enfin lues, jamais de comparaison avec un relevé
+  SDVFR de plus de 2 h, 3 essais SOFIA, jours « non comparé » dans le rapport
+  (compared: false, notComparedReason, counts en texte : « non comparé »,
+  raison, « — », « — »). Historique 1.0.0 retiré du VPS (sauvegarde datée).
+- Avec la v5.48, la phrase de résumé comptait un jour « non comparé » comme un
+  jour sans écart (« Aucun écart inexpliqué depuis 2 jours » alors que le jour
+  n'était pas comparé). Le tableau s'affichait déjà correctement.
+
+1. CORRECTION (index.html, bfgRenderNotamCompare_ ; rien d'autre)
+- Jour comparé : compared !== false ET nombre d'inexpliqués numérique.
+- Dernier jour non comparé : « Non comparé aujourd'hui : <raison du rapport> »
+  en gris (ex. « Non comparé aujourd'hui : relevé SDVFR trop ancien (10/10 à
+  18:12) »).
+- Dernier jour comparé avec écarts : « N écarts inexpliqués aujourd'hui »
+  (inchangé).
+- Sinon : « Aucun écart inexpliqué depuis N jour(s) comparé(s) » ; le décompte
+  s'arrête au premier jour non comparé (ou avec écarts).
+- Tableau et liste des écarts inexpliqués : inchangés. Ancien format (1.0.0,
+  sans « compared ») : comportement inchangé.
+
+2. ESSAIS (11/10/2026, BFG TEST local non modifié pendant les essais du
+   rapport, NAS simulé servant le vrai get-notam-compare.php avec les rapports
+   rejoués ; aucune requête au vrai NAS)
+- 11/10 comparé (0), 10/10 non comparé : « Aucun écart inexpliqué depuis 1 jour
+  comparé ».
+- 11/10 non comparé : « Non comparé aujourd'hui : relevé SDVFR trop ancien
+  (10/10 à 18:12) ».
+- Ancien rapport réel du 11/10 (1.0.0) : « 52 écarts inexpliqués aujourd'hui »
+  (comme avant). Aucune erreur JS.
+- Non-régression rapide : démarrage 5.49, connexion (156 NOTAM, 27 terrains,
+  METAR), cartes des risques et SUP AIP, FdS et GAAR du jour, Service Worker
+  5.49, hors ligne, caches témoins pérenne et NPF-Q400 intacts ; aucune erreur
+  JS (« Failed to fetch » hors ligne seulement).
+
+VERSIONS
+- APP_VERSION_NUMBER 5.49, APP_VERSION « 5.49 TEST - COMPARAISON NOTAM »,
+  BFG_SW_VERSION 5.49, CACHE_NAME 'briefing-fdf-test-v5.49-comparaison-notam-r1',
+  description du manifest, <title> « Briefing Fdf TEST v5.49 ».
+
+À PORTER EN PÉRENNE
+- Rien : le bouton de comparaison est « TEST uniquement » (0.B5, v5.33) et
+  n'existe pas en pérenne.
+
+STATUTS v5.49
+- Phrase de résumé de la comparaison : À MESURER sur iPad avec le rapport 1.1.0
+  réel.
 TEST v5.48 — 2026-10-08
 Base : TEST v5.47
 ===============================================================================

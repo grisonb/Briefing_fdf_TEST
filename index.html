@@ -12,7 +12,7 @@
         }
     </script>
     <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0">
-    <title>Briefing Fdf TEST v5.48</title>
+    <title>Briefing Fdf TEST v5.49</title>
     <link rel="manifest" href="./manifest.json?v=5.07">
     <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png?v=4.24">
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -3152,8 +3152,8 @@
     <footer>Données : Météo-France, SIA, Windy.com, SDVFR. Page non commerciale, à usage personnel.</footer>
     
     <script>
-        const APP_VERSION_NUMBER = "5.48";
-        const APP_VERSION = `${APP_VERSION_NUMBER} TEST - FRAÎCHEUR NOTAM`;
+        const APP_VERSION_NUMBER = "5.49";
+        const APP_VERSION = `${APP_VERSION_NUMBER} TEST - COMPARAISON NOTAM`;
 
 
         // v4.97 — diagnostic conservé ; plage NOTAM quotidienne et sélection prioritaire. Aucun code d'accès, token ou contenu NOTAM n'est exporté.
@@ -3622,15 +3622,24 @@
                 return;
             }
             const last = days[days.length - 1];
-            const lastUnexplained = Number(last.counts && last.counts.inexpliques) || 0;
-            if (lastUnexplained > 0) {
+            // v5.49 — rapport 1.1.0 (bfg-supaip-schedules 1.3.0) : un jour « non comparé »
+            // (compared: false, ou nombre d'inexpliqués absent) ne compte jamais comme un jour
+            // sans écart ; le décompte s'arrête au premier jour non comparé.
+            const isCompared = day => day && day.compared !== false
+                && Number.isFinite(Number(day.counts && day.counts.inexpliques)) && String(day.counts.inexpliques).trim() !== '';
+            const lastUnexplained = isCompared(last) ? Number(last.counts.inexpliques) : 0;
+            if (!isCompared(last)) {
+                verdict.style.color = '#6c757d';
+                const reason = String(last.notComparedReason || (last.counts && last.counts.seulementSdvfr) || '').trim();
+                verdict.textContent = `Non comparé aujourd'hui${reason && !/^\d+$/.test(reason) ? ` : ${reason}` : ''}`;
+            } else if (lastUnexplained > 0) {
                 verdict.style.color = '#d35400';
                 verdict.textContent = `${lastUnexplained} écart${lastUnexplained > 1 ? 's' : ''} inexpliqué${lastUnexplained > 1 ? 's' : ''} aujourd'hui`;
             } else {
                 let clean = 0;
-                for (let k = days.length - 1; k >= 0 && !(Number(days[k].counts && days[k].counts.inexpliques) > 0); k--) clean += 1;
+                for (let k = days.length - 1; k >= 0 && isCompared(days[k]) && !(Number(days[k].counts.inexpliques) > 0); k--) clean += 1;
                 verdict.style.color = '#1e8449';
-                verdict.textContent = `Aucun écart inexpliqué depuis ${clean} jour${clean > 1 ? 's' : ''}`;
+                verdict.textContent = `Aucun écart inexpliqué depuis ${clean} jour${clean > 1 ? 's' : ''} comparé${clean > 1 ? 's' : ''}`;
             }
             const cell = (text, head = false) => `<${head ? 'th' : 'td'} style="border:1px solid #d7dee8;padding:3px 8px;text-align:${head ? 'left' : 'right'};">${escapeHtml_(String(text))}</${head ? 'th' : 'td'}>`;
             table.innerHTML = '<tr>' + ['Jour', 'Communs', 'Seulement SDVFR', 'Seulement SOFIA', 'Inexpliqués'].map(t => cell(t, true)).join('') + '</tr>'
