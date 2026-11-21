@@ -383,6 +383,15 @@ B5. LISTE DE CONTRÔLE DE PROMOTION — MENTIONS VISIBLES DE « SDVFR » (v5.23)
         « Afficher toutes les zones » absente, showAll forcé à false ; bouton
         de comparaison absent).
 
+    v5.50 — couche « Zones NOTAM » de la carte SUP AIP (bfgUpdateNotamZonesStatus_) :
+    « Zones NOTAM SDVFR du JJ/MM à HH:MM »        -> « Zones NOTAM du JJ/MM à HH:MM »
+    « … — aucune zone NOTAM aujourd'hui »         -> inchangé (sans SDVFR)
+    « Zones NOTAM SDVFR indisponibles (réponse    -> « Zones NOTAM indisponibles (réponse
+      SDVFR absente ou illisible). Le reste de la    absente ou illisible). Le reste de la
+      carte fonctionne normalement. »                carte fonctionne normalement. »
+    « Zones NOTAM SDVFR : date du relevé          -> « Zones NOTAM : date du relevé
+      inconnue. »                                    inconnue. »
+
     Non concernés (jamais affichés hors diagnostic) : identifiants et clés
     (BFG_NOTAM_SOURCE_SDVFR_, briefingFdfSdvfrDailyNotamsV1,
     BriefingFdfSdvfrNotamsV1, briefing-fdf-sdvfr-notams-offline-v1, URL
@@ -428,6 +437,92 @@ C. CONTRÔLES AVANT TOUTE LIVRAISON
       surligneur, repli hors ligne NAS) ;
     - nouvelle entrée ajoutée EN TÊTE de ce journal, sous cette section 0,
       historique intégralement conservé.
+TEST v5.50 — 2026-11-21
+Base : TEST v5.49
+===============================================================================
+
+CARTE SUP AIP : COUCHE « ZONES NOTAM » (ZONES CRÉÉES OU ACTIVÉES PAR NOTAM),
+D'APRÈS LA COUCHE SDVFR « ZONES AÉRIENNES TEMPORAIRES ».
+
+0. DÉCISION (Bastien, 21/11/2026) — option A
+- Constat (lecture publique du NAS, 21/11) : la réponse SDVFR que le worker
+  dépose déjà pour la carte SUP AIP (get-sdvfr-temporary-airspaces.php) contient
+  désormais tous les types : SUPAIP, ZSM, TEMPORARY (79), ACTIVATION (17).
+  Un fichier dédié aurait exigé de modifier les fichiers PHP du NAS (types
+  « supaip » et « rtba » seulement) : écarté. NAS, VPS et worker INCHANGÉS ;
+  aucune requête SDVFR en plus.
+- Exemples relevés le 21/11 : ~/vps-a-copier/sdvfr-zones-temporaires/.
+
+1. CE QUI CHANGE (index.html)
+- Couche « Zones NOTAM » : zones de France (région de la ligne Q) en LF..)
+  de type TEMPORARY (« zone créée par NOTAM ») et ACTIVATION (« activation par
+  NOTAM »). Pas de ZSM ni de SUP AIP SDVFR. Dessin des SUP AIP inchangé
+  (bfgNormalizeSupAipItem_ non modifié).
+- Créneaux : activations[].windows (UTC) ; dailyTimeWindow = plage répétée
+  chaque jour de la période, jours « days » ; période incohérente (fin avant
+  début, erreurs relevées chez SDVFR) ignorée ; aucun créneau lisible : période
+  de validité entière (prudence).
+- Affichées : zones avec un créneau aujourd'hui (date de Paris) pas encore
+  terminé, ou actives maintenant. Un créneau déjà fini aujourd'hui ne fait pas
+  afficher la zone. Filtre « FL max » appliqué comme aux SUP AIP ; zones hors
+  métropole / Corse non dessinées.
+- États (recalculés chaque minute sur l'iPad, pas l'état SDVFR du relevé) :
+  active (créneau en cours) vert sarcelle #0f766e ; activable (créneau en cours,
+  activable par l'ATC) cyan #0891b2 ; à venir (créneau plus tard aujourd'hui)
+  gris ardoise #64748b. Contour en tirets, remplissage léger. Légende complétée.
+- Case « Zones NOTAM » dans les filtres de la carte, cochée à chaque ouverture.
+- Toucher : la fenêtre commune (RTBA, zones NOTAM, SUP AIP) liste aussi les
+  zones NOTAM : nom, type, état, plancher / plafond, horaires du jour en UTC,
+  référence, texte du NOTAM d'origine.
+- Ligne « Zones NOTAM SDVFR du JJ/MM à HH:MM » (heure de Paris, date du relevé
+  SDVFR = savedAt ou finishedAt renvoyé par le NAS) : vert pastel si moins de
+  2 h, rouge pastel sinon ; « — aucune zone NOTAM aujourd'hui » si aucune.
+  Réponse absente ou illisible : « Zones NOTAM SDVFR indisponibles (réponse
+  SDVFR absente ou illisible). Le reste de la carte fonctionne normalement. »
+- Hors ligne : même cache que la carte SUP AIP (briefing-fdf-supaip-map-v1) ;
+  la copie garde désormais la date du relevé (releveAt) ; copie d'avant la
+  v5.50 : date d'enregistrement de la copie.
+- Liste 0.B5 complétée (3 textes visibles avec « SDVFR »).
+
+2. ESSAIS (21/11/2026 ; NAS simulé servant une copie locale de la vraie
+   réponse SDVFR du NAS du 21/11 06:05 ; RTBA simulés ; aucun accès au vrai NAS
+   ni au vrai VPS ; outils et captures :
+   ~/projects/outils_tests_BFG_TEST/navigateur/v550/)
+- Relevé récent : 30 zones NOTAM dessinées, ligne verte ; fenêtre « R 102 LA
+  BRACONNE — Activation par NOTAM — Active, SFC / 4700 ft AMSL, 21/11
+  07:00–16:00, 18:00–22:59 UTC » + texte du NOTAM (png/z-frais2-carte-
+  fenetre.png). Case décochée : 0 zone NOTAM, 168 SUP AIP inchangées ;
+  recochée : 30.
+- Relevé de 06:05 : ligne rouge. États à 06:00 simulé : 4 à venir, 19 actives,
+  9 activables.
+- Réponse absente ou non JSON : message ci-dessus, RTBA normales, aucune
+  erreur JS (la carte SUP AIP affiche son message habituel).
+- v5.49 et v5.50 sur les mêmes données : 168 zones SUP AIP identiques (mêmes
+  noms), RTBA identiques.
+- Hors ligne (Service Worker 5.50) : 168 SUP AIP, 30 zones NOTAM, ligne « du
+  21/11 à 20:08 » depuis la copie locale ; caches témoins pérenne et NPF-Q400
+  intacts.
+- Non-régression rapide : démarrage, connexion (156 NOTAM SOFIA, 27 terrains,
+  METAR), cartes des risques, FdS et GAAR du jour, hors ligne ; aucune erreur
+  JS (« Failed to fetch » hors ligne seulement).
+
+VERSIONS
+- APP_VERSION_NUMBER 5.50, APP_VERSION « 5.50 TEST - ZONES NOTAM »,
+  BFG_SW_VERSION 5.50, CACHE_NAME 'briefing-fdf-test-v5.50-zones-notam-r1',
+  description du manifest, <title> « Briefing Fdf TEST v5.50 ».
+
+À PORTER EN PÉRENNE (après validation)
+- Couche « Zones NOTAM » (bfgBuildNotamZones_, bfgRenderNotamZones_,
+  bfgUpdateNotamZonesStatus_, case, légende, fenêtre) avec les textes sans
+  « SDVFR » de la liste 0.B5.
+
+STATUTS v5.50
+- Couche Zones NOTAM : À MESURER sur iPad (lisibilité des tirets, fenêtre).
+- Fraîcheur : dépend de l'usage de la carte SUP AIP (le NAS garde la réponse
+  15 min ; sans usage, la ligne passe au rouge). À MESURER.
+- Fiabilité des créneaux SDVFR : À MESURER (erreurs constatées le 21/11 sur
+  des SUP AIP ; le texte du NOTAM reste affiché pour vérifier).
+
 TEST v5.49 — 2026-10-11
 Base : TEST v5.48
 ===============================================================================

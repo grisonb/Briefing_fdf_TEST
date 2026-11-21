@@ -12,7 +12,7 @@
         }
     </script>
     <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0">
-    <title>Briefing Fdf TEST v5.49</title>
+    <title>Briefing Fdf TEST v5.50</title>
     <link rel="manifest" href="./manifest.json?v=5.07">
     <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png?v=4.24">
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -1393,6 +1393,23 @@
             color: #64748b;
         }
         #rtba-map-notice a { color: #9a3412; font-weight: 700; }
+        /* v5.50 — couche « Zones NOTAM » (zones créées / activées par NOTAM, réponse SDVFR) :
+           ligne de fraîcheur (vert pastel < 2 h, rouge pastel sinon) et légende en tirets. */
+        #sup-aip-notam-zones-status {
+            box-sizing: border-box;
+            width: fit-content;
+            max-width: 100%;
+            margin: 6px auto 0 auto;
+            padding: 4px 12px;
+            border-radius: 7px;
+            text-align: center;
+            font-weight: 800;
+            color: #475569;
+        }
+        #sup-aip-notam-zones-status.bfg-notam-zones-fresh { background: #d6f5dc; border: 1px solid #7cc98a; color: #0b4d1c; }
+        #sup-aip-notam-zones-status.bfg-notam-zones-stale { background: #fde0e0; border: 1px solid #ef9a9a; color: #8a1111; }
+        #sup-aip-notam-zones-status.warning { color: #9a3412; }
+        .bfg-supaip-legend-swatch.bfg-notam-zone-swatch { background: transparent; border-style: dashed; opacity: 1; }
         /* v5.06 — légende des catégories SUP AIP. Traits volontairement pleins. */
         #sup-aip-map-legend {
             display: flex;
@@ -3096,10 +3113,15 @@
                 <span class="bfg-supaip-legend-note">Pulsation légère = début de validité à venir</span>
                 <span class="bfg-supaip-legend-item" style="color:#d1007a;"><span class="bfg-supaip-legend-swatch"></span>RTBA actif (fixe)</span>
                 <span class="bfg-supaip-legend-item" style="color:#f08cc4;"><span class="bfg-supaip-legend-swatch"></span>RTBA à venir (clignotant ; jusqu'au coucher du soleil)</span>
+                <!-- v5.50 — zones créées ou activées par NOTAM (tirets). -->
+                <span class="bfg-supaip-legend-item" style="color:#0f766e;"><span class="bfg-supaip-legend-swatch bfg-notam-zone-swatch"></span>Zone NOTAM active</span>
+                <span class="bfg-supaip-legend-item" style="color:#0891b2;"><span class="bfg-supaip-legend-swatch bfg-notam-zone-swatch"></span>Zone NOTAM activable</span>
+                <span class="bfg-supaip-legend-item" style="color:#64748b;"><span class="bfg-supaip-legend-swatch bfg-notam-zone-swatch"></span>Zone NOTAM à venir</span>
             </div>
             <div id="sup-aip-france-map" aria-label="Carte de France des SUP AIP"></div>
             <p id="sup-aip-map-status">Carte SUP AIP non chargée.</p>
             <p id="rtba-map-status" role="status" aria-live="polite"></p>
+            <p id="sup-aip-notam-zones-status" role="status" aria-live="polite"></p>
             <p id="rtba-map-notice" hidden>ⓘ Seules les activations <span id="rtba-map-notice-window">qui commencent avant le coucher du soleil moins 30 min (à la position de chaque zone)</span> sont affichées. Au-delà, consulter la <a href="https://www.sia.aviation-civile.gouv.fr/schedules" target="_blank" rel="noopener">page AZBA du SIA</a>.</p>
             <div id="sup-aip-map-filters">
                 <label>Du <input type="date" id="sup-aip-map-date-from"></label>
@@ -3107,6 +3129,7 @@
                 <label>FL max <input type="number" id="sup-aip-map-max-fl" min="0" max="660" step="5" value="115" inputmode="numeric"></label>
                 <!-- v5.32 — TEST UNIQUEMENT (à retirer à la promotion, cf. 0.B5) : désactive le seul filtre des créneaux. -->
                 <label><input type="checkbox" id="sup-aip-map-show-all" autocomplete="off"> Afficher toutes les zones</label>
+                <label><input type="checkbox" id="sup-aip-map-notam-zones" autocomplete="off" checked> Zones NOTAM</label>
                 <button id="sup-aip-map-refresh-btn" class="link-button" type="button">Actualiser SUP AIP</button>
             </div>
         </div>
@@ -3152,8 +3175,8 @@
     <footer>Données : Météo-France, SIA, Windy.com, SDVFR. Page non commerciale, à usage personnel.</footer>
     
     <script>
-        const APP_VERSION_NUMBER = "5.49";
-        const APP_VERSION = `${APP_VERSION_NUMBER} TEST - COMPARAISON NOTAM`;
+        const APP_VERSION_NUMBER = "5.50";
+        const APP_VERSION = `${APP_VERSION_NUMBER} TEST - ZONES NOTAM`;
 
 
         // v4.97 — diagnostic conservé ; plage NOTAM quotidienne et sélection prioritaire. Aucun code d'accès, token ou contenu NOTAM n'est exporté.
@@ -16961,6 +16984,9 @@ window.__notamTextFull = notamInput.value;
         let bfgSupAipFranceLayer_ = null;
         let bfgSupAipRawPayload_ = null;
         let bfgSupAipLoadedCeiling_ = null;
+        // v5.50 — date du relevé SDVFR (savedAt / finishedAt du NAS) et origine (copie locale ou non).
+        let bfgSupAipReleveAt_ = null;
+        let bfgSupAipFromLocalCopy_ = false;
         let bfgSupAipFuturePulseTimer_ = null;
         let bfgSupAipFuturePulseLayers_ = [];
         let bfgSupAipFuturePulseState_ = true;
@@ -17182,11 +17208,12 @@ window.__notamTextFull = notamInput.value;
             }
         }
 
-        async function bfgWriteSupAipMapCache_(payload, ceiling = null) {
+        async function bfgWriteSupAipMapCache_(payload, ceiling = null, releveAt = null) {
             if (!('caches' in window)) return;
             try {
                 const cache = await caches.open(BFG_SUPAIP_MAP_CACHE_NAME_);
-                const body = JSON.stringify({ savedAt: new Date().toISOString(), ceiling, payload });
+                // v5.50 : releveAt = date du relevé SDVFR (ligne de fraîcheur des zones NOTAM).
+                const body = JSON.stringify({ savedAt: new Date().toISOString(), ceiling, releveAt, payload });
                 await cache.put(BFG_SUPAIP_MAP_CACHE_PATH_, new Response(body, { headers: { 'Content-Type': 'application/json' } }));
             } catch (error) {
                 console.warn('BFG SUP AIP : cache carte impossible.', error);
@@ -17317,7 +17344,10 @@ window.__notamTextFull = notamInput.value;
                     const returnedCeiling = Number(payload && payload.requestPayload && payload.requestPayload.ceiling);
                     bfgSupAipLoadedCeiling_ = Number.isFinite(returnedCeiling) ? returnedCeiling : requestedCeiling;
                     bfgSupAipRawPayload_ = sdvfrPayload;
-                    await bfgWriteSupAipMapCache_(sdvfrPayload, bfgSupAipLoadedCeiling_);
+                    const releve = bfgParseFlexibleDate_(payload && (payload.savedAt || payload.finishedAt));
+                    bfgSupAipReleveAt_ = releve ? releve.toISOString() : null;
+                    bfgSupAipFromLocalCopy_ = false;
+                    await bfgWriteSupAipMapCache_(sdvfrPayload, bfgSupAipLoadedCeiling_, bfgSupAipReleveAt_);
                     return sdvfrPayload;
                 } catch (error) {
                     bfgSupAipRelayDiag_.bfgToNasDurationMs = bfgSupAipRelayDiag_.bfgToNasDurationMs ?? Math.round(performance.now() - started);
@@ -17338,6 +17368,9 @@ window.__notamTextFull = notamInput.value;
                 const cachedCeiling = Number(cached.ceiling);
                 bfgSupAipLoadedCeiling_ = Number.isFinite(cachedCeiling) ? cachedCeiling : 115;
                 bfgSupAipRawPayload_ = cached.payload;
+                // v5.50 : copie d'avant la v5.50 sans releveAt -> date d'enregistrement de la copie.
+                bfgSupAipReleveAt_ = cached.releveAt || cached.savedAt || null;
+                bfgSupAipFromLocalCopy_ = true;
                 return cached.payload;
             }
             throw new Error(navigator.onLine
@@ -17904,6 +17937,8 @@ window.__notamTextFull = notamInput.value;
             bfgSupAipScheduleTicker_ = setInterval(() => {
                 try {
                     if (!bfgSupAipFranceMap_ || !bfgSupAipRawPayload_) return;
+                    // v5.50 : zones NOTAM (états, fraîcheur) recalculées chaque minute.
+                    try { bfgRenderNotamZones_(); } catch (error) { console.warn('BFG zones NOTAM :', error); }
                     const signature = bfgSupAipComputeHiddenSignature_();
                     if (signature !== bfgSupAipHiddenSignature_) bfgRenderSupAipFranceMap_({ keepView: true });
                 } catch (error) {
@@ -17953,6 +17988,9 @@ window.__notamTextFull = notamInput.value;
             bfgRtbaSectorLayers_.forEach(entry => {
                 if (entry.geometry && bfgGeometryContains_(entry.geometry, latlng.lng, latlng.lat)) parts.push(entry.popupHtml);
             });
+            bfgNotamZoneTargets_.forEach(target => {
+                if (bfgGeometryContains_(target.geometry, latlng.lng, latlng.lat)) parts.push(target.html);
+            });
             bfgSupAipClickTargets_.forEach(target => {
                 if (bfgGeometryContains_(target.geometry, latlng.lng, latlng.lat)) parts.push(target.html);
             });
@@ -17986,6 +18024,229 @@ window.__notamTextFull = notamInput.value;
         }
 
         const BFG_SUPAIP_METRO_BOUNDS_ = [[41.0, -6.5], [51.6, 10.5]];
+
+        /* ===================== v5.50 — COUCHE « ZONES NOTAM » =====================
+         * Source : la réponse SDVFR « Zones aériennes temporaires » que la carte SUP AIP reçoit
+         * déjà du NAS (get-sdvfr-temporary-airspaces.php) ; aucune autre requête, NAS et VPS
+         * inchangés. On garde les zones de France de type TEMPORARY (créées par NOTAM) et
+         * ACTIVATION (activées par NOTAM). Le dessin des SUP AIP n'est pas modifié.
+         * Créneaux : activations[].windows (UTC) ; dailyTimeWindow = plage horaire répétée chaque
+         * jour de la période, jours « days » (1 = lundi). Période incohérente (fin avant début) :
+         * ignorée. Aucun créneau lisible : période de validité entière (prudence).
+         * Affichées : zones avec un créneau aujourd'hui (date de Paris) pas encore terminé, ou
+         * actives maintenant. États : active (créneau en cours), activable (créneau en cours,
+         * activable par l'ATC), à venir (prochain créneau plus tard aujourd'hui).
+         * Cache et hors ligne : ceux de la carte SUP AIP (même réponse, date du relevé gardée). */
+        const BFG_NOTAM_ZONE_STYLES_ = {
+            active:    { color: '#0f766e', fillColor: '#14b8a6', label: 'Active' },
+            activable: { color: '#0891b2', fillColor: '#22d3ee', label: 'Activable' },
+            upcoming:  { color: '#64748b', fillColor: '#94a3b8', label: 'À venir' }
+        };
+        const BFG_NOTAM_ZONES_FRESH_MS_ = 2 * 3600 * 1000;
+        let bfgNotamZonesLayer_ = null;
+        let bfgNotamZoneTargets_ = [];       // [{ geometry, html }] des zones NOTAM affichées
+        let bfgNotamZonesSignature_ = '';
+
+        function bfgNotamZonesEnabled_() {
+            const input = document.getElementById('sup-aip-map-notam-zones');
+            return !input || input.checked;
+        }
+
+        function bfgParisOffsetMs_(date) {
+            const parts = new Intl.DateTimeFormat('en-GB', { timeZone: 'Europe/Paris', year: 'numeric', month: '2-digit', day: '2-digit',
+                hour: '2-digit', minute: '2-digit', second: '2-digit', hourCycle: 'h23' }).formatToParts(date);
+            const get = type => Number((parts.find(part => part.type === type) || {}).value || 0);
+            return Date.UTC(get('year'), get('month') - 1, get('day'), get('hour'), get('minute'), get('second')) - Math.floor(date.getTime() / 1000) * 1000;
+        }
+
+        // Début et fin (ms UTC) du jour de Paris contenant nowMs.
+        function bfgParisDayBounds_(nowMs) {
+            const now = new Date(nowMs);
+            const parts = new Intl.DateTimeFormat('en-GB', { timeZone: 'Europe/Paris', year: 'numeric', month: '2-digit', day: '2-digit' }).formatToParts(now);
+            const get = type => Number((parts.find(part => part.type === type) || {}).value || 0);
+            const y = get('year'), m = get('month'), d = get('day');
+            const startGuess = Date.UTC(y, m - 1, d);
+            const start = startGuess - bfgParisOffsetMs_(new Date(startGuess));
+            const endGuess = Date.UTC(y, m - 1, d + 1);
+            const end = endGuess - bfgParisOffsetMs_(new Date(endGuess));
+            return { start, end };
+        }
+
+        // France métropolitaine et Corse : région d'information de vol LF.. de la ligne Q) (les NOTAM
+        // émis par LFFA pour l'outre-mer ont une autre région, ex. SOOO). Sans ligne Q) : préfixe LF..-.
+        function bfgNotamZoneIsFrance_(item) {
+            const text = String(item && item.description || '');
+            const q = text.match(/(?:^|\n)\s*Q\)\s*([A-Z]{4})\//);
+            return q ? q[1].startsWith('LF') : /^LF[A-Z]{2}-/.test(text);
+        }
+
+        // Créneaux [{ start, end, atc }] (ms UTC) qui touchent l'intervalle [fromMs, toMs].
+        function bfgNotamZoneWindows_(item, fromMs, toMs) {
+            const out = [];
+            const acts = Array.isArray(item && item.activations) ? item.activations : [];
+            acts.forEach(act => {
+                const days = Array.isArray(act && act.days) && act.days.length ? act.days.map(Number) : [1, 2, 3, 4, 5, 6, 7];
+                const atc = !!(act && act.atc);
+                (Array.isArray(act && act.windows) ? act.windows : []).forEach(w => {
+                    const s = bfgParseFlexibleDate_(w && w.start);
+                    if (!s) return;
+                    const e = bfgParseFlexibleDate_(w && w.end);
+                    const sMs = s.getTime();
+                    const eMs = e ? e.getTime() : Number.MAX_SAFE_INTEGER;   // fin absente (PERM)
+                    if (!act.dailyTimeWindow) {
+                        if (sMs < toMs && eMs > fromMs) out.push({ start: sMs, end: eMs, atc });
+                        return;
+                    }
+                    if (!e || eMs < sMs) return;   // période incohérente : ignorée
+                    const startTod = sMs % 86400000;
+                    let endTod = eMs % 86400000;
+                    if (endTod <= startTod) endTod += 86400000;
+                    for (let day = Math.max(Math.floor(sMs / 86400000), Math.floor(fromMs / 86400000) - 1);
+                        day <= Math.min(Math.floor(eMs / 86400000), Math.floor(toMs / 86400000) + 1); day++) {
+                        const isoDay = ((new Date(day * 86400000).getUTCDay() + 6) % 7) + 1;
+                        if (!days.includes(isoDay)) continue;
+                        const ws = day * 86400000 + startTod, we = day * 86400000 + endTod;
+                        if (ws < toMs && we > fromMs) out.push({ start: ws, end: we, atc });
+                    }
+                });
+            });
+            if (!acts.length) {
+                const s = bfgParseFlexibleDate_(item && item.startValidity);
+                const e = bfgParseFlexibleDate_(item && item.endValidity);
+                if (s && s.getTime() < toMs && (!e || e.getTime() > fromMs)) {
+                    out.push({ start: s.getTime(), end: e ? e.getTime() : Number.MAX_SAFE_INTEGER, atc: false, noSchedule: true });
+                }
+            }
+            return out.sort((a, b) => a.start - b.start);
+        }
+
+        function bfgNotamZoneUtc_(ms, withDay) {
+            if (ms >= Number.MAX_SAFE_INTEGER) return 'PERM';
+            const d = new Date(ms);
+            const hm = `${String(d.getUTCHours()).padStart(2, '0')}:${String(d.getUTCMinutes()).padStart(2, '0')}`;
+            return withDay ? `${String(d.getUTCDate()).padStart(2, '0')}/${String(d.getUTCMonth() + 1).padStart(2, '0')} ${hm}` : hm;
+        }
+
+        function bfgNotamZonePopupHtml_(zone, nowMs) {
+            const kind = zone.type === 'ACTIVATION' ? 'Activation par NOTAM' : 'Zone créée par NOTAM';
+            const style = BFG_NOTAM_ZONE_STYLES_[zone.state];
+            const slots = zone.todayWindows.some(w => w.noSchedule)
+                ? 'voir le texte du NOTAM'
+                : zone.todayWindows.map(w => {
+                    const sameDay = w.end < Number.MAX_SAFE_INTEGER && new Date(w.start).getUTCDate() === new Date(w.end).getUTCDate();
+                    return `${bfgNotamZoneUtc_(w.start, true)}–${sameDay ? bfgNotamZoneUtc_(w.end, false) : bfgNotamZoneUtc_(w.end, true)}${w.atc ? ' (activable)' : ''}`;
+                }).join(', ') + ' UTC';
+            return `<div style="font-size:13px;line-height:1.4;">`
+                + `<strong>${escapeHtml_(zone.label)}</strong><br>`
+                + `<span style="color:${style.color};font-weight:800;">${escapeHtml_(kind)} — ${escapeHtml_(style.label)}</span><br>`
+                + `Plancher : ${escapeHtml_(zone.lower)} — Plafond : ${escapeHtml_(zone.upper)}<br>`
+                + `Horaires du jour : ${escapeHtml_(slots)}`
+                + (zone.code ? `<br><span style="color:#64748b;">${escapeHtml_(zone.code)}</span>` : '')
+                + `<pre style="white-space:pre-wrap;margin:6px 0 0 0;padding:6px;background:#f1f5f9;border-radius:6px;font-size:11.5px;">${escapeHtml_(zone.notamText)}</pre>`
+                + `</div>`;
+        }
+
+        // Zones NOTAM à afficher maintenant (aucune dépendance au dessin).
+        function bfgBuildNotamZones_(payload, nowMs = Date.now()) {
+            const { start: dayStart, end: dayEnd } = bfgParisDayBounds_(nowMs);
+            const maxFlInput = document.getElementById('sup-aip-map-max-fl');
+            const maxFl = maxFlInput && maxFlInput.value !== '' ? Number(maxFlInput.value) : null;
+            const zones = [];
+            bfgExtractSupAipItems_(payload).forEach(raw => {
+                const item = raw && raw.properties && typeof raw.properties === 'object' ? { ...raw, ...raw.properties } : (raw || {});
+                const type = String(item.type || '').toUpperCase();
+                if (type !== 'TEMPORARY' && type !== 'ACTIVATION') return;
+                if (!bfgNotamZoneIsFrance_(item)) return;
+                const geometry = bfgNormalizeSupAipGeometry_(item);
+                if (!geometry) return;
+                const lowerReference = String(item.lowerLimitReference || '').trim();
+                const lowerMsl = Number(item.lowerLimitMsl);
+                const lowerFl = bfgAltitudeToFl_(item.lowerLimit, item.lowerLimitUnit || '');
+                const lowerForFilter = bfgSupAipLowerFlForFilter_({ lowerReference, lowerMsl, lowerFl });
+                if (Number.isFinite(maxFl) && Number.isFinite(lowerForFilter) && lowerForFilter >= maxFl) return;
+                const todayWindows = bfgNotamZoneWindows_(item, dayStart, dayEnd);
+                const current = todayWindows.filter(w => w.start <= nowMs && w.end > nowMs);
+                const later = todayWindows.filter(w => w.start > nowMs);
+                let state = null;
+                if (current.some(w => !w.atc)) state = 'active';
+                else if (current.length) state = 'activable';
+                else if (later.length) state = 'upcoming';
+                if (!state) return;   // aucun créneau restant aujourd'hui
+                const notamText = String(item.description || '').trim();
+                zones.push({
+                    id: String(item.id || item.code || zones.length), code: String(item.code || '').trim(),
+                    label: String(item.label || item.code || 'Zone NOTAM').trim(), type, geometry, state, todayWindows,
+                    lower: bfgFormatSupAipAltitude_(item.lowerLimit, lowerFl, item.lowerLimitUnit || '', lowerReference, item.lowerLimitMsl),
+                    upper: bfgFormatSupAipAltitude_(item.upperLimit, bfgAltitudeToFl_(item.upperLimit, item.upperLimitUnit || ''), item.upperLimitUnit || '', item.upperLimitReference || '', item.upperLimitMsl),
+                    notamText
+                });
+            });
+            return zones;
+        }
+
+        function bfgUpdateNotamZonesStatus_(shownCount = null) {
+            const el = document.getElementById('sup-aip-notam-zones-status');
+            if (!el) return;
+            el.classList.remove('bfg-notam-zones-fresh', 'bfg-notam-zones-stale', 'warning');
+            if (!bfgSupAipRawPayload_) {
+                el.classList.add('warning');
+                el.textContent = 'Zones NOTAM SDVFR indisponibles (réponse SDVFR absente ou illisible). Le reste de la carte fonctionne normalement.';
+                return;
+            }
+            const releve = bfgParseFlexibleDate_(bfgSupAipReleveAt_);
+            if (!releve) {
+                el.classList.add('bfg-notam-zones-stale');
+                el.textContent = 'Zones NOTAM SDVFR : date du relevé inconnue.';
+                return;
+            }
+            const p = bfgSofiaParisParts_(releve);
+            el.classList.add(Date.now() - releve.getTime() < BFG_NOTAM_ZONES_FRESH_MS_ ? 'bfg-notam-zones-fresh' : 'bfg-notam-zones-stale');
+            el.textContent = `Zones NOTAM SDVFR du ${p.dayLabel} à ${p.time}`
+                + (shownCount === 0 && bfgNotamZonesEnabled_() ? ' — aucune zone NOTAM aujourd\'hui' : '');
+        }
+
+        // Dessin de la couche ; recalculée chaque minute, redessinée seulement si un état change.
+        function bfgRenderNotamZones_(options = {}) {
+            if (!bfgSupAipFranceMap_ || !window.L) return;
+            let zones = [];
+            try {
+                zones = bfgSupAipRawPayload_ && bfgNotamZonesEnabled_() ? bfgBuildNotamZones_(bfgSupAipRawPayload_) : [];
+            } catch (error) {
+                console.warn('BFG zones NOTAM : lecture impossible.', error);
+                zones = [];
+            }
+            const metroBounds = L.latLngBounds(BFG_SUPAIP_METRO_BOUNDS_);
+            const signature = (bfgNotamZonesEnabled_() ? 'on' : 'off') + '|' + zones.map(z => `${z.id}:${z.state}`).join('#');
+            if (!options.force && signature === bfgNotamZonesSignature_ && bfgNotamZonesLayer_) {
+                bfgUpdateNotamZonesStatus_(bfgNotamZoneTargets_.length);
+                return;
+            }
+            bfgNotamZonesSignature_ = signature;
+            if (bfgNotamZonesLayer_) { bfgNotamZonesLayer_.remove(); bfgNotamZonesLayer_ = null; }
+            const group = L.featureGroup();
+            const targets = [];
+            const nowMs = Date.now();
+            zones.forEach(zone => {
+                try {
+                    const st = BFG_NOTAM_ZONE_STYLES_[zone.state];
+                    const layer = L.geoJSON({ type: 'Feature', geometry: zone.geometry, properties: {} }, {
+                        style: { color: st.color, weight: 2.5, dashArray: '7 5', fillColor: st.fillColor, fillOpacity: zone.state === 'upcoming' ? 0.06 : 0.14 },
+                        interactive: false
+                    });
+                    const bounds = layer.getBounds();
+                    if (!bounds.isValid() || !bounds.overlaps(metroBounds)) return;
+                    layer.addTo(group);
+                    targets.push({ geometry: zone.geometry, html: bfgNotamZonePopupHtml_(zone, nowMs) });
+                } catch (error) {
+                    console.warn('BFG zones NOTAM : géométrie ignorée.', error, zone.label);
+                }
+            });
+            group.addTo(bfgSupAipFranceMap_);
+            bfgNotamZonesLayer_ = group;
+            bfgNotamZoneTargets_ = targets;
+            bfgRefreshMapPopup_();
+            bfgUpdateNotamZonesStatus_(targets.length);
+        }
 
         function bfgRenderSupAipFranceMap_(options = {}) {
             if (!bfgSupAipFranceMap_ || !bfgSupAipRawPayload_ || !window.L) return;
@@ -18045,6 +18306,8 @@ window.__notamTextFull = notamInput.value;
             bfgSupAipClickTargets_ = supAipTargets;
             bfgRefreshMapPopup_();
             bfgStartSupAipFuturePulse_();
+            // v5.50 — couche « Zones NOTAM », indépendante (une erreur n'affecte jamais les SUP AIP).
+            try { bfgRenderNotamZones_({ force: true }); } catch (error) { console.warn('BFG zones NOTAM :', error); }
             if (status) {
                 status.classList.remove('warning');
                 status.textContent = `${displayedCount} zone(s) SUP AIP affichée(s) en France métropolitaine / Corse.`;
@@ -18076,6 +18339,7 @@ window.__notamTextFull = notamInput.value;
                     status.classList.add('warning');
                     status.textContent = 'Carte SUP AIP indisponible. Consultez le diagnostic BFG pour le détail technique.';
                 }
+                try { bfgUpdateNotamZonesStatus_(); } catch (_) {}
             } finally {
                 if (button) button.disabled = false;
             }
@@ -18120,6 +18384,12 @@ window.__notamTextFull = notamInput.value;
             if (showAllInput) {
                 showAllInput.checked = false;
                 showAllInput.addEventListener('change', () => bfgRenderSupAipFranceMap_({ keepView: true }));
+            }
+            // v5.50 — case « Zones NOTAM » : cochée à chaque ouverture (affichée par défaut).
+            const notamZonesInput = document.getElementById('sup-aip-map-notam-zones');
+            if (notamZonesInput) {
+                notamZonesInput.checked = true;
+                notamZonesInput.addEventListener('change', () => bfgRenderNotamZones_({ force: true }));
             }
             setTimeout(() => bfgSupAipFranceMap_?.invalidateSize(false), 100);
             bfgLoadAndRenderSupAipMap_(false);

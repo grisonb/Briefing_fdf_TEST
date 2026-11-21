@@ -1,7 +1,7 @@
 {
   "name": "Briefing FDF TEST",
   "short_name": "Briefing TEST",
-  "description": "Briefing FDF TEST v5.49 — Diagnostic : un jour de comparaison NOTAM « non comparé » ne compte plus comme un jour sans écart",
+  "description": "Briefing FDF TEST v5.50 — carte SUP AIP : couche Zones NOTAM (zones créées ou activées par NOTAM)",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
