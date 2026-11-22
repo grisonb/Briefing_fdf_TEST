@@ -443,6 +443,100 @@ C. CONTRÔLES AVANT TOUTE LIVRAISON
       surligneur, repli hors ligne NAS) ;
     - nouvelle entrée ajoutée EN TÊTE de ce journal, sous cette section 0,
       historique intégralement conservé.
+TEST v5.52 — 2026-11-22
+Base : TEST v5.51
+===============================================================================
+
+CARTE SUP AIP, ZONES NOTAM : LA FENÊTRE AU TOUCHER N'APPELLE PLUS « HORAIRES DU
+JOUR » UNE PÉRIODE DE PLUSIEURS JOURS OU MOIS.
+
+0. CONSTAT (Bastien, 22/11)
+- R 71 A SALON, LFFA-M4005/26 : « Horaires du jour : 17/11 08:11–16/02 16:00
+  UTC ». Ce NOTAM n'a pas de ligne D) : il court du 17/11/2026 08:11 au
+  16/02/2027 16:00, sans horaire quotidien.
+
+1. CAUSE
+- bfgNotamZonePopupHtml_ écrivait tout créneau touchant la journée sous
+  « Horaires du jour », y compris l'unique période B) -> C) que SDVFR donne pour
+  un NOTAM sans ligne D) (une seule fenêtre, dailyTimeWindow faux).
+- Même réponse : un horaire quotidien affichait aussi le créneau de la veille
+  qui déborde sur la nuit de Paris (« 21/11 00:00–23:59, 22/11 00:00–23:59 »
+  pour ZRT SOMME 2 ; 00:00–23:59 UTC finit à 00:59 heure de Paris).
+
+2. CORRECTION (index.html, fenêtre au toucher des zones NOTAM seulement)
+- bfgNotamZoneWindows_ marque les créneaux issus d'un horaire quotidien
+  découpé par SDVFR (daily: true ; sans effet sur les RTBA, qui recopient
+  début / fin seulement).
+- Nouvelle bfgNotamZoneScheduleHtml_ (et bfgNotamZoneUtcDate_), appelée par
+  bfgNotamZonePopupHtml_ :
+  * créneau compris dans la date du jour (date de Paris, ou même date en UTC),
+    ou créneau d'un horaire quotidien qui commence aujourd'hui (date UTC, comme
+    la ligne D)) ou est en cours : « Horaires du jour : HH:MM–HH:MM UTC »
+    (sans la date, qui était répétée) ;
+  * créneau qui déborde de la journée : « En vigueur du JJ/MM HH:MM au
+    JJ/MM/AAAA HH:MM UTC, sans horaire quotidien précisé » (année seulement si
+    elle diffère de l'année en cours ; « (activable) » gardé ; fin absente :
+    « En vigueur depuis le … UTC, sans date de fin, … ») ;
+  * même cas mais NOTAM AVEC ligne D) que SDVFR n'a pas découpée (ex. ZRT
+    EXTEL 14, D) « 22 1300-2359, 23-25 0000-2359, 26 0000-1300 », rendue en
+    une période 22/11 13:00 -> 26/11 13:00) : « … UTC (activable) — horaires
+    détaillés : voir la ligne D) du NOTAM » (« sans horaire quotidien » y
+    serait faux) ;
+  * zone sans aucun créneau SDVFR (activations vides) : sans ligne D),
+    période B) -> C) comme ci-dessus (ex. VOL DE DRONES : « En vigueur du
+    01/07 00:00 au 31/12 00:00 UTC, sans horaire quotidien précisé », au lieu
+    de « voir le texte du NOTAM ») ; avec ligne D) : « Horaires du jour : voir
+    le texte du NOTAM », inchangé.
+- Rien d'autre : état (active / activable / à venir), couleurs, plancher et
+  plafond, texte du NOTAM, choix des zones du jour, RTBA, SUP AIP inchangés.
+- Aucun nouveau texte visible mentionnant SDVFR (liste 0.B5 inchangée).
+
+3. ESSAIS (22/11/2026 vers 16:45 UTC ; réponse SDVFR du NAS relue en lecture
+   publique, briefing-data/sdvfr-temporary-airspaces/supaip-result.json, relevé
+   de 15:45 UTC, copie locale ; aucune requête SDVFR ; NAS simulé ; outils et
+   résultats : ~/projects/outils_tests_BFG_TEST/navigateur/v552/)
+- R 71 A SALON (ACTIVATION, sans D)) : « En vigueur du 17/11 08:11 au
+  16/02/2027 16:00 UTC, sans horaire quotidien précisé ». Capture
+  png/h552-salon.png.
+- D 16 C GLENAN (ACTIVATION, créneau du jour) : « Horaires du jour :
+  16:00–18:00 UTC ». ZRT DRONE ROUEN DEP : « 07:00–21:00 (activable) UTC ».
+- Horaires quotidiens découpés par SDVFR (relus aussi lundi 23/11 09:00Z et
+  mardi 24/11 12:00Z et 21:30Z) : ZRT CROTALE « 07:00–16:00 (activable) »,
+  ZRT FRANCAZAL EDME mardi « 06:30–11:00 (activable), 12:00–17:00
+  (activable) », R 185 SACCONGES lundi « 06:00–18:00 », mardi
+  « 06:00–23:59 », R 174 MEYENHEIM « 00:00–23:59 » (une seule fois), ZRT
+  SOMME 2 DAY / NIGHT « 00:00–23:59 (activable) » (une seule fois).
+- Créneaux datés découpés par SDVFR : R 287 ST MEDARD mardi « 11:00–19:00 »,
+  R 602 ABLIS « 06:00–18:00 ».
+- Longues périodes : CEREBOS « En vigueur depuis le 11/06 09:30 UTC, sans
+  date de fin, … » ; ZRT CHANCEAUX PRES LOCHES « … au 31/03/2028 23:59 UTC
+  (activable), … » ; ZIT SOUZY LA BRICHE « du 20/11 13:00 au 23/11 13:00 ».
+- v5.51 et v5.52 sur la même réponse : 168 SUP AIP identiques, 0 RTBA (« Aucun
+  RTBA retourné par SDVFR actuellement. »), 31 zones NOTAM, mêmes états,
+  planchers et plafonds, même ligne de fraîcheur.
+- Non-régression : démarrage, connexion (156 NOTAM SOFIA, 27 terrains,
+  METAR), cartes des risques, FdS et GAAR du jour, Service Worker 5.52, hors
+  ligne, caches témoins pérenne et NPF-Q400 intacts ; aucune erreur JS
+  (« Failed to fetch » hors ligne seulement).
+
+REMARQUE (non traitée)
+- Les créneaux « lever / coucher du soleil » (start_sr, end_ss, start_delay)
+  ne sont pas interprétés : BFG affiche les heures données par SDVFR (ex. ZRT
+  SOMME 2 DAY, D) SR-30 / SS+30, affichée 00:00–23:59). Comportement déjà
+  présent en v5.50 / v5.51.
+
+VERSIONS
+- APP_VERSION_NUMBER 5.52, APP_VERSION « 5.52 TEST - HORAIRES ZONES NOTAM »,
+  BFG_SW_VERSION 5.52, CACHE_NAME
+  'briefing-fdf-test-v5.52-horaires-zones-notam-r1', description du manifest,
+  <title> « Briefing Fdf TEST v5.52 ».
+
+PÉRENNE
+- Rien à porter : la couche Zones NOTAM n'existe qu'en TEST.
+
+STATUTS v5.52
+- Fenêtre des zones NOTAM : À MESURER sur iPad.
+
 TEST v5.51 — 2026-11-22
 Base : TEST v5.50
 ===============================================================================

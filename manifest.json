@@ -1,7 +1,7 @@
 {
   "name": "Briefing FDF TEST",
   "short_name": "Briefing TEST",
-  "description": "Briefing FDF TEST v5.51 — carte SUP AIP : seules les vraies RTBA sont dessinées en magenta (nouveau format SDVFR)",
+  "description": "Briefing FDF TEST v5.52 — carte SUP AIP, zones NOTAM : horaires du jour ou période en vigueur dans la fenêtre au toucher",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
