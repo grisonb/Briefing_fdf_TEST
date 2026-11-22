@@ -12,7 +12,7 @@
         }
     </script>
     <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0">
-    <title>Briefing Fdf TEST v5.50</title>
+    <title>Briefing Fdf TEST v5.51</title>
     <link rel="manifest" href="./manifest.json?v=5.07">
     <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png?v=4.24">
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -3175,8 +3175,8 @@
     <footer>Données : Météo-France, SIA, Windy.com, SDVFR. Page non commerciale, à usage personnel.</footer>
     
     <script>
-        const APP_VERSION_NUMBER = "5.50";
-        const APP_VERSION = `${APP_VERSION_NUMBER} TEST - ZONES NOTAM`;
+        const APP_VERSION_NUMBER = "5.51";
+        const APP_VERSION = `${APP_VERSION_NUMBER} TEST - RTBA SEULEMENT`;
 
 
         // v4.97 — diagnostic conservé ; plage NOTAM quotidienne et sélection prioritaire. Aucun code d'accès, token ou contenu NOTAM n'est exporté.
@@ -18488,13 +18488,28 @@ window.__notamTextFull = notamInput.value;
             el.classList.toggle('warning', !!warning);
         }
 
+        /* v5.51 — depuis novembre 2026, SDVFR renvoie TOUS les types (SUPAIP, ZSM, zones NOTAM)
+         * dans la réponse « RTBA », au nouveau format (champs startValidity, lowerLimit…). Avant la
+         * v5.51, chaque élément devenait un secteur RTBA « Actif ? → ? » (France couverte de
+         * magenta). Seules les vraies RTBA sont gardées : type AZBA ou sous-type RTBA. */
+        function bfgRtbaIsRealRtba_(item) {
+            if (!item || typeof item !== 'object') return false;
+            const type = String(item.type || '').trim().toUpperCase();
+            const local = String(item.local_type || item.localType || '').trim().toUpperCase();
+            return type === 'AZBA' || local === 'RTBA';
+        }
+        function bfgRtbaOnlyReal_(airspaces) {
+            return (Array.isArray(airspaces) ? airspaces : []).filter(bfgRtbaIsRealRtba_);
+        }
+
         function bfgRtbaReadCache_() {
             try {
                 const parsed = JSON.parse(localStorage.getItem(BFG_RTBA_CACHE_KEY_) || 'null');
                 if (!parsed || !Array.isArray(parsed.airspaces)) return null;
                 const fetchedAt = new Date(parsed.fetchedAt || '');
                 if (Number.isNaN(fetchedAt.getTime())) return null;
-                return { airspaces: parsed.airspaces, fetchedAt };
+                // v5.51 : copie d'avant la v5.51 (tous types) -> vraies RTBA seulement.
+                return { airspaces: bfgRtbaOnlyReal_(parsed.airspaces), fetchedAt };
             } catch (_) {
                 return null;
             }
@@ -18515,30 +18530,47 @@ window.__notamTextFull = notamInput.value;
         }
 
         // Normalisation stricte sur les champs RÉELS de SDVFR. null si l'objet est inexploitable.
+        // v5.51 : ancien format SDVFR (start_validity, lower_limit…) et nouveau (startValidity, lowerLimit…).
         function bfgNormalizeRtbaZone_(item) {
             if (!item || typeof item !== 'object') return null;
-            const start = bfgParseFlexibleDate_(item.start_validity);
-            const end = bfgParseFlexibleDate_(item.end_validity);
-            const lowerUnit = item.lower_limit_unit || '';
-            const upperUnit = item.upper_limit_unit || '';
+            const f = (snake, camel) => (item[snake] !== undefined && item[snake] !== null ? item[snake] : item[camel]);
+            const start = bfgParseFlexibleDate_(f('start_validity', 'startValidity'));
+            const end = bfgParseFlexibleDate_(f('end_validity', 'endValidity'));
+            const lowerUnit = f('lower_limit_unit', 'lowerLimitUnit') || '';
+            const upperUnit = f('upper_limit_unit', 'upperLimitUnit') || '';
             return {
                 id: String(item.id || ''),
                 code: String(item.code || item.label || '').trim() || 'RTBA',
-                localType: String(item.local_type || ''),
+                localType: String(f('local_type', 'localType') || ''),
                 geometry: typeof item.coordinates === 'string' ? bfgParseWktGeometry_(item.coordinates) : null,
                 start,
                 end,
-                lowerRaw: item.lower_limit,
+                lowerRaw: f('lower_limit', 'lowerLimit'),
                 lowerUnit,
-                lowerReference: String(item.lower_limit_reference || '').trim(),
-                lowerFl: bfgAltitudeToFl_(item.lower_limit, lowerUnit),
-                lowerMsl: item.lower_limit_msl,
-                upperRaw: item.upper_limit,
+                lowerReference: String(f('lower_limit_reference', 'lowerLimitReference') || '').trim(),
+                lowerFl: bfgAltitudeToFl_(f('lower_limit', 'lowerLimit'), lowerUnit),
+                lowerMsl: f('lower_limit_msl', 'lowerLimitMsl'),
+                upperRaw: f('upper_limit', 'upperLimit'),
                 upperUnit,
-                upperReference: String(item.upper_limit_reference || '').trim(),
-                upperFl: bfgAltitudeToFl_(item.upper_limit, upperUnit),
-                upperMsl: item.upper_limit_msl
+                upperReference: String(f('upper_limit_reference', 'upperLimitReference') || '').trim(),
+                upperFl: bfgAltitudeToFl_(f('upper_limit', 'upperLimit'), upperUnit),
+                upperMsl: f('upper_limit_msl', 'upperLimitMsl')
             };
+        }
+
+        /* v5.51 — créneaux d'une RTBA : un élément = un créneau (début / fin) ; si SDVFR donne
+         * des créneaux détaillés (activations, nouveau format), un créneau par plage (mêmes règles
+         * que les zones NOTAM). Aucun créneau lisible : aucune zone (jamais « ? → ? »). */
+        function bfgRtbaSlotsFromItem_(item, nowMs) {
+            const zone = bfgNormalizeRtbaZone_(item);
+            if (!zone) return [];
+            const acts = Array.isArray(item.activations) ? item.activations : [];
+            if (acts.some(a => Array.isArray(a && a.windows) && a.windows.length)) {
+                return bfgNotamZoneWindows_(item, nowMs - 86400000, nowMs + 2 * 86400000)
+                    .filter(w => !w.noSchedule && w.end < Number.MAX_SAFE_INTEGER)
+                    .map(w => ({ ...zone, start: new Date(w.start), end: new Date(w.end) }));
+            }
+            return [zone];
         }
 
         // 'active' : début ≤ maintenant < fin ; 'upcoming' : début > maintenant ; 'ended' : fin ≤ maintenant.
@@ -18706,13 +18738,16 @@ window.__notamTextFull = notamInput.value;
         }
 
         function bfgBuildRtbaGroups_(airspaces, nowMs = Date.now()) {
-            const counts = { slotsEnded: 0, slotsFilteredFl: 0, slotsInvalid: 0, slotsNight: 0, slotsAfterSunset: 0 };
+            const counts = { slotsEnded: 0, slotsFilteredFl: 0, slotsInvalid: 0, slotsNight: 0, slotsAfterSunset: 0, slotsNoSchedule: 0 };
             const byKey = new Map();
             const geometriesByCode = new Map();
-            (airspaces || []).forEach(item => {
-                const zone = bfgNormalizeRtbaZone_(item);
-                if (!zone) return;
+            (airspaces || []).filter(bfgRtbaIsRealRtba_).forEach(item => {
+                const slotsOfItem = bfgRtbaSlotsFromItem_(item, nowMs);
+                if (!slotsOfItem.length) { counts.slotsNoSchedule += 1; return; }
+                slotsOfItem.forEach(zone => {
                 const geometryText = typeof (item && item.coordinates) === 'string' ? item.coordinates.trim() : '';
+                // v5.51 : début ou fin illisible -> non affiché (avant : « Actif ? → ? »).
+                if (!(zone.start instanceof Date) || !(zone.end instanceof Date)) { counts.slotsNoSchedule += 1; return; }
                 if (!geometriesByCode.has(zone.code)) geometriesByCode.set(zone.code, new Set());
                 geometriesByCode.get(zone.code).add(geometryText);
                 const status = bfgRtbaZoneStatus_(zone, nowMs);
@@ -18737,6 +18772,7 @@ window.__notamTextFull = notamInput.value;
                 const key = `${zone.code}|${geometryText}`;
                 if (!byKey.has(key)) byKey.set(key, { key, code: zone.code, geometry: zone.geometry, slots: [] });
                 byKey.get(key).slots.push({ zone, status });
+                });
             });
             const groups = Array.from(byKey.values()).map(group => {
                 group.slots.sort((x, y) => {
@@ -18871,6 +18907,7 @@ window.__notamTextFull = notamInput.value;
 
             Object.assign(bfgRtbaDiag_, {
                 zonesReceived: bfgRtbaAirspaces_.length,
+                zonesNoSchedule: counts.slotsNoSchedule,
                 sectorsActive,
                 sectorsUpcoming,
                 zonesEnded: counts.slotsEnded,
@@ -18882,14 +18919,19 @@ window.__notamTextFull = notamInput.value;
             });
 
             // Statut : une erreur n'est jamais présentée comme une absence de RTBA.
+            // v5.51 : messages fidèles au dessin ; une RTBA illisible (contour ou horaire) est
+            // signalée, jamais dessinée.
+            const unreadable = counts.slotsInvalid + counts.slotsNoSchedule;
+            const unreadableText = unreadable > 0
+                ? ` — ${unreadable} RTBA illisible(s) (contour ou horaire) non affichée(s) : consulter SDVFR.` : '';
             if (bfgRtbaFromCache_) {
-                bfgRtbaSetStatus_(`RTBA : données en cache (${bfgRtbaHhMm_(bfgRtbaFetchedAt_)})`, true);
-            } else if (counts.slotsInvalid > 0) {
-                bfgRtbaSetStatus_(`⚠️ RTBA : ${counts.slotsInvalid} zone(s) reçue(s), affichage non disponible dans cette version de test. Consulter SDVFR.`, true);
+                bfgRtbaSetStatus_(`RTBA : données en cache (${bfgRtbaHhMm_(bfgRtbaFetchedAt_)})${unreadableText}`, true);
             } else if (bfgRtbaAirspaces_.length === 0) {
                 bfgRtbaSetStatus_('Aucun RTBA retourné par SDVFR actuellement.');
+            } else if (unreadable > 0 && sectorsActive + sectorsUpcoming === 0) {
+                bfgRtbaSetStatus_(`⚠️ RTBA : ${unreadable} RTBA reçue(s) mais illisible(s) (contour ou horaire), non affichée(s) : consulter SDVFR.`, true);
             } else {
-                bfgRtbaSetStatus_(`RTBA : mis à jour à ${bfgRtbaHhMm_(bfgRtbaFetchedAt_)}`);
+                bfgRtbaSetStatus_(`RTBA : mis à jour à ${bfgRtbaHhMm_(bfgRtbaFetchedAt_)}${unreadableText}`, unreadable > 0);
             }
             if (changed) {
                 bfgRtbaLog_('Couche RTBA mise à jour', {
@@ -18973,7 +19015,7 @@ window.__notamTextFull = notamInput.value;
                 catch (_) { throw new Error('réponse non JSON'); }
 
                 // Réponse valide uniquement si tout est reconnu ; sinon ERREUR.
-                const airspaces = data && data.payload && data.payload.airspaces;
+                let airspaces = data && data.payload && data.payload.airspaces;
                 if (!data || data.ok !== true || data.type !== 'rtba' || !Array.isArray(airspaces)) {
                     throw new Error(data && data.error ? String(data.error) : 'structure de réponse non reconnue');
                 }
@@ -18989,6 +19031,10 @@ window.__notamTextFull = notamInput.value;
                 // quand BFG n'obtient aucune réponse valide.
                 const fetchedAt = bfgParseFlexibleDate_(data.finishedAt || data.savedAt) || new Date();
                 const fromNasCache = /^nas-cache/.test(String(data.source || '')) || data.stale === true;
+                // v5.51 : vraies RTBA seulement (les autres types sont ignorés, et pas mis en cache).
+                const allReceived = airspaces.length;
+                airspaces = bfgRtbaOnlyReal_(airspaces);
+                bfgRtbaDiag_.nonRtbaIgnored = allReceived - airspaces.length;
                 bfgRtbaWriteCache_(airspaces, fetchedAt);
                 bfgRtbaAirspaces_ = airspaces;
                 bfgRtbaFetchedAt_ = fetchedAt;

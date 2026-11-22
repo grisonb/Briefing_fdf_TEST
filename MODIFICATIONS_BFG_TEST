@@ -295,9 +295,15 @@ B5. LISTE DE CONTRÔLE DE PROMOTION — MENTIONS VISIBLES DE « SDVFR » (v5.23)
                                                     (v5.35 : règle du coucher du
                                                     soleil ; le worker 5.25 demande
                                                     toujours jusqu'à 23:00 locale)
-    « ⚠️ RTBA : N zone(s) reçue(s), affichage    -> « … Consulter la page AZBA
-      non disponible dans cette version de          du SIA. » (et retirer « dans
-      test. Consulter SDVFR. »                      cette version de test »)
+    (v5.51 : remplacé, voir ci-dessous)
+    « ⚠️ RTBA : N RTBA reçue(s) mais illisible(s) -> « … non affichée(s) : consulter
+      (contour ou horaire), non affichée(s) :       la page AZBA du SIA. »
+      consulter SDVFR. »
+    « RTBA : mis à jour à HH:MM — N RTBA          -> « … non affichée(s) : consulter
+      illisible(s) (contour ou horaire) non         la page AZBA du SIA. »
+      affichée(s) : consulter SDVFR. »
+      (même fin après « RTBA : données en cache
+      (HH:MM) »)
     Météo « Non disponible via SDVFR. » —        -> « Non disponible. »
       4 occurrences : METAR et TAF, dans
       fetchAndDisplayWeather (~L.9980) et dans
@@ -437,6 +443,99 @@ C. CONTRÔLES AVANT TOUTE LIVRAISON
       surligneur, repli hors ligne NAS) ;
     - nouvelle entrée ajoutée EN TÊTE de ce journal, sous cette section 0,
       historique intégralement conservé.
+TEST v5.51 — 2026-11-22
+Base : TEST v5.50
+===============================================================================
+
+CARTE SUP AIP : SEULES LES VRAIES RTBA SONT DESSINÉES EN MAGENTA (NOUVEAU FORMAT
+SDVFR). ZONES NOTAM DE NOUVEAU VISIBLES.
+
+0. CONSTAT (Bastien, v5.50 en ligne, 22/11 vers 11:45)
+- France couverte de zones et de couloirs magenta (couleur RTBA), grandes zones en
+  mer à l'ouest de la Bretagne ; fenêtre « RTBA — LF_2026_053 — Statut : Actif —
+  Plancher / Plafond : Non précisé — ACTIF ? → ? » (deux lignes) ; « RTBA : 1
+  zone(s) reçue(s), affichage non disponible… » ; zones NOTAM invisibles.
+
+1. CAUSE (lecture publique du NAS, réponses du 22/11 11:40 et 11:45, copies dans
+   ~/projects/outils_tests_BFG_TEST/navigateur/v551/donnees/)
+- SDVFR renvoie désormais TOUS les types dans la réponse « RTBA » (737 éléments :
+  408 SUPAIP, 234 ZSM, 80 TEMPORARY, 15 ACTIVATION, aucune AZBA un dimanche), au
+  nouveau format (startValidity, lowerLimit… au lieu de start_validity,
+  lower_limit…). Le module RTBA de BFG prenait chaque élément sans regarder son
+  type et lisait l'ancien format : horaires et limites illisibles -> « actif par
+  prudence » -> 656 secteurs magenta « Actif ? → ? ».
+- LF_2026_053 = SUP AIP 53/2026, réseau de ZRT (Paris High, Le Bourget,
+  Châteaulin, Tours, Blois, Évreux…, FL95 à FL215, valable 16/04/2026 ->
+  12/04/2028), type SUPAIP, aucun créneau lisible chez SDVFR (activations vides).
+  Deux lignes « ? → ? » : SDVFR envoie certaines zones en double (même code, même
+  contour), regroupées en un secteur à deux créneaux.
+- Rejeu sur la même réponse : v5.49 et v5.50 identiques (656 secteurs) ->
+  changement des données SDVFR, pas un défaut de la v5.50. Les 29 zones NOTAM de
+  la v5.50 étaient dessinées mais recouvertes, et la fenêtre listait d'abord les
+  fausses RTBA.
+- Le message « 1 zone(s) reçue(s) » comptait les contours illisibles, pas les
+  zones reçues.
+- Le cache local RTBA recopiait les 1,8 Mo de la réponse dans localStorage.
+
+2. CORRECTION (index.html, module RTBA seulement)
+- bfgRtbaIsRealRtba_ / bfgRtbaOnlyReal_ : seules les vraies RTBA (type AZBA ou
+  sous-type RTBA) sont gardées, à la réception (avant le cache) et à la lecture du
+  cache local (copies d'avant la v5.51 filtrées). Les autres types sont ignorés
+  (nombre dans le diagnostic : nonRtbaIgnored).
+- bfgNormalizeRtbaZone_ : ancien et nouveau format SDVFR (snake_case et
+  camelCase).
+- bfgRtbaSlotsFromItem_ : un élément = un créneau (début / fin) ; si SDVFR donne
+  des créneaux détaillés (activations), un créneau par plage (règles des zones
+  NOTAM). Début ou fin illisible : JAMAIS dessiné (compté « illisible »).
+- Messages : « Aucun RTBA retourné par SDVFR actuellement. » si aucune vraie
+  RTBA ; « RTBA : mis à jour à HH:MM » ; s'il y a des RTBA illisibles :
+  « … — N RTBA illisible(s) (contour ou horaire) non affichée(s) : consulter
+  SDVFR. », ou « ⚠️ RTBA : N RTBA reçue(s) mais illisible(s) (contour ou horaire),
+  non affichée(s) : consulter SDVFR. » si rien n'est dessiné. Liste 0.B5 mise à
+  jour.
+- Rien d'autre : dessin des SUP AIP, couche Zones NOTAM, filtres RTBA (FL,
+  nuit, coucher du soleil) et fenêtre RTBA inchangés.
+
+3. ESSAIS (22/11/2026 ; NAS simulé servant les copies des réponses du 22/11 ;
+   aucune requête SDVFR ; aucun accès au vrai NAS ni au vrai VPS hors lecture
+   publique du point 1 ; outils et captures :
+   ~/projects/outils_tests_BFG_TEST/navigateur/v551/)
+- Réponse du 22/11 : 0 secteur RTBA (656 en v5.50), « Aucun RTBA retourné par
+  SDVFR actuellement. » ; 168 SUP AIP identiques à la v5.49 (mêmes noms) ; 29
+  zones NOTAM visibles, fenêtre « ZIT SOUZY LA BRICHE — Zone créée par NOTAM —
+  Active ». Captures png/r550-france.png (avant) et png/r551-reel-france.png
+  (après).
+- Semaine : 30 RTBA réelles du 28/09 décalées au 22/11, ajoutées à la réponse du
+  22/11, ancien format et nouveau format : 9 secteurs (les 9 vraies RTBA de la
+  v5.49, mêmes limites et créneaux, ex. 45 S6.1 MACONNAIS NORD-EST, 800 ft ASFC /
+  FL85, 11:30Z → 12:00Z et 13:00Z → 13:30Z) ; v5.49 sur les mêmes données : 665
+  secteurs (9 + 656 faux).
+- RTBA sans horaire : non dessinée, message « ⚠️ RTBA : 1 RTBA reçue(s) mais
+  illisible(s)… » ; avec une RTBA lisible : 1 secteur, « RTBA : mis à jour à
+  11:45 — 1 RTBA illisible(s)… ».
+- Cache local RTBA : 36 Ko au lieu de 1,8 Mo.
+- Non-régression rapide : démarrage, connexion (156 NOTAM SOFIA, 27 terrains,
+  METAR), cartes des risques, FdS et GAAR du jour, Service Worker 5.51, hors
+  ligne, caches témoins pérenne et NPF-Q400 intacts ; aucune erreur JS
+  (« Failed to fetch » hors ligne seulement).
+
+VERSIONS
+- APP_VERSION_NUMBER 5.51, APP_VERSION « 5.51 TEST - RTBA SEULEMENT »,
+  BFG_SW_VERSION 5.51, CACHE_NAME 'briefing-fdf-test-v5.51-rtba-seulement-r1',
+  description du manifest, <title> « Briefing Fdf TEST v5.51 ».
+
+À PORTER EN PÉRENNE — URGENT
+- La pérenne a le même module RTBA (v5.22 à v5.36) : avec la réponse SDVFR
+  actuelle, elle couvre elle aussi la France de magenta. Porter
+  bfgRtbaIsRealRtba_ / bfgRtbaOnlyReal_, la lecture des deux formats,
+  bfgRtbaSlotsFromItem_ et les messages (textes pérennes de la liste 0.B5).
+  Non vérifié dans la pérenne : à contrôler avant de porter.
+
+STATUTS v5.51
+- RTBA au nouveau format en semaine : À MESURER (aucune RTBA réelle au nouveau
+  format disponible ; essai sur RTBA du 28/09 converties).
+- Carte SUP AIP / RTBA / zones NOTAM : À MESURER sur iPad.
+
 TEST v5.50 — 2026-11-21
 Base : TEST v5.49
 ===============================================================================
